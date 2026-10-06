@@ -7,7 +7,7 @@ import {
   sellers,
 } from "@azadimart/database";
 import { AppError, sellerApprovalSchema, toApiError } from "@azadimart/shared";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
