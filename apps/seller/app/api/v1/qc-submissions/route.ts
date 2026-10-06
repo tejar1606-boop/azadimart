@@ -1,6 +1,6 @@
 import { requireApiAccess } from "@azadimart/auth";
 import { createDatabase, products, qcSubmissions } from "@azadimart/database";
-import { qcSubmissionSchema, toApiError } from "@azadimart/shared";
+import { AppError, qcSubmissionSchema, toApiError } from "@azadimart/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   try {
     const principal = await requireApiAccess(request, "seller", ["SELLER"]);
     if (!principal.sellerId) {
-      throw new Error("Authenticated seller profile is missing");
+      throw new AppError("FORBIDDEN", "Seller profile is required");
     }
 
     const input = qcSubmissionSchema.parse(await request.json());
@@ -32,10 +32,10 @@ export async function POST(request: Request) {
 
     const product = productRows[0];
     if (!product) {
-      throw new Error("Product not found");
+      throw new AppError("NOT_FOUND", "Product not found");
     }
     if (!["DRAFT", "QC_REJECTED"].includes(product.status)) {
-      throw new Error("Product is not eligible for QC submission");
+      throw new AppError("CONFLICT", "Product is not eligible for QC submission");
     }
 
     const inserted = await db
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
     const submission = inserted[0];
     if (!submission) {
-      throw new Error("QC submission failed");
+      throw new AppError("INTERNAL", "QC submission failed", undefined, false);
     }
 
     await db
