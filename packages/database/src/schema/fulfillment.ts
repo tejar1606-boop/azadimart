@@ -54,6 +54,42 @@ export const shipmentEvents = pgTable(
   (table) => [index("shipment_events_shipment_id_idx").on(table.shipmentId)],
 );
 
+export const serviceability = pgTable(
+  "serviceability",
+  {
+    id,
+    deliveryProviderId: uuid("delivery_provider_id")
+      .notNull()
+      .references(() => deliveryProviders.id, { onDelete: "cascade" }),
+    postalCode: text("postal_code").notNull(),
+    serviceType: text("service_type").notNull(),
+    codAvailable: integer("cod_available").notNull().default(0),
+    estimatedDays: integer("estimated_days"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("serviceability_provider_postal_unique").on(table.deliveryProviderId, table.postalCode),
+    index("serviceability_postal_code_idx").on(table.postalCode),
+  ],
+);
+
+export const payoutItems = pgTable(
+  "payout_items",
+  {
+    id,
+    payoutId: uuid("payout_id").notNull().references(() => payouts.id, { onDelete: "cascade" }),
+    orderItemId: uuid("order_item_id").notNull().references(() => orderItems.id, { onDelete: "restrict" }),
+    grossAmountPaise: integer("gross_amount_paise").notNull(),
+    deductionsPaise: integer("deductions_paise").notNull().default(0),
+    netAmountPaise: integer("net_amount_paise").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index("payout_items_payout_id_idx").on(table.payoutId),
+    index("payout_items_order_item_id_idx").on(table.orderItemId),
+  ],
+);
+
 export const returns = pgTable(
   "returns",
   {
