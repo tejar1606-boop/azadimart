@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@azadimart/shared": "workspace:*",
-    "@azadimart/database": "workspace:*"
+    "@azadimart/database": "workspace:*",
+    "drizzle-orm": "^0.38.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
