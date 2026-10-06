@@ -1,6 +1,6 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, mediaAssets, productMedia, products } from "@azadimart/database";
-import { productDraftSchema, toApiError } from "@azadimart/shared";
+import { createDatabase, mediaAssets, productMedia, products, sellers } from "@azadimart/database";
+import { AppError, productDraftSchema, toApiError } from "@azadimart/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -22,11 +22,21 @@ export async function POST(request: Request) {
   try {
     const principal = await requireApiAccess(request, "seller", ["SELLER"]);
     if (!principal.sellerId) {
-      throw new Error("Authenticated seller profile is missing");
+      throw new AppError("FORBIDDEN", "Seller profile is required");
+    }
+
+    const db = createDatabase();
+    const sellerRows = await db
+      .select({ id: sellers.id, status: sellers.status })
+      .from(sellers)
+      .where(eq(sellers.id, principal.sellerId))
+      .limit(1);
+    const seller = sellerRows[0];
+    if (!seller || seller.status !== "ACTIVE") {
+      throw new AppError("FORBIDDEN", "Seller account is not active");
     }
 
     const input = productDraftSchema.parse(await request.json());
-    const db = createDatabase();
 
     const assetIds = [...input.imageAssetIds, ...(input.videoAssetId ? [input.videoAssetId] : [])];
     const assets = await db
@@ -44,15 +54,15 @@ export async function POST(request: Request) {
       );
 
     if (assets.length !== assetIds.length) {
-      throw new Error("One or more media assets are not owned by this seller");
+      throw new AppError("FORBIDDEN", "One or more media assets are not owned by this seller");
     }
 
     const assetById = new Map(assets.map((asset) => [asset.id, asset]));
     if (input.imageAssetIds.some((id) => assetById.get(id)?.kind !== "IMAGE")) {
-      throw new Error("All imageAssetIds must reference image media");
+      throw new AppError("VALIDATION_ERROR", "All imageAssetIds must reference image media");
     }
     if (input.videoAssetId && assetById.get(input.videoAssetId)?.kind !== "VIDEO") {
-      throw new Error("videoAssetId must reference video media");
+      throw new AppError("VALIDATION_ERROR", "videoAssetId must reference video media");
     }
 
     const inserted = await db
@@ -74,7 +84,7 @@ export async function POST(request: Request) {
 
     const product = inserted[0];
     if (!product) {
-      throw new Error("Product creation failed");
+      throw new AppError("INTERNAL", "Product creation failed", undefined, false);
     }
 
     try {
@@ -115,10 +125,20 @@ export async function GET(request: Request) {
   try {
     const principal = await requireApiAccess(request, "seller", ["SELLER"]);
     if (!principal.sellerId) {
-      throw new Error("Authenticated seller profile is missing");
+      throw new AppError("FORBIDDEN", "Seller profile is required");
     }
 
     const db = createDatabase();
+    const sellerRows = await db
+      .select({ id: sellers.id, status: sellers.status })
+      .from(sellers)
+      .where(eq(sellers.id, principal.sellerId))
+      .limit(1);
+    const seller = sellerRows[0];
+    if (!seller || seller.status !== "ACTIVE") {
+      throw new AppError("FORBIDDEN", "Seller account is not active");
+    }
+
     const rows = await db
       .select({
         id: products.id,
