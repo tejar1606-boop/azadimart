@@ -1,31 +1,122 @@
 # AzadiMart — API Design
 
-## 1. API Principles
+## Principles
+- REST-style APIs under /api
+- JSON responses except file transfer
+- server-side authentication and authorization
+- strict validation
+- consistent errors
+- pagination
+- idempotency for financial/duplicate-prone operations
+- no secrets in responses
 
-All APIs must follow these principles:
+## Response
+Success:
+```json
+{"success":true,"data":{},"meta":{}}
+```
 
-- REST-style HTTP APIs
+Error:
+```json
+{"success":false,"error":{"code":"VALIDATION_ERROR","message":"Invalid request","fields":{}}}
+```
 
-- JSON responses unless file upload/download requires otherwise
+## Auth
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/logout
+GET /api/auth/me
 
-- Server-side authentication
+## Customer
+GET/PATCH /api/customers/me
+GET/POST/PATCH/DELETE /api/customers/me/addresses/*
+GET /api/products
+GET /api/products/:id
+GET/POST/DELETE /api/wishlist/*
+GET/POST/PATCH/DELETE /api/cart/*
+POST /api/checkout/validate
+POST /api/orders
+GET /api/orders
+GET /api/orders/:id
+POST /api/orders/:id/cancel
+POST /api/orders/:id/returns
 
-- Server-side authorization
+## Seller
+GET /api/seller/me
+GET/PATCH /api/seller/products/*
+POST /api/seller/products
+POST /api/seller/products/:id/submit-qc
+GET /api/seller/qc
+GET/PATCH /api/seller/inventory/*
+GET /api/seller/orders
+GET /api/seller/returns
+GET /api/seller/payouts
+Seller IDs come from authenticated session, not trusted browser input.
 
-- Strict request validation
+## Media and A+
+POST/DELETE /api/media/*
+GET/POST/PATCH/DELETE /api/seller/products/:productId/aplus/*
 
-- Consistent error format
+Uploads validate actual type, MIME, extension, size, dimensions and video duration.
 
-- Pagination for list endpoints
+## Admin QC
+GET /api/admin/qc
+GET /api/admin/qc/:id
+POST /api/admin/qc/:id/approve
+POST /api/admin/qc/:id/reject
+POST /api/admin/qc/:id/request-changes
 
-- Idempotency for financial operations
+## Admin
+GET /api/admin/stats
+GET /api/admin/orders
+GET /api/admin/products
+GET /api/admin/sellers
+GET /api/admin/customers
+GET /api/admin/returns
+GET /api/admin/payouts
+GET /api/admin/support/tickets
+GET /api/admin/audit-logs
 
-- No secrets in responses
+## Payments
+POST /api/payments/create
+POST /api/payments/webhook/:provider
+GET /api/payments/:id
+Webhook signatures must be verified and events processed idempotently.
 
-- No direct client access to database credentials
+## Logistics
+GET /api/shipping/serviceability
+POST /api/seller/shipments
+GET /api/shipments/:id
+GET /api/shipments/:id/tracking
+POST /api/logistics/webhook/:provider
 
-Base API:
+## Storefront/theme
+GET/POST /api/admin/store/themes/*
+GET /api/admin/store/pages/:pageId
+POST/PATCH/DELETE /api/admin/store/pages/:pageId/sections/*
+POST /api/admin/store/pages/:pageId/reorder
+POST /api/admin/store/themes/:id/save-draft
+POST /api/admin/store/themes/:id/preview
+POST /api/admin/store/themes/:id/publish
+GET /api/admin/store/themes/:id/revisions
+POST /api/admin/store/themes/:id/revisions/:revisionId/rollback
+GET/POST /api/admin/store/banners
+POST /api/admin/store/media
 
-```text
+## Authorization
+CUSTOMER → own resources only.
+SELLER → own seller resources only.
+ADMIN → permitted platform operations.
+SUPER_ADMIN → full privileged administration.
 
-/api
+## File uploads
+Reject executables, scripts, unexpected archives and unsupported media.
+
+## Rate limiting
+At minimum: login, registration, password reset/OTP, file upload, checkout, payment creation, refunds, webhooks and admin authentication.
+
+## Health
+GET /api/health should return safe status only.
+
+## Definition of done
+Every endpoint has authentication/authorization rules, request validation, error handling, tests and documentation.
