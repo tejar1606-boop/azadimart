@@ -1,6 +1,6 @@
-import { createDatabase, products, qcSubmissions, auditLogs } from "@azadimart/database";
 import { requireApiAccess } from "@azadimart/auth";
-import { qcDecisionSchema, toApiError } from "@azadimart/shared";
+import { auditLogs, createDatabase, products, qcSubmissions } from "@azadimart/database";
+import { AppError, qcDecisionSchema, toApiError } from "@azadimart/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -25,10 +25,10 @@ export async function POST(request: Request) {
 
     const submission = submissions[0];
     if (!submission) {
-      throw new Error("QC submission not found");
+      throw new AppError("NOT_FOUND", "QC submission not found");
     }
     if (!["PENDING", "IN_REVIEW"].includes(submission.status)) {
-      throw new Error("QC submission is already finalized");
+      throw new AppError("CONFLICT", "QC submission is already finalized");
     }
 
     const nextProductStatus = input.decision === "APPROVED" ? "PENDING_ADMIN_APPROVAL" : "QC_REJECTED";
@@ -74,10 +74,7 @@ export async function POST(request: Request) {
       productStatus: nextProductStatus,
     });
   } catch (error) {
-    const normalizedError = error instanceof Error && error.message === "QC submission not found"
-      ? new (require("@azadimart/shared").AppError)("NOT_FOUND", error.message)
-      : error;
-    const { status, body } = toApiError(normalizedError, requestId);
+    const { status, body } = toApiError(error, requestId);
     return NextResponse.json(body, { status });
   }
 }
