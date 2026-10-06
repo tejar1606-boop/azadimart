@@ -23,6 +23,24 @@ export const sellerRegistrationSchema = z.object({
     .string()
     .regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/)
     .optional(),
+  password: z.string().min(8).max(256),
+});
+
+export const sellerKycSubmissionSchema = z.object({
+  documents: z
+    .array(kycDocumentSchema)
+    .min(1)
+    .max(5)
+    .refine(
+      (documents) => new Set(documents.map((document) => document.type)).size === documents.length,
+      "Each KYC document type may only be submitted once",
+    ),
+});
+
+export const sellerApprovalSchema = z.object({
+  sellerId: uuidSchema,
+  decision: z.enum(["APPROVED", "REJECTED"]),
+  notes: z.string().trim().max(2000).optional(),
 });
 
 export const kycDocumentSchema = z.object({
