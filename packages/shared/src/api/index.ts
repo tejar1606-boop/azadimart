@@ -87,6 +87,14 @@ export const API_CONTRACTS: ApiContract[] = [
   },
   {
     method: "POST",
+    path: "/api/v1/media/documents",
+    audience: "seller",
+    auth: "session",
+    roles: ["SELLER"],
+    description: "Upload a private seller KYC document",
+  },
+  {
+    method: "POST",
     path: "/api/v1/sellers/approval",
     audience: "admin",
     auth: "session",
