@@ -101,6 +101,23 @@ export const API_CONTRACTS: ApiContract[] = [
     roles: ["ADMIN", "SUPER_ADMIN"],
     description: "Approve or reject seller onboarding after KYC review",
   },
+  {
+    method: "GET",
+    path: "/api/v1/sellers/:sellerId",
+    audience: "admin",
+    auth: "session",
+    roles: ["ADMIN", "SUPER_ADMIN"],
+    description: "View seller registration, KYC status, and document metadata",
+  },
+  {
+    method: "GET",
+    path: "/api/v1/sellers/:sellerId/documents/:documentId",
+    audience: "admin",
+    auth: "session",
+    roles: ["ADMIN", "SUPER_ADMIN"],
+    description: "View a seller KYC document through an authorized private endpoint",
+  },
+
 
   {
     method: "GET",
