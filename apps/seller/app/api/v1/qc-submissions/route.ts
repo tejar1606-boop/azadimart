@@ -1,5 +1,5 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, products, qcSubmissions } from "@azadimart/database";
+import { createDatabase, products, qcSubmissions, sellers } from "@azadimart/database";
 import { AppError, qcSubmissionSchema, toApiError } from "@azadimart/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -13,8 +13,18 @@ export async function POST(request: Request) {
       throw new AppError("FORBIDDEN", "Seller profile is required");
     }
 
-    const input = qcSubmissionSchema.parse(await request.json());
     const db = createDatabase();
+    const sellerRows = await db
+      .select({ id: sellers.id, status: sellers.status })
+      .from(sellers)
+      .where(eq(sellers.id, principal.sellerId))
+      .limit(1);
+    const seller = sellerRows[0];
+    if (!seller || seller.status !== "ACTIVE") {
+      throw new AppError("FORBIDDEN", "Seller account is not active");
+    }
+
+    const input = qcSubmissionSchema.parse(await request.json());
 
     const productRows = await db
       .select({
