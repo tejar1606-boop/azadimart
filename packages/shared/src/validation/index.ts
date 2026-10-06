@@ -26,6 +26,11 @@ export const sellerRegistrationSchema = z.object({
   password: z.string().min(8).max(256),
 });
 
+export const kycDocumentSchema = z.object({
+  type: z.enum(["GST", "PAN", "BANK_PROOF", "ADDRESS_PROOF", "IDENTITY"]),
+  mediaAssetId: uuidSchema,
+});
+
 export const sellerKycSubmissionSchema = z.object({
   documents: z
     .array(kycDocumentSchema)
@@ -41,11 +46,6 @@ export const sellerApprovalSchema = z.object({
   sellerId: uuidSchema,
   decision: z.enum(["APPROVED", "REJECTED"]),
   notes: z.string().trim().max(2000).optional(),
-});
-
-export const kycDocumentSchema = z.object({
-  type: z.enum(["GST", "PAN", "BANK_PROOF", "ADDRESS_PROOF", "IDENTITY"]),
-  mediaAssetId: uuidSchema,
 });
 
 export const productDraftSchema = z.object({
