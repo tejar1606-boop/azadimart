@@ -31,6 +31,21 @@ export const categories = pgTable(
   ],
 );
 
+export const brands = pgTable(
+  "brands",
+  {
+    id,
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("brands_slug_unique").on(table.slug),
+    index("brands_active_idx").on(table.isActive),
+  ],
+);
+
 export const products = pgTable(
   "products",
   {
@@ -41,6 +56,7 @@ export const products = pgTable(
     categoryId: uuid("category_id")
       .notNull()
       .references(() => categories.id),
+    brandId: uuid("brand_id").references(() => brands.id),
     title: text("title").notNull(),
     slug: text("slug").notNull(),
     description: text("description"),
@@ -52,6 +68,23 @@ export const products = pgTable(
     index("products_seller_id_idx").on(table.sellerId),
     index("products_status_idx").on(table.status),
     index("products_category_id_idx").on(table.categoryId),
+  ],
+);
+
+export const productAttributes = pgTable(
+  "product_attributes",
+  {
+    id,
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    value: text("value").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index("product_attributes_product_id_idx").on(table.productId),
+    index("product_attributes_name_value_idx").on(table.name, table.value),
   ],
 );
 
