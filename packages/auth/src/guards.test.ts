@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AppError } from "@azadimart/shared";
-import { requireAudience, requireSellerScope, requireSession, type SessionPrincipal } from "./guards";
+import { requireAudience, requireRole, requireSellerScope, requireSession, type SessionPrincipal } from "./guards";
 
 const seller: SessionPrincipal = {
   userId: "u1",
@@ -17,6 +17,11 @@ const customer: SessionPrincipal = {
 describe("auth guards", () => {
   it("rejects anonymous access", () => {
     expect(() => requireSession(null)).toThrow(AppError);
+  });
+
+  it("enforces privileged admin roles", () => {
+    expect(() => requireRole(customer, ["ADMIN", "SUPER_ADMIN"])).toThrow(AppError);
+    expect(() => requireRole({ userId: "a1", role: "ADMIN" }, ["ADMIN", "SUPER_ADMIN"])).not.toThrow();
   });
 
   it("blocks customers from seller and admin apps", () => {
