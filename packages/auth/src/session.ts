@@ -23,12 +23,7 @@ export function createSessionToken(): string {
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
-  const derived = (await scryptAsync(password, salt, KEY_LENGTH, {
-    N: COST,
-    r: BLOCK_SIZE,
-    p: PARALLELIZATION,
-    maxmem: 128 * 1024 * 1024,
-  })) as Buffer;
+  const derived = (await scryptAsync(password, salt, KEY_LENGTH)) as Buffer;
 
   return [
     "scrypt",
@@ -50,14 +45,13 @@ export async function verifyPassword(password: string, encoded: string): Promise
   if (!Number.isInteger(n) || !Number.isInteger(r) || !Number.isInteger(p)) return false;
 
   try {
-    const salt = Buffer.from(parts[4], "base64url");
-    const expected = Buffer.from(parts[5], "base64url");
-    const actual = (await scryptAsync(password, salt, expected.length, {
-      N: n,
-      r,
-      p,
-      maxmem: 128 * 1024 * 1024,
-    })) as Buffer;
+    const saltEncoded = parts[4];
+    const expectedEncoded = parts[5];
+    if (!saltEncoded || !expectedEncoded) return false;
+
+    const salt = Buffer.from(saltEncoded, "base64url");
+    const expected = Buffer.from(expectedEncoded, "base64url");
+    const actual = (await scryptAsync(password, salt, expected.length)) as Buffer;
 
     if (actual.length !== expected.length) return false;
     return timingSafeEqual(actual, expected);
