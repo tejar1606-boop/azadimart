@@ -1,7 +1,7 @@
-import { randomBytes, scrypt } from "node:crypto";
+import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { and, eq, gt, isNull } from "drizzle-orm";
-import { createDatabase, users, sellers, customers, type Database } from "@azadimart/database";
+import { createDatabase, customers, sessions, sellers, users, type Database } from "@azadimart/database";
 import type { Role } from "@azadimart/shared";
 
 const scryptAsync = promisify(scrypt);
@@ -14,7 +14,7 @@ export const SESSION_COOKIE_NAME = "azadimart_session";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 function hashToken(token: string): string {
-  return require("node:crypto").createHash("sha256").update(token).digest("hex");
+  return createHash("sha256").update(token).digest("hex");
 }
 
 export function createSessionToken(): string {
@@ -60,7 +60,7 @@ export async function verifyPassword(password: string, encoded: string): Promise
     })) as Buffer;
 
     if (actual.length !== expected.length) return false;
-    return require("node:crypto").timingSafeEqual(actual, expected);
+    return timingSafeEqual(actual, expected);
   } catch {
     return false;
   }
@@ -74,7 +74,7 @@ export async function createSession(
   const token = createSessionToken();
   const expiresAt = new Date(Date.now() + maxAgeSeconds * 1000);
 
-  await db.insert(require("@azadimart/database").sessions).values({
+  await db.insert(sessions).values({
     userId,
     tokenHash: hashToken(token),
     expiresAt,
@@ -85,9 +85,9 @@ export async function createSession(
 
 export async function revokeSession(db: Database, token: string): Promise<void> {
   await db
-    .update(require("@azadimart/database").sessions)
+    .update(sessions)
     .set({ revokedAt: new Date(), updatedAt: new Date() })
-    .where(eq(require("@azadimart/database").sessions.tokenHash, hashToken(token)));
+    .where(eq(sessions.tokenHash, hashToken(token)));
 }
 
 export async function getSessionPrincipal(
@@ -99,13 +99,13 @@ export async function getSessionPrincipal(
 
   const rows = await db
     .select({ userId: users.id, role: users.role, status: users.status })
-    .from(require("@azadimart/database").sessions)
-    .innerJoin(users, eq(require("@azadimart/database").sessions.userId, users.id))
+    .from(sessions)
+    .innerJoin(users, eq(sessions.userId, users.id))
     .where(
       and(
-        eq(require("@azadimart/database").sessions.tokenHash, hashToken(token)),
-        isNull(require("@azadimart/database").sessions.revokedAt),
-        gt(require("@azadimart/database").sessions.expiresAt, new Date()),
+        eq(sessions.tokenHash, hashToken(token)),
+        isNull(sessions.revokedAt),
+        gt(sessions.expiresAt, new Date()),
       ),
     )
     .limit(1);
