@@ -1,0 +1,40 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Next.js
+.next
+out
+.turbo
+
+# Build
+dist
+coverage
+*.tsbuildinfo
+
+# Environment and secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / IDE
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+Thumbs.db
+
+# Test / tooling
+.eslintcache
+.vercel
+.neon
+.drizzle
+
+# Generated
+*.local

@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --azadimart-ink: #0f172a;
+  --azadimart-saffron: #f97316;
+}
+
+body {
+  color: var(--azadimart-ink);
+  background: #f8fafc;
+}

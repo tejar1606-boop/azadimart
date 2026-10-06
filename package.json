@@ -1,0 +1,35 @@
+{
+  "name": "azadimart",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AzadiMart — Indian multi-vendor marketplace monorepo",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo dev",
+    "dev:storefront": "pnpm --filter @azadimart/storefront dev",
+    "dev:seller": "pnpm --filter @azadimart/seller dev",
+    "dev:admin": "pnpm --filter @azadimart/admin dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm verify:routes && pnpm verify:contracts",
+    "verify:routes": "node scripts/verify-routes.mjs",
+    "verify:contracts": "pnpm --filter @azadimart/shared test -- src/api",
+    "db:generate": "pnpm --filter @azadimart/database generate",
+    "db:migrate": "pnpm --filter @azadimart/database migrate",
+    "db:studio": "pnpm --filter @azadimart/database studio",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.2"
+  }
+}
