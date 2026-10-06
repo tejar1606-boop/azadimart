@@ -21,8 +21,12 @@ export async function loginUser(
     .limit(1);
 
   const user = rows[0];
-  const valid = Boolean(user?.passwordHash) && await verifyPassword(password, user.passwordHash ?? "");
-  if (!user || !valid || user.status !== "ACTIVE" || !allowedRoles.includes(user.role as Role)) {
+  if (!user || user.status !== "ACTIVE" || !allowedRoles.includes(user.role as Role)) {
+    throw new AppError("UNAUTHORIZED", "Invalid email or password");
+  }
+
+  const valid = Boolean(user.passwordHash) && await verifyPassword(password, user.passwordHash ?? "");
+  if (!valid) {
     throw new AppError("UNAUTHORIZED", "Invalid email or password");
   }
 
