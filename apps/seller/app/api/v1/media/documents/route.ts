@@ -2,7 +2,7 @@ import { requireApiAccess } from "@azadimart/auth";
 import { createDatabase, mediaAssets, sellers } from "@azadimart/database";
 import { AppError, toApiError } from "@azadimart/shared";
 import { and, eq } from "drizzle-orm";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 
@@ -123,6 +123,7 @@ export async function POST(request: Request) {
         { status: 201 },
       );
     } catch (error) {
+      await unlink(absolutePath).catch(() => undefined);
       throw error;
     }
   } catch (error) {
