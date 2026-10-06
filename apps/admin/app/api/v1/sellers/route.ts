@@ -7,7 +7,7 @@ import {
   users,
 } from "@azadimart/database";
 import { paginationSchema, toApiError } from "@azadimart/shared";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -32,7 +32,6 @@ export async function GET(request: Request) {
         gstin: sellers.gstin,
         status: sellers.status,
         verificationStatus: sellerVerifications.status,
-        documentCount: sellerDocuments.id,
         approvedAt: sellers.approvedAt,
         createdAt: sellers.createdAt,
         updatedAt: sellers.updatedAt,
@@ -40,23 +39,29 @@ export async function GET(request: Request) {
       .from(sellers)
       .innerJoin(users, eq(users.id, sellers.userId))
       .leftJoin(sellerVerifications, eq(sellerVerifications.sellerId, sellers.id))
-      .leftJoin(sellerDocuments, eq(sellerDocuments.sellerId, sellers.id))
       .orderBy(desc(sellers.createdAt))
       .limit(pageSize)
       .offset((page - 1) * pageSize);
 
-    const grouped = new Map<string, (typeof rows)[number] & { documentCount: number }>();
-    for (const row of rows) {
-      const current = grouped.get(row.id);
-      if (!current) {
-        grouped.set(row.id, { ...row, documentCount: row.documentCount ? 1 : 0 });
-      } else {
-        current.documentCount += row.documentCount ? 1 : 0;
-      }
-    }
+    const sellerIds = rows.map((row) => row.id);
+    const documentCounts = sellerIds.length
+      ? await db
+          .select({
+            sellerId: sellerDocuments.sellerId,
+            count: sql<number>`count(*)`.as("count"),
+          })
+          .from(sellerDocuments)
+          .where(inArray(sellerDocuments.sellerId, sellerIds))
+          .groupBy(sellerDocuments.sellerId)
+      : [];
+
+    const countMap = new Map(documentCounts.map((row) => [row.sellerId, Number(row.count)]));
 
     return NextResponse.json({
-      sellers: [...grouped.values()],
+      sellers: rows.map((row) => ({
+        ...row,
+        documentCount: countMap.get(row.id) ?? 0,
+      })),
       page,
       pageSize,
       actorUserId: principal.userId,
