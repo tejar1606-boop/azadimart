@@ -38,3 +38,6 @@ Thumbs.db
 
 # Generated
 *.local
+
+# Local private upload data
+.data/
