@@ -8,6 +8,7 @@ describe("validation", () => {
       legalName: "Sunrise Traders Pvt Ltd",
       email: "seller@example.com",
       phone: "9876543210",
+      password: "TestPassword123!",
     });
     expect(result.success).toBe(true);
   });
