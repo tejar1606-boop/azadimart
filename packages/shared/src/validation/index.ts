@@ -34,8 +34,23 @@ export const productDraftSchema = z.object({
   title: z.string().trim().min(3).max(200),
   description: z.string().trim().max(20000).optional(),
   categoryId: uuidSchema,
-  imageAssetIds: z.array(uuidSchema).max(PRODUCT_MEDIA_LIMITS.maxImages),
+  imageAssetIds: z
+    .array(uuidSchema)
+    .min(1)
+    .max(PRODUCT_MEDIA_LIMITS.maxImages)
+    .refine((ids) => new Set(ids).size === ids.length, "Duplicate image assets are not allowed"),
   videoAssetId: uuidSchema.optional(),
+});
+
+export const qcSubmissionSchema = z.object({
+  productId: uuidSchema,
+  notes: z.string().trim().max(2000).optional(),
+});
+
+export const qcDecisionSchema = z.object({
+  qcSubmissionId: uuidSchema,
+  decision: z.enum(["APPROVED", "REJECTED"]),
+  notes: z.string().trim().max(2000).optional(),
 });
 
 export const inventoryAdjustSchema = z.object({
