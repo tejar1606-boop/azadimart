@@ -1,4 +1,4 @@
-import { index, integer, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { id, timestamps } from "./columns";
 import { orderStatusEnum, paymentMethodEnum, paymentStatusEnum } from "./enums";
 import { customers, customerAddresses } from "./identity";
@@ -16,6 +16,16 @@ export const wishlists = pgTable(
     ...timestamps,
   },
   (table) => [index("wishlists_customer_id_idx").on(table.customerId)],
+);
+
+export const wishlistItems = pgTable(
+  "wishlist_items",
+  {
+    wishlistId: uuid("wishlist_id").notNull().references(() => wishlists.id, { onDelete: "cascade" }),
+    productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("wishlist_items_unique").on(table.wishlistId, table.productId)],
 );
 
 export const carts = pgTable(
@@ -113,6 +123,22 @@ export const payments = pgTable(
     ...timestamps,
   },
   (table) => [index("payments_order_id_idx").on(table.orderId)],
+);
+
+export const paymentEvents = pgTable(
+  "payment_events",
+  {
+    id,
+    provider: text("provider").notNull(),
+    eventId: text("event_id").notNull(),
+    eventType: text("event_type").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("payment_events_provider_event_unique").on(table.provider, table.eventId),
+  ],
 );
 
 export const refunds = pgTable(
