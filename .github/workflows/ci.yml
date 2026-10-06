@@ -16,8 +16,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      # Bootstrap CI while the repository lockfile is being generated locally.
+      - run: pnpm install --no-frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
