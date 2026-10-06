@@ -28,10 +28,11 @@ importers:
         version: 8.71.1(eslint@9.39.5(jiti@1.21.7))(typescript@5.9.3)
 
   apps/admin:
-         drizzle-orm:
+    dependencies:
+      drizzle-orm:
         specifier: ^0.38.3
         version: 0.38.4(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(@types/react@19.3.0)(react@19.3.0)
- dependencies:
+      '@azadimart/auth':
       '@azadimart/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -83,10 +84,10 @@ importers:
         version: 5.9.3
 
   apps/seller:
-        drizzle-orm:
+    dependencies:
+      drizzle-orm:
         specifier: ^0.38.3
         version: 0.38.4(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(@types/react@19.3.0)(react@19.3.0)
-  dependencies:
       '@azadimart/auth':
         specifier: workspace:*
         version: link:../../packages/auth
