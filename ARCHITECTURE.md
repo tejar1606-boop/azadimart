@@ -1,133 +1,65 @@
 # AzadiMart — System Architecture
 
-## 1. Product Overview
+## Product
+AzadiMart is an India-focused multi-vendor commerce platform with three experiences:
+- Customer: azadimart.com
+- Seller: seller.azadimart.com
+- Admin: admin.azadimart.com
 
-AzadiMart is an India-focused multi-vendor commerce platform with three separate user experiences:
+Roadmap: marketplace → seller subscriptions → farm-to-business procurement → direct sourcing → omnichannel retail.
 
-- Customer storefront: `azadimart.com`
-- Seller Centre: `seller.azadimart.com`
-- Admin Console: `admin.azadimart.com`
+## Stack
+- Next.js + React + TypeScript
+- Tailwind CSS + shadcn/ui
+- PostgreSQL on Neon
+- Object storage + CDN for media
+- Secure session authentication + RBAC
+- GitHub + CI/CD
+- Vercel or equivalent hosting
 
-The platform is designed to support marketplace commerce first, followed by seller subscriptions, farm-to-business procurement, direct sourcing and long-term omnichannel retail.
-
-The system must be designed for production use, security, scalability and maintainability.
-
----
-
-## 2. Core Technology Stack
-
-### Frontend
-
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
-- shadcn/ui
-
-
-
-### Backend
-
-- TypeScript
-- Next.js server-side APIs / route handlers
-- REST-style APIs initially
-- Strong request validation
-- Centralized error handling
-
-
-
-### Database
-
-- PostgreSQL
-- Neon PostgreSQL
-- SQL migrations
-- Repository/data-access layer
-
-
-
-### Storage
-
-Object storage for:
-
-- Product images
-- Product videos
-- A+ product content
-- Homepage banners
-- Seller documents
-- Customer/seller files
-
-
-
-### Authentication
-
-Role-based authentication supporting:
-
-- CUSTOMER
-- SELLER
-- ADMIN
-- SUPER_ADMIN
-
-
-
-### Source Control
-
-- Git
-- GitHub
-
-
-
-### Deployment
-
-- Vercel or equivalent production hosting
-- Neon for PostgreSQL
-- CDN/object storage for media
-
----
-
-
-
-## 3. High-Level Architecture
-
+## Monorepo
 ```text
-
-                         AZADIMART PLATFORM
-
-                                  |
-
-                +-----------------+-----------------+
-
-                |                 |                 |
-
-                v                 v                 v
-
-          STOREFRONT           SELLER             ADMIN
-
-       [azadimart.com](http://azadimart.com)      [seller.azadimart.com](http://seller.azadimart.com)   [admin.azadimart.com](http://admin.azadimart.com)
-
-                |                 |                 |
-
-                +-----------------+-----------------+
-
-                                  |
-
-                              API Layer
-
-                                  |
-
-          +-----------------------+-----------------------+
-
-          |             |             |                 |
-
-          v             v             v                 v
-
-       Database       Storage      Payments          Logistics
-
-       (Neon)      (Object Store)  Provider          Providers
-
-          |
-
-          v
-
-     PostgreSQL
+apps/
+  storefront/
+  seller/
+  admin/
+packages/
+  ui/
+  database/
+  auth/
+  storage/
+  payments/
+  logistics/
+  validation/
+  shared/
+docs/
+scripts/
 ```
 
+## Application boundaries
+### Storefront
+Catalog, search, product detail, media gallery, A+ content, cart, checkout, payments, orders, returns, support.
+
+### Seller
+Onboarding/KYC, catalog, variants, inventory, product media, A+ content, QC submission, orders, shipping, returns, payouts, support.
+
+### Admin
+Dashboard, sellers, products, QC, orders, logistics, payments, finance, returns, support, marketing, Online Store, audit/security.
+
+## Core flow
+Seller registration → verification → approval → product draft → media/A+ → QC → approval → publication → customer purchase → fulfillment → payout.
+
+## Media
+Product gallery: up to 8 images + 1 product video. A+ and storefront media use object storage records. Private seller/customer documents must not be public.
+
+## Theme Editor
+Admin can edit pages by ordered sections: add/remove/reorder/edit, upload media, save draft, preview, publish, revision history, rollback.
+
+## Integrations
+Payment provider abstraction (Razorpay/Cashfree/COD). Logistics abstraction (Shiprocket/Delhivery/Shadowfax).
+
+## Security
+Server-side authentication/authorization, seller/customer isolation, validated uploads, safe errors, audit logs, protected secrets.
+
+## Development rule
+Database → repository → service → API → validation → tests → frontend. Do not build the whole platform in one change.
