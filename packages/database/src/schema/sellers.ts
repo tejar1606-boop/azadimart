@@ -59,6 +59,15 @@ export const sellerBankAccounts = pgTable(
   (table) => [index("seller_bank_accounts_seller_id_idx").on(table.sellerId)],
 );
 
+export const sellerSettings = pgTable("seller_settings", {
+  sellerId: uuid("seller_id").primaryKey().references(() => sellers.id, { onDelete: "cascade" }),
+  notificationSettings: jsonb("notification_settings").$type<Record<string, unknown>>().notNull().default({}),
+  returnSettings: jsonb("return_settings").$type<Record<string, unknown>>().notNull().default({}),
+  shippingSettings: jsonb("shipping_settings").$type<Record<string, unknown>>().notNull().default({}),
+  businessSettings: jsonb("business_settings").$type<Record<string, unknown>>().notNull().default({}),
+  ...timestamps,
+});
+
 export const sellerVerifications = pgTable(
   "seller_verifications",
   {
