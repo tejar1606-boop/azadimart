@@ -106,6 +106,25 @@ export const productAplusContent = pgTable(
   (table) => [uniqueIndex("product_aplus_content_product_id_unique").on(table.productId)],
 );
 
+export const inventoryMovements = pgTable(
+  "inventory_movements",
+  {
+    id,
+    variantId: uuid("variant_id").notNull().references(() => productVariants.id, { onDelete: "restrict" }),
+    movementType: text("movement_type").notNull(),
+    quantity: integer("quantity").notNull(),
+    referenceType: text("reference_type"),
+    referenceId: uuid("reference_id"),
+    notes: text("notes"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id),
+    ...timestamps,
+  },
+  (table) => [
+    index("inventory_movements_variant_id_idx").on(table.variantId),
+    index("inventory_movements_reference_idx").on(table.referenceType, table.referenceId),
+  ],
+);
+
 export const inventory = pgTable(
   "inventory",
   {
@@ -144,5 +163,24 @@ export const qcSubmissions = pgTable(
   (table) => [
     index("qc_submissions_seller_id_idx").on(table.sellerId),
     index("qc_submissions_status_idx").on(table.status),
+  ],
+);
+
+
+export const qcIssues = pgTable(
+  "qc_issues",
+  {
+    id,
+    qcSubmissionId: uuid("qc_submission_id").notNull().references(() => qcSubmissions.id, { onDelete: "cascade" }),
+    fieldName: text("field_name"),
+    issueType: text("issue_type").notNull(),
+    description: text("description").notNull(),
+    severity: text("severity").notNull().default("MEDIUM"),
+    resolved: boolean("resolved").notNull().default(false),
+    ...timestamps,
+  },
+  (table) => [
+    index("qc_issues_submission_id_idx").on(table.qcSubmissionId),
+    index("qc_issues_resolved_idx").on(table.resolved),
   ],
 );
