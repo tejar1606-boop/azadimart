@@ -39,7 +39,6 @@ export async function POST(request: Request) {
         status: input.decision,
         notes: input.notes ?? null,
         reviewedByUserId: principal.userId,
-        reviewedAt: new Date(),
         updatedAt: new Date(),
       })
       .where(
