@@ -70,4 +70,9 @@ export const publishThemeSchema = z.object({
   message: z.string().max(280).optional(),
 });
 
+export const loginSchema = z.object({
+  email: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
+  password: z.string().min(8).max(256),
+});
+
 export const roleSchema = z.enum(ROLES);
