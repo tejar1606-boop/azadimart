@@ -70,6 +70,31 @@ export const API_CONTRACTS: ApiContract[] = [
     description: "Get the authenticated customer session",
   },
   {
+    method: "POST",
+    path: "/api/auth/register",
+    audience: "seller",
+    auth: "none",
+    roles: [],
+    description: "Create a seller account pending business approval",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/kyc",
+    audience: "seller",
+    auth: "session",
+    roles: ["SELLER"],
+    description: "Submit seller KYC documents",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/sellers/approval",
+    audience: "admin",
+    auth: "session",
+    roles: ["ADMIN", "SUPER_ADMIN"],
+    description: "Approve or reject seller onboarding after KYC review",
+  },
+
+  {
     method: "GET",
     path: "/api/auth/session",
     audience: "seller",
