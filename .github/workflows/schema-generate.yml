@@ -1,0 +1,46 @@
+name: Generate database artifacts
+
+on:
+  push:
+    branches:
+      - feature/backend-foundation
+    paths:
+      - "packages/database/**"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+      - "**/package.json"
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/backend-foundation
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm --filter @azadimart/database generate
+      - name: Commit generated artifacts
+        run: |
+          if git diff --quiet && [ -z "$(git status --porcelain)" ]; then
+            echo "No generated changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml packages/database/drizzle
+          if git diff --cached --quiet; then
+            echo "No lockfile or migration changes."
+            exit 0
+          fi
+          git commit -m "chore(database): update generated migration artifacts"
+          git push origin HEAD:feature/backend-foundation
