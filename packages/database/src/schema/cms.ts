@@ -87,6 +87,24 @@ export const navigation = pgTable(
   (table) => [uniqueIndex("navigation_theme_handle_unique").on(table.themeId, table.handle)],
 );
 
+export const navigationItems = pgTable(
+  "navigation_items",
+  {
+    id,
+    navigationId: uuid("navigation_id")
+      .notNull()
+      .references(() => navigation.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    href: text("href"),
+    position: integer("position").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    ...timestamps,
+  },
+  (table) => [
+    index("navigation_items_navigation_id_idx").on(table.navigationId),
+  ],
+);
+
 export const banners = pgTable(
   "banners",
   {
