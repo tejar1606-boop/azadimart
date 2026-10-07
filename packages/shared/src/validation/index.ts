@@ -110,4 +110,10 @@ export const cartItemMutationSchema = z.object({
 export const cartRemoveSchema = z.object({ variantId: uuidSchema });
 
 export const loginSchema = z.object({ email:z.string().trim().email().max(254).transform((value)=>value.toLowerCase()), password:z.string().min(8).max(256) });
+export const customerRegistrationSchema = z.object({
+  fullName: z.string().trim().min(2).max(120),
+  email: z.string().trim().email().max(254).transform((value)=>value.toLowerCase()),
+  phone: z.string().regex(/^[6-9]\d{9}$/, "Enter a valid Indian mobile number"),
+  password: z.string().min(8).max(256),
+});
 export const roleSchema = z.enum(ROLES);
