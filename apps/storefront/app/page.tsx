@@ -1,3 +1,4 @@
+import CouponCard from "./components/coupon-card";
 import Link from "next/link";
 import { createDatabase, coupons, pageSections, pages, productVariants, products, themes } from "@azadimart/database";
 import { and, asc, desc, eq } from "drizzle-orm";
@@ -47,4 +48,3 @@ function StoreSection({section,coupons,products}:{section:any;coupons:any[];prod
  return <section className="py-8"><h2 className="text-2xl font-black">{String(s.heading||section.type)}</h2><p className="mt-2 text-slate-500">{String(s.description||s.subtitle||"")}</p></section>;
 }
 
-function CouponCard({coupon}:{coupon:any}){const label=coupon.discountType==="PERCENTAGE"?coupon.discountValue+"% OFF":coupon.discountType==="FIXED"?money(coupon.discountValue)+" OFF":"FREE SHIPPING";return <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-white p-4"><div><div className="flex items-center gap-2"><span className="rounded-md border border-dashed px-2 py-1 font-mono text-xs font-bold">{coupon.code}</span><span className="text-sm font-bold">{label}</span></div><p className="mt-1 text-xs text-slate-500">{coupon.title}</p></div><button type="button" className="rounded-lg bg-slate-950 px-3 py-2 text-xs font-bold text-white" aria-label={"Copy coupon "+coupon.code}>Copy</button></div>}
