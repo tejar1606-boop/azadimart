@@ -296,6 +296,14 @@ export const API_CONTRACTS: ApiContract[] = [
     description: "Approve or reject a QC submission",
   },
   {
+    method: "PATCH",
+    path: "/api/v1/orders/:orderId",
+    audience: "admin",
+    auth: "session",
+    roles: ["ADMIN", "SUPER_ADMIN"],
+    description: "Advance or cancel an order through controlled status transitions",
+  },
+  {
     method: "GET",
     path: "/api/v1/orders",
     audience: "admin",
