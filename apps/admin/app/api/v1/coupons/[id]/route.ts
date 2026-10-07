@@ -13,6 +13,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const db=createDatabase();
     const existing=(await db.select({id:coupons.id,code:coupons.code,fundingType:coupons.fundingType,sellerId:coupons.sellerId}).from(coupons).where(eq(coupons.id,id)).limit(1))[0];
     if(!existing) throw new AppError("NOT_FOUND","Coupon not found");
+    const finalFundingType = input.fundingType ?? existing.fundingType;
+    const finalSellerId = input.sellerId === undefined ? existing.sellerId : input.sellerId;
+    if(finalFundingType === "SELLER" && !finalSellerId) throw new AppError("VALIDATION_ERROR","Seller is required for seller-funded coupons");
     if(input.code && input.code!==existing.code){
       const duplicate=(await db.select({id:coupons.id}).from(coupons).where(eq(coupons.code,input.code)).limit(1))[0];
       if(duplicate) throw new AppError("CONFLICT","Coupon code already exists");
