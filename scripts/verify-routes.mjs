@@ -38,6 +38,8 @@ const catalog = {
     "/api/v1/categories",
     "/api/v1/qc-submissions",
     "/api/v1/orders",
+    "/api/v1/shipments",
+    "/api/v1/shipments/:shipmentId",
   ],
   admin: [
     "/",
@@ -66,7 +68,7 @@ const catalog = {
 function fileFor(app, route) {
   const appDir = join(root, "apps", app, "app");
   if (route.startsWith("/api/")) {
-    return join(appDir, route.slice(1), "route.ts");
+    return join(appDir, route.slice(1).replace(/:([A-Za-z0-9_-]+)/g, "[$1]"), "route.ts");
   }
   if (route === "/") {
     return join(appDir, "page.tsx");
