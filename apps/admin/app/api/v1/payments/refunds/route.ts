@@ -148,7 +148,7 @@ export async function POST(request: Request) {
 
     try {
       const provider = getPaymentProvider(prepared.provider);
-      const result = await provider.refund(prepared.providerPaymentId, prepared.existing.amountPaise);
+      const result = await provider.refund(prepared.providerPaymentId, prepared.existing.amountPaise, prepared.existing.idempotencyKey);
 
       const completed = await db.transaction(async (tx) => {
         await tx.execute(sql\`
