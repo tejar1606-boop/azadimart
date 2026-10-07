@@ -39,6 +39,8 @@ async function ensureHomepage() {
     })));
   }
 
+  if (!theme || !page) throw new AppError("INTERNAL", "Homepage initialization failed", undefined, false);
+
   const sections = await db.select().from(pageSections)
     .where(eq(pageSections.pageId, page.id))
     .orderBy(asc(pageSections.position));
