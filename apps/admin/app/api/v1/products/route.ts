@@ -76,6 +76,7 @@ export async function POST(request: Request) {
       throw new AppError("VALIDATION_ERROR", "Decision must be APPROVED or REJECTED");
     }
 
+    const productId = body.productId;
     const db = createDatabase();
     const nextStatus = body.decision === "APPROVED" ? "LIVE" : "QC_REJECTED";
     const result = await db.transaction(async (tx) => {
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
       .set({ status: nextStatus, updatedAt: new Date() })
       .where(
         and(
-          eq(products.id, body.productId),
+          eq(products.id, productId),
           eq(products.status, "PENDING_ADMIN_APPROVAL"),
         ),
       )
