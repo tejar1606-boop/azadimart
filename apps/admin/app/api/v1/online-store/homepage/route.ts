@@ -1,7 +1,7 @@
 import { requireApiAccess } from "@azadimart/auth";
 import { createDatabase, pageSections, pages, themeRevisions, themes } from "@azadimart/database";
 import { AppError, DEFAULT_HOME_SECTIONS, saveHomepageSchema, toApiError } from "@azadimart/shared";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 async function ensureHomepage() {
@@ -72,6 +72,7 @@ export async function PUT(request: Request) {
     const { db, theme, page } = await ensureHomepage();
 
     await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext('azadimart:theme_publish'))`);
       await tx.update(themes).set({
         settings: input.themeSettings,
         status: "DRAFT",
