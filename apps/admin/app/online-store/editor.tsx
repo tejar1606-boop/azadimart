@@ -6,6 +6,7 @@ import { DEFAULT_HOME_SECTIONS, SECTION_TYPES, type ThemeSectionDraft } from "@a
 import NavigationEditor from "./navigation-editor";
 
 type Row = ThemeSectionDraft & { id:string };
+type HomepageSectionResponse = { id:string; type:string; position:number; isVisible:boolean; settings:Record<string,unknown> };
 
 const LABELS: Record<string,string> = {
   hero:"Hero banner", category_grid:"Category grid", featured_products:"Featured products",
@@ -29,7 +30,7 @@ export default function OnlineStoreEditor(){
     const d=await r.json();
     if(!r.ok) throw new Error(d?.error?.message ?? "Could not load homepage");
     setThemeId(d.theme.id); setThemeSettings(d.theme.settings ?? {});
-    setSections(d.sections.map((s)=>({id:s.id,type:s.type,position:s.position,isVisible:s.isVisible,settings:s.settings})));
+    setSections(d.sections.map((s: HomepageSectionResponse)=>({id:s.id,type:s.type,position:s.position,isVisible:s.isVisible,settings:s.settings})));
     setMessage(d.theme.status==="PUBLISHED" ? "Published" : "Draft");
   }
 
