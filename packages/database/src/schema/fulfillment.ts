@@ -36,6 +36,7 @@ export const shipments = pgTable(
   (table) => [
     index("shipments_order_id_idx").on(table.orderId),
     index("shipments_seller_id_idx").on(table.sellerId),
+    uniqueIndex("shipments_order_seller_unique").on(table.orderId, table.sellerId),
   ],
 );
 
