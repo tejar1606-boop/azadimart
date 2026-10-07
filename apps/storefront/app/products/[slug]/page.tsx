@@ -28,6 +28,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     reserved: inventory.reserved,
     mediaAssetId: productMedia.mediaAssetId,
     mediaKind: productMedia.kind,
+    mediaStorageKey: mediaAssets.storageKey,
     altText: mediaAssets.altText,
   }).from(products)
     .innerJoin(categories, eq(categories.id, products.categoryId))
@@ -57,7 +58,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           <section className="grid gap-3 sm:grid-cols-2">
             {(media.length > 0 ? media.slice(0, 8) : [null]).map((item, index) => (
               <div key={item?.mediaAssetId ?? "placeholder"} className={`relative grid aspect-square place-items-center overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white ${index === 0 ? "sm:col-span-2" : ""}`}>
-                <span className="text-7xl font-black tracking-[-0.08em] text-slate-100">{first.title.slice(0, 1).toUpperCase()}</span>
+                {item?.mediaStorageKey && item.mediaKind === "IMAGE" ? <img src={"/media/" + item.mediaStorageKey} alt={item.altText ?? first.title} className="h-full w-full object-cover" /> : <span className="text-7xl font-black tracking-[-0.08em] text-slate-100">{first.title.slice(0, 1).toUpperCase()}</span>}
                 {index === 0 ? <span className="absolute left-4 top-4 rounded-full bg-slate-950 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white">Quality checked</span> : null}
               </div>
             ))}
