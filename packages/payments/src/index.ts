@@ -16,6 +16,7 @@ export type PaymentIntent = {
 };
 
 export type PaymentWebhookEvent = {
+  eventId: string;
   provider: PaymentProviderCode;
   providerPaymentId: string;
   status: "CAPTURED" | "FAILED" | "REFUNDED";
