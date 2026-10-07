@@ -1,6 +1,7 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { auditLogs, createDatabase, orderItems, orders, shipmentEvents, shipments, sellers } from "@azadimart/database";
-import { AppError, toApiError } from "@azadimart/shared";
+import { auditLogs, createDatabase, orderItems, orders, sellerSettings, shipmentEvents, shipments, sellers } from "@azadimart/database";
+import { createShipmentForOrder, getLogisticsProvider, type Address } from "@azadimart/logistics";
+import { AppError, sellerShippingSettingsSchema, toApiError } from "@azadimart/shared";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -20,37 +21,78 @@ export async function POST(request: Request) {
       .where(and(eq(sellers.id,principal.sellerId),eq(sellers.userId,principal.userId))).limit(1))[0];
     if (!seller || seller.status !== "ACTIVE") throw new AppError("FORBIDDEN", "Seller account is not active");
 
-    const ownership = await db.select({ orderId:orderItems.orderId })
-      .from(orderItems).innerJoin(orders,eq(orders.id,orderItems.orderId))
-      .where(and(eq(orderItems.orderId,body.orderId),eq(orderItems.sellerId,principal.sellerId)))
-      .limit(1);
-    if (!ownership.length) throw new AppError("NOT_FOUND","Order not found for this seller");
-
-    if (!["CONFIRMED","PACKED"].includes((await db.select({status:orders.status}).from(orders).where(eq(orders.id,body.orderId)).limit(1))[0]?.status ?? "")) {
+    const orderRow = (await db.select({
+      id:orders.id,
+      status:orders.status,
+      shippingAddressSnapshot:orders.shippingAddressSnapshot,
+    }).from(orders)
+      .innerJoin(orderItems,eq(orderItems.orderId,orders.id))
+      .where(and(eq(orders.id,body.orderId),eq(orderItems.sellerId,principal.sellerId)))
+      .limit(1))[0];
+    if (!orderRow) throw new AppError("NOT_FOUND","Order not found for this seller");
+    if (!["CONFIRMED","PACKED"].includes(orderRow.status)) {
       throw new AppError("CONFLICT","Order is not ready for seller fulfillment");
+    }
+
+    const rawSettings = (await db.select({ shippingSettings:sellerSettings.shippingSettings })
+      .from(sellerSettings).where(eq(sellerSettings.sellerId,principal.sellerId)).limit(1))[0]?.shippingSettings;
+    if (!rawSettings) {
+      throw new AppError("CONFLICT","Configure your pickup address before creating shipments");
+    }
+    const settings = sellerShippingSettingsSchema.parse(rawSettings);
+    const provider = getLogisticsProvider(settings.preferredProvider);
+    if (!provider.isConfigured) {
+      throw new AppError("CONFLICT", settings.preferredProvider + " logistics is not configured yet");
     }
 
     const existing = (await db.select({ id:shipments.id, status:shipments.status, providerShipmentId:shipments.providerShipmentId })
       .from(shipments).where(and(eq(shipments.orderId,body.orderId),eq(shipments.sellerId,principal.sellerId))).limit(1))[0];
     if (existing) return NextResponse.json({ shipment: existing });
 
-    const providerShipmentId = "manual_" + body.orderId + "_" + principal.sellerId.slice(0,8);
+    const sellerItems = await db.select({
+      quantity: orderItems.quantity,
+      unitPricePaise: orderItems.unitPricePaise,
+    }).from(orderItems)
+      .where(and(eq(orderItems.orderId,body.orderId),eq(orderItems.sellerId,principal.sellerId)));
+
+    const declaredValuePaise = sellerItems.reduce((sum,item)=>sum + item.quantity * item.unitPricePaise,0);
+    const deliverySnapshot = orderRow.shippingAddressSnapshot;
+    const delivery: Address = {
+      name: deliverySnapshot.name ?? "Customer",
+      phone: deliverySnapshot.phone ?? "",
+      line1: deliverySnapshot.line1,
+      city: deliverySnapshot.city,
+      state: deliverySnapshot.state,
+      postalCode: deliverySnapshot.postalCode,
+      country: "IN",
+    };
+    if (!delivery.phone) throw new AppError("CONFLICT","Customer delivery phone is missing from the order snapshot");
+
+    const created = await createShipmentForOrder(settings.preferredProvider, {
+      orderId: body.orderId,
+      sellerId: principal.sellerId,
+      pickup: settings.pickup,
+      delivery,
+      weightGrams: 0,
+      declaredValuePaise,
+    });
+
     const shipment = (await db.insert(shipments).values({
       orderId:body.orderId,
       sellerId:principal.sellerId,
       status:"CREATED",
-      providerShipmentId,
-    }).returning({ id:shipments.id,status:shipments.status,providerShipmentId:shipments.providerShipmentId }))[0];
+      providerShipmentId:created.providerShipmentId,
+    }).returning({ id:shipments.id,status:shipments.status,providerShipmentId:shipments.providerShipmentId })).[0];
     if (!shipment) throw new AppError("INTERNAL","Shipment creation failed",undefined,false);
 
-    await db.insert(shipmentEvents).values({ shipmentId:shipment.id, status:"CREATED", description:"Shipment created for seller fulfillment" });
+    await db.insert(shipmentEvents).values({ shipmentId:shipment.id, status:"CREATED", description:"Shipment created through " + created.provider });
 
     await db.insert(auditLogs).values({
       actorUserId:principal.userId,
       action:"SHIPMENT_CREATED",
       entityType:"shipment",
       entityId:shipment.id,
-      metadata:{ orderId:body.orderId, sellerId:principal.sellerId, provider:"MANUAL" },
+      metadata:{ orderId:body.orderId, sellerId:principal.sellerId, provider:created.provider },
     });
 
     return NextResponse.json({ shipment }, { status:201 });
