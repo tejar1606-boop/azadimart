@@ -28,7 +28,11 @@ export async function POST(
         eventType: event.status,
         payload: event.raw,
         processedAt: new Date(),
+      }).onConflictDoNothing({
+        target: [paymentEvents.provider, paymentEvents.eventId],
       }).returning({ id: paymentEvents.id });
+
+      if (!inserted.length) return { duplicate: true };
 
       const payment = (await tx.select({
         id: payments.id,
@@ -57,7 +61,7 @@ export async function POST(
           .where(and(eq(orders.id, payment.orderId), eq(orders.status, "PAYMENT_PENDING")));
       }
 
-      return { paymentId: payment.id, orderId: payment.orderId, status: nextPaymentStatus, eventId: inserted[0]?.id };
+      return { duplicate: false, paymentId: payment.id, orderId: payment.orderId, status: nextPaymentStatus, eventId: inserted[0]?.id };
     });
 
     return NextResponse.json({ ok: true, ...result });
