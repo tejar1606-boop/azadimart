@@ -80,8 +80,8 @@ export default function OnlineStoreEditor(){
         <div className="rounded-2xl border bg-white p-4 shadow-sm"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Preview</p><p className="font-semibold">Storefront</p></div><span className="text-xs text-slate-500">Responsive</span></div><div className="mt-4 overflow-hidden rounded-xl border bg-[#fbfaf7]">{sections.filter(s=>s.isVisible).map((s,i)=><Preview key={s.id} section={s}/>)}</div></div>
         <div className="rounded-2xl border bg-white p-4 shadow-sm"><p className="text-sm font-semibold">Theme settings</p><label className="mt-3 block text-sm font-medium">Brand accent<input className="mt-1 w-full rounded-lg border p-2.5" value={String(themeSettings.accent ?? "#F59E0B")} onChange={e=>setThemeSettings(x=>({...x,accent:e.target.value}))}/></label><label className="mt-3 block text-sm font-medium">Announcement<input className="mt-1 w-full rounded-lg border p-2.5" value={String(themeSettings.announcement ?? "")} onChange={e=>setThemeSettings(x=>({...x,announcement:e.target.value}))}/></label></div>
       </aside>
-      <NavigationEditor />
     </div>
+    <NavigationEditor />
   </div>
 }
 
