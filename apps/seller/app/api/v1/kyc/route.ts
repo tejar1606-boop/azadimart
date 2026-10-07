@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     const db = createDatabase();
 
     const sellerRows = await db
-      .select({ id: sellers.id, status: sellers.status })
+      .select({ id: sellers.id, status: sellers.status, taxIdentityType: sellers.taxIdentityType, gstin: sellers.gstin, gstEnrolmentId: sellers.gstEnrolmentId, businessState: sellers.businessState, taxDeclarationAcceptedAt: sellers.taxDeclarationAcceptedAt })
       .from(sellers)
       .where(eq(sellers.id, principal.sellerId))
       .limit(1);
@@ -39,6 +39,22 @@ export async function POST(request: Request) {
 
     if (["ACTIVE", "SUSPENDED"].includes(seller.status)) {
       throw new AppError("FORBIDDEN", "KYC cannot be changed for the current seller status");
+    }
+
+    const requiredTypes = new Set(["PAN", "BANK_PROOF", "ADDRESS_PROOF", seller.taxIdentityType === "ENROLMENT_ID" ? "GST_ENROLMENT" : "GST"]);
+    const submittedTypes = new Set(input.documents.map((document) => document.type));
+    const missingTypes = [...requiredTypes].filter((type) => !submittedTypes.has(type));
+    if (missingTypes.length > 0) {
+      throw new AppError("VALIDATION_ERROR", "Required KYC documents are missing: " + missingTypes.join(", "));
+    }
+    if (seller.taxIdentityType === "GSTIN" && !seller.gstin) {
+      throw new AppError("VALIDATION_ERROR", "Seller GSTIN is missing");
+    }
+    if (seller.taxIdentityType === "ENROLMENT_ID" && !seller.gstEnrolmentId) {
+      throw new AppError("VALIDATION_ERROR", "Seller GST Enrolment ID is missing");
+    }
+    if (!seller.businessState || !seller.taxDeclarationAcceptedAt) {
+      throw new AppError("VALIDATION_ERROR", "Seller tax identity and business-state declaration must be completed before KYC");
     }
 
     const assetIds = input.documents.map((document) => document.mediaAssetId);
