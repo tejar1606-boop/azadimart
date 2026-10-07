@@ -110,6 +110,3 @@ export async function DELETE() {
   );
 }
 
-function assertThemeOwner(themeId: string, actualThemeId: string) {
-  if (themeId !== actualThemeId) throw new AppError("FORBIDDEN", "Theme does not belong to this store");
-}
