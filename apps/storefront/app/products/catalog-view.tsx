@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Variant = { id: string; title: string; pricePaise: number; compareAtPaise: number | null; availableQuantity: number };
-type Product = { id: string; title: string; slug: string; description: string | null; categoryName: string; sellerName: string; variants: Variant[] };
+type Product = { id: string; title: string; slug: string; description: string | null; categoryName: string; sellerName: string; variants: Variant[]; media?: Array<{ storageKey:string; kind:string; altText:string|null }> };
 
 const money = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
 
@@ -73,7 +73,7 @@ export default function CatalogView() {
               return (
                 <Link key={product.id} href={"/products/" + product.slug} className="group rounded-[1.35rem] border border-slate-200 bg-white p-3 shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
                   <div className="relative grid aspect-square place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-slate-100 via-white to-amber-50">
-                    <span className="text-5xl font-black tracking-[-0.06em] text-slate-200">{product.title.slice(0, 1).toUpperCase()}</span>
+                    {product.media?.find(media => media.kind === "IMAGE" && media.storageKey) ? <img src={"/media/" + product.media.find(media => media.kind === "IMAGE")!.storageKey} alt={product.media.find(media => media.kind === "IMAGE")!.altText ?? product.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" /> : <span className="text-5xl font-black tracking-[-0.06em] text-slate-200">{product.title.slice(0, 1).toUpperCase()}</span>}
                     <span className="absolute left-2.5 top-2.5 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-slate-500">Verified</span>
                   </div>
                   <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-amber-600">{product.categoryName}</p>
