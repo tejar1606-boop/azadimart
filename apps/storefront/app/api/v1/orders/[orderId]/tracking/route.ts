@@ -32,7 +32,9 @@ export async function GET(request:Request,{params}:{params:Promise<{orderId:stri
     for(const row of rows){
       let entry=byShipment.get(row.shipmentId);
       if(!entry){entry={shipmentId:row.shipmentId,sellerId:row.sellerId,status:row.shipmentStatus,awb:row.awb,providerShipmentId:row.providerShipmentId,events:[]};byShipment.set(row.shipmentId,entry);}
-      if(row.eventId&&row.eventCreatedAt) entry.events.push({id:row.eventId,status:row.eventStatus,description:row.eventDescription,createdAt:row.eventCreatedAt});
+      if(row.eventId&&row.eventCreatedAt&&row.eventStatus){
+        entry.events.push({id:row.eventId,status:row.eventStatus,description:row.eventDescription,createdAt:row.eventCreatedAt});
+      }
     }
     return NextResponse.json({shipments:Array.from(byShipment.values())});
   } catch(error) {
