@@ -25,6 +25,8 @@ export const STOREFRONT_ROUTES = [
   "/cart",
   "/checkout",
   "/account",
+  "/login",
+  "/register",
   "/wishlist",
   "/api/health",
   "/api/v1/catalog/products",
