@@ -167,9 +167,16 @@ export async function POST(
           .where(and(eq(orders.id, shipment.orderId), eq(orders.status, "SHIPPED")));
         orderStatus = "DELIVERED";
       } else if (nextStatus === "OUT_FOR_DELIVERY") {
-        await tx.update(orders).set({ status: "OUT_FOR_DELIVERY", updatedAt: new Date() })
-          .where(and(eq(orders.id, shipment.orderId), eq(orders.status, "SHIPPED")));
-        orderStatus = "OUT_FOR_DELIVERY";
+        const outForDelivery = Number((await tx.select({ count: countDistinct(shipments.sellerId) })
+          .from(shipments).where(and(
+            eq(shipments.orderId, shipment.orderId),
+            inArray(shipments.status, ["OUT_FOR_DELIVERY", "DELIVERED"]),
+          )))[0]?.count ?? 0);
+        if (total > 0 && outForDelivery === total) {
+          await tx.update(orders).set({ status: "OUT_FOR_DELIVERY", updatedAt: new Date() })
+            .where(and(eq(orders.id, shipment.orderId), eq(orders.status, "SHIPPED")));
+          orderStatus = "OUT_FOR_DELIVERY";
+        }
       }
 
       await tx.insert(auditLogs).values({
