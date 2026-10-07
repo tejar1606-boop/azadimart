@@ -76,6 +76,9 @@ export async function POST(request:Request){
 
       if(input.couponCode){
         const coupon=(await tx.select().from(coupons).where(and(eq(coupons.code,input.couponCode),eq(coupons.isActive,true))).limit(1))[0];
+        if(coupon){
+          await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${coupon.id} || ':' || ${session.customerId!}, 0))`);
+        }
         if(!coupon)throw new AppError("NOT_FOUND","Coupon code is not available");
         const now=new Date();
         if(coupon.startsAt>now||(coupon.endsAt&&coupon.endsAt<=now))throw new AppError("UNPROCESSABLE","Coupon is outside its valid date range");
@@ -122,7 +125,10 @@ export async function POST(request:Request){
         const coupon=(await tx.select({id:coupons.id,usageCount:coupons.usageCount,usageLimit:coupons.usageLimit}).from(coupons).where(eq(coupons.code,couponCode)).limit(1))[0];
         if(!coupon)throw new AppError("CONFLICT","Coupon became unavailable");
         if(coupon.usageLimit!==null&&coupon.usageCount>=coupon.usageLimit)throw new AppError("CONFLICT","Coupon usage limit was reached. Please retry.");
-        await tx.update(coupons).set({usageCount:sql`${coupons.usageCount} + 1`,updatedAt:new Date()}).where(eq(coupons.id,coupon.id));
+        const updatedCoupon = coupon.usageLimit === null
+          ? await tx.update(coupons).set({usageCount:sql`${coupons.usageCount} + 1`,updatedAt:new Date()}).where(eq(coupons.id,coupon.id)).returning({ id:coupons.id })
+          : await tx.update(coupons).set({usageCount:sql`${coupons.usageCount} + 1`,updatedAt:new Date()}).where(and(eq(coupons.id,coupon.id),sql`${coupons.usageCount} < ${coupon.usageLimit}`)).returning({ id:coupons.id });
+        if (!updatedCoupon.length) throw new AppError("CONFLICT","Coupon usage limit was reached. Please retry.");
         await tx.insert(couponRedemptions).values({couponId:coupon.id,customerId:session.customerId!,orderId:order.id,discountPaise:discount});
       }
 
