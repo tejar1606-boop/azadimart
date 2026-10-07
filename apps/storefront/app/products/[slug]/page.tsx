@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import ProductGallery from "./product-gallery";
 import { notFound } from "next/navigation";
 import { createDatabase, inventory, mediaAssets, productMedia, productVariants, products, sellers, categories } from "@azadimart/database";
 import { and, asc, eq } from "drizzle-orm";
@@ -49,6 +50,8 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const selectedVariant = variants[0];
   if (!selectedVariant) notFound();
   const availableQuantity = Math.max(0, (selectedVariant.onHand ?? 0) - (selectedVariant.reserved ?? 0));
+  const hasDiscount = Boolean(selectedVariant.compareAtPaise && selectedVariant.compareAtPaise > selectedVariant.pricePaise);
+  const discountPercent = hasDiscount ? Math.round((1 - selectedVariant.pricePaise / (selectedVariant.compareAtPaise ?? selectedVariant.pricePaise)) * 100) : 0;
 
   return (
     <main className="min-h-screen bg-[#f8f7f3] px-4 py-8 sm:px-6 sm:py-12">
@@ -56,27 +59,27 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         <Link href="/products" className="text-sm font-semibold text-slate-500 hover:text-slate-950">← Back to marketplace</Link>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
-          <section className="grid gap-3 sm:grid-cols-2">
-            {(media.length > 0 ? media.slice(0, 8) : [null]).map((item, index) => (
-              <div key={item?.mediaAssetId ?? "placeholder"} className={`relative grid aspect-square place-items-center overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white ${index === 0 ? "sm:col-span-2" : ""}`}>
-                {item?.mediaStorageKey && item.mediaKind === "IMAGE" ? <Image src={"/media/" + item.mediaStorageKey} alt={item.altText ?? first.title} fill sizes="(max-width: 640px) 100vw, 55vw" className="object-cover" /> : <span className="text-7xl font-black tracking-[-0.08em] text-slate-100">{first.title.slice(0, 1).toUpperCase()}</span>}
-                {index === 0 ? <span className="absolute left-4 top-4 rounded-full bg-slate-950 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white">Quality checked</span> : null}
-              </div>
-            ))}
-          </section>
+          <ProductGallery
+            title={first.title}
+            media={media.filter((item): item is typeof item & { mediaStorageKey: string } => Boolean(item.mediaStorageKey && item.mediaKind === "IMAGE"))}
+          />
 
           <section className="h-fit rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.05)] sm:p-8 lg:sticky lg:top-28">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">{first.categoryName}</p>
             <h1 className="mt-3 text-3xl font-black tracking-[-0.045em] sm:text-5xl">{first.title}</h1>
             <p className="mt-3 text-sm text-slate-500">Sold by <span className="font-semibold text-slate-800">{first.sellerName}</span></p>
 
-            <div className="mt-6 flex items-end gap-3">
+            <div className="mt-6 flex flex-wrap items-end gap-3">
               <span className="text-3xl font-black">{money(selectedVariant.pricePaise)}</span>
-              {selectedVariant.compareAtPaise ? <span className="text-base text-slate-400 line-through">{money(selectedVariant.compareAtPaise)}</span> : null}
+              {hasDiscount ? <span className="text-base text-slate-400 line-through">{money(selectedVariant.compareAtPaise!)}</span> : null}
+              {hasDiscount ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{discountPercent}% off</span> : null}
             </div>
+            <p className="mt-2 text-xs text-slate-400">Inclusive of applicable taxes • Final price shown at checkout</p>
 
             <div className="mt-6 rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Variant</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Availability</p>
+              <p className={`mt-1 font-bold ${availableQuantity > 0 ? "text-emerald-700" : "text-red-600"}`}>{availableQuantity > 0 ? availableQuantity < 5 ? `Only ${availableQuantity} left` : "In stock" : "Currently out of stock"}</p>
+              <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Variant</p>
               <p className="mt-1 font-semibold">{selectedVariant.variantTitle}</p>
               <p className="mt-1 text-xs text-slate-400">SKU {selectedVariant.sku}</p>
             </div>
