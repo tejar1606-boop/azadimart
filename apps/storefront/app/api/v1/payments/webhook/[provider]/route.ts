@@ -24,7 +24,7 @@ export async function POST(
     const result = await db.transaction(async (tx) => {
       const inserted = await tx.insert(paymentEvents).values({
         provider: event.provider,
-        eventId: event.providerPaymentId + ":" + event.status + ":" + crypto.randomUUID(),
+        eventId: event.eventId,
         eventType: event.status,
         payload: event.raw,
         processedAt: new Date(),
