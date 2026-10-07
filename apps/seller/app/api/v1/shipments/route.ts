@@ -2,7 +2,7 @@ import { requireApiAccess } from "@azadimart/auth";
 import { auditLogs, createDatabase, orderItems, orders, productVariants, sellerSettings, shipmentEvents, shipments, sellers } from "@azadimart/database";
 import { createShipmentForOrder, getLogisticsProvider, type Address } from "@azadimart/logistics";
 import { AppError, sellerShippingSettingsSchema, toApiError } from "@azadimart/shared";
-import { and, eq } from "drizzle-orm";
+import { and, countDistinct, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -157,6 +157,37 @@ export async function POST(request: Request) {
       entityId:shipment.id,
       metadata:{ orderId:body.orderId, sellerId:principal.sellerId, provider:created.provider },
     });
+
+    // A marketplace order is SHIPPED only after every seller involved has a
+    // successfully created shipment. Until then it remains CONFIRMED/PACKED.
+    const sellerCount = Number(
+      (await db
+        .select({ count: countDistinct(orderItems.sellerId) })
+        .from(orderItems)
+        .where(eq(orderItems.orderId, body.orderId)))[0]?.count ?? 0,
+    );
+    const createdShipmentSellerCount = Number(
+      (await db
+        .select({ count: countDistinct(shipments.sellerId) })
+        .from(shipments)
+        .where(
+          and(
+            eq(shipments.orderId, body.orderId),
+            eq(shipments.status, "CREATED"),
+          ),
+        ))[0]?.count ?? 0,
+    );
+    if (sellerCount > 0 && createdShipmentSellerCount === sellerCount) {
+      await db
+        .update(orders)
+        .set({ status: "SHIPPED", updatedAt: new Date() })
+        .where(
+          and(
+            eq(orders.id, body.orderId),
+            eq(orders.status, "PACKED"),
+          ),
+        );
+    }
 
     return NextResponse.json({ shipment }, { status:201 });
   } catch(error) {
