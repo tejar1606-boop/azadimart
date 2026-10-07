@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     const db = createDatabase();
     const filters = [eq(products.status, "LIVE"), eq(productVariants.isActive, true)];
     if (categoryId) filters.push(eq(products.categoryId, categoryId));
-    if (query) filters.push(or(ilike(products.title, `%${query}%`), ilike(products.description, `%${query}%`))!);
+    if (query) filters.push(or(ilike(products.title, "%" + query + "%"), ilike(products.description, "%" + query + "%"))!);
     if (Number.isFinite(minPrice) && minPrice >= 0) filters.push(gte(productVariants.pricePaise, minPrice));
 
     const rows = await db.select({
@@ -54,8 +54,14 @@ export async function GET(request: Request) {
       .leftJoin(productMedia, eq(productMedia.productId, products.id))
       .leftJoin(mediaAssets, eq(mediaAssets.id, productMedia.mediaAssetId))
       .where(and(...filters))
-      .orderBy(sort === "price_asc" ? asc(productVariants.pricePaise) : sort === "price_desc" ? desc(productVariants.pricePaise) : desc(products.createdAt), asc(productMedia.sortOrder))
-      .limit(limit);
+      .orderBy(
+        sort === "price_asc"
+          ? asc(productVariants.pricePaise)
+          : sort === "price_desc"
+            ? desc(productVariants.pricePaise)
+            : desc(products.createdAt),
+        asc(productMedia.sortOrder),
+      );
 
     const productMap = new Map<string, {
       id: string;
@@ -105,11 +111,16 @@ export async function GET(request: Request) {
       productMap.set(row.id, current);
     }
 
-    const categoryRows = await db.select({ id: categories.id, name: categories.name, slug: categories.slug }).from(categories).where(eq(categories.isActive, true)).orderBy(asc(categories.sortOrder), asc(categories.name));
+    const items = [...productMap.values()].filter((product) => product.variants.length > 0).slice(0, limit);
+    const categoryRows = await db
+      .select({ id: categories.id, name: categories.name, slug: categories.slug })
+      .from(categories)
+      .where(eq(categories.isActive, true))
+      .orderBy(asc(categories.sortOrder), asc(categories.name));
 
     return NextResponse.json({
       categories: categoryRows,
-      items: [...productMap.values()].filter((product) => product.variants.length > 0),
+      items,
       nextCursor: null,
       requestId,
     });
