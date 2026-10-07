@@ -30,7 +30,7 @@ export default function KycForm({
     ? [["GST_ENROLMENT", "GST Enrolment acknowledgement"], ...BASE_TYPES]
     : [["GST", "GST certificate"], ...BASE_TYPES];
 
-  const [type, setType] = useState<DocType>(types[0][0]);
+  const [type, setType] = useState<DocType>(types[0]?.[0] ?? "PAN");
   const [file, setFile] = useState<File | null>(null);
   const [documents, setDocuments] = useState<Uploaded[]>([]);
   const [error, setError] = useState("");
