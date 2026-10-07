@@ -1,6 +1,6 @@
 import CouponCard from "./components/coupon-card";
 import Link from "next/link";
-import { createDatabase, coupons, pageSections, pages, productVariants, products, themes } from "@azadimart/database";
+import { createDatabase, coupons, navigation, pageSections, pages, productVariants, products, themes } from "@azadimart/database";
 import { and, asc, desc, eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -12,13 +12,15 @@ async function getHome(){
   const theme=(await db.select().from(themes).where(eq(themes.status,"PUBLISHED")).limit(1))[0];
   if(!theme) return {sections:[],coupons:[],products:[]};
   const page=(await db.select().from(pages).where(and(eq(pages.themeId,theme.id),eq(pages.slug,"home"),eq(pages.status,"PUBLISHED"))).limit(1))[0];
+  const nav=(await db.select().from(navigation).where(and(eq(navigation.themeId,theme.id),eq(navigation.handle,"main-menu"))).limit(1))[0];
+  const navigationItems=Array.isArray(nav?.items)?nav.items.filter((item)=>item && typeof item==="object" && typeof (item as {label?:unknown}).label==="string" && typeof (item as {href?:unknown}).href==="string" && (item as {isActive?:unknown}).isActive!==false):[];
   if(!page) return {sections:[],coupons:[],products:[]};
   const sections=await db.select().from(pageSections).where(eq(pageSections.pageId,page.id)).orderBy(asc(pageSections.position));
   const now=new Date();
   const allCoupons=await db.select({id:coupons.id,code:coupons.code,title:coupons.title,description:coupons.description,discountType:coupons.discountType,discountValue:coupons.discountValue,minimumOrderPaise:coupons.minimumOrderPaise,startsAt:coupons.startsAt,endsAt:coupons.endsAt}).from(coupons).where(eq(coupons.isActive,true)).orderBy(desc(coupons.createdAt)).limit(24);
   const activeCoupons=allCoupons.filter(c=>c.startsAt<=now && (!c.endsAt || c.endsAt>now)).slice(0,12);
   const liveProducts=await db.select({id:products.id,title:products.title,slug:products.slug,pricePaise:productVariants.pricePaise}).from(products).innerJoin(productVariants,eq(productVariants.productId,products.id)).where(eq(products.status,"LIVE")).orderBy(desc(products.createdAt)).limit(12);
-  return {sections,coupons:activeCoupons,products:liveProducts};
+  return {sections,coupons:activeCoupons,products:liveProducts,navigationItems};
 }
 
 export default async function HomePage(){
@@ -27,7 +29,7 @@ export default async function HomePage(){
     <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6">
         <Link href="/" className="shrink-0 text-lg font-black tracking-tight">Azadi<span className="text-amber-500">Mart</span></Link>
-        <nav className="hidden gap-5 text-sm font-medium md:flex"><Link href="/products">Shop</Link><Link href="/cart">Cart</Link><Link href="/wishlist">Wishlist</Link></nav>
+        <nav className="hidden gap-5 text-sm font-medium md:flex">{data.navigationItems.map((item)=>{const navItem=item as {label:string;href:string};return <Link key={navItem.href+navItem.label} href={navItem.href}>{navItem.label}</Link>})}</nav>
         <div className="ml-auto flex items-center gap-2"><span className="hidden rounded-full border px-3 py-2 text-xs sm:block">Search products</span><Link href="/products" className="rounded-full bg-slate-950 px-4 py-2 text-xs font-bold text-white">Shop now</Link></div>
       </div>
     </header>
