@@ -97,6 +97,8 @@ export async function POST(request: Request) {
           },
         });
 
+        if (!row) throw new AppError("CONFLICT", "Refund could not be created");
+
         return { existing: row, reused: false as const };
       }
 
@@ -126,6 +128,11 @@ export async function POST(request: Request) {
         },
       });
 
+      if (!row) throw new AppError("CONFLICT", "Refund could not be created");
+      if (payment.provider !== "RAZORPAY" && payment.provider !== "CASHFREE") {
+        throw new AppError("CONFLICT", "Unsupported PSP refund provider");
+      }
+
       return {
         existing: row,
         reused: false as const,
@@ -146,14 +153,19 @@ export async function POST(request: Request) {
       );
     }
 
+    const refund = prepared.existing;
+    if (!refund || !prepared.provider || !prepared.providerPaymentId || prepared.paymentAmountPaise === undefined) {
+      throw new AppError("CONFLICT", "Refund state is incomplete");
+    }
+
     try {
       const provider = getPaymentProvider(prepared.provider);
-      const result = await provider.refund(prepared.providerPaymentId, prepared.existing.amountPaise, prepared.existing.idempotencyKey);
+      const result = await provider.refund(prepared.providerPaymentId, refund.amountPaise, refund.idempotencyKey);
 
       const completed = await db.transaction(async (tx) => {
         await tx.execute(sql`
           select pg_advisory_xact_lock(
-            hashtextextended(\${"refund:" + prepared.existing.paymentId}, 0)
+            hashtextextended(\${"refund:" + refund.paymentId}, 0)
           )
         `);
 
@@ -161,13 +173,13 @@ export async function POST(request: Request) {
           status: "COMPLETED",
           providerRefundId: result.providerRefundId,
           updatedAt: new Date(),
-        }).where(and(eq(refunds.id, prepared.existing.id), eq(refunds.status, "PROCESSING"))).returning())[0];
+        }).where(and(eq(refunds.id, refund.id), eq(refunds.status, "PROCESSING"))).returning())[0];
 
         if (!updated) throw new AppError("CONFLICT", "Refund state changed before provider completion");
 
         const completedTotal = (await tx.select({
           amountPaise: sql<number>`coalesce(sum(case when \${refunds.status} = 'COMPLETED' then \${refunds.amountPaise} else 0 end), 0)`,
-        }).from(refunds).where(eq(refunds.paymentId, prepared.existing.paymentId)))[0]?.amountPaise ?? 0;
+        }).from(refunds).where(eq(refunds.paymentId, refund.paymentId)))[0]?.amountPaise ?? 0;
 
         const nextPaymentStatus = Number(completedTotal) >= prepared.paymentAmountPaise
           ? "REFUNDED"
@@ -176,7 +188,7 @@ export async function POST(request: Request) {
         await tx.update(payments).set({
           status: nextPaymentStatus,
           updatedAt: new Date(),
-        }).where(eq(payments.id, prepared.existing.paymentId));
+        }).where(eq(payments.id, refund.paymentId));
 
         await tx.insert(auditLogs).values({
           actorUserId: principal.userId,
@@ -198,7 +210,7 @@ export async function POST(request: Request) {
       await db.update(refunds).set({
         status: "FAILED",
         updatedAt: new Date(),
-      }).where(and(eq(refunds.id, prepared.existing.id), eq(refunds.status, "PROCESSING")));
+      }).where(and(eq(refunds.id, refund.id), eq(refunds.status, "PROCESSING")));
 
       if (error instanceof AppError) throw error;
       throw new AppError("CONFLICT", "Payment provider rejected the refund request");
