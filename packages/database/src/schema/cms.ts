@@ -1,4 +1,4 @@
-import { boolean, index, integer, jsonb, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, sql, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { id, timestamps } from "./columns";
 import { mediaKindEnum, pageStatusEnum, themeStatusEnum } from "./enums";
 import { users } from "./identity";
@@ -19,21 +19,25 @@ export const mediaAssets = pgTable(
   (table) => [uniqueIndex("media_assets_storage_key_unique").on(table.storageKey)],
 );
 
-export const themes = pgTable("themes", {
-  id,
-  name: text("name").notNull(),
-  status: themeStatusEnum("status").notNull().default("DRAFT"),
-  settings: jsonb("settings").$type<Record<string, unknown>>().notNull().default({}),
-  ...timestamps,
-});
+export const themes = pgTable(
+  "themes",
+  {
+    id,
+    name: text("name").notNull(),
+    status: themeStatusEnum("status").notNull().default("DRAFT"),
+    settings: jsonb("settings").$type<Record<string, unknown>>().notNull().default({}),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("themes_published_unique").on(table.status).where(sql`${table.status} = 'PUBLISHED'`),
+  ],
+);
 
 export const themeRevisions = pgTable(
   "theme_revisions",
   {
     id,
-    themeId: uuid("theme_id")
-      .notNull()
-      .references(() => themes.id, { onDelete: "cascade" }),
+    themeId: uuid("theme_id").notNull().references(() => themes.id, { onDelete: "cascade" }),
     snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull(),
     message: text("message"),
     createdByUserId: uuid("created_by_user_id").references(() => users.id),
@@ -46,9 +50,7 @@ export const pages = pgTable(
   "pages",
   {
     id,
-    themeId: uuid("theme_id")
-      .notNull()
-      .references(() => themes.id, { onDelete: "cascade" }),
+    themeId: uuid("theme_id").notNull().references(() => themes.id, { onDelete: "cascade" }),
     slug: text("slug").notNull(),
     title: text("title").notNull(),
     status: pageStatusEnum("status").notNull().default("DRAFT"),
@@ -61,9 +63,7 @@ export const pageSections = pgTable(
   "page_sections",
   {
     id,
-    pageId: uuid("page_id")
-      .notNull()
-      .references(() => pages.id, { onDelete: "cascade" }),
+    pageId: uuid("page_id").notNull().references(() => pages.id, { onDelete: "cascade" }),
     type: text("type").notNull(),
     position: integer("position").notNull(),
     isVisible: boolean("is_visible").notNull().default(true),
@@ -77,9 +77,7 @@ export const navigation = pgTable(
   "navigation",
   {
     id,
-    themeId: uuid("theme_id")
-      .notNull()
-      .references(() => themes.id, { onDelete: "cascade" }),
+    themeId: uuid("theme_id").notNull().references(() => themes.id, { onDelete: "cascade" }),
     handle: text("handle").notNull(),
     items: jsonb("items").$type<Record<string, unknown>[]>().notNull().default([]),
     ...timestamps,
@@ -91,18 +89,14 @@ export const navigationItems = pgTable(
   "navigation_items",
   {
     id,
-    navigationId: uuid("navigation_id")
-      .notNull()
-      .references(() => navigation.id, { onDelete: "cascade" }),
+    navigationId: uuid("navigation_id").notNull().references(() => navigation.id, { onDelete: "cascade" }),
     label: text("label").notNull(),
     href: text("href"),
     position: integer("position").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),
     ...timestamps,
   },
-  (table) => [
-    index("navigation_items_navigation_id_idx").on(table.navigationId),
-  ],
+  (table) => [index("navigation_items_navigation_id_idx").on(table.navigationId)],
 );
 
 export const banners = pgTable(
