@@ -43,6 +43,13 @@
       "when": 1791346500000,
       "tag": "20261007101500_shipment_integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791347400000,
+      "tag": "20261007103000_variant_package_weight",
+      "breakpoints": true
     }
   ]
 }
