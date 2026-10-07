@@ -15,7 +15,8 @@ import { and, countDistinct, eq, gte, inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 const transitions: Record<string, string[]> = {
-  PENDING: ["CREATED", "FAILED", "CANCELLED"],
+  // PENDING is an internal reservation state. Shipment creation owns the provider call and the PENDING -> CREATED/FAILED transition, so a seller cannot race that external side effect with a manual status mutation.
+  PENDING: [],
   CREATED: ["PICKED_UP", "FAILED", "CANCELLED"],
   PICKED_UP: ["IN_TRANSIT", "OUT_FOR_DELIVERY", "FAILED", "RETURNED"],
   IN_TRANSIT: ["OUT_FOR_DELIVERY", "DELIVERED", "FAILED", "RETURNED"],
