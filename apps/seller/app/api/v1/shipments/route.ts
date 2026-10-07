@@ -77,12 +77,17 @@ export async function POST(request: Request) {
       declaredValuePaise,
     });
 
-    const shipment = (await db.insert(shipments).values({
-      orderId:body.orderId,
-      sellerId:principal.sellerId,
-      status:"CREATED",
-      providerShipmentId:created.providerShipmentId,
-    }).returning({ id:shipments.id,status:shipments.status,providerShipmentId:shipments.providerShipmentId })).[0];
+    const shipmentRows = await db.insert(shipments).values({
+      orderId: body.orderId,
+      sellerId: principal.sellerId,
+      status: "CREATED",
+      providerShipmentId: created.providerShipmentId,
+    }).returning({
+      id: shipments.id,
+      status: shipments.status,
+      providerShipmentId: shipments.providerShipmentId,
+    });
+    const shipment = shipmentRows[0];
     if (!shipment) throw new AppError("INTERNAL","Shipment creation failed",undefined,false);
 
     await db.insert(shipmentEvents).values({ shipmentId:shipment.id, status:"CREATED", description:"Shipment created through " + created.provider });
