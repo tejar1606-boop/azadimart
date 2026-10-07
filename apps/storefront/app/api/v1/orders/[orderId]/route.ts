@@ -13,7 +13,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     const db = createDatabase();
 
     const order = (await db.select({
-      id: orders.id, orderNumber: orders.orderNumber, status: orders.status,
+      id: orders.id, customerId: orders.customerId, orderNumber: orders.orderNumber, status: orders.status,
       subtotalPaise: orders.subtotalPaise, discountPaise: orders.discountPaise,
       shippingPaise: orders.shippingPaise, grandTotalPaise: orders.grandTotalPaise,
       couponCode: orders.couponCode, shippingAddressSnapshot: orders.shippingAddressSnapshot,
@@ -21,9 +21,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     }).from(orders).leftJoin(payments, eq(payments.orderId, orders.id))
       .where(eq(orders.id, orderId)).limit(1))[0];
 
-    if (!order || order.customerId) {
-      if (!order || order.customerId !== session.customerId) throw new AppError("NOT_FOUND", "Order not found");
-    }
+    if (!order || order.customerId !== session.customerId) throw new AppError("NOT_FOUND", "Order not found");
 
     const items = await db.select({
       id: orderItems.id, sellerId: orderItems.sellerId, sellerName: sellers.storeName,
