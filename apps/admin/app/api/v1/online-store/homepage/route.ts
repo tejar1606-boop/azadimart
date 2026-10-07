@@ -25,7 +25,7 @@ async function ensureHomepage() {
       theme = created;
     }
 
-    let page = (await tx.select().from(pages).where(eq(pages.themeId, theme.id)).limit(1))[0];
+    const page = (await tx.select().from(pages).where(eq(pages.themeId, theme.id)).limit(1))[0];
 
     if (!page) {
       const created = (await tx.insert(pages).values({
