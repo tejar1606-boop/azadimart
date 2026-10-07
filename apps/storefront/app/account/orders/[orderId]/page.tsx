@@ -1,0 +1,23 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+
+type Item={id:string;sellerName:string;title:string;sku:string;quantity:number;unitPricePaise:number};
+type Order={orderNumber:string;status:string;subtotalPaise:number;discountPaise:number;shippingPaise:number;grandTotalPaise:number;couponCode:string|null;shippingAddressSnapshot:{line1:string;line2?:string|null;city:string;state:string;postalCode:string;country:string};createdAt:string;paymentStatus:string|null;items:Item[]};
+const money=(p:number)=>"₹"+(p/100).toLocaleString("en-IN",{maximumFractionDigits:0});
+
+export default function OrderDetailPage(){
+  const params=useParams<{orderId:string}>();
+  const [order,setOrder]=useState<Order|null>(null);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState("");
+  useEffect(()=>{void (async()=>{try{const response=await fetch("/api/v1/orders/"+params.orderId,{cache:"no-store"});const body=await response.json();if(!response.ok)throw new Error(body?.error?.message??"Unable to load order.");setOrder(body.order);}catch(err){setError(err instanceof Error?err.message:"Unable to load order.");}finally{setLoading(false);}})()},[params.orderId]);
+
+  if(loading)return <main className="min-h-screen bg-[#f8f7f3] px-4 py-12 sm:px-6"><div className="mx-auto max-w-4xl h-72 animate-pulse rounded-[2rem] bg-white"/></main>;
+  if(error||!order)return <main className="min-h-screen bg-[#f8f7f3] px-4 py-12 sm:px-6"><div className="mx-auto max-w-md rounded-[2rem] border border-slate-200 bg-white p-8 text-center"><h1 className="text-2xl font-black">{error||"Order not found"}</h1><Link href="/account/orders" className="mt-5 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white">Back to orders</Link></div></main>;
+
+  return <main className="min-h-screen bg-[#f8f7f3] px-4 py-8 sm:px-6 sm:py-12"><div className="mx-auto max-w-5xl"><Link href="/account/orders" className="text-sm font-semibold text-slate-500">← All orders</Link><div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Order confirmed</p><h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-5xl">{order.orderNumber}</h1><p className="mt-2 text-sm text-slate-500">{new Date(order.createdAt).toLocaleString("en-IN")}</p></div><span className="rounded-full bg-slate-950 px-4 py-2 text-xs font-bold text-white">{order.status.replaceAll("_"," ")}</span></div><div className="mt-7 grid gap-5 lg:grid-cols-[1fr_.8fr]"><section className="rounded-[2rem] border border-slate-200 bg-white p-5 sm:p-7"><h2 className="text-lg font-black">Items</h2><div className="mt-4 divide-y divide-slate-100">{order.items.map(item=><div key={item.id} className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold">{item.title}</p><p className="mt-1 text-xs text-slate-400">{item.sellerName} · SKU {item.sku} · Qty {item.quantity}</p></div><p className="font-black">{money(item.unitPricePaise*item.quantity)}</p></div>)}</div><div className="mt-5 rounded-2xl bg-slate-50 p-4"><p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">Delivering to</p><p className="mt-2 text-sm leading-6 text-slate-600">{order.shippingAddressSnapshot.line1}{order.shippingAddressSnapshot.line2?", "+order.shippingAddressSnapshot.line2:""}, {order.shippingAddressSnapshot.city}, {order.shippingAddressSnapshot.state} — {order.shippingAddressSnapshot.postalCode}</p></div></section><aside className="h-fit rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7"><h2 className="text-lg font-black">Payment summary</h2><div className="mt-5 space-y-3 text-sm"><Row label="Subtotal" value={money(order.subtotalPaise)}/><Row label="Discount" value={"−"+money(order.discountPaise)}/><Row label="Shipping" value={money(order.shippingPaise)}/><Row label="Total" value={money(order.grandTotalPaise)} strong/></div>{order.couponCode?<p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs font-semibold text-amber-800">Coupon applied: {order.couponCode}</p>:null}<div className="mt-5 rounded-2xl bg-slate-50 p-4"><p className="text-sm font-bold">Cash on Delivery</p><p className="mt-1 text-xs text-slate-500">Payment status: {order.paymentStatus??"PENDING"}</p></div></aside></div></div></main>;
+}
+function Row({label,value,strong}:{label:string;value:string;strong?:boolean}){return <div className={"flex justify-between "+(strong?"pt-2 text-base font-black":"text-slate-600")}><span>{label}</span><span className={strong?"text-slate-950":"text-slate-700"}>{value}</span></div>}
