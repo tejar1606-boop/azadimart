@@ -8,6 +8,10 @@ describe("validation", () => {
       legalName: "Sunrise Traders Pvt Ltd",
       email: "seller@example.com",
       phone: "9876543210",
+      businessState: "Karnataka",
+      taxIdentityType: "GSTIN",
+      gstin: "29ABCDE1234F1Z5",
+      taxDeclarationAccepted: true,
       password: "TestPassword123!",
     });
     expect(result.success).toBe(true);
