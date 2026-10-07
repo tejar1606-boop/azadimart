@@ -1,4 +1,5 @@
 import CouponCard from "./components/coupon-card";
+import Image from "next/image";
 import Link from "next/link";
 import {
   createDatabase,
@@ -28,7 +29,14 @@ type HomeCoupon = {
   startsAt: Date;
   endsAt: Date | null;
 };
-type HomeProduct = { id: string; title: string; slug: string; pricePaise: number };
+type HomeProduct = {
+  id: string;
+  title: string;
+  slug: string;
+  pricePaise: number;
+  mediaStorageKey: string | null;
+  mediaAltText: string | null;
+};
 type HomeNav = { id: string; label: string; href: string | null; isActive: boolean };
 
 const money = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -111,8 +119,12 @@ async function getHome() {
     title: products.title,
     slug: products.slug,
     pricePaise: productVariants.pricePaise,
+    mediaStorageKey: mediaAssets.storageKey,
+    mediaAltText: mediaAssets.altText,
   }).from(products)
     .innerJoin(productVariants, eq(productVariants.productId, products.id))
+    .leftJoin(productMedia, and(eq(productMedia.productId, products.id), eq(productMedia.kind, "IMAGE")))
+    .leftJoin(mediaAssets, eq(mediaAssets.id, productMedia.mediaAssetId))
     .where(eq(products.status, "LIVE"))
     .orderBy(desc(products.createdAt))
     .limit(12);
@@ -283,8 +295,18 @@ function StoreSection({ section, coupons, products: liveProducts }: { section: H
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {liveProducts.slice(0, limit).map((product) => (
             <Link href={"/products/" + product.slug} key={product.id} className="group rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-              <div className="relative grid aspect-square place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-slate-100 via-white to-amber-50">
-                <span className="text-4xl font-black text-slate-200">{product.title.slice(0, 1).toUpperCase()}</span>
+              <div className="relative aspect-square overflow-hidden rounded-xl bg-gradient-to-br from-slate-100 via-white to-amber-50">
+                {product.mediaStorageKey ? (
+                  <Image
+                    src={"/media/" + product.mediaStorageKey}
+                    alt={product.mediaAltText ?? product.title}
+                    fill
+                    sizes="(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 23vw"
+                    className="object-cover transition duration-500 group-hover:scale-105"
+                  />
+                ) : (
+                  <span className="grid h-full place-items-center text-4xl font-black text-slate-200">{product.title.slice(0, 1).toUpperCase()}</span>
+                )}
                 <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-slate-500">Verified seller</span>
               </div>
               <p className="mt-3 line-clamp-2 text-sm font-semibold leading-5">{product.title}</p>
