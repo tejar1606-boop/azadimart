@@ -225,7 +225,7 @@ export default function SellersPage() {
                     {detail.documents.map((document) => (
                       <div key={document.id} className="flex flex-col gap-2 rounded-lg bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                          <p className="text-sm font-medium">{document.type}</p>
+                          <p className="text-sm font-medium">{document.type === "GST_ENROLMENT" ? "GST Enrolment acknowledgement" : document.type.replaceAll("_", " ")}</p>
                           <p className="text-xs text-ink-muted">
                             {(document.byteSize / 1024 / 1024).toFixed(2)} MB · {document.mimeType}
                           </p>
