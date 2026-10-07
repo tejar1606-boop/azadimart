@@ -48,35 +48,44 @@ export async function POST(request: Request) {
       throw new AppError("CONFLICT", "Product is not eligible for QC submission");
     }
 
-    const inserted = await db
-      .insert(qcSubmissions)
-      .values({
-        productId: product.id,
-        sellerId: principal.sellerId,
-        status: "PENDING",
-        notes: input.notes ?? null,
-      })
-      .returning({
-        id: qcSubmissions.id,
-        productId: qcSubmissions.productId,
-        status: qcSubmissions.status,
-        createdAt: qcSubmissions.createdAt,
-      });
+    const submission = await db.transaction(async (tx) => {
+      const inserted = await tx
+        .insert(qcSubmissions)
+        .values({
+          productId: product.id,
+          sellerId: principal.sellerId,
+          status: "PENDING",
+          notes: input.notes ?? null,
+        })
+        .returning({
+          id: qcSubmissions.id,
+          productId: qcSubmissions.productId,
+          status: qcSubmissions.status,
+          createdAt: qcSubmissions.createdAt,
+        });
 
-    const submission = inserted[0];
-    if (!submission) {
-      throw new AppError("INTERNAL", "QC submission failed", undefined, false);
-    }
+      const created = inserted[0];
+      if (!created) {
+        throw new AppError("INTERNAL", "QC submission failed", undefined, false);
+      }
 
-    await db
-      .update(products)
-      .set({ status: "PENDING_QC", updatedAt: new Date() })
-      .where(
-        and(
-          eq(products.id, product.id),
-          inArray(products.status, ["DRAFT", "QC_REJECTED"]),
-        ),
-      );
+      const updated = await tx
+        .update(products)
+        .set({ status: "PENDING_QC", updatedAt: new Date() })
+        .where(
+          and(
+            eq(products.id, product.id),
+            inArray(products.status, ["DRAFT", "QC_REJECTED"]),
+          ),
+        )
+        .returning({ id: products.id });
+
+      if (!updated[0]) {
+        throw new AppError("CONFLICT", "Product is no longer eligible for QC submission");
+      }
+
+      return created;
+    });
 
     return NextResponse.json({ submission }, { status: 201 });
   } catch (error) {
