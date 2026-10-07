@@ -61,14 +61,17 @@ export async function POST(
       for (const row of priorRows) returnedByItem.set(row.orderItemId, (returnedByItem.get(row.orderItemId) ?? 0) + row.quantity);
 
       const itemMap = new Map(ownedItems.map((item) => [item.id, item]));
-      const requestedItems = body.items!;
+      const requestedItems = body.items;
       const validated = requestedItems.map((input) => {
-        const item = itemMap.get(input.orderItemId!);
+        const orderItemId = input.orderItemId;
+        if (!orderItemId) throw new AppError("VALIDATION_ERROR", "Each return item needs a valid order item ID");
+        const item = itemMap.get(orderItemId);
         const quantity = Number(input.quantity);
-        if (!Number.isInteger(quantity) || quantity <= 0 || quantity > item!.quantity - (returnedByItem.get(item!.id) ?? 0)) {
-          throw new AppError("UNPROCESSABLE", `Invalid return quantity for ${item!.title}`);
+        if (!item) throw new AppError("NOT_FOUND", "One or more order items were not found");
+        if (!Number.isInteger(quantity) || quantity <= 0 || quantity > item.quantity - (returnedByItem.get(item.id) ?? 0)) {
+          throw new AppError("UNPROCESSABLE", `Invalid return quantity for ${item.title}`);
         }
-        return { ...item!, quantity, reason: input.reason?.trim().slice(0, 500) || body.reason?.trim().slice(0, 500) || null };
+        return { ...item, quantity, reason: input.reason?.trim().slice(0, 500) || body.reason?.trim().slice(0, 500) || null };
       });
 
       const sellerIds = [...new Set(validated.map((item) => item.sellerId))];
