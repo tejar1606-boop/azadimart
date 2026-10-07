@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 
-type Order={id:string;orderNumber:string;status:string;grandTotalPaise:number;discountPaise:number;couponCode:string|null;createdAt:string;productTitle:string;sku:string;quantity:number;unitPricePaise:number;paymentStatus:string|null};
+type Order={id:string;orderNumber:string;status:string;grandTotalPaise:number;discountPaise:number;couponCode:string|null;createdAt:string;productTitle:string;sku:string;quantity:number;unitPricePaise:number;paymentStatus:string|null;orderItemId:string};
 const money=(p:number)=>"₹"+(p/100).toLocaleString("en-IN",{maximumFractionDigits:0});
 
 export default function OrderList(){
