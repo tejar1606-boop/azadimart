@@ -61,7 +61,8 @@ export async function POST(
       for (const row of priorRows) returnedByItem.set(row.orderItemId, (returnedByItem.get(row.orderItemId) ?? 0) + row.quantity);
 
       const itemMap = new Map(ownedItems.map((item) => [item.id, item]));
-      const requestedItems = body.items!;\n      const validated = requestedItems.map((input) => {
+      const requestedItems = body.items!;
+      const validated = requestedItems.map((input) => {
         const item = itemMap.get(input.orderItemId!);
         const quantity = Number(input.quantity);
         if (!Number.isInteger(quantity) || quantity <= 0 || quantity > item!.quantity - (returnedByItem.get(item!.id) ?? 0)) {
