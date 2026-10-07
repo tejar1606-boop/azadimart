@@ -22,7 +22,7 @@ const transitions: Record<string, string[]> = {
   IN_TRANSIT: ["OUT_FOR_DELIVERY", "DELIVERED", "FAILED", "RETURNED"],
   OUT_FOR_DELIVERY: ["DELIVERED", "FAILED", "RETURNED"],
   DELIVERED: ["RETURNED"],
-  FAILED: ["PENDING"],
+  FAILED: [],
   RETURNED: [],
   CANCELLED: [],
 };
