@@ -8,7 +8,7 @@ import {
   products,
 } from "@azadimart/database";
 import { AppError, cartItemMutationSchema, cartRemoveSchema, toApiError } from "@azadimart/shared";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 async function getCustomer(request: Request) {
