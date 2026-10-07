@@ -4,13 +4,14 @@ import { AppError, couponUpdateSchema, toApiError } from "@azadimart/shared";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-export async function PATCH(request: Request, { params }: { params: { id:string } }) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id:string }> }) {
   const requestId=crypto.randomUUID();
   try{
     await requireApiAccess(request,"admin",["ADMIN","SUPER_ADMIN"]);
+    const { id } = await params;
     const input=couponUpdateSchema.parse(await request.json());
     const db=createDatabase();
-    const existing=(await db.select({id:coupons.id,code:coupons.code}).from(coupons).where(eq(coupons.id,params.id)).limit(1))[0];
+    const existing=(await db.select({id:coupons.id,code:coupons.code}).from(coupons).where(eq(coupons.id,id)).limit(1))[0];
     if(!existing) throw new AppError("NOT_FOUND","Coupon not found");
     if(input.code && input.code!==existing.code){
       const duplicate=(await db.select({id:coupons.id}).from(coupons).where(eq(coupons.code,input.code)).limit(1))[0];
@@ -37,23 +38,24 @@ export async function PATCH(request: Request, { params }: { params: { id:string 
     if(input.isActive!==undefined) patch.isActive=input.isActive;
 
     if(input.discountType===undefined && input.discountValue!==undefined) {
-      const current=(await db.select({discountType:coupons.discountType}).from(coupons).where(eq(coupons.id,params.id)).limit(1))[0];
+      const current=(await db.select({discountType:coupons.discountType}).from(coupons).where(eq(coupons.id,id)).limit(1))[0];
       if(current?.discountType==="PERCENTAGE") patch.discountValue=Math.min(input.discountValue,100);
     }
 
-    const row=(await db.update(coupons).set(patch).where(eq(coupons.id,params.id)).returning())[0];
+    const row=(await db.update(coupons).set(patch).where(eq(coupons.id,id)).returning())[0];
     return NextResponse.json({coupon:row});
   }catch(error){const {status,body}=toApiError(error,requestId);return NextResponse.json(body,{status});}
 }
 
-export async function DELETE(request:Request,{params}:{params:{id:string}}){
+export async function DELETE(request:Request,{params}:{params:Promise<{id:string}>}){
   const requestId=crypto.randomUUID();
   try{
     await requireApiAccess(request,"admin",["ADMIN","SUPER_ADMIN"]);
+    const { id } = await params;
     const db=createDatabase();
-    const existing=(await db.select({id:coupons.id}).from(coupons).where(eq(coupons.id,params.id)).limit(1))[0];
+    const existing=(await db.select({id:coupons.id}).from(coupons).where(eq(coupons.id,id)).limit(1))[0];
     if(!existing) throw new AppError("NOT_FOUND","Coupon not found");
-    await db.update(coupons).set({isActive:false,updatedAt:new Date()}).where(eq(coupons.id,params.id));
+    await db.update(coupons).set({isActive:false,updatedAt:new Date()}).where(eq(coupons.id,id));
     return NextResponse.json({ok:true});
   }catch(error){const {status,body}=toApiError(error,requestId);return NextResponse.json(body,{status});}
 }
