@@ -8,12 +8,13 @@ type GalleryMedia = { mediaAssetId: string; mediaStorageKey: string; altText: st
 export default function ProductGallery({ title, media }: { title: string; media: GalleryMedia[] }) {
   const [active, setActive] = useState(0);
   const images = media.length ? media : [{ mediaAssetId: "placeholder", mediaStorageKey: "", altText: title }];
+  const activeImage = images[active] ?? images[0];
 
   return (
     <section className="space-y-3">
       <div className="relative aspect-square overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.05)] sm:aspect-[4/3] lg:aspect-square">
-        {images[active].mediaStorageKey ? (
-          <Image src={"/media/" + images[active].mediaStorageKey} alt={images[active].altText ?? title} fill priority sizes="(max-width: 1024px) 100vw, 55vw" className="object-cover" />
+        {activeImage.mediaStorageKey ? (
+          <Image src={"/media/" + images[active].mediaStorageKey} alt={activeImage.altText ?? title} fill priority sizes="(max-width: 1024px) 100vw, 55vw" className="object-cover" />
         ) : (
           <div className="grid h-full place-items-center bg-gradient-to-br from-slate-100 via-white to-amber-50">
             <span className="text-8xl font-black tracking-[-0.08em] text-slate-200">{title.slice(0, 1).toUpperCase()}</span>
