@@ -281,6 +281,22 @@ export const API_CONTRACTS: ApiContract[] = [
   },
   {
     method: "GET",
+    path: "/api/v1/shipping-settings",
+    audience: "seller",
+    auth: "session",
+    roles: ["SELLER"],
+    description: "Get authenticated seller pickup and logistics settings",
+  },
+  {
+    method: "PATCH",
+    path: "/api/v1/shipping-settings",
+    audience: "seller",
+    auth: "session",
+    roles: ["SELLER"],
+    description: "Save authenticated seller pickup and logistics settings",
+  },
+  {
+    method: "GET",
     path: "/api/v1/shipments",
     audience: "seller",
     auth: "session",
