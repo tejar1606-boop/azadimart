@@ -59,11 +59,11 @@ async function getHome() {
 
   const navRows = nav
     ? await db.select({
-        id: navigationItems.id,
-        label: navigationItems.label,
-        href: navigationItems.href,
-        isActive: navigationItems.isActive,
-      }).from(navItemTable).where(eq(navItemTable.navigationId, nav.id)).orderBy(asc(navigationItems.position))
+        id: navItemTable.id,
+        label: navItemTable.label,
+        href: navItemTable.href,
+        isActive: navItemTable.isActive,
+      }).from(navItemTable).where(eq(navItemTable.navigationId, nav.id)).orderBy(asc(navItemTable.position))
     : [];
 
   const visibleNavigation: HomeNav[] = navRows.filter(
