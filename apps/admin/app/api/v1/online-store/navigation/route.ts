@@ -1,7 +1,7 @@
 import { requireApiAccess } from "@azadimart/auth";
 import { createDatabase, navigation, themes } from "@azadimart/database";
 import { AppError, navigationSchema, toApiError } from "@azadimart/shared";
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 const DEFAULT_ITEMS = [
