@@ -10,11 +10,11 @@ const money = (p:number) => "₹" + (p/100).toLocaleString("en-IN", { maximumFra
 async function getHome(){
   const db=createDatabase();
   const theme=(await db.select().from(themes).where(eq(themes.status,"PUBLISHED")).limit(1))[0];
-  if(!theme) return {sections:[],coupons:[],products:[]};
+  if(!theme) return {sections:[],coupons:[],products:[],navigationItems:[]};
   const page=(await db.select().from(pages).where(and(eq(pages.themeId,theme.id),eq(pages.slug,"home"),eq(pages.status,"PUBLISHED"))).limit(1))[0];
   const nav=(await db.select().from(navigation).where(and(eq(navigation.themeId,theme.id),eq(navigation.handle,"main-menu"))).limit(1))[0];
   const navigationItems=Array.isArray(nav?.items)?nav.items.filter((item)=>item && typeof item==="object" && typeof (item as {label?:unknown}).label==="string" && typeof (item as {href?:unknown}).href==="string" && (item as {isActive?:unknown}).isActive!==false):[];
-  if(!page) return {sections:[],coupons:[],products:[]};
+  if(!page) return {sections:[],coupons:[],products:[],navigationItems};
   const sections=await db.select().from(pageSections).where(eq(pageSections.pageId,page.id)).orderBy(asc(pageSections.position));
   const now=new Date();
   const allCoupons=await db.select({id:coupons.id,code:coupons.code,title:coupons.title,description:coupons.description,discountType:coupons.discountType,discountValue:coupons.discountValue,minimumOrderPaise:coupons.minimumOrderPaise,startsAt:coupons.startsAt,endsAt:coupons.endsAt}).from(coupons).where(eq(coupons.isActive,true)).orderBy(desc(coupons.createdAt)).limit(24);
@@ -32,8 +32,13 @@ export default async function HomePage(){
         <nav className="hidden gap-5 text-sm font-medium md:flex">{data.navigationItems.map((item)=>{const navItem=item as {label:string;href:string};return <Link key={navItem.href+navItem.label} href={navItem.href}>{navItem.label}</Link>})}</nav>
         <div className="ml-auto flex items-center gap-2"><span className="hidden rounded-full border px-3 py-2 text-xs sm:block">Search products</span><Link href="/products" className="rounded-full bg-slate-950 px-4 py-2 text-xs font-bold text-white">Shop now</Link></div>
       </div>
+      <div className="border-t border-slate-100 px-4 py-2 md:hidden">
+        <div className="flex gap-2 overflow-x-auto">
+          {data.navigationItems.map((item)=>{const navItem=item as {label:string;href:string};return <Link key={"m-"+navItem.href+navItem.label} href={navItem.href} className="shrink-0 rounded-full border bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">{navItem.label}</Link>})}
+        </div>
+      </div>
     </header>
-    <div className="mx-auto max-w-7xl px-4 sm:px-6">{data.sections.length===0?<DefaultHero/>:data.sections.filter((s)=>s.isVisible).map((s)=><StoreSection key={s.id} section={s} coupons={data.coupons} products={data.products}/>)}</div>
+    <div className="mx-auto max-w-7xl px-4 sm:px-6>{data.sections.length===0?<DefaultHero/>:data.sections.filter((s)=>s.isVisible).map((s)=><StoreSection key={s.id} section={s} coupons={data.coupons} products={data.products}/>)}</div>
   </main>;
 }
 
