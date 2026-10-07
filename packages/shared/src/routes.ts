@@ -24,6 +24,7 @@ export const STOREFRONT_ROUTES = [
   "/products",
   "/cart",
   "/checkout",
+  "/account/orders",
   "/account",
   "/login",
   "/register",
@@ -32,6 +33,8 @@ export const STOREFRONT_ROUTES = [
   "/api/v1/catalog/products",
   "/api/v1/catalog/categories",
   "/api/v1/cart",
+  "/api/v1/addresses",
+  "/api/v1/checkout",
 ] as const;
 
 export const SELLER_ROUTES = [
