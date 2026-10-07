@@ -4,7 +4,7 @@ import {
   createDatabase,
   coupons,
   navigation,
-  navigationItems,
+  navigationItems as navItemTable,
   pageSections,
   pages,
   productVariants,
@@ -63,7 +63,7 @@ async function getHome() {
         label: navigationItems.label,
         href: navigationItems.href,
         isActive: navigationItems.isActive,
-      }).from(navigationItems).where(eq(navigationItems.navigationId, nav.id)).orderBy(asc(navigationItems.position))
+      }).from(navItemTable).where(eq(navItemTable.navigationId, nav.id)).orderBy(asc(navigationItems.position))
     : [];
 
   const visibleNavigation: HomeNav[] = navRows.filter(
