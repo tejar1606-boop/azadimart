@@ -93,7 +93,11 @@ export async function POST(request: Request) {
     const reservationRows = existing
       ? await db.update(shipments)
           .set({ status: "PENDING", providerShipmentId: null, awb: null, updatedAt: new Date() })
-          .where(and(eq(shipments.id, existing.id), eq(shipments.status, "FAILED"), eq(shipments.sellerId, principal.sellerId)))
+          .where(and(
+            eq(shipments.id, existing.id),
+            eq(shipments.sellerId, principal.sellerId),
+            or(eq(shipments.status, "FAILED"), and(eq(shipments.status, "PENDING"), pendingShipmentStale)),
+          ))
           .returning({ id: shipments.id })
       : await db.insert(shipments).values({
           orderId: body.orderId,
