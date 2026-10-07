@@ -52,7 +52,7 @@ export async function POST(
         throw new AppError("NOT_FOUND", "Order not found");
       }
 
-      if (!["CONFIRMED", "PACKED"].includes(order.status)) {
+      if (order.status !== "CONFIRMED") {
         throw new AppError(
           "CONFLICT",
           "This order can no longer be cancelled",
