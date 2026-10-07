@@ -15,12 +15,16 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q")?.trim() ?? "";
     const categoryId = searchParams.get("categoryId");
+    const sort = searchParams.get("sort") ?? "newest";
+    const minPrice = Number(searchParams.get("minPrice"));
+    const maxPrice = Number(searchParams.get("maxPrice"));
     const limit = toPositiveInt(searchParams.get("limit"), 24, 60);
 
     const db = createDatabase();
     const filters = [eq(products.status, "LIVE"), eq(productVariants.isActive, true)];
     if (categoryId) filters.push(eq(products.categoryId, categoryId));
     if (query) filters.push(or(ilike(products.title, `%${query}%`), ilike(products.description, `%${query}%`))!);
+    if (Number.isFinite(minPrice) && minPrice >= 0) filters.push(eq(productVariants.pricePaise, minPrice));
 
     const rows = await db.select({
       id: products.id,
@@ -51,7 +55,7 @@ export async function GET(request: Request) {
       .leftJoin(productMedia, eq(productMedia.productId, products.id))
       .leftJoin(mediaAssets, eq(mediaAssets.id, productMedia.mediaAssetId))
       .where(and(...filters))
-      .orderBy(desc(products.createdAt), asc(productMedia.sortOrder))
+      .orderBy(sort === "price_asc" ? asc(productVariants.pricePaise) : sort === "price_desc" ? desc(productVariants.pricePaise) : desc(products.createdAt), asc(productMedia.sortOrder))
       .limit(limit);
 
     const productMap = new Map<string, {
@@ -102,7 +106,10 @@ export async function GET(request: Request) {
       productMap.set(row.id, current);
     }
 
+    const categoryRows = await db.select({ id: categories.id, name: categories.name, slug: categories.slug }).from(categories).where(eq(categories.isActive, true)).orderBy(asc(categories.sortOrder), asc(categories.name));
+
     return NextResponse.json({
+      categories: categoryRows,
       items: [...productMap.values()].filter((product) => product.variants.some((variant) => variant.availableQuantity > 0 || variant.pricePaise >= 0)),
       nextCursor: null,
       requestId,
