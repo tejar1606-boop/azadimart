@@ -142,6 +142,9 @@ importers:
 
   apps/storefront:
     dependencies:
+      drizzle-orm:
+        specifier: ^0.38.3
+        version: 0.38.4(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(@types/react@19.3.0)(react@19.3.0)
       '@azadimart/database':
         specifier: workspace:*
         version: link:../../packages/database
