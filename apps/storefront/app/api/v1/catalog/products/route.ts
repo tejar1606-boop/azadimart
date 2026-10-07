@@ -17,7 +17,6 @@ export async function GET(request: Request) {
     const categoryId = searchParams.get("categoryId");
     const sort = searchParams.get("sort") ?? "newest";
     const minPrice = Number(searchParams.get("minPrice"));
-    const maxPrice = Number(searchParams.get("maxPrice"));
     const limit = toPositiveInt(searchParams.get("limit"), 24, 60);
 
     const db = createDatabase();
