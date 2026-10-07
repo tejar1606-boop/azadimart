@@ -1,5 +1,5 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, auditLogs, orderItems, orders, shipments, sellers } from "@azadimart/database";
+import { auditLogs, createDatabase, orderItems, orders, shipmentEvents, shipments, sellers } from "@azadimart/database";
 import { AppError, toApiError } from "@azadimart/shared";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -42,6 +42,8 @@ export async function POST(request: Request) {
       providerShipmentId,
     }).returning({ id:shipments.id,status:shipments.status,providerShipmentId:shipments.providerShipmentId }))[0];
     if (!shipment) throw new AppError("INTERNAL","Shipment creation failed",undefined,false);
+
+    await db.insert(shipmentEvents).values({ shipmentId:shipment.id, status:"CREATED", description:"Shipment created for seller fulfillment" });
 
     await db.insert(auditLogs).values({
       actorUserId:principal.userId,
