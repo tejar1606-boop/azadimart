@@ -46,16 +46,34 @@ const couponBaseSchema = z.object({
   isActive:z.boolean().default(true),
 });
 
-function couponRules<T extends z.ZodTypeAny>(schema:T){
-  return schema.superRefine((value:any,ctx)=>{
-    if(value.discountType==="PERCENTAGE" && value.discountValue>100) ctx.addIssue({code:"custom",path:["discountValue"],message:"Percentage discount cannot exceed 100"});
-    if(value.startsAt && value.endsAt && new Date(value.endsAt)<=new Date(value.startsAt)) ctx.addIssue({code:"custom",path:["endsAt"],message:"End date must be after start date"});
-    if(value.fundingType==="SELLER" && !value.sellerId) ctx.addIssue({code:"custom",path:["sellerId"],message:"Seller is required for seller-funded coupons"});
-  });
+type CouponPayload = z.infer<typeof couponBaseSchema>;
+
+function validateCouponRules(value: Partial<CouponPayload>, ctx: z.RefinementCtx) {
+  if (value.discountType === "PERCENTAGE" && value.discountValue !== undefined && value.discountValue > 100) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["discountValue"],
+      message: "Percentage discount cannot exceed 100",
+    });
+  }
+  if (value.startsAt && value.endsAt && new Date(value.endsAt) <= new Date(value.startsAt)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["endsAt"],
+      message: "End date must be after start date",
+    });
+  }
+  if (value.fundingType === "SELLER" && !value.sellerId) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["sellerId"],
+      message: "Seller is required for seller-funded coupons",
+    });
+  }
 }
 
-export const couponSchema = couponRules(couponBaseSchema);
-export const couponUpdateSchema = couponRules(couponBaseSchema.partial());
+export const couponSchema = couponBaseSchema.superRefine(validateCouponRules);
+export const couponUpdateSchema = couponBaseSchema.partial().superRefine(validateCouponRules);
 export const couponValidationSchema = z.object({
   cartId: uuidSchema,
   code: z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,32}$/),
