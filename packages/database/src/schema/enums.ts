@@ -4,6 +4,8 @@ export const userRoleEnum = pgEnum("user_role", ["CUSTOMER", "SELLER", "ADMIN", 
 
 export const userStatusEnum = pgEnum("user_status", ["ACTIVE", "DISABLED", "PENDING"]);
 
+export const sellerTaxIdentityTypeEnum = pgEnum("seller_tax_identity_type", ["GSTIN", "ENROLMENT_ID"]);
+
 export const sellerStatusEnum = pgEnum("seller_status", [
   "REGISTERED",
   "KYC_PENDING",
@@ -23,6 +25,7 @@ export const verificationStatusEnum = pgEnum("verification_status", [
 
 export const documentTypeEnum = pgEnum("document_type", [
   "GST",
+  "GST_ENROLMENT",
   "PAN",
   "BANK_PROOF",
   "ADDRESS_PROOF",
