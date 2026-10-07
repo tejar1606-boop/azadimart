@@ -115,36 +115,53 @@ export async function POST(request: Request) {
 
     const nextProductStatus = input.decision === "APPROVED" ? "PENDING_ADMIN_APPROVAL" : "QC_REJECTED";
 
-    await db
-      .update(qcSubmissions)
-      .set({
-        status: input.decision,
-        notes: input.notes ?? null,
-        reviewedByUserId: principal.userId,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(qcSubmissions.id, submission.id),
-          inArray(qcSubmissions.status, ["PENDING", "IN_REVIEW"]),
-        ),
-      );
+    await db.transaction(async (tx) => {
+      const updatedSubmission = await tx
+        .update(qcSubmissions)
+        .set({
+          status: input.decision,
+          notes: input.notes ?? null,
+          reviewedByUserId: principal.userId,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(qcSubmissions.id, submission.id),
+            inArray(qcSubmissions.status, ["PENDING", "IN_REVIEW"]),
+          ),
+        )
+        .returning({ id: qcSubmissions.id });
 
-    await db
-      .update(products)
-      .set({ status: nextProductStatus, updatedAt: new Date() })
-      .where(eq(products.id, submission.productId));
+      if (!updatedSubmission[0]) {
+        throw new AppError("CONFLICT", "QC submission is no longer awaiting review");
+      }
 
-    await db.insert(auditLogs).values({
-      actorUserId: principal.userId,
-      action: `QC_${input.decision}`,
-      entityType: "qc_submission",
-      entityId: submission.id,
-      metadata: {
-        productId: submission.productId,
-        sellerId: submission.sellerId,
-        notes: input.notes ?? null,
-      },
+      const updatedProduct = await tx
+        .update(products)
+        .set({ status: nextProductStatus, updatedAt: new Date() })
+        .where(
+          and(
+            eq(products.id, submission.productId),
+            eq(products.status, "PENDING_QC"),
+          ),
+        )
+        .returning({ id: products.id });
+
+      if (!updatedProduct[0]) {
+        throw new AppError("CONFLICT", "Product is no longer awaiting QC review");
+      }
+
+      await tx.insert(auditLogs).values({
+        actorUserId: principal.userId,
+        action: `QC_${input.decision}`,
+        entityType: "qc_submission",
+        entityId: submission.id,
+        metadata: {
+          productId: submission.productId,
+          sellerId: submission.sellerId,
+          notes: input.notes ?? null,
+        },
+      });
     });
 
     return NextResponse.json({
