@@ -13,7 +13,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     const db = createDatabase();
 
     const order = (await db.select({
-      id: orders.id, customerId: orders.customerId, orderNumber: orders.orderNumber, status: orders.status,
+      id: orders.id, customerId: orders.customerId, orders.customerId, orderNumber: orders.orderNumber, status: orders.status,
       subtotalPaise: orders.subtotalPaise, discountPaise: orders.discountPaise,
       shippingPaise: orders.shippingPaise, grandTotalPaise: orders.grandTotalPaise,
       couponCode: orders.couponCode, shippingAddressSnapshot: orders.shippingAddressSnapshot,
