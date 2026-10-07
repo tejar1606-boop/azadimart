@@ -8,9 +8,10 @@ import {
   orderItems,
   orders,
   payments,
+  shipments,
 } from "@azadimart/database";
 import { AppError, toApiError } from "@azadimart/shared";
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function POST(
@@ -36,6 +37,11 @@ export async function POST(
     const db = createDatabase();
 
     const result = await db.transaction(async (tx) => {
+      // Serialize customer cancellation with seller shipment reservation for this
+      // order. This prevents a cancellation and shipment creation from crossing
+      // each other between their eligibility check and the state mutation.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${orderId}, 0))`);
+
       const order = (
         await tx
           .select({
@@ -56,6 +62,29 @@ export async function POST(
         throw new AppError(
           "CONFLICT",
           "This order can no longer be cancelled",
+        );
+      }
+
+      const activeShipment = (
+        await tx
+          .select({ id: shipments.id })
+          .from(shipments)
+          .where(and(
+            eq(shipments.orderId, order.id),
+            inArray(shipments.status, [
+              "PENDING",
+              "CREATED",
+              "PICKED_UP",
+              "IN_TRANSIT",
+              "OUT_FOR_DELIVERY",
+            ]),
+          ))
+          .limit(1)
+      )[0];
+      if (activeShipment) {
+        throw new AppError(
+          "CONFLICT",
+          "This order can no longer be cancelled because seller fulfillment has started",
         );
       }
 
