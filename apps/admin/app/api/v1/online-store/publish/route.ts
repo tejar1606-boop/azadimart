@@ -1,7 +1,7 @@
 import { requireApiAccess } from "@azadimart/auth";
 import { createDatabase, pageSections, pages, themeRevisions, themes } from "@azadimart/database";
 import { AppError, publishThemeSchema, toApiError } from "@azadimart/shared";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -20,6 +20,8 @@ export async function POST(request: Request) {
     const sections = await db.select().from(pageSections).where(eq(pageSections.pageId, page.id)).orderBy(asc(pageSections.position));
 
     await db.transaction(async (tx) => {
+      // Serialize publishes so two admins cannot concurrently make different themes live.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext('azadimart:theme_publish'))`);
       await tx.update(themes).set({ status: "ARCHIVED", updatedAt: new Date() })
         .where(and(eq(themes.status, "PUBLISHED")));
       await tx.update(themes).set({ status: "PUBLISHED", updatedAt: new Date() }).where(eq(themes.id, theme.id));
