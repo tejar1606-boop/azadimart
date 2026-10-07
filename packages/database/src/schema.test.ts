@@ -6,6 +6,8 @@ import {
   brands,
   cartItems,
   carts,
+  coupons,
+  couponRedemptions,
   categories,
   customerAddresses,
   customers,
@@ -105,6 +107,8 @@ const tables = {
   navigation,
   navigation_items: navigationItems,
   media_assets: mediaAssets,
+  coupons,
+  coupon_redemptions: couponRedemptions,
   audit_logs: auditLogs,
 };
 
