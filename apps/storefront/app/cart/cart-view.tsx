@@ -106,7 +106,7 @@ export default function CartView() {
               <div className="divide-y divide-slate-100">
                 {items.map((item) => (
                   <div key={item.id} className="grid gap-4 p-5 sm:grid-cols-[92px_1fr_auto] sm:items-center sm:p-6">
-                    <div className="grid aspect-square place-items-center rounded-2xl bg-gradient-to-br from-slate-100 via-white to-amber-50 text-3xl font-black text-slate-200">{item.title.slice(0,1).toUpperCase()}</div>
+                    <div className="grid aspect-square place-items-center rounded-2xl bg-gradient-to-br from-slate-100 via-white to-amber-50 text-3xl font-black text-slate-200" aria-hidden="true">{item.title.slice(0,1).toUpperCase()}</div>
                     <div>
                       <p className="font-bold">{item.title}</p>
                       <p className="mt-1 text-sm text-slate-500">{item.variantTitle} · {item.sku}</p>
@@ -117,7 +117,7 @@ export default function CartView() {
                         <button type="button" disabled={busyId === item.id || item.quantity >= item.availableQuantity} onClick={() => void mutate(item, item.quantity + 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 text-sm disabled:opacity-40">+</button>
                         <button type="button" disabled={busyId === item.id} onClick={() => void mutate(item, null)} className="ml-2 text-xs font-semibold text-slate-500 underline hover:text-red-600">Remove</button>
                       </div>
-                      <p className="mt-2 text-xs text-slate-400">{item.availableQuantity} available</p>
+                      <p className={`mt-2 text-xs font-medium ${item.availableQuantity <= 3 ? "text-amber-700" : "text-slate-400"}`}>{item.availableQuantity > 0 ? item.availableQuantity <= 3 ? `Only ${item.availableQuantity} left` : `${item.availableQuantity} available` : "No longer available"}</p>
                     </div>
                     <p className="text-right text-lg font-black">{money(item.lineTotalPaise)}</p>
                   </div>
@@ -132,7 +132,8 @@ export default function CartView() {
                 <div className="flex justify-between text-white/65"><span>Shipping</span><span>Calculated at checkout</span></div>
                 <div className="flex justify-between border-t border-white/10 pt-4 text-base font-bold"><span>Total</span><span>{money(cart?.subtotalPaise ?? 0)}</span></div>
               </div>
-              <Link href="/checkout" className="mt-6 flex min-h-12 items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-black text-slate-950">Proceed to checkout</Link>
+              <Link href="/checkout" className="mt-6 flex min-h-12 items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-slate-100">Proceed to checkout</Link>
+              <p className="mt-3 text-center text-[11px] text-white/45">You can review address, delivery and available payment options next.</p>
               <div className="mt-5 space-y-2 text-xs text-white/50"><p>✓ Secure payment flow</p><p>✓ Seller-level fulfillment checks</p><p>✓ Coupons applied at checkout</p></div>
             </aside>
           </div>
