@@ -46,6 +46,10 @@ export async function POST(
       }).from(orderItems).where(and(eq(orderItems.orderId, order.id), inArray(orderItems.id, requestedIds)));
       if (ownedItems.length !== requestedIds.length) throw new AppError("NOT_FOUND", "One or more order items were not found");
 
+      for (const itemId of requestedIds) {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${itemId}, 0))`);
+      }
+
       const priorRows = await tx.select({
         orderItemId: returnItems.orderItemId,
         quantity: returnItems.quantity,
