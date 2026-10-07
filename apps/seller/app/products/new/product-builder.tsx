@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Upload = { id: string; fileName: string; kind: "IMAGE" | "VIDEO" };
@@ -14,7 +14,12 @@ export default function ProductBuilder() {
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState("");
   const [message,setMessage] = useState("");
+  const [categories,setCategories] = useState<Array<{id:string;name:string}>>([]);
+  const [categoryLoading,setCategoryLoading] = useState(true);
   const set=(key:keyof typeof form,value:string)=>setForm(v=>({...v,[key]:value}));
+  useEffect(()=>{
+    void fetch("/api/v1/categories",{cache:"no-store"}).then(async response=>response.ok?response.json():Promise.reject(new Error("Unable to load categories."))).then(body=>setCategories(body.items??[])).catch(()=>setError("Unable to load categories. Please refresh and try again.")).finally(()=>setCategoryLoading(false));
+  },[]);
 
   async function upload(file:File,kind:"IMAGE"|"VIDEO"){
     setBusy(true);setError("");setMessage("");
@@ -62,7 +67,7 @@ export default function ProductBuilder() {
     <div className="p-5 sm:p-8">
       {step===0?<div className="grid gap-5 sm:grid-cols-2">
         <Field label="Product title" value={form.title} onChange={v=>set("title",v)} wide/>
-        <Field label="Category ID" value={form.categoryId} onChange={v=>set("categoryId",v)}/>
+        <label className="text-sm font-semibold">Category<select className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm" value={form.categoryId} onChange={e=>set("categoryId",e.target.value)} disabled={categoryLoading} required><option value="">{categoryLoading?"Loading categories…":"Select category"}</option>{categories.map(category=><option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
         <Field label="SKU" value={form.sku} onChange={v=>set("sku",v)}/>
         <label className="text-sm font-semibold sm:col-span-2">Description<textarea className="mt-2 min-h-36 w-full rounded-xl border border-slate-200 p-3" value={form.description} onChange={e=>set("description",e.target.value)} required/></label>
       </div>:null}
@@ -81,7 +86,7 @@ export default function ProductBuilder() {
         <Field label="Compare-at price (₹)" value={form.compareAt} onChange={v=>set("compareAt",v)} inputMode="decimal"/>
         <Field label="Opening inventory" value={form.onHand} onChange={v=>set("onHand",v)} inputMode="numeric"/>
       </div>:null}
-      {step===3?<div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Ready for QC</p><h2 className="mt-2 text-2xl font-black">Review before creating your draft.</h2><div className="mt-5 grid gap-3 sm:grid-cols-2"><Summary label="Product" value={form.title||"—"}/><Summary label="Images" value={String(images.length)}/><Summary label="Price" value={form.price?"₹"+form.price:"—"}/><Summary label="Opening stock" value={form.onHand}/></div><p className="mt-5 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">Draft products remain hidden from customers until they pass QC and are published by AzadiMart.</p></div>:null}
+      {step===3?<div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Ready for QC</p><h2 className="mt-2 text-2xl font-black">Review before creating your draft.</h2><div className="mt-5 grid gap-3 sm:grid-cols-2"><Summary label="Product" value={form.title||"—"}/><Summary label="Category" value={categories.find(category=>category.id===form.categoryId)?.name||"—"}/><Summary label="Images" value={String(images.length)}/><Summary label="Price" value={form.price?"₹"+form.price:"—"}/><Summary label="Opening stock" value={form.onHand}/></div><p className="mt-5 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">Draft products remain hidden from customers until they pass QC and are published by AzadiMart.</p></div>:null}
       {error?<p className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>:null}{message?<p className="mt-5 rounded-xl bg-green-50 p-3 text-sm text-green-700">{message}</p>:null}
       <div className="mt-7 flex justify-between border-t border-slate-100 pt-5"><button type="button" disabled={step===0||busy} onClick={()=>setStep(v=>Math.max(0,v-1))} className="rounded-full border px-5 py-3 text-sm font-bold disabled:opacity-40">Back</button>{step<3?<button type="button" disabled={busy} onClick={()=>{const p=validate();if(p)setError(p);else setStep(v=>v+1)}} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:opacity-50">Continue</button>:<button type="button" disabled={busy} onClick={()=>void create()} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:opacity-50">{busy?"Creating…":"Create draft product"}</button>}</div>
     </div>
