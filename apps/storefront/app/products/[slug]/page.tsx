@@ -45,6 +45,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const variants = rows.filter((row, index, all) => all.findIndex((candidate) => candidate.variantId === row.variantId) === index);
   const media = rows.filter((row, index, all) => row.mediaAssetId && all.findIndex((candidate) => candidate.mediaAssetId === row.mediaAssetId) === index);
   const selectedVariant = variants[0];
+  if (!selectedVariant) notFound();
   const availableQuantity = Math.max(0, (selectedVariant.onHand ?? 0) - (selectedVariant.reserved ?? 0));
 
   return (
