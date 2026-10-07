@@ -1,7 +1,7 @@
 import { requireApiAccess } from "@azadimart/auth";
 import { createDatabase, pageSections, pages, themeRevisions, themes } from "@azadimart/database";
 import { AppError, publishThemeSchema, toApiError } from "@azadimart/shared";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
