@@ -140,6 +140,10 @@ export const orderStatusUpdateSchema = z.object({
   status:z.enum(["CONFIRMED","PACKED","SHIPPED","OUT_FOR_DELIVERY","DELIVERED","CANCELLED"]),
   notes:z.string().trim().max(500).optional(),
 });
+export const shipmentStatusUpdateSchema = z.object({
+  status:z.enum(["PICKED_UP","IN_TRANSIT","OUT_FOR_DELIVERY","DELIVERED","FAILED","RETURNED","CANCELLED"]),
+  notes:z.string().trim().max(500).optional(),
+});
 
 export const loginSchema = z.object({ email:z.string().trim().email().max(254).transform((value)=>value.toLowerCase()), password:z.string().min(8).max(256) });
 export const customerRegistrationSchema = z.object({
