@@ -45,9 +45,16 @@ export async function POST(request: Request) {
       throw new AppError("CONFLICT", settings.preferredProvider + " logistics is not configured yet");
     }
 
-    const existing = (await db.select({ id:shipments.id, status:shipments.status, providerShipmentId:shipments.providerShipmentId })
-      .from(shipments).where(and(eq(shipments.orderId,body.orderId),eq(shipments.sellerId,principal.sellerId))).limit(1))[0];
-    if (existing) return NextResponse.json({ shipment: existing });
+    const existing = (await db.select({
+      id:shipments.id,
+      status:shipments.status,
+      providerShipmentId:shipments.providerShipmentId,
+      awb:shipments.awb,
+    }).from(shipments)
+      .where(and(eq(shipments.orderId,body.orderId),eq(shipments.sellerId,principal.sellerId))).limit(1))[0];
+    if (existing && existing.status !== "FAILED") {
+      return NextResponse.json({ shipment: existing });
+    }
 
     const sellerItems = await db.select({
       quantity: orderItems.quantity,
@@ -68,27 +75,66 @@ export async function POST(request: Request) {
     };
     if (!delivery.phone) throw new AppError("CONFLICT","Customer delivery phone is missing from the order snapshot");
 
-    const created = await createShipmentForOrder(settings.preferredProvider, {
-      orderId: body.orderId,
-      sellerId: principal.sellerId,
-      pickup: settings.pickup,
-      delivery,
-      weightGrams: 0,
-      declaredValuePaise,
-    });
+    const reservationRows = existing
+      ? await db.update(shipments)
+          .set({ status: "PENDING", providerShipmentId: null, awb: null, updatedAt: new Date() })
+          .where(and(eq(shipments.id, existing.id), eq(shipments.status, "FAILED"), eq(shipments.sellerId, principal.sellerId)))
+          .returning({ id: shipments.id })
+      : await db.insert(shipments).values({
+          orderId: body.orderId,
+          sellerId: principal.sellerId,
+          status: "PENDING",
+        }).onConflictDoNothing({
+          target: [shipments.orderId, shipments.sellerId],
+        }).returning({ id: shipments.id });
 
-    const shipmentRows = await db.insert(shipments).values({
-      orderId: body.orderId,
-      sellerId: principal.sellerId,
+    const reserved = reservationRows[0];
+    if (!reserved) {
+      const concurrent = (await db.select({
+        id: shipments.id,
+        status: shipments.status,
+        providerShipmentId: shipments.providerShipmentId,
+        awb: shipments.awb,
+      }).from(shipments).where(and(eq(shipments.orderId, body.orderId), eq(shipments.sellerId, principal.sellerId))).limit(1))[0];
+      if (!concurrent) throw new AppError("INTERNAL", "Shipment reservation failed", undefined, false);
+      return NextResponse.json({ shipment: concurrent });
+    }
+
+    let created: Awaited<ReturnType<typeof createShipmentForOrder>>;
+    try {
+      created = await createShipmentForOrder(settings.preferredProvider, {
+        orderId: body.orderId,
+        sellerId: principal.sellerId,
+        pickup: settings.pickup,
+        delivery,
+        weightGrams: 0,
+        declaredValuePaise,
+        idempotencyKey: body.orderId + ":" + principal.sellerId,
+      });
+    } catch (error) {
+      await db.update(shipments)
+        .set({ status: "FAILED", updatedAt: new Date() })
+        .where(and(eq(shipments.id, reserved.id), eq(shipments.sellerId, principal.sellerId)));
+      await db.insert(shipmentEvents).values({
+        shipmentId: reserved.id,
+        status: "FAILED",
+        description: error instanceof Error ? error.message : "Shipment provider failed",
+      });
+      throw error;
+    }
+
+    const shipment = (await db.update(shipments).set({
       status: "CREATED",
       providerShipmentId: created.providerShipmentId,
-    }).returning({
+      awb: created.awb ?? null,
+      updatedAt: new Date(),
+    }).where(and(eq(shipments.id, reserved.id), eq(shipments.sellerId, principal.sellerId))).returning({
       id: shipments.id,
       status: shipments.status,
       providerShipmentId: shipments.providerShipmentId,
-    });
-    const shipment = shipmentRows[0];
-    if (!shipment) throw new AppError("INTERNAL","Shipment creation failed",undefined,false);
+      awb: shipments.awb,
+    }))[0];
+    if (!shipment) throw new AppError("INTERNAL","Shipment finalization failed",undefined,false);
 
     await db.insert(shipmentEvents).values({ shipmentId:shipment.id, status:"CREATED", description:"Shipment created through " + created.provider });
 
