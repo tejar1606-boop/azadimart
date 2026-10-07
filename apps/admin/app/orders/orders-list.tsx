@@ -26,6 +26,7 @@ export default function OrdersList() {
   const [status, setStatus] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [working, setWorking] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -48,6 +49,34 @@ export default function OrdersList() {
   );
 
   if (loading) return <div className="mt-7 h-96 animate-pulse rounded-3xl bg-white" />;
+  async function updateStatus(order: Order, nextStatus: string) {
+    setWorking(order.id); setError("");
+    try {
+      const response = await fetch("/api/v1/orders/" + order.id, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body?.error?.message ?? "Unable to update order.");
+      setItems(current => current.map(item => item.id === order.id ? { ...item, status: nextStatus } : item));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update order.");
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  const nextStatusFor = (current: string) => ({
+    CREATED: "CONFIRMED",
+    PAYMENT_PENDING: "PAID",
+    PAID: "CONFIRMED",
+    CONFIRMED: "PACKED",
+    PACKED: "SHIPPED",
+    SHIPPED: "OUT_FOR_DELIVERY",
+    OUT_FOR_DELIVERY: "DELIVERED",
+  } as Record<string,string>)[current];
+
   if (error) return <div className="mt-7 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>;
 
   return (
@@ -83,7 +112,11 @@ export default function OrdersList() {
                 <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-400">Sellers</p><p className="mt-1 text-sm font-semibold">{order.sellers.join(", ") || "—"}</p></div>
                 <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-400">Order total</p><p className="mt-1 text-lg font-black">{money(order.grandTotalPaise)}</p></div>
               </div>
-              <p className="mt-3 text-xs text-slate-400">{order.discountPaise > 0 ? "Discount " + money(order.discountPaise) : "No discount"}{order.couponCode ? " · Coupon " + order.couponCode : ""}</p>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {nextStatusFor(order.status) ? <button type="button" disabled={working === order.id} onClick={() => void updateStatus(order, nextStatusFor(order.status)!)} className="rounded-full bg-slate-950 px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{working === order.id ? "Updating…" : "Move to " + nextStatusFor(order.status)!.replaceAll("_"," ")}</button> : null}
+                {["CREATED","PAYMENT_PENDING","PAID","CONFIRMED"].includes(order.status) ? <button type="button" disabled={working === order.id} onClick={() => void updateStatus(order, "CANCELLED")} className="rounded-full border border-red-200 px-4 py-2 text-xs font-bold text-red-700 disabled:opacity-40">Cancel order</button> : null}
+                <p className="text-xs text-slate-400">{order.discountPaise > 0 ? "Discount " + money(order.discountPaise) : "No discount"}{order.couponCode ? " · Coupon " + order.couponCode : ""}</p>
+              </div>
             </article>
           ))}
         </div>
