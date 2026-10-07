@@ -1,10 +1,41 @@
 {
-  "version":"7",
-  "dialect":"postgresql",
-  "entries":[
-    {"idx":0,"version":"7","when":1791324204838,"tag":"20261006220324_smooth_lady_ursula","breakpoints":true},
-    {"idx":1,"version":"7","when":1791341591247,"tag":"20261007075500_online_store_coupons","breakpoints":true},
-    {"idx":2,"version":"7","when":1791344100000,"tag":"20261007091500_seller_tax_identity","breakpoints":true},
-    {"idx":3,"version":"7","when":1791344400000,"tag":"20261007092000_seller_tax_declaration","breakpoints":true}
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791324204838,
+      "tag": "20261006220324_smooth_lady_ursula",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791341591247,
+      "tag": "20261007075500_online_store_coupons",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791344100000,
+      "tag": "20261007091500_seller_tax_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791344400000,
+      "tag": "20261007092000_seller_tax_declaration",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791344700000,
+      "tag": "20261007094500_checkout_orders",
+      "breakpoints": true
+    }
   ]
 }
