@@ -8,8 +8,10 @@ import {
   navigationItems as navItemTable,
   pageSections,
   pages,
+  productMedia,
   productVariants,
   products,
+  mediaAssets,
   themes,
 } from "@azadimart/database";
 import { and, asc, desc, eq } from "drizzle-orm";
