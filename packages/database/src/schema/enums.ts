@@ -68,7 +68,12 @@ export const paymentStatusEnum = pgEnum("payment_status", [
 
 export const paymentMethodEnum = pgEnum("payment_method", ["RAZORPAY", "CASHFREE", "COD"]);
 
-export const refundStatusEnum = pgEnum("refund_status", [\n  "PENDING",\n  "PROCESSING",\n  "COMPLETED",\n  "FAILED",\n]);
+export const refundStatusEnum = pgEnum("refund_status", [
+  "PENDING",
+  "PROCESSING",
+  "COMPLETED",
+  "FAILED",
+]);
 
 export const shipmentStatusEnum = pgEnum("shipment_status", [
   "PENDING",
