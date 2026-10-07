@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { DEFAULT_HOME_SECTIONS, SECTION_TYPES, type ThemeSectionDraft } from "@azadimart/shared";
 
 type Row = ThemeSectionDraft & { id:string };
@@ -98,7 +98,7 @@ function SectionFields({section,onChange}:{section:Row;onChange:(key:string,valu
   </div>
 }
 
-function Field({label,children,wide=false}:{label:string;children:React.ReactNode;wide?:boolean}){return <label className={"text-sm font-medium "+(wide?"md:col-span-2":"")}>{label}{children}</label>}
+function Field({label,children,wide=false}:{label:string;children:ReactNode;wide?:boolean}){return <label className={"text-sm font-medium "+(wide?"md:col-span-2":"")}>{label}{children}</label>}
 
 function Preview({section,index}:{section:Row;index:number}){
   const s=section.settings; const heading=String(s.heading ?? LABELS[section.type] ?? section.type);
