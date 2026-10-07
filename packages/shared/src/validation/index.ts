@@ -9,9 +9,23 @@ export const moneySchema = z.object({ amountPaise:z.number().int().nonnegative()
 export const sellerRegistrationSchema = z.object({
   storeName:z.string().trim().min(2).max(120), legalName:z.string().trim().min(2).max(160), email:z.string().email(),
   phone:z.string().regex(/^[6-9]\d{9}$/, "Enter a valid Indian mobile number"),
-  gstin:z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/).optional(), password:z.string().min(8).max(256)
+  businessState:z.string().trim().min(2).max(80),
+  taxIdentityType:z.enum(["GSTIN","ENROLMENT_ID"]),
+  gstin:z.string().trim().toUpperCase().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/).optional(),
+  gstEnrolmentId:z.string().trim().toUpperCase().regex(/^[A-Z0-9]{15}$/, "Enter the 15-character GST Enrolment ID").optional(),
+  password:z.string().min(8).max(256)
+}).superRefine((value, ctx) => {
+  if (value.taxIdentityType === "GSTIN" && !value.gstin) {
+    ctx.addIssue({ code:"custom", path:["gstin"], message:"GSTIN is required when GST registration is selected" });
+  }
+  if (value.taxIdentityType === "ENROLMENT_ID" && !value.gstEnrolmentId) {
+    ctx.addIssue({ code:"custom", path:["gstEnrolmentId"], message:"GST Enrolment ID is required for this route" });
+  }
+  if (value.taxIdentityType === "ENROLMENT_ID" && value.gstin) {
+    ctx.addIssue({ code:"custom", path:["gstin"], message:"Do not enter GSTIN when using the Enrolment ID route" });
+  }
 });
-export const kycDocumentSchema = z.object({ type:z.enum(["GST","PAN","BANK_PROOF","ADDRESS_PROOF","IDENTITY"]), mediaAssetId:uuidSchema });
+export const kycDocumentSchema = z.object({ type:z.enum(["GST","GST_ENROLMENT","PAN","BANK_PROOF","ADDRESS_PROOF","IDENTITY"]), mediaAssetId:uuidSchema });
 export const sellerKycSubmissionSchema = z.object({ documents:z.array(kycDocumentSchema).min(1).max(5).refine((documents)=>new Set(documents.map((document)=>document.type)).size===documents.length,"Each KYC document type may only be submitted once") });
 export const sellerApprovalSchema = z.object({ sellerId:uuidSchema, decision:z.enum(["APPROVED","REJECTED"]), notes:z.string().trim().max(2000).optional() });
 export const productDraftSchema = z.object({ title:z.string().trim().min(3).max(200), description:z.string().trim().max(20000).optional(), categoryId:uuidSchema, imageAssetIds:z.array(uuidSchema).min(1).max(PRODUCT_MEDIA_LIMITS.maxImages).refine((ids)=>new Set(ids).size===ids.length,"Duplicate image assets are not allowed"), videoAssetId:uuidSchema.optional() });
