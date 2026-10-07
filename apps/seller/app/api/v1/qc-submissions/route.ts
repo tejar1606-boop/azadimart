@@ -9,7 +9,8 @@ export async function POST(request: Request) {
 
   try {
     const principal = await requireApiAccess(request, "seller", ["SELLER"]);
-    if (!principal.sellerId) {
+    const sellerId = principal.sellerId;
+    if (!sellerId) {
       throw new AppError("FORBIDDEN", "Seller profile is required");
     }
 
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
     const sellerRows = await db
       .select({ id: sellers.id, status: sellers.status })
       .from(sellers)
-      .where(eq(sellers.id, principal.sellerId))
+      .where(eq(sellers.id, sellerId))
       .limit(1);
     const seller = sellerRows[0];
     if (!seller || seller.status !== "ACTIVE") {
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
       .where(
         and(
           eq(products.id, input.productId),
-          eq(products.sellerId, principal.sellerId),
+          eq(products.sellerId, sellerId),
         ),
       )
       .limit(1);
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
         .insert(qcSubmissions)
         .values({
           productId: product.id,
-          sellerId: principal.sellerId,
+          sellerId,
           status: "PENDING",
           notes: input.notes ?? null,
         })
