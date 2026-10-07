@@ -1,5 +1,5 @@
 import { createDatabase, inventory, productMedia, productVariants, products, categories, mediaAssets, sellers } from "@azadimart/database";
-import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     const filters = [eq(products.status, "LIVE"), eq(productVariants.isActive, true)];
     if (categoryId) filters.push(eq(products.categoryId, categoryId));
     if (query) filters.push(or(ilike(products.title, `%${query}%`), ilike(products.description, `%${query}%`))!);
-    if (Number.isFinite(minPrice) && minPrice >= 0) filters.push(eq(productVariants.pricePaise, minPrice));
+    if (Number.isFinite(minPrice) && minPrice >= 0) filters.push(gte(productVariants.pricePaise, minPrice));
 
     const rows = await db.select({
       id: products.id,
@@ -109,7 +109,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       categories: categoryRows,
-      items: [...productMap.values()].filter((product) => product.variants.some((variant) => variant.availableQuantity > 0 || variant.pricePaise >= 0)),
+      items: [...productMap.values()].filter((product) => product.variants.length > 0),
       nextCursor: null,
       requestId,
     });
