@@ -47,6 +47,25 @@ export async function POST(
         throw new AppError("NOT_FOUND", "Payment record not found");
       }
 
+      // Webhooks can arrive out of order. Never allow a late FAILED/CAPTURED
+      // event to move a payment backwards from a terminal REFUNDED state,
+      // and never allow FAILED to overwrite an already CAPTURED payment.
+      const shouldApply =
+        payment.status === "PENDING" ||
+        (payment.status === "FAILED" && event.status === "CAPTURED") ||
+        (payment.status === "CAPTURED" && event.status === "REFUNDED");
+
+      if (!shouldApply) {
+        return {
+          duplicate: false,
+          ignored: true,
+          paymentId: payment.id,
+          orderId: payment.orderId,
+          status: payment.status,
+          eventId: inserted[0]?.id,
+        };
+      }
+
       const nextPaymentStatus =
         event.status === "CAPTURED" ? "CAPTURED" :
         event.status === "FAILED" ? "FAILED" : "REFUNDED";
@@ -61,7 +80,14 @@ export async function POST(
           .where(and(eq(orders.id, payment.orderId), eq(orders.status, "PAYMENT_PENDING")));
       }
 
-      return { duplicate: false, paymentId: payment.id, orderId: payment.orderId, status: nextPaymentStatus, eventId: inserted[0]?.id };
+      return {
+        duplicate: false,
+        ignored: false,
+        paymentId: payment.id,
+        orderId: payment.orderId,
+        status: nextPaymentStatus,
+        eventId: inserted[0]?.id,
+      };
     });
 
     return NextResponse.json({ ok: true, ...result });
