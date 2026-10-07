@@ -36,7 +36,7 @@ export default function OnlineStoreEditor(){
 
   function move(i:number,delta:number){
     const j=i+delta; if(j<0 || j>=sections.length) return;
-    const next=[...sections]; [next[i],next[j]]=[next[j],next[i]]; setSections(next);
+    const next=[...sections]; const current=next[i]; const target=next[j]; if(!current || !target) return; next[i]=target; next[j]=current; setSections(next);
   }
   function add(type:string){ setSections((s)=>[...s,{id:"new-"+crypto.randomUUID(),type,position:s.length,isVisible:true,settings:defaults(type)}]); }
   function remove(i:number){ setSections((s)=>s.filter((_,idx)=>idx!==i)); }
