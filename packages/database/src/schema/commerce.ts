@@ -83,7 +83,7 @@ export const orders = pgTable(
       state: string;
       postalCode: string;
       country: string;
-    }>().notNull().default({}),
+    }>().notNull().default({ line1: "", city: "", state: "", postalCode: "", country: "IN" }),
     currency: text("currency").notNull().default("INR"),
     ...timestamps,
   },
