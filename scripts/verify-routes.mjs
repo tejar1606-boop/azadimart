@@ -22,6 +22,7 @@ const catalog = {
     "/api/v1/addresses",
     "/api/v1/checkout",
     "/api/v1/orders",
+    "/api/v1/orders/:orderId/tracking",
   ],
   seller: [
     "/",
@@ -38,7 +39,6 @@ const catalog = {
     "/api/v1/categories",
     "/api/v1/qc-submissions",
     "/api/v1/orders",
-    "/api/v1/orders/:orderId/tracking",
     "/api/v1/shipments",
     "/api/v1/shipments/:shipmentId",
   ],
