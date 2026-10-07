@@ -39,7 +39,7 @@ export default function CatalogView() {
     }
   }
 
-  useEffect(() => { void load(); }, [categoryId, sort]);
+  useEffect(() => { void load(query); }, [categoryId, sort]);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -62,7 +62,7 @@ export default function CatalogView() {
           </form>
         </div>
 
-        <div className="mt-5 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3 sm:flex-row"><select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="min-h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Filter by category"><option value="">All categories</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><select value={sort} onChange={(event) => setSort(event.target.value)} className="min-h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Sort products"><option value="newest">Newest</option><option value="price_asc">Price: Low to high</option><option value="price_desc">Price: High to low</option></select></div>
+        <div className="mt-5 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3 sm:flex-row"><label className="sr-only" htmlFor="catalog-category">Category</label><select id="catalog-category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="min-h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Filter by category"><option value="">All categories</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><label className="sr-only" htmlFor="catalog-sort">Sort</label><select id="catalog-sort" value={sort} onChange={(event) => setSort(event.target.value)} className="min-h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Sort products"><option value="newest">Newest</option><option value="price_asc">Price: Low to high</option><option value="price_desc">Price: High to low</option></select></div>
 
         <div className="mt-8 flex items-center justify-between text-sm">
           <p className="font-semibold">{query ? `Results for "${query}"` : "Latest on AzadiMart"}</p>
