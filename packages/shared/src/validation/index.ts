@@ -74,6 +74,16 @@ function validateCouponRules(value: Partial<CouponPayload>, ctx: z.RefinementCtx
 
 export const couponSchema = couponBaseSchema.superRefine(validateCouponRules);
 export const couponUpdateSchema = couponBaseSchema.partial().superRefine(validateCouponRules);
+export const navigationItemSchema = z.object({
+  label: z.string().trim().min(1).max(80),
+  href: z.string().trim().regex(/^\//, "Navigation links must use an internal path"),
+  isActive: z.boolean().default(true),
+});
+
+export const navigationSchema = z.object({
+  items: z.array(navigationItemSchema).max(20),
+});
+
 export const couponValidationSchema = z.object({
   cartId: uuidSchema,
   code: z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,32}$/),
