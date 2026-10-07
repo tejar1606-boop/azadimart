@@ -38,7 +38,7 @@ export default async function HomePage(){
         </div>
       </div>
     </header>
-    <div className="mx-auto max-w-7xl px-4 sm:px-6>{data.sections.length===0?<DefaultHero/>:data.sections.filter((s)=>s.isVisible).map((s)=><StoreSection key={s.id} section={s} coupons={data.coupons} products={data.products}/>)}</div>
+    <div className="mx-auto max-w-7xl px-4 sm:px-6">{data.sections.length===0?<DefaultHero/>:data.sections.filter((s)=>s.isVisible).map((s)=><StoreSection key={s.id} section={s} coupons={data.coupons} products={data.products}/>)}</div>
   </main>;
 }
 
