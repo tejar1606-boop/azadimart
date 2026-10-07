@@ -1,4 +1,5 @@
-import { boolean, index, integer, jsonb, pgTable, sql, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { id, timestamps } from "./columns";
 import { mediaKindEnum, pageStatusEnum, themeStatusEnum } from "./enums";
 import { users } from "./identity";
