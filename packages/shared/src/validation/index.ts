@@ -54,6 +54,7 @@ export const productDraftSchema = z.object({
     title:z.string().trim().min(1).max(120).default("Default"),
     pricePaise:z.number().int().nonnegative(),
     compareAtPaise:z.number().int().nonnegative().optional(),
+    weightGrams:z.number().int().nonnegative().max(1000000).default(0),
     onHand:z.number().int().nonnegative().default(0),
   }).optional(),
 });
