@@ -1,7 +1,7 @@
 import { requireApiAccess } from "@azadimart/auth";
 import {
   cartItems, carts, couponRedemptions, coupons, createDatabase, customerAddresses,
-  inventory, orderItems, orders, payments, productVariants, products, sellers,
+  customers, inventory, orderItems, orders, payments, productVariants, products, sellers, users,
 } from "@azadimart/database";
 import { AppError, checkoutSchema, checkSellerSupplyToState, toApiError } from "@azadimart/shared";
 import { getPaymentProvider } from "@azadimart/payments";
@@ -42,7 +42,21 @@ export async function POST(request:Request){
     }
 
     const result=await db.transaction(async tx=>{
-      const address=(await tx.select().from(customerAddresses).where(and(eq(customerAddresses.id,input.shippingAddressId),eq(customerAddresses.customerId,session.customerId!))).limit(1))[0];
+      const address=(await tx.select({
+        id:customerAddresses.id,
+        label:customerAddresses.label,
+        line1:customerAddresses.line1,
+        line2:customerAddresses.line2,
+        city:customerAddresses.city,
+        state:customerAddresses.state,
+        postalCode:customerAddresses.postalCode,
+        country:customerAddresses.country,
+        customerName:customers.fullName,
+        customerPhone:users.phone,
+      }).from(customerAddresses)
+        .innerJoin(customers,eq(customers.id,customerAddresses.customerId))
+        .innerJoin(users,eq(users.id,customers.userId))
+        .where(and(eq(customerAddresses.id,input.shippingAddressId),eq(customerAddresses.customerId,session.customerId!))).limit(1))[0];
       if(!address)throw new AppError("NOT_FOUND","Shipping address not found");
 
       const cart=(await tx.select({id:carts.id}).from(carts).where(eq(carts.customerId,session.customerId!)).limit(1))[0];
@@ -103,7 +117,7 @@ export async function POST(request:Request){
       const order=(await tx.insert(orders).values({
         orderNumber:orderNumber(),customerId:session.customerId!,shippingAddressId:address.id,status:"CONFIRMED",
         subtotalPaise:subtotal,discountPaise:discount,shippingPaise:shipping,grandTotalPaise:grandTotal,couponCode:couponCode??null,
-        shippingAddressSnapshot:{line1:address.line1,line2:address.line2,city:address.city,state:address.state,postalCode:address.postalCode,country:address.country},
+        shippingAddressSnapshot:{name:address.customerName,phone:address.customerPhone,line1:address.line1,line2:address.line2,city:address.city,state:address.state,postalCode:address.postalCode,country:address.country},
       }).returning()).at(0);
       if(!order)throw new AppError("INTERNAL","Order creation failed",undefined,false);
 
