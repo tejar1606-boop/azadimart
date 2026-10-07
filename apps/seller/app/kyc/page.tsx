@@ -19,7 +19,7 @@ export default async function KycPage() {
 
   const db = createDatabase();
   const rows = await db
-    .select({ storeName: sellers.storeName, status: sellers.status })
+    .select({ storeName: sellers.storeName, status: sellers.status, taxIdentityType: sellers.taxIdentityType, gstin: sellers.gstin, gstEnrolmentId: sellers.gstEnrolmentId, businessState: sellers.businessState })
     .from(sellers)
     .where(eq(sellers.id, principal.sellerId))
     .limit(1);
@@ -35,9 +35,9 @@ export default async function KycPage() {
         <p className="text-sm uppercase tracking-wide text-ink-muted">Seller verification</p>
         <h1 className="mt-2 text-3xl font-semibold">KYC / business verification</h1>
         <p className="mt-2 text-sm text-ink-muted">
-          {seller.storeName} · Status: {seller.status}
+          {seller.storeName} · Status: {seller.status} · {seller.taxIdentityType === "ENROLMENT_ID" ? "Enrolment ID route" : "GSTIN route"}
         </p>
-        <KycForm />
+        <KycForm taxIdentityType={seller.taxIdentityType} gstin={seller.gstin} gstEnrolmentId={seller.gstEnrolmentId} businessState={seller.businessState} />
       </div>
     </main>
   );
