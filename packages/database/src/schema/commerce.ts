@@ -1,6 +1,6 @@
 import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { id, timestamps } from "./columns";
-import { orderStatusEnum, paymentMethodEnum, paymentStatusEnum } from "./enums";
+import { orderStatusEnum, paymentMethodEnum, paymentStatusEnum, refundStatusEnum } from "./enums";
 import { customers, customerAddresses } from "./identity";
 import { productVariants, products } from "./catalog";
 import { sellers } from "./sellers";
