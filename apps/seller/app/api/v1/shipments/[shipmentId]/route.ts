@@ -1,5 +1,5 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { auditLogs, createDatabase, shipments } from "@azadimart/database";
+import { auditLogs, createDatabase, shipmentEvents, shipments } from "@azadimart/database";
 import { AppError, shipmentStatusUpdateSchema, toApiError } from "@azadimart/shared";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -32,6 +32,8 @@ export async function PATCH(request:Request,{params}:{params:Promise<{shipmentId
       .where(and(eq(shipments.id,shipment.id),eq(shipments.sellerId,principal.sellerId),eq(shipments.status,shipment.status)))
       .returning({id:shipments.id,status:shipments.status,orderId:shipments.orderId}))[0];
     if(!updated)throw new AppError("CONFLICT","Shipment changed before it could be updated");
+
+    await db.insert(shipmentEvents).values({ shipmentId:shipment.id, status:input.status, description:input.notes ?? "Shipment status updated" });
 
     await db.insert(auditLogs).values({
       actorUserId:principal.userId,action:"SHIPMENT_STATUS_"+input.status,entityType:"shipment",entityId:shipment.id,
