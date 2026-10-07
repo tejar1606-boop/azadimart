@@ -1,6 +1,6 @@
 import CouponCard from "./components/coupon-card";
 import Link from "next/link";
-import { createDatabase, coupons, navigation, pageSections, pages, productVariants, products, themes } from "@azadimart/database";
+import { createDatabase, coupons, navigation, navigationItems, pageSections, pages, productVariants, products, themes } from "@azadimart/database";
 import { and, asc, desc, eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +12,11 @@ async function getHome(){
   const theme=(await db.select().from(themes).where(eq(themes.status,"PUBLISHED")).limit(1))[0];
   if(!theme) return {sections:[],coupons:[],products:[],navigationItems:[]};
   const page=(await db.select().from(pages).where(and(eq(pages.themeId,theme.id),eq(pages.slug,"home"),eq(pages.status,"PUBLISHED"))).limit(1))[0];
-  const nav=(await db.select().from(navigation).where(and(eq(navigation.themeId,theme.id),eq(navigation.handle,"main-menu"))).limit(1))[0];
-  const navigationItems=Array.isArray(nav?.items)?nav.items.filter((item)=>item && typeof item==="object" && typeof (item as {label?:unknown}).label==="string" && typeof (item as {href?:unknown}).href==="string" && (item as {isActive?:unknown}).isActive!==false):[];
+  const nav=(await db.select({id:navigation.id}).from(navigation).where(and(eq(navigation.themeId,theme.id),eq(navigation.handle,"main-menu"))).limit(1))[0];
+  const navigationItemsData=nav
+    ? await db.select({id:navigationItems.id,label:navigationItems.label,href:navigationItems.href,isActive:navigationItems.isActive}).from(navigationItems).where(eq(navigationItems.navigationId,nav.id)).orderBy(asc(navigationItems.position))
+    : [];
+  const navigationItems=navigationItemsData.filter((item)=>item.isActive && Boolean(item.href));
   if(!page) return {sections:[],coupons:[],products:[],navigationItems};
   const sections=await db.select().from(pageSections).where(eq(pageSections.pageId,page.id)).orderBy(asc(pageSections.position));
   const now=new Date();
