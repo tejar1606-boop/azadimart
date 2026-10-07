@@ -16,7 +16,7 @@ export async function PATCH(request: Request, { params }: { params: { id:string 
       const duplicate=(await db.select({id:coupons.id}).from(coupons).where(eq(coupons.code,input.code)).limit(1))[0];
       if(duplicate) throw new AppError("CONFLICT","Coupon code already exists");
     }
-    const patch:any={};
+    const patch: Partial<typeof coupons.$inferInsert> = {};
     for(const [key,value] of Object.entries(input)){
       if(value!==undefined && !["startsAt","endsAt"].includes(key)) patch[key]=value;
     }
