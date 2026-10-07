@@ -69,7 +69,21 @@ export const orders = pgTable(
       .references(() => customers.id),
     shippingAddressId: uuid("shipping_address_id").references(() => customerAddresses.id),
     status: orderStatusEnum("status").notNull().default("CREATED"),
+    subtotalPaise: integer("subtotal_paise").notNull().default(0),
+    discountPaise: integer("discount_paise").notNull().default(0),
+    shippingPaise: integer("shipping_paise").notNull().default(0),
     grandTotalPaise: integer("grand_total_paise").notNull(),
+    couponCode: text("coupon_code"),
+    shippingAddressSnapshot: jsonb("shipping_address_snapshot").$type<{
+      name?: string;
+      phone?: string | null;
+      line1: string;
+      line2?: string | null;
+      city: string;
+      state: string;
+      postalCode: string;
+      country: string;
+    }>().notNull().default({}),
     currency: text("currency").notNull().default("INR"),
     ...timestamps,
   },
