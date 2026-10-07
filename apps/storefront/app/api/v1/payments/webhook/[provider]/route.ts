@@ -1,7 +1,7 @@
 import { createDatabase, orders, paymentEvents, payments } from "@azadimart/database";
 import { getPaymentProvider, type PaymentProviderCode } from "@azadimart/payments";
 import { AppError, toApiError } from "@azadimart/shared";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 const providers = new Set<PaymentProviderCode>(["RAZORPAY", "CASHFREE", "COD"]);
@@ -22,6 +22,16 @@ export async function POST(
     const db = createDatabase();
 
     const result = await db.transaction(async (tx) => {
+      // CAPTURED/FAILED/REFUNDED webhooks for the same provider payment can
+      // arrive concurrently. Serialize them before reading the current state
+      // so a stale FAILED event cannot overwrite a concurrently applied
+      // CAPTURED event.
+      await tx.execute(sql`
+        select pg_advisory_xact_lock(
+          hashtextextended(${event.provider + ":" + event.providerPaymentId}, 0)
+        )
+      `);
+
       const inserted = await tx.insert(paymentEvents).values({
         provider: event.provider,
         eventId: event.eventId,
