@@ -11,10 +11,17 @@ const catalog = {
     "/cart",
     "/checkout",
     "/account",
+    "/account/orders",
+    "/login",
+    "/register",
     "/wishlist",
     "/api/health",
     "/api/v1/catalog/products",
+    "/api/v1/catalog/categories",
     "/api/v1/cart",
+    "/api/v1/addresses",
+    "/api/v1/checkout",
+    "/api/v1/orders",
   ],
   seller: [
     "/",
@@ -28,7 +35,9 @@ const catalog = {
     "/payouts",
     "/api/health",
     "/api/v1/products",
+    "/api/v1/categories",
     "/api/v1/qc-submissions",
+    "/api/v1/orders",
   ],
   admin: [
     "/",
@@ -50,6 +59,7 @@ const catalog = {
     "/api/v1/sellers",
     "/api/v1/qc",
     "/api/v1/themes",
+    "/api/v1/orders",
   ],
 };
 
