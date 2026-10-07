@@ -1,4 +1,5 @@
 name: CI
+# Production verification gate for AzadiMart
 
 on:
   push:
