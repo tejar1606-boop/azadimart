@@ -14,31 +14,48 @@ export const sellerRegistrationSchema = z.object({
 export const kycDocumentSchema = z.object({ type:z.enum(["GST","PAN","BANK_PROOF","ADDRESS_PROOF","IDENTITY"]), mediaAssetId:uuidSchema });
 export const sellerKycSubmissionSchema = z.object({ documents:z.array(kycDocumentSchema).min(1).max(5).refine((documents)=>new Set(documents.map((document)=>document.type)).size===documents.length,"Each KYC document type may only be submitted once") });
 export const sellerApprovalSchema = z.object({ sellerId:uuidSchema, decision:z.enum(["APPROVED","REJECTED"]), notes:z.string().trim().max(2000).optional() });
-export const productDraftSchema = z.object({
-  title:z.string().trim().min(3).max(200), description:z.string().trim().max(20000).optional(), categoryId:uuidSchema,
-  imageAssetIds:z.array(uuidSchema).min(1).max(PRODUCT_MEDIA_LIMITS.maxImages).refine((ids)=>new Set(ids).size===ids.length,"Duplicate image assets are not allowed"),
-  videoAssetId:uuidSchema.optional()
-});
+export const productDraftSchema = z.object({ title:z.string().trim().min(3).max(200), description:z.string().trim().max(20000).optional(), categoryId:uuidSchema, imageAssetIds:z.array(uuidSchema).min(1).max(PRODUCT_MEDIA_LIMITS.maxImages).refine((ids)=>new Set(ids).size===ids.length,"Duplicate image assets are not allowed"), videoAssetId:uuidSchema.optional() });
 export const qcSubmissionSchema = z.object({ productId:uuidSchema, notes:z.string().trim().max(2000).optional() });
 export const qcDecisionSchema = z.object({ qcSubmissionId:uuidSchema, decision:z.enum(["APPROVED","REJECTED"]), notes:z.string().trim().max(2000).optional() });
 export const inventoryAdjustSchema = z.object({ variantId:uuidSchema, onHand:z.number().int().nonnegative() });
 export const themeSectionSchema = z.object({ type:z.string().min(1).max(80), position:z.number().int().min(0), isVisible:z.boolean().default(true), settings:z.record(z.unknown()) });
 export const saveHomepageSchema = z.object({ sections:z.array(themeSectionSchema).max(30), themeSettings:z.record(z.unknown()).default({}) });
 export const publishThemeSchema = z.object({ themeId:uuidSchema, message:z.string().max(280).optional() });
-export const couponSchema = z.object({
-  code:z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,32}$/), title:z.string().trim().min(2).max(120), description:z.string().trim().max(500).optional(),
-  discountType:z.enum(["PERCENTAGE","FIXED","FREE_SHIPPING"]), discountValue:z.number().int().min(0).max(10000).default(0),
-  minimumOrderPaise:z.number().int().min(0).default(0), maximumDiscountPaise:z.number().int().positive().optional(),
-  startsAt:z.string().datetime(), endsAt:z.string().datetime().optional(), usageLimit:z.number().int().positive().optional(),
-  perCustomerLimit:z.number().int().positive().max(100).default(1), firstOrderOnly:z.boolean().default(false), stackable:z.boolean().default(false),
-  fundingType:z.enum(["AZADIMART","SELLER"]).default("AZADIMART"), sellerId:uuidSchema.optional(),
-  scope:z.object({productIds:z.array(uuidSchema).max(100).default([]), categoryIds:z.array(uuidSchema).max(100).default([]), sellerIds:z.array(uuidSchema).max(100).default([])}).default({productIds:[],categoryIds:[],sellerIds:[]}),
+
+const couponBaseSchema = z.object({
+  code:z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,32}$/),
+  title:z.string().trim().min(2).max(120),
+  description:z.string().trim().max(500).optional(),
+  discountType:z.enum(["PERCENTAGE","FIXED","FREE_SHIPPING"]),
+  discountValue:z.number().int().min(0).max(10000).default(0),
+  minimumOrderPaise:z.number().int().min(0).default(0),
+  maximumDiscountPaise:z.number().int().positive().optional(),
+  startsAt:z.string().datetime(),
+  endsAt:z.string().datetime().optional(),
+  usageLimit:z.number().int().positive().optional(),
+  perCustomerLimit:z.number().int().positive().max(100).default(1),
+  firstOrderOnly:z.boolean().default(false),
+  stackable:z.boolean().default(false),
+  fundingType:z.enum(["AZADIMART","SELLER"]).default("AZADIMART"),
+  sellerId:uuidSchema.optional(),
+  scope:z.object({
+    productIds:z.array(uuidSchema).max(100).default([]),
+    categoryIds:z.array(uuidSchema).max(100).default([]),
+    sellerIds:z.array(uuidSchema).max(100).default([]),
+  }).default({productIds:[],categoryIds:[],sellerIds:[]}),
   isActive:z.boolean().default(true),
-}).superRefine((value,ctx)=>{
-  if(value.discountType==="PERCENTAGE" && value.discountValue>100) ctx.addIssue({code:"custom",path:["discountValue"],message:"Percentage discount cannot exceed 100"});
-  if(value.endsAt && new Date(value.endsAt)<=new Date(value.startsAt)) ctx.addIssue({code:"custom",path:["endsAt"],message:"End date must be after start date"});
-  if(value.fundingType==="SELLER" && !value.sellerId) ctx.addIssue({code:"custom",path:["sellerId"],message:"Seller is required for seller-funded coupons"});
 });
+
+function couponRules<T extends z.ZodTypeAny>(schema:T){
+  return schema.superRefine((value:any,ctx)=>{
+    if(value.discountType==="PERCENTAGE" && value.discountValue>100) ctx.addIssue({code:"custom",path:["discountValue"],message:"Percentage discount cannot exceed 100"});
+    if(value.startsAt && value.endsAt && new Date(value.endsAt)<=new Date(value.startsAt)) ctx.addIssue({code:"custom",path:["endsAt"],message:"End date must be after start date"});
+    if(value.fundingType==="SELLER" && !value.sellerId) ctx.addIssue({code:"custom",path:["sellerId"],message:"Seller is required for seller-funded coupons"});
+  });
+}
+
+export const couponSchema = couponRules(couponBaseSchema);
+export const couponUpdateSchema = couponRules(couponBaseSchema.partial());
 
 export const loginSchema = z.object({ email:z.string().trim().email().max(254).transform((value)=>value.toLowerCase()), password:z.string().min(8).max(256) });
 export const roleSchema = z.enum(ROLES);
