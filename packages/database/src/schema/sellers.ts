@@ -1,6 +1,6 @@
 import { boolean, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { id, timestamps } from "./columns";
-import { documentTypeEnum, sellerStatusEnum, verificationStatusEnum } from "./enums";
+import { documentTypeEnum, sellerStatusEnum, sellerTaxIdentityTypeEnum, verificationStatusEnum } from "./enums";
 import { users } from "./identity";
 import { mediaAssets } from "./cms";
 
@@ -13,7 +13,10 @@ export const sellers = pgTable(
       .references(() => users.id, { onDelete: "restrict" }),
     storeName: text("store_name").notNull(),
     legalName: text("legal_name").notNull(),
+    taxIdentityType: sellerTaxIdentityTypeEnum("tax_identity_type").notNull().default("GSTIN"),
     gstin: text("gstin"),
+    gstEnrolmentId: text("gst_enrolment_id"),
+    businessState: text("business_state"),
     pan: text("pan"),
     status: sellerStatusEnum("status").notNull().default("REGISTERED"),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
@@ -23,6 +26,7 @@ export const sellers = pgTable(
   (table) => [
     uniqueIndex("sellers_user_id_unique").on(table.userId),
     index("sellers_status_idx").on(table.status),
+    uniqueIndex("sellers_gst_enrolment_id_unique").on(table.gstEnrolmentId),
   ],
 );
 
