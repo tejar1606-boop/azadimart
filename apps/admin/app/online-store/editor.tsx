@@ -28,7 +28,7 @@ export default function OnlineStoreEditor(){
     const d=await r.json();
     if(!r.ok) throw new Error(d?.error?.message ?? "Could not load homepage");
     setThemeId(d.theme.id); setThemeSettings(d.theme.settings ?? {});
-    setSections(d.sections.map((s:any)=>({id:s.id,type:s.type,position:s.position,isVisible:s.isVisible,settings:s.settings})));
+    setSections(d.sections.map((s)=>({id:s.id,type:s.type,position:s.position,isVisible:s.isVisible,settings:s.settings})));
     setMessage(d.theme.status==="PUBLISHED" ? "Published" : "Draft");
   }
 
@@ -76,7 +76,7 @@ export default function OnlineStoreEditor(){
       </section>
 
       <aside className="xl:sticky xl:top-6 xl:self-start space-y-4">
-        <div className="rounded-2xl border bg-white p-4 shadow-sm"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Preview</p><p className="font-semibold">Storefront</p></div><span className="text-xs text-slate-500">Responsive</span></div><div className="mt-4 overflow-hidden rounded-xl border bg-[#fbfaf7]">{sections.filter(s=>s.isVisible).map((s,i)=><Preview key={s.id} section={s} index={i}/>)}</div></div>
+        <div className="rounded-2xl border bg-white p-4 shadow-sm"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Preview</p><p className="font-semibold">Storefront</p></div><span className="text-xs text-slate-500">Responsive</span></div><div className="mt-4 overflow-hidden rounded-xl border bg-[#fbfaf7]">{sections.filter(s=>s.isVisible).map((s,i)=><Preview key={s.id} section={s}/>)}</div></div>
         <div className="rounded-2xl border bg-white p-4 shadow-sm"><p className="text-sm font-semibold">Theme settings</p><label className="mt-3 block text-sm font-medium">Brand accent<input className="mt-1 w-full rounded-lg border p-2.5" value={String(themeSettings.accent ?? "#F59E0B")} onChange={e=>setThemeSettings(x=>({...x,accent:e.target.value}))}/></label><label className="mt-3 block text-sm font-medium">Announcement<input className="mt-1 w-full rounded-lg border p-2.5" value={String(themeSettings.announcement ?? "")} onChange={e=>setThemeSettings(x=>({...x,announcement:e.target.value}))}/></label></div>
       </aside>
     </div>
@@ -100,10 +100,10 @@ function SectionFields({section,onChange}:{section:Row;onChange:(key:string,valu
 
 function Field({label,children,wide=false}:{label:string;children:ReactNode;wide?:boolean}){return <label className={"text-sm font-medium "+(wide?"md:col-span-2":"")}>{label}{children}</label>}
 
-function Preview({section,index}:{section:Row;index:number}){
+function Preview({section}:{section:Row}){
   const s=section.settings; const heading=String(s.heading ?? LABELS[section.type] ?? section.type);
   if(section.type==="hero") return <div className="min-h-44 bg-slate-950 p-5 text-white"><p className="text-[10px] uppercase tracking-[0.18em] text-amber-300">{String(s.eyebrow??"Made for India")}</p><h3 className="mt-2 text-2xl font-bold leading-tight">{heading}</h3><p className="mt-2 text-xs text-slate-300">{String(s.description??"")}</p><button className="mt-4 rounded-full bg-white px-4 py-2 text-xs font-bold text-slate-950">{String(s.primaryLabel??"Shop now")}</button></div>;
-  if(section.type==="category_grid") return <div className="bg-white p-4"><h3 className="text-sm font-bold">{String(s.heading??"Shop by category")}</h3><p className="text-[11px] text-slate-500">{String(s.subtitle??"")}</p><div className="mt-3 grid grid-cols-2 gap-2">{(Array.isArray(s.categories)?s.categories:[]).slice(0,4).map((c:any)=><div key={String(c)} className="rounded-lg bg-slate-100 p-3 text-[11px] font-semibold">{String(c)}</div>)}</div></div>;
+  if(section.type==="category_grid") return <div className="bg-white p-4"><h3 className="text-sm font-bold">{String(s.heading??"Shop by category")}</h3><p className="text-[11px] text-slate-500">{String(s.subtitle??"")}</p><div className="mt-3 grid grid-cols-2 gap-2">{(Array.isArray(s.categories)?s.categories:[]).slice(0,4).map((c:unknown)=><div key={String(c)} className="rounded-lg bg-slate-100 p-3 text-[11px] font-semibold">{String(c)}</div>)}</div></div>;
   if(section.type==="sales_coupons") return <div className="bg-amber-50 p-4"><h3 className="text-sm font-bold">{heading}</h3><div className="mt-3 rounded-xl border border-dashed border-amber-300 bg-white p-3 text-xs"><b>WELCOME10</b><span className="ml-2 text-slate-500">10% off</span></div></div>;
   if(section.type==="newsletter") return <div className="bg-slate-900 p-5 text-white"><h3 className="text-lg font-bold">{heading}</h3><p className="mt-1 text-xs text-slate-300">{String(s.description??"")}</p><div className="mt-3 h-9 rounded-lg bg-white/10"/></div>;
   return <div className="border-b bg-white p-4"><p className="text-[10px] uppercase tracking-wide text-slate-500">{String(s.eyebrow??"")}</p><h3 className="mt-1 text-lg font-bold">{heading}</h3><p className="mt-1 text-xs text-slate-500">{String(s.description??s.subtitle??"")}</p></div>;
