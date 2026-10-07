@@ -209,6 +209,14 @@ export const API_CONTRACTS: ApiContract[] = [
   },
   {
     method: "GET",
+    path: "/api/v1/orders",
+    audience: "storefront",
+    auth: "session",
+    roles: ["CUSTOMER"],
+    description: "List authenticated customer orders",
+  },
+  {
+    method: "GET",
     path: "/api/v1/cart",
     audience: "storefront",
     auth: "session",
