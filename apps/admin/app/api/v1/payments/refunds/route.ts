@@ -84,6 +84,8 @@ export async function POST(request: Request) {
           reason: input.reason ?? null,
         }).returning())[0];
 
+        if (!row) throw new AppError("CONFLICT", "Refund could not be created");
+
         await tx.insert(auditLogs).values({
           actorUserId: principal.userId,
           action: "REFUND_MANUAL_REQUESTED",
@@ -96,8 +98,6 @@ export async function POST(request: Request) {
             reason: input.reason ?? null,
           },
         });
-
-        if (!row) throw new AppError("CONFLICT", "Refund could not be created");
 
         return { existing: row, reused: false as const };
       }
@@ -115,6 +115,8 @@ export async function POST(request: Request) {
         idempotencyKey: input.idempotencyKey,
         reason: input.reason ?? null,
       }).returning())[0];
+
+      if (!row) throw new AppError("CONFLICT", "Refund could not be created");
 
       await tx.insert(auditLogs).values({
         actorUserId: principal.userId,
