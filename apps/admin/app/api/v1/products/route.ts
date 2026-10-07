@@ -78,7 +78,8 @@ export async function POST(request: Request) {
 
     const db = createDatabase();
     const nextStatus = body.decision === "APPROVED" ? "LIVE" : "QC_REJECTED";
-    const updated = await db
+    const result = await db.transaction(async (tx) => {
+      const updated = await tx
       .update(products)
       .set({ status: nextStatus, updatedAt: new Date() })
       .where(
@@ -93,20 +94,23 @@ export async function POST(request: Request) {
         status: products.status,
       });
 
-    const product = updated[0];
-    if (!product) {
-      throw new AppError("CONFLICT", "Product is not awaiting admin approval");
-    }
+      const product = updated[0];
+      if (!product) {
+        throw new AppError("CONFLICT", "Product is not awaiting admin approval");
+      }
 
-    await db.insert(auditLogs).values({
+      await tx.insert(auditLogs).values({
       actorUserId: principal.userId,
       action: `PRODUCT_${body.decision}`,
       entityType: "product",
       entityId: product.id,
-      metadata: { notes: body.notes?.trim() || null },
+        metadata: { notes: body.notes?.trim() || null },
+      });
+
+      return product;
     });
 
-    return NextResponse.json({ ok: true, product });
+    return NextResponse.json({ ok: true, product: result });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);
     return NextResponse.json(body, { status });
