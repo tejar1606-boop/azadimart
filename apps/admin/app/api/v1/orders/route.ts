@@ -1,6 +1,6 @@
 import { requireApiAccess } from "@azadimart/auth";
 import { createDatabase, orderItems, orders, payments, sellers } from "@azadimart/database";
-import { AppError, toApiError } from "@azadimart/shared";
+import { toApiError } from "@azadimart/shared";
 import { desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
