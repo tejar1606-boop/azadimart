@@ -26,6 +26,7 @@ describe("logistics providers", () => {
       },
       weightGrams: 500,
       declaredValuePaise: 99900,
+      idempotencyKey: "order_o1_seller_s1",
     });
     expect(shipment.provider).toBe("MANUAL");
   });
