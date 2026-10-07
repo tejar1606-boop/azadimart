@@ -61,7 +61,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
           <ProductGallery
             title={first.title}
-            media={media.filter((item) => Boolean(item.mediaStorageKey && item.mediaKind === "IMAGE")).map((item) => ({ mediaAssetId: item.mediaAssetId ?? "media", mediaStorageKey: item.mediaStorageKey ?? "", altText: item.altText }))}
+            media={media.filter((item) => Boolean(item.mediaAssetId && item.mediaStorageKey && item.mediaKind === "IMAGE")).map((item) => ({ mediaAssetId: String(item.mediaAssetId), mediaStorageKey: String(item.mediaStorageKey), altText: item.altText }))}
           />
 
           <section className="h-fit rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.05)] sm:p-8 lg:sticky lg:top-28">
