@@ -169,6 +169,14 @@ export const API_CONTRACTS: ApiContract[] = [
   },
   {
     method: "GET",
+    path: "/api/v1/catalog/categories",
+    audience: "storefront",
+    auth: "none",
+    roles: [],
+    description: "Public active marketplace categories",
+  },
+  {
+    method: "GET",
     path: "/api/v1/catalog/products",
     audience: "storefront",
     auth: "none",
@@ -206,6 +214,14 @@ export const API_CONTRACTS: ApiContract[] = [
     auth: "session",
     roles: ["CUSTOMER"],
     description: "Remove a product variant from the customer cart",
+  },
+  {
+    method: "GET",
+    path: "/api/v1/categories",
+    audience: "seller",
+    auth: "session",
+    roles: ["SELLER"],
+    description: "Seller category selector",
   },
   {
     method: "POST",
