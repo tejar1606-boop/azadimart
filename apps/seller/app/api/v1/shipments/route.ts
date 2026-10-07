@@ -9,37 +9,37 @@ export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
     const principal = await requireApiAccess(request, "seller", ["SELLER"]);
-    if (!sellerId) throw new AppError("FORBIDDEN", "Seller profile is required");
+    if (!principal.sellerId) throw new AppError("FORBIDDEN", "Seller profile is required");
+    const sellerId = principal.sellerId;
 
     const body = (await request.json().catch(() => ({}))) as { orderId?: string };
-    if (!orderId || !/^[0-9a-f-]{36}$/i.test(body.orderId)) {
+    if (!body.orderId || !/^[0-9a-f-]{36}$/i.test(body.orderId)) {
       throw new AppError("VALIDATION_ERROR", "A valid order ID is required");
     }
     const orderId = body.orderId;
-    const sellerId = sellerId;
 
     const db = createDatabase();
-    const seller = (await db.select({ id:sellers.id,status:sellers.status }).from(sellers)
-      .where(and(eq(sellers.id,sellerId),eq(sellers.userId,principal.userId))).limit(1))[0];
+    const seller = (await db.select({ id: sellers.id, status: sellers.status }).from(sellers)
+      .where(and(eq(sellers.id, sellerId), eq(sellers.userId, principal.userId))).limit(1))[0];
     if (!seller || seller.status !== "ACTIVE") throw new AppError("FORBIDDEN", "Seller account is not active");
 
     const orderRow = (await db.select({
-      id:orders.id,
-      status:orders.status,
-      shippingAddressSnapshot:orders.shippingAddressSnapshot,
+      id: orders.id,
+      status: orders.status,
+      shippingAddressSnapshot: orders.shippingAddressSnapshot,
     }).from(orders)
-      .innerJoin(orderItems,eq(orderItems.orderId,orders.id))
-      .where(and(eq(orders.id,body.orderId),eq(orderItems.sellerId,principal.sellerId)))
+      .innerJoin(orderItems, eq(orderItems.orderId, orders.id))
+      .where(and(eq(orders.id, orderId), eq(orderItems.sellerId, sellerId)))
       .limit(1))[0];
-    if (!orderRow) throw new AppError("NOT_FOUND","Order not found for this seller");
-    if (!["CONFIRMED","PACKED"].includes(orderRow.status)) {
-      throw new AppError("CONFLICT","Order is not ready for seller fulfillment");
+    if (!orderRow) throw new AppError("NOT_FOUND", "Order not found for this seller");
+    if (!["CONFIRMED", "PACKED"].includes(orderRow.status)) {
+      throw new AppError("CONFLICT", "Order is not ready for seller fulfillment");
     }
 
-    const rawSettings = (await db.select({ shippingSettings:sellerSettings.shippingSettings })
-      .from(sellerSettings).where(eq(sellerSettings.sellerId,principal.sellerId)).limit(1)) [0]?.shippingSettings;
+    const rawSettings = (await db.select({ shippingSettings: sellerSettings.shippingSettings })
+      .from(sellerSettings).where(eq(sellerSettings.sellerId, sellerId)).limit(1))[0]?.shippingSettings;
     if (!rawSettings) {
-      throw new AppError("CONFLICT","Configure your pickup address before creating shipments");
+      throw new AppError("CONFLICT", "Configure your pickup address before creating shipments");
     }
     const settings = sellerShippingSettingsSchema.parse(rawSettings);
     const provider = getLogisticsProvider(settings.preferredProvider);
@@ -48,13 +48,13 @@ export async function POST(request: Request) {
     }
 
     const existing = (await db.select({
-      id:shipments.id,
-      status:shipments.status,
-      providerShipmentId:shipments.providerShipmentId,
-      awb:shipments.awb,
-      updatedAt:shipments.updatedAt,
+      id: shipments.id,
+      status: shipments.status,
+      providerShipmentId: shipments.providerShipmentId,
+      awb: shipments.awb,
+      updatedAt: shipments.updatedAt,
     }).from(shipments)
-      .where(and(eq(shipments.orderId,body.orderId),eq(shipments.sellerId,principal.sellerId))).limit(1))[0];
+      .where(and(eq(shipments.orderId, orderId), eq(shipments.sellerId, sellerId))).limit(1))[0];
     const pendingShipmentStale = existing?.status === "PENDING"
       && Date.now() - new Date(existing.updatedAt).getTime() > 10 * 60 * 1000;
     if (existing && existing.status !== "FAILED" && !pendingShipmentStale) {
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       weightGrams: productVariants.weightGrams,
     }).from(orderItems)
       .innerJoin(productVariants, eq(productVariants.id, orderItems.variantId))
-      .where(and(eq(orderItems.orderId, body.orderId), eq(orderItems.sellerId, principal.sellerId)));
+      .where(and(eq(orderItems.orderId, orderId), eq(orderItems.sellerId, sellerId)));
 
     const declaredValuePaise = sellerItems.reduce(
       (sum, item) => sum + item.quantity * item.unitPricePaise,
@@ -90,20 +90,16 @@ export async function POST(request: Request) {
       postalCode: deliverySnapshot.postalCode,
       country: "IN",
     };
-    if (!delivery.phone) throw new AppError("CONFLICT","Customer delivery phone is missing from the order snapshot");
+    if (!delivery.phone) throw new AppError("CONFLICT", "Customer delivery phone is missing from the order snapshot");
 
-    // Reserve the shipment row under the same order-scoped advisory lock used
-    // by customer cancellation. Either cancellation wins and this re-check sees
-    // CANCELLED, or the shipment reservation wins and cancellation sees an active
-    // fulfillment row.
     const reservation = await db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${body.orderId}, 0))`);
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${orderId}, 0))`);
 
       const currentOrder = (await tx.select({ status: orders.status })
         .from(orders)
-        .where(eq(orders.id, body.orderId))
+        .where(eq(orders.id, orderId))
         .limit(1))[0];
-      if (!currentOrder || !["CONFIRMED","PACKED"].includes(currentOrder.status)) {
+      if (!currentOrder || !["CONFIRMED", "PACKED"].includes(currentOrder.status)) {
         throw new AppError("CONFLICT", "Order is no longer ready for seller fulfillment");
       }
 
@@ -114,7 +110,7 @@ export async function POST(request: Request) {
         awb: shipments.awb,
         updatedAt: shipments.updatedAt,
       }).from(shipments)
-        .where(and(eq(shipments.orderId,body.orderId),eq(shipments.sellerId,principal.sellerId))).limit(1))[0];
+        .where(and(eq(shipments.orderId, orderId), eq(shipments.sellerId, sellerId))).limit(1))[0];
 
       const stale = currentExisting?.status === "PENDING"
         && Date.now() - new Date(currentExisting.updatedAt).getTime() > 10 * 60 * 1000;
@@ -127,7 +123,7 @@ export async function POST(request: Request) {
             .set({ status: "PENDING", providerShipmentId: null, awb: null, updatedAt: new Date() })
             .where(and(
               eq(shipments.id, currentExisting.id),
-              eq(shipments.sellerId, principal.sellerId),
+              eq(shipments.sellerId, sellerId),
               or(
                 eq(shipments.status, "FAILED"),
                 and(eq(shipments.status, "PENDING"), lt(shipments.updatedAt, new Date(Date.now() - 10 * 60 * 1000))),
@@ -135,8 +131,8 @@ export async function POST(request: Request) {
             ))
             .returning({ id: shipments.id })
         : await tx.insert(shipments).values({
-            orderId: body.orderId,
-            sellerId: sellerId,
+            orderId,
+            sellerId,
             status: "PENDING",
           }).onConflictDoNothing({
             target: [shipments.orderId, shipments.sellerId],
@@ -151,7 +147,7 @@ export async function POST(request: Request) {
         providerShipmentId: shipments.providerShipmentId,
         awb: shipments.awb,
         updatedAt: shipments.updatedAt,
-      }).from(shipments).where(and(eq(shipments.orderId, body.orderId), eq(shipments.sellerId, principal.sellerId))).limit(1))[0];
+      }).from(shipments).where(and(eq(shipments.orderId, orderId), eq(shipments.sellerId, sellerId))).limit(1))[0];
       if (!concurrent) throw new AppError("INTERNAL", "Shipment reservation failed", undefined, false);
       return { reserved: null, existing: concurrent };
     });
@@ -164,18 +160,18 @@ export async function POST(request: Request) {
     let created: Awaited<ReturnType<typeof createShipmentForOrder>>;
     try {
       created = await createShipmentForOrder(settings.preferredProvider, {
-        orderId: body.orderId,
-        sellerId: principal.sellerId,
+        orderId,
+        sellerId,
         pickup: settings.pickup,
         delivery,
         weightGrams,
         declaredValuePaise,
-        idempotencyKey: body.orderId + ":" + principal.sellerId,
+        idempotencyKey: orderId + ":" + sellerId,
       });
     } catch (error) {
       await db.update(shipments)
         .set({ status: "FAILED", updatedAt: new Date() })
-        .where(and(eq(shipments.id, reserved.id), eq(shipments.sellerId, principal.sellerId)));
+        .where(and(eq(shipments.id, reserved.id), eq(shipments.sellerId, sellerId)));
       await db.insert(shipmentEvents).values({
         shipmentId: reserved.id,
         status: "FAILED",
@@ -189,59 +185,45 @@ export async function POST(request: Request) {
       providerShipmentId: created.providerShipmentId,
       awb: created.awb ?? null,
       updatedAt: new Date(),
-    }).where(and(eq(shipments.id, reserved.id), eq(shipments.sellerId, principal.sellerId))).returning({
+    }).where(and(eq(shipments.id, reserved.id), eq(shipments.sellerId, sellerId))).returning({
       id: shipments.id,
       status: shipments.status,
       providerShipmentId: shipments.providerShipmentId,
       awb: shipments.awb,
     }))[0];
-    if (!shipment) throw new AppError("INTERNAL","Shipment finalization failed",undefined,false);
+    if (!shipment) throw new AppError("INTERNAL", "Shipment finalization failed", undefined, false);
 
-    await db.insert(shipmentEvents).values({ shipmentId:shipment.id, status:"CREATED", description:"Shipment created through " + created.provider });
+    await db.insert(shipmentEvents).values({ shipmentId: shipment.id, status: "CREATED", description: "Shipment created through " + created.provider });
 
     await db.insert(auditLogs).values({
-      actorUserId:principal.userId,
-      action:"SHIPMENT_CREATED",
-      entityType:"shipment",
-      entityId:shipment.id,
-      metadata:{ orderId:body.orderId, sellerId:principal.sellerId, provider:created.provider },
+      actorUserId: principal.userId,
+      action: "SHIPMENT_CREATED",
+      entityType: "shipment",
+      entityId: shipment.id,
+      metadata: { orderId, sellerId, provider: created.provider },
     });
 
-    // A marketplace order is SHIPPED only after every seller involved has a
-    // successfully created shipment. Until then it remains CONFIRMED/PACKED.
     const sellerCount = Number(
-      (await db
-        .select({ count: countDistinct(orderItems.sellerId) })
-        .from(orderItems)
-        .where(eq(orderItems.orderId, body.orderId)))[0]?.count ?? 0,
+      (await db.select({ count: countDistinct(orderItems.sellerId) }).from(orderItems)
+        .where(eq(orderItems.orderId, orderId)))[0]?.count ?? 0,
     );
     const createdShipmentSellerCount = Number(
-      (await db
-        .select({ count: countDistinct(shipments.sellerId) })
-        .from(shipments)
-        .where(
-          and(
-            eq(shipments.orderId, body.orderId),
-            eq(shipments.status, "CREATED"),
-          ),
-        ))[0]?.count ?? 0,
+      (await db.select({ count: countDistinct(shipments.sellerId) }).from(shipments)
+        .where(and(eq(shipments.orderId, orderId), eq(shipments.status, "CREATED"))))[0]?.count ?? 0,
     );
     if (sellerCount > 0 && createdShipmentSellerCount === sellerCount) {
-      await db
-        .update(orders)
+      await db.update(orders)
         .set({ status: "SHIPPED", updatedAt: new Date() })
-        .where(
-          and(
-            eq(orders.id, body.orderId),
-            or(eq(orders.status, "CONFIRMED"), eq(orders.status, "PACKED")),
-          ),
-        );
+        .where(and(
+          eq(orders.id, orderId),
+          or(eq(orders.status, "CONFIRMED"), eq(orders.status, "PACKED")),
+        ));
     }
 
-    return NextResponse.json({ shipment }, { status:201 });
-  } catch(error) {
-    const {status,body}=toApiError(error,requestId);
-    return NextResponse.json(body,{status});
+    return NextResponse.json({ shipment }, { status: 201 });
+  } catch (error) {
+    const { status, body } = toApiError(error, requestId);
+    return NextResponse.json(body, { status });
   }
 }
 
@@ -250,15 +232,15 @@ export async function GET(request: Request) {
   try {
     const principal = await requireApiAccess(request, "seller", ["SELLER"]);
     if (!principal.sellerId) throw new AppError("FORBIDDEN", "Seller profile is required");
-    const db=createDatabase();
-    const items=await db.select({
-      id:shipments.id,orderId:shipments.orderId,status:shipments.status,
-      providerShipmentId:shipments.providerShipmentId,awb:shipments.awb,
-      createdAt:shipments.createdAt,updatedAt:shipments.updatedAt,
-    }).from(shipments).where(eq(shipments.sellerId,principal.sellerId));
-    return NextResponse.json({items});
-  } catch(error) {
-    const {status,body}=toApiError(error,requestId);
-    return NextResponse.json(body,{status});
+    const db = createDatabase();
+    const items = await db.select({
+      id: shipments.id, orderId: shipments.orderId, status: shipments.status,
+      providerShipmentId: shipments.providerShipmentId, awb: shipments.awb,
+      createdAt: shipments.createdAt, updatedAt: shipments.updatedAt,
+    }).from(shipments).where(eq(shipments.sellerId, principal.sellerId));
+    return NextResponse.json({ items });
+  } catch (error) {
+    const { status, body } = toApiError(error, requestId);
+    return NextResponse.json(body, { status });
   }
 }
