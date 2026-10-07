@@ -121,6 +121,21 @@ export const cartItemMutationSchema = z.object({
   quantity: z.number().int().min(1).max(99),
 });
 export const cartRemoveSchema = z.object({ variantId: uuidSchema });
+export const addressSchema = z.object({
+  label:z.string().trim().max(40).optional(),
+  line1:z.string().trim().min(3).max(160),
+  line2:z.string().trim().max(160).optional(),
+  city:z.string().trim().min(2).max(80),
+  state:z.string().trim().min(2).max(80),
+  postalCode:z.string().regex(/^[1-9][0-9]{5}$/,"Enter a valid 6-digit PIN code"),
+  country:z.literal("IN").default("IN"),
+  isDefault:z.boolean().default(false),
+});
+export const checkoutSchema = z.object({
+  shippingAddressId: uuidSchema,
+  couponCode:z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,32}$/).optional(),
+  paymentMethod:z.enum(["COD","RAZORPAY","CASHFREE"]).default("COD"),
+});
 
 export const loginSchema = z.object({ email:z.string().trim().email().max(254).transform((value)=>value.toLowerCase()), password:z.string().min(8).max(256) });
 export const customerRegistrationSchema = z.object({
