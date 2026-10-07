@@ -105,7 +105,7 @@ export async function GET(request: Request) {
       nextCursor: null,
       requestId,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ items: [], nextCursor: null, requestId, error: "Unable to load the catalog." }, { status: 500 });
   }
 }
