@@ -217,6 +217,14 @@ export const API_CONTRACTS: ApiContract[] = [
   },
   {
     method: "GET",
+    path: "/api/v1/orders/:orderId/tracking",
+    audience: "storefront",
+    auth: "session",
+    roles: ["CUSTOMER"],
+    description: "Get customer-visible shipment tracking for an owned order",
+  },
+  {
+    method: "GET",
     path: "/api/v1/orders",
     audience: "storefront",
     auth: "session",
