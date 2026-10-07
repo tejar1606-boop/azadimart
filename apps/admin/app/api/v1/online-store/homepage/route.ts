@@ -7,21 +7,29 @@ import { NextResponse } from "next/server";
 async function ensureHomepage() {
   const db = createDatabase();
   let theme = (await db.select().from(themes).where(eq(themes.name, "AzadiMart Core")).limit(1))[0];
+
   if (!theme) {
-    theme = (await db.insert(themes).values({
+    const created = (await db.insert(themes).values({
       name: "AzadiMart Core",
       status: "DRAFT",
       settings: { mode: "premium-india", surface: "light" },
     }).returning())[0];
+    if (!created) throw new AppError("INTERNAL", "Theme creation failed", undefined, false);
+    theme = created;
   }
+
   let page = (await db.select().from(pages).where(eq(pages.themeId, theme.id)).limit(1))[0];
+
   if (!page) {
-    page = (await db.insert(pages).values({
+    const created = (await db.insert(pages).values({
       themeId: theme.id,
       slug: "home",
       title: "Homepage",
       status: "DRAFT",
     }).returning())[0];
+    if (!created) throw new AppError("INTERNAL", "Homepage creation failed", undefined, false);
+    page = created;
+
     await db.insert(pageSections).values(DEFAULT_HOME_SECTIONS.map((section) => ({
       pageId: page.id,
       type: section.type,
@@ -30,9 +38,11 @@ async function ensureHomepage() {
       settings: section.settings,
     })));
   }
+
   const sections = await db.select().from(pageSections)
     .where(eq(pageSections.pageId, page.id))
     .orderBy(asc(pageSections.position));
+
   return { db, theme, page, sections };
 }
 
@@ -92,7 +102,10 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE() {
-  return NextResponse.json({ ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use section editing in the Online Store editor." } }, { status: 405 });
+  return NextResponse.json(
+    { ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use section editing in the Online Store editor." } },
+    { status: 405 },
+  );
 }
 
 export function assertThemeOwner(themeId: string, actualThemeId: string) {
