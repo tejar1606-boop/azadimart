@@ -9,16 +9,18 @@ export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
     const principal = await requireApiAccess(request, "seller", ["SELLER"]);
-    if (!principal.sellerId) throw new AppError("FORBIDDEN", "Seller profile is required");
+    if (!sellerId) throw new AppError("FORBIDDEN", "Seller profile is required");
 
     const body = (await request.json().catch(() => ({}))) as { orderId?: string };
-    if (!body.orderId || !/^[0-9a-f-]{36}$/i.test(body.orderId)) {
+    if (!orderId || !/^[0-9a-f-]{36}$/i.test(body.orderId)) {
       throw new AppError("VALIDATION_ERROR", "A valid order ID is required");
     }
+    const orderId = body.orderId;
+    const sellerId = sellerId;
 
     const db = createDatabase();
     const seller = (await db.select({ id:sellers.id,status:sellers.status }).from(sellers)
-      .where(and(eq(sellers.id,principal.sellerId),eq(sellers.userId,principal.userId))).limit(1))[0];
+      .where(and(eq(sellers.id,sellerId),eq(sellers.userId,principal.userId))).limit(1))[0];
     if (!seller || seller.status !== "ACTIVE") throw new AppError("FORBIDDEN", "Seller account is not active");
 
     const orderRow = (await db.select({
@@ -134,7 +136,7 @@ export async function POST(request: Request) {
             .returning({ id: shipments.id })
         : await tx.insert(shipments).values({
             orderId: body.orderId,
-            sellerId: principal.sellerId,
+            sellerId: sellerId,
             status: "PENDING",
           }).onConflictDoNothing({
             target: [shipments.orderId, shipments.sellerId],
