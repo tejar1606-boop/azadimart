@@ -24,6 +24,7 @@ export type PaymentWebhookEvent = {
 
 export interface PaymentProvider {
   readonly code: PaymentProviderCode;
+  readonly isConfigured: boolean;
   createPayment(input: CreatePaymentInput): Promise<PaymentIntent>;
   refund(providerPaymentId: string, amountPaise: number): Promise<{ providerRefundId: string }>;
   parseWebhook(headers: Headers, body: unknown): Promise<PaymentWebhookEvent>;
@@ -31,6 +32,7 @@ export interface PaymentProvider {
 
 export class CodPaymentProvider implements PaymentProvider {
   readonly code = "COD" as const;
+  readonly isConfigured = true;
 
   async createPayment(input: CreatePaymentInput): Promise<PaymentIntent> {
     return {
@@ -50,6 +52,7 @@ export class CodPaymentProvider implements PaymentProvider {
 }
 
 export class UnconfiguredPaymentProvider implements PaymentProvider {
+  readonly isConfigured = false;
   constructor(readonly code: Exclude<PaymentProviderCode, "COD">) {}
 
   async createPayment(): Promise<PaymentIntent> {
@@ -81,4 +84,12 @@ export function getPaymentProvider(code: PaymentProviderCode): PaymentProvider {
     throw new Error(`Unknown payment provider: ${code}`);
   }
   return provider;
+}
+
+
+export function getPaymentProviderReadiness(): Array<{ code: PaymentProviderCode; isConfigured: boolean }> {
+  return Array.from(registry.values()).map((provider) => ({
+    code: provider.code,
+    isConfigured: provider.isConfigured,
+  }));
 }
