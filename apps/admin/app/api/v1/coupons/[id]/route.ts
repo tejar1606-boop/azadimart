@@ -11,7 +11,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { id } = await params;
     const input=couponUpdateSchema.parse(await request.json());
     const db=createDatabase();
-    const existing=(await db.select({id:coupons.id,code:coupons.code}).from(coupons).where(eq(coupons.id,id)).limit(1))[0];
+    const existing=(await db.select({id:coupons.id,code:coupons.code,fundingType:coupons.fundingType,sellerId:coupons.sellerId}).from(coupons).where(eq(coupons.id,id)).limit(1))[0];
     if(!existing) throw new AppError("NOT_FOUND","Coupon not found");
     if(input.code && input.code!==existing.code){
       const duplicate=(await db.select({id:coupons.id}).from(coupons).where(eq(coupons.code,input.code)).limit(1))[0];
