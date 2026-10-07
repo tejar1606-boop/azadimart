@@ -41,9 +41,9 @@ export async function POST(request: Request) {
       throw new AppError("FORBIDDEN", "KYC cannot be changed for the current seller status");
     }
 
-    const requiredTypes = new Set(["PAN", "BANK_PROOF", "ADDRESS_PROOF", seller.taxIdentityType === "ENROLMENT_ID" ? "GST_ENROLMENT" : "GST"]);
+    const requiredTypes: Array<"PAN" | "BANK_PROOF" | "ADDRESS_PROOF" | "GST" | "GST_ENROLMENT"> = ["PAN", "BANK_PROOF", "ADDRESS_PROOF", seller.taxIdentityType === "ENROLMENT_ID" ? "GST_ENROLMENT" : "GST"];
     const submittedTypes = new Set(input.documents.map((document) => document.type));
-    const missingTypes = [...requiredTypes].filter((type) => !submittedTypes.has(type));
+    const missingTypes = requiredTypes.filter((type) => !submittedTypes.has(type));
     if (missingTypes.length > 0) {
       throw new AppError("VALIDATION_ERROR", "Required KYC documents are missing: " + missingTypes.join(", "));
     }
