@@ -78,7 +78,11 @@ export async function POST(request: Request) {
           userId: user.id,
           storeName: input.storeName,
           legalName: input.legalName,
+          taxIdentityType: input.taxIdentityType,
           gstin: input.gstin ?? null,
+          gstEnrolmentId: input.gstEnrolmentId ?? null,
+          businessState: input.businessState,
+          taxDeclarationAcceptedAt: input.taxDeclarationAccepted ? new Date() : null,
           status: "REGISTERED",
         })
         .returning({ id: sellers.id });
