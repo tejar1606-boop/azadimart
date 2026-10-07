@@ -1,5 +1,5 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { auditLogs, createDatabase, orderItems, orders, sellerSettings, shipmentEvents, shipments, sellers } from "@azadimart/database";
+import { auditLogs, createDatabase, orderItems, orders, productVariants, sellerSettings, shipmentEvents, shipments, sellers } from "@azadimart/database";
 import { createShipmentForOrder, getLogisticsProvider, type Address } from "@azadimart/logistics";
 import { AppError, sellerShippingSettingsSchema, toApiError } from "@azadimart/shared";
 import { and, eq } from "drizzle-orm";
@@ -59,10 +59,22 @@ export async function POST(request: Request) {
     const sellerItems = await db.select({
       quantity: orderItems.quantity,
       unitPricePaise: orderItems.unitPricePaise,
+      weightGrams: productVariants.weightGrams,
     }).from(orderItems)
-      .where(and(eq(orderItems.orderId,body.orderId),eq(orderItems.sellerId,principal.sellerId)));
+      .innerJoin(productVariants, eq(productVariants.id, orderItems.variantId))
+      .where(and(eq(orderItems.orderId, body.orderId), eq(orderItems.sellerId, principal.sellerId)));
 
-    const declaredValuePaise = sellerItems.reduce((sum,item)=>sum + item.quantity * item.unitPricePaise,0);
+    const declaredValuePaise = sellerItems.reduce(
+      (sum, item) => sum + item.quantity * item.unitPricePaise,
+      0,
+    );
+    const weightGrams = sellerItems.reduce(
+      (sum, item) => sum + item.quantity * item.weightGrams,
+      0,
+    );
+    if (weightGrams <= 0) {
+      throw new AppError("CONFLICT", "Add package weight to every product variant before creating a shipment");
+    }
     const deliverySnapshot = orderRow.shippingAddressSnapshot;
     const delivery: Address = {
       name: deliverySnapshot.name ?? "Customer",
@@ -107,7 +119,7 @@ export async function POST(request: Request) {
         sellerId: principal.sellerId,
         pickup: settings.pickup,
         delivery,
-        weightGrams: 0,
+        weightGrams,
         declaredValuePaise,
         idempotencyKey: body.orderId + ":" + principal.sellerId,
       });
