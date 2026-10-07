@@ -47,7 +47,7 @@ export default function CatalogView() {
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Marketplace</p>
             <h1 className="mt-2 text-4xl font-black tracking-[-0.045em] sm:text-6xl">Discover products.</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">A curated catalog from sellers that have passed AzadiMart's onboarding and quality controls.</p>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">A curated catalog from sellers that have passed AzadiMart&apos;s onboarding and quality controls.</p>
           </div>
           <form onSubmit={submit} className="flex w-full max-w-xl gap-2 rounded-full border border-slate-200 bg-white p-1.5 shadow-sm">
             <input value={input} onChange={(event) => setInput(event.target.value)} className="min-w-0 flex-1 bg-transparent px-4 text-sm outline-none" placeholder="Search products, brands or categories" aria-label="Search products" />
