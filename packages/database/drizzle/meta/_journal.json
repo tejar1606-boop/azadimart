@@ -1,13 +1,8 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1791324204838,
-      "tag": "20261006220324_smooth_lady_ursula",
-      "breakpoints": true
-    }
+  "version":"7",
+  "dialect":"postgresql",
+  "entries":[
+    {"idx":0,"version":"7","when":1791324204838,"tag":"20261006220324_smooth_lady_ursula","breakpoints":true},
+    {"idx":1,"version":"7","when":1791341591247,"tag":"20261007075500_online_store_coupons","breakpoints":true}
   ]
 }
