@@ -17,6 +17,7 @@ export type CreateShipmentInput = {
   delivery: Address;
   weightGrams: number;
   declaredValuePaise: number;
+  idempotencyKey: string;
 };
 
 export type ShipmentQuote = {
