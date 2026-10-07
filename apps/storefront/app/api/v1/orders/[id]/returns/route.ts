@@ -22,6 +22,7 @@ export async function POST(
     if (!Array.isArray(body.items) || body.items.length === 0) {
       throw new AppError("VALIDATION_ERROR", "At least one item is required");
     }
+    const requestedItems = body.items;
 
     const db = createDatabase();
     const result = await db.transaction(async (tx) => {
@@ -32,8 +33,8 @@ export async function POST(
       if (!order) throw new AppError("NOT_FOUND", "Order not found");
       if (order.status !== "DELIVERED") throw new AppError("CONFLICT", "Returns can be requested only after delivery");
 
-      const requestedIds = body.items.map((item) => item.orderItemId).filter((id): id is string => !!id);
-      if (requestedIds.length !== body.items.length || requestedIds.some((id) => !/^[0-9a-f-]{36}$/i.test(id))) {
+      const requestedIds = requestedItems.map((item) => item.orderItemId).filter((id): id is string => !!id);
+      if (requestedIds.length !== requestedItems.length || requestedIds.some((id) => !/^[0-9a-f-]{36}$/i.test(id))) {
         throw new AppError("VALIDATION_ERROR", "Each return item needs a valid order item ID");
       }
       if (new Set(requestedIds).size !== requestedIds.length) throw new AppError("VALIDATION_ERROR", "Duplicate return items are not allowed");
@@ -61,7 +62,6 @@ export async function POST(
       for (const row of priorRows) returnedByItem.set(row.orderItemId, (returnedByItem.get(row.orderItemId) ?? 0) + row.quantity);
 
       const itemMap = new Map(ownedItems.map((item) => [item.id, item]));
-      const requestedItems = body.items;
       const validated = requestedItems.map((input) => {
         const orderItemId = input.orderItemId;
         if (!orderItemId) throw new AppError("VALIDATION_ERROR", "Each return item needs a valid order item ID");
