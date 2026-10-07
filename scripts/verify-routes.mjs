@@ -63,6 +63,7 @@ const catalog = {
     "/api/v1/qc",
     "/api/v1/themes",
     "/api/v1/orders",
+    "/api/v1/shipments",
   ],
 };
 
