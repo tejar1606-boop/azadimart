@@ -143,12 +143,15 @@ export const refunds = pgTable(
     paymentId: uuid("payment_id").notNull().references(() => payments.id, { onDelete: "restrict" }),
     orderId: uuid("order_id").notNull().references(() => orders.id),
     amountPaise: integer("amount_paise").notNull(),
+    status: refundStatusEnum("status").notNull().default("PENDING"),
+    idempotencyKey: text("idempotency_key").notNull(),
     reason: text("reason"),
     providerRefundId: text("provider_refund_id"),
     ...timestamps,
   },
   (table) => [
     index("refunds_order_id_idx").on(table.orderId),
+    uniqueIndex("refunds_idempotency_key_unique").on(table.idempotencyKey),
     uniqueIndex("refunds_provider_refund_unique").on(table.providerRefundId),
   ],
 );
