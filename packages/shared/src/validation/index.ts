@@ -29,6 +29,20 @@ export const sellerRegistrationSchema = z.object({
 export const kycDocumentSchema = z.object({ type:z.enum(["GST","GST_ENROLMENT","PAN","BANK_PROOF","ADDRESS_PROOF","IDENTITY"]), mediaAssetId:uuidSchema });
 export const sellerKycSubmissionSchema = z.object({ documents:z.array(kycDocumentSchema).min(1).max(5).refine((documents)=>new Set(documents.map((document)=>document.type)).size===documents.length,"Each KYC document type may only be submitted once") });
 export const sellerApprovalSchema = z.object({ sellerId:uuidSchema, decision:z.enum(["APPROVED","REJECTED"]), notes:z.string().trim().max(2000).optional() });
+export const sellerShippingSettingsSchema = z.object({
+  preferredProvider: z.enum(["MANUAL","SHIPROCKET","DELHIVERY","SHADOWFAX"]).default("MANUAL"),
+  pickup: z.object({
+    name: z.string().trim().min(2).max(120),
+    phone: z.string().regex(/^[6-9]\d{9}$/, "Enter a valid Indian mobile number"),
+    line1: z.string().trim().min(3).max(160),
+    line2: z.string().trim().max(160).optional(),
+    city: z.string().trim().min(2).max(80),
+    state: z.string().trim().min(2).max(80),
+    postalCode: z.string().regex(/^[1-9][0-9]{5}$/, "Enter a valid 6-digit PIN code"),
+    country: z.literal("IN").default("IN"),
+  }),
+});
+
 export const productDraftSchema = z.object({
   title:z.string().trim().min(3).max(200),
   description:z.string().trim().max(20000).optional(),
