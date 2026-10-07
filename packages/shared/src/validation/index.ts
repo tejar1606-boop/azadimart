@@ -103,6 +103,11 @@ export const couponValidationSchema = z.object({
   cartId: uuidSchema,
   code: z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,32}$/),
 });
+export const cartItemMutationSchema = z.object({
+  variantId: uuidSchema,
+  quantity: z.number().int().min(1).max(99),
+});
+export const cartRemoveSchema = z.object({ variantId: uuidSchema });
 
 export const loginSchema = z.object({ email:z.string().trim().email().max(254).transform((value)=>value.toLowerCase()), password:z.string().min(8).max(256) });
 export const roleSchema = z.enum(ROLES);
