@@ -27,7 +27,7 @@ export interface PaymentProvider {
   readonly code: PaymentProviderCode;
   readonly isConfigured: boolean;
   createPayment(input: CreatePaymentInput): Promise<PaymentIntent>;
-  refund(providerPaymentId: string, amountPaise: number): Promise<{ providerRefundId: string }>;
+  refund(providerPaymentId: string, amountPaise: number, idempotencyKey: string): Promise<{ providerRefundId: string }>;
   parseWebhook(headers: Headers, body: unknown): Promise<PaymentWebhookEvent>;
 }
 
@@ -36,14 +36,10 @@ export class CodPaymentProvider implements PaymentProvider {
   readonly isConfigured = true;
 
   async createPayment(input: CreatePaymentInput): Promise<PaymentIntent> {
-    return {
-      provider: "COD",
-      providerPaymentId: `cod_${input.orderId}`,
-      status: "PENDING",
-    };
+    return { provider: "COD", providerPaymentId: `cod_${input.orderId}`, status: "PENDING" };
   }
 
-  async refund(): Promise<{ providerRefundId: string }> {
+  async refund(_providerPaymentId: string, _amountPaise: number, _idempotencyKey: string): Promise<{ providerRefundId: string }> {
     throw new Error("COD refunds are processed as order adjustments, not PSP refunds");
   }
 
@@ -60,7 +56,7 @@ export class UnconfiguredPaymentProvider implements PaymentProvider {
     throw new Error(`${this.code} is not configured`);
   }
 
-  async refund(): Promise<{ providerRefundId: string }> {
+  async refund(_providerPaymentId: string, _amountPaise: number, _idempotencyKey: string): Promise<{ providerRefundId: string }> {
     throw new Error(`${this.code} is not configured`);
   }
 
@@ -81,16 +77,10 @@ export function registerPaymentProvider(provider: PaymentProvider): void {
 
 export function getPaymentProvider(code: PaymentProviderCode): PaymentProvider {
   const provider = registry.get(code);
-  if (!provider) {
-    throw new Error(`Unknown payment provider: ${code}`);
-  }
+  if (!provider) throw new Error(`Unknown payment provider: ${code}`);
   return provider;
 }
 
-
 export function getPaymentProviderReadiness(): Array<{ code: PaymentProviderCode; isConfigured: boolean }> {
-  return Array.from(registry.values()).map((provider) => ({
-    code: provider.code,
-    isConfigured: provider.isConfigured,
-  }));
+  return Array.from(registry.values()).map((provider) => ({ code: provider.code, isConfigured: provider.isConfigured }));
 }
