@@ -68,7 +68,7 @@ export default function CheckoutView(){
     try{
       const response=await fetch("/api/v1/checkout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({shippingAddressId:selectedAddress,couponCode:coupon.trim()||undefined,paymentMethod:"COD"})});
       const body=await response.json();if(!response.ok)throw new Error(body?.error?.message??"Unable to place order.");
-      window.location.href="/account?order="+encodeURIComponent(body.orderNumber);
+      window.location.href="/account/orders/"+encodeURIComponent(body.orderId);
     }catch(err){setError(err instanceof Error?err.message:"Unable to place order.");}
     finally{setWorking(false);}
   }
