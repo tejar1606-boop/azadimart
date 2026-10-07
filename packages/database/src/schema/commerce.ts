@@ -40,7 +40,7 @@ export const cartItems = pgTable(
   "cart_items",
   {
     id,
-    cartId: uuid("cart_id").notNull().references(() => carts.id),
+    cartId: uuid("cart_id").notNull().references(() => carts.id, { onDelete: "cascade" }),
     variantId: uuid("variant_id").notNull().references(() => productVariants.id),
     quantity: integer("quantity").notNull(),
     ...timestamps,
