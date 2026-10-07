@@ -297,6 +297,14 @@ export const API_CONTRACTS: ApiContract[] = [
   },
   {
     method: "GET",
+    path: "/api/v1/orders",
+    audience: "admin",
+    auth: "session",
+    roles: ["ADMIN", "SUPER_ADMIN"],
+    description: "Cross-seller order operations",
+  },
+  {
+    method: "GET",
     path: "/api/v1/themes",
     audience: "admin",
     auth: "session",
