@@ -71,7 +71,7 @@ function fileFor(app, route) {
   if (route === "/") {
     return join(appDir, "page.tsx");
   }
-  return join(appDir, route.slice(1), "page.tsx");
+  return join(appDir, route.slice(1).replace(/:([A-Za-z0-9_-]+)/g, "[$1]"), "page.tsx");
 }
 
 const missing = [];
