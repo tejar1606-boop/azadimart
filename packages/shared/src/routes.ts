@@ -52,6 +52,7 @@ export const SELLER_ROUTES = [
   "/api/v1/products",
   "/api/v1/categories",
   "/api/v1/qc-submissions",
+  "/api/v1/orders",
 ] as const;
 
 export const ADMIN_ROUTES = [
