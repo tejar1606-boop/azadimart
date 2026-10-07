@@ -264,6 +264,14 @@ export const API_CONTRACTS: ApiContract[] = [
     description: "Create product draft scoped to the authenticated seller",
   },
   {
+    method: "GET",
+    path: "/api/v1/orders",
+    audience: "seller",
+    auth: "session",
+    roles: ["SELLER"],
+    description: "List orders containing seller products",
+  },
+  {
     method: "POST",
     path: "/api/v1/qc-submissions",
     audience: "seller",
