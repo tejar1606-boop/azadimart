@@ -108,7 +108,11 @@ export async function POST(
         }
       }
 
-      if (nextStatus === "CANCELLED" || (nextStatus === "FAILED" && shipment.status !== "PICKED_UP")) {
+      if (
+        nextStatus === "CANCELLED" ||
+        (nextStatus === "FAILED" && shipment.status !== "PICKED_UP") ||
+        (nextStatus === "RETURNED" && shipment.status !== "DELIVERED")
+      ) {
         const items = await tx.select({
           variantId: orderItems.variantId,
           quantity: orderItems.quantity,
