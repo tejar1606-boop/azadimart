@@ -8,7 +8,7 @@ type GalleryMedia = { mediaAssetId: string; mediaStorageKey: string; altText: st
 export default function ProductGallery({ title, media }: { title: string; media: GalleryMedia[] }) {
   const [active, setActive] = useState(0);
   const images = media.length ? media : [{ mediaAssetId: "placeholder", mediaStorageKey: "", altText: title }];
-  const activeImage = images[active] ?? images[0];
+  const fallback = { mediaAssetId: "placeholder", mediaStorageKey: "", altText: title }; const activeImage = images[active] ?? images[0] ?? fallback;
 
   return (
     <section className="space-y-3">
