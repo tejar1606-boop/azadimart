@@ -2,7 +2,7 @@ import { requireApiAccess } from "@azadimart/auth";
 import { auditLogs, createDatabase, orderItems, orders, productVariants, sellerSettings, shipmentEvents, shipments, sellers } from "@azadimart/database";
 import { createShipmentForOrder, getLogisticsProvider, type Address } from "@azadimart/logistics";
 import { AppError, sellerShippingSettingsSchema, toApiError } from "@azadimart/shared";
-import { and, countDistinct, eq, lt, or } from "drizzle-orm";
+import { and, countDistinct, eq, lt, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     }
 
     const rawSettings = (await db.select({ shippingSettings:sellerSettings.shippingSettings })
-      .from(sellerSettings).where(eq(sellerSettings.sellerId,principal.sellerId)).limit(1))[0]?.shippingSettings;
+      .from(sellerSettings).where(eq(sellerSettings.sellerId,principal.sellerId)).limit(1)) [0]?.shippingSettings;
     if (!rawSettings) {
       throw new AppError("CONFLICT","Configure your pickup address before creating shipments");
     }
@@ -90,37 +90,74 @@ export async function POST(request: Request) {
     };
     if (!delivery.phone) throw new AppError("CONFLICT","Customer delivery phone is missing from the order snapshot");
 
-    const reservationRows = existing
-      ? await db.update(shipments)
-          .set({ status: "PENDING", providerShipmentId: null, awb: null, updatedAt: new Date() })
-          .where(and(
-            eq(shipments.id, existing.id),
-            eq(shipments.sellerId, principal.sellerId),
-            or(
-              eq(shipments.status, "FAILED"),
-              and(eq(shipments.status, "PENDING"), lt(shipments.updatedAt, new Date(Date.now() - 10 * 60 * 1000))),
-            ),
-          ))
-          .returning({ id: shipments.id })
-      : await db.insert(shipments).values({
-          orderId: body.orderId,
-          sellerId: principal.sellerId,
-          status: "PENDING",
-        }).onConflictDoNothing({
-          target: [shipments.orderId, shipments.sellerId],
-        }).returning({ id: shipments.id });
+    // Reserve the shipment row under the same order-scoped advisory lock used
+    // by customer cancellation. Either cancellation wins and this re-check sees
+    // CANCELLED, or the shipment reservation wins and cancellation sees an active
+    // fulfillment row.
+    const reservation = await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${body.orderId}, 0))`);
 
-    const reserved = reservationRows[0];
-    if (!reserved) {
-      const concurrent = (await db.select({
+      const currentOrder = (await tx.select({ status: orders.status })
+        .from(orders)
+        .where(eq(orders.id, body.orderId))
+        .limit(1))[0];
+      if (!currentOrder || !["CONFIRMED","PACKED"].includes(currentOrder.status)) {
+        throw new AppError("CONFLICT", "Order is no longer ready for seller fulfillment");
+      }
+
+      const currentExisting = (await tx.select({
         id: shipments.id,
         status: shipments.status,
         providerShipmentId: shipments.providerShipmentId,
         awb: shipments.awb,
+        updatedAt: shipments.updatedAt,
+      }).from(shipments)
+        .where(and(eq(shipments.orderId,body.orderId),eq(shipments.sellerId,principal.sellerId))).limit(1))[0];
+
+      const stale = currentExisting?.status === "PENDING"
+        && Date.now() - new Date(currentExisting.updatedAt).getTime() > 10 * 60 * 1000;
+      if (currentExisting && currentExisting.status !== "FAILED" && !stale) {
+        return { reserved: null, existing: currentExisting };
+      }
+
+      const rows = currentExisting
+        ? await tx.update(shipments)
+            .set({ status: "PENDING", providerShipmentId: null, awb: null, updatedAt: new Date() })
+            .where(and(
+              eq(shipments.id, currentExisting.id),
+              eq(shipments.sellerId, principal.sellerId),
+              or(
+                eq(shipments.status, "FAILED"),
+                and(eq(shipments.status, "PENDING"), lt(shipments.updatedAt, new Date(Date.now() - 10 * 60 * 1000))),
+              ),
+            ))
+            .returning({ id: shipments.id })
+        : await tx.insert(shipments).values({
+            orderId: body.orderId,
+            sellerId: principal.sellerId,
+            status: "PENDING",
+          }).onConflictDoNothing({
+            target: [shipments.orderId, shipments.sellerId],
+          }).returning({ id: shipments.id });
+
+      const reserved = rows[0];
+      if (reserved) return { reserved, existing: null };
+
+      const concurrent = (await tx.select({
+        id: shipments.id,
+        status: shipments.status,
+        providerShipmentId: shipments.providerShipmentId,
+        awb: shipments.awb,
+        updatedAt: shipments.updatedAt,
       }).from(shipments).where(and(eq(shipments.orderId, body.orderId), eq(shipments.sellerId, principal.sellerId))).limit(1))[0];
       if (!concurrent) throw new AppError("INTERNAL", "Shipment reservation failed", undefined, false);
-      return NextResponse.json({ shipment: concurrent });
+      return { reserved: null, existing: concurrent };
+    });
+
+    if (!reservation.reserved) {
+      return NextResponse.json({ shipment: reservation.existing });
     }
+    const reserved = reservation.reserved;
 
     let created: Awaited<ReturnType<typeof createShipmentForOrder>>;
     try {
