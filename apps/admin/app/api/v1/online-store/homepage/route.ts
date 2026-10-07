@@ -6,40 +6,51 @@ import { NextResponse } from "next/server";
 
 async function ensureHomepage() {
   const db = createDatabase();
-  let theme = (await db.select().from(themes).where(eq(themes.name, "AzadiMart Core")).limit(1))[0];
 
-  if (!theme) {
-    const created = (await db.insert(themes).values({
-      name: "AzadiMart Core",
-      status: "DRAFT",
-      settings: { mode: "premium-india", surface: "light" },
-    }).returning())[0];
-    if (!created) throw new AppError("INTERNAL", "Theme creation failed", undefined, false);
-    theme = created;
-  }
+  // Serialize first-run homepage initialization with draft saves and publishing.
+  // Without this, two concurrent admin requests could both observe a missing
+  // default theme/page and create duplicate homepage state.
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('azadimart:theme_publish'))`);
 
-  let page = (await db.select().from(pages).where(eq(pages.themeId, theme.id)).limit(1))[0];
+    let theme = (await tx.select().from(themes).where(eq(themes.name, "AzadiMart Core")).limit(1))[0];
 
-  if (!page) {
-    const created = (await db.insert(pages).values({
-      themeId: theme.id,
-      slug: "home",
-      title: "Homepage",
-      status: "DRAFT",
-    }).returning())[0];
-    if (!created) throw new AppError("INTERNAL", "Homepage creation failed", undefined, false);
-    page = created;
+    if (!theme) {
+      const created = (await tx.insert(themes).values({
+        name: "AzadiMart Core",
+        status: "DRAFT",
+        settings: { mode: "premium-india", surface: "light" },
+      }).returning())[0];
+      if (!created) throw new AppError("INTERNAL", "Theme creation failed", undefined, false);
+      theme = created;
+    }
 
-    await db.insert(pageSections).values(DEFAULT_HOME_SECTIONS.map((section) => ({
-      pageId: created.id,
-      type: section.type,
-      position: section.position,
-      isVisible: section.isVisible,
-      settings: section.settings,
-    })));
-  }
+    let page = (await tx.select().from(pages).where(eq(pages.themeId, theme.id)).limit(1))[0];
 
-  if (!theme || !page) throw new AppError("INTERNAL", "Homepage initialization failed", undefined, false);
+    if (!page) {
+      const created = (await tx.insert(pages).values({
+        themeId: theme.id,
+        slug: "home",
+        title: "Homepage",
+        status: "DRAFT",
+      }).returning())[0];
+      if (!created) throw new AppError("INTERNAL", "Homepage creation failed", undefined, false);
+
+      await tx.insert(pageSections).values(DEFAULT_HOME_SECTIONS.map((section) => ({
+        pageId: created.id,
+        type: section.type,
+        position: section.position,
+        isVisible: section.isVisible,
+        settings: section.settings,
+      })));
+    }
+  });
+
+  const theme = (await db.select().from(themes).where(eq(themes.name, "AzadiMart Core")).limit(1))[0];
+  if (!theme) throw new AppError("INTERNAL", "Homepage theme missing", undefined, false);
+
+  const page = (await db.select().from(pages).where(eq(pages.themeId, theme.id)).limit(1))[0];
+  if (!page) throw new AppError("INTERNAL", "Homepage missing", undefined, false);
 
   const sections = await db.select().from(pageSections)
     .where(eq(pageSections.pageId, page.id))
