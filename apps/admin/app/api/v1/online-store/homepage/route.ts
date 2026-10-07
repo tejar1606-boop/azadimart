@@ -31,7 +31,7 @@ async function ensureHomepage() {
     page = created;
 
     await db.insert(pageSections).values(DEFAULT_HOME_SECTIONS.map((section) => ({
-      pageId: page.id,
+      pageId: created.id,
       type: section.type,
       position: section.position,
       isVisible: section.isVisible,
