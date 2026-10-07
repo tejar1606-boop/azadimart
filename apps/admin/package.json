@@ -17,7 +17,9 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "@azadimart/database": "workspace:*",
-    "drizzle-orm": "^0.38.3"
+    "drizzle-orm": "^0.38.3",
+    "@azadimart/logistics": "workspace:*",
+    "@azadimart/payments": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
