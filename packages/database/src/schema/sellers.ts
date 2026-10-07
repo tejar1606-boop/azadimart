@@ -17,6 +17,7 @@ export const sellers = pgTable(
     gstin: text("gstin"),
     gstEnrolmentId: text("gst_enrolment_id"),
     businessState: text("business_state"),
+    taxDeclarationAcceptedAt: timestamp("tax_declaration_accepted_at", { withTimezone: true }),
     pan: text("pan"),
     status: sellerStatusEnum("status").notNull().default("REGISTERED"),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
