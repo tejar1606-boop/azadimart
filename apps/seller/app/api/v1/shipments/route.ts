@@ -50,9 +50,12 @@ export async function POST(request: Request) {
       status:shipments.status,
       providerShipmentId:shipments.providerShipmentId,
       awb:shipments.awb,
+      updatedAt:shipments.updatedAt,
     }).from(shipments)
       .where(and(eq(shipments.orderId,body.orderId),eq(shipments.sellerId,principal.sellerId))).limit(1))[0];
-    if (existing && existing.status !== "FAILED") {
+    const pendingShipmentStale = existing?.status === "PENDING"
+      && Date.now() - new Date(existing.updatedAt).getTime() > 10 * 60 * 1000;
+    if (existing && existing.status !== "FAILED" && !pendingShipmentStale) {
       return NextResponse.json({ shipment: existing });
     }
 
