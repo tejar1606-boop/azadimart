@@ -1,7 +1,7 @@
 import { hashPassword } from "@azadimart/auth";
 import { createDatabase, customers, users } from "@azadimart/database";
 import { AppError, customerRegistrationSchema, toApiError } from "@azadimart/shared";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
