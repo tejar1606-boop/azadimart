@@ -36,6 +36,7 @@ export const STOREFRONT_ROUTES = [
   "/api/v1/addresses",
   "/api/v1/checkout",
   "/api/v1/orders",
+  "/api/v1/orders/:orderId",
 ] as const;
 
 export const SELLER_ROUTES = [
