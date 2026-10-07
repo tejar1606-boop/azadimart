@@ -99,6 +99,7 @@ export const productVariants = pgTable(
     title: text("title").notNull(),
     pricePaise: integer("price_paise").notNull(),
     compareAtPaise: integer("compare_at_paise"),
+    weightGrams: integer("weight_grams").notNull().default(0),
     attributes: jsonb("attributes").$type<Record<string, string>>().notNull().default({}),
     isActive: boolean("is_active").notNull().default(true),
     ...timestamps,
