@@ -33,11 +33,11 @@ export async function POST(request: Request) {
     const db = createDatabase();
 
     const prepared = await db.transaction(async (tx) => {
-      await tx.execute(sql\`
+      await tx.execute(sql`
         select pg_advisory_xact_lock(
           hashtextextended(\${"refund:" + input.paymentId}, 0)
         )
-      \`);
+      `);
 
       const existing = (await tx.select().from(refunds)
         .where(eq(refunds.idempotencyKey, input.idempotencyKey))
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       if (!order) throw new AppError("NOT_FOUND", "Order not found");
 
       const completed = (await tx.select({
-        amountPaise: sql<number>\`coalesce(sum(case when \${refunds.status} = 'COMPLETED' then \${refunds.amountPaise} else 0 end), 0)\`,
+        amountPaise: sql<number>`coalesce(sum(case when \${refunds.status} = 'COMPLETED' then \${refunds.amountPaise} else 0 end), 0)`,
       }).from(refunds).where(eq(refunds.paymentId, payment.id)))[0]?.amountPaise ?? 0;
 
       if (input.amountPaise + Number(completed) > payment.amountPaise) {
@@ -151,11 +151,11 @@ export async function POST(request: Request) {
       const result = await provider.refund(prepared.providerPaymentId, prepared.existing.amountPaise, prepared.existing.idempotencyKey);
 
       const completed = await db.transaction(async (tx) => {
-        await tx.execute(sql\`
+        await tx.execute(sql`
           select pg_advisory_xact_lock(
             hashtextextended(\${"refund:" + prepared.existing.paymentId}, 0)
           )
-        \`);
+        `);
 
         const updated = (await tx.update(refunds).set({
           status: "COMPLETED",
@@ -166,7 +166,7 @@ export async function POST(request: Request) {
         if (!updated) throw new AppError("CONFLICT", "Refund state changed before provider completion");
 
         const completedTotal = (await tx.select({
-          amountPaise: sql<number>\`coalesce(sum(case when \${refunds.status} = 'COMPLETED' then \${refunds.amountPaise} else 0 end), 0)\`,
+          amountPaise: sql<number>`coalesce(sum(case when \${refunds.status} = 'COMPLETED' then \${refunds.amountPaise} else 0 end), 0)`,
         }).from(refunds).where(eq(refunds.paymentId, prepared.existing.paymentId)))[0]?.amountPaise ?? 0;
 
         const nextPaymentStatus = Number(completedTotal) >= prepared.paymentAmountPaise
