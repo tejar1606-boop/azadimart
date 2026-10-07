@@ -26,6 +26,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ or
     const db = createDatabase();
 
     const result = await db.transaction(async (tx) => {
+      await tx.execute(sql`
+        select pg_advisory_xact_lock(
+          hashtextextended(${orderId}, 0)
+        )
+      `);
+
       const order = (await tx.select({ id: orders.id, orderNumber: orders.orderNumber, status: orders.status }).from(orders).where(eq(orders.id, orderId)).limit(1))[0];
       if (!order) throw new AppError("NOT_FOUND", "Order not found");
       if (!transitions[order.status]?.includes(input.status)) throw new AppError("CONFLICT", "Invalid order status transition");
