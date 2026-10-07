@@ -29,7 +29,20 @@ export const sellerRegistrationSchema = z.object({
 export const kycDocumentSchema = z.object({ type:z.enum(["GST","GST_ENROLMENT","PAN","BANK_PROOF","ADDRESS_PROOF","IDENTITY"]), mediaAssetId:uuidSchema });
 export const sellerKycSubmissionSchema = z.object({ documents:z.array(kycDocumentSchema).min(1).max(5).refine((documents)=>new Set(documents.map((document)=>document.type)).size===documents.length,"Each KYC document type may only be submitted once") });
 export const sellerApprovalSchema = z.object({ sellerId:uuidSchema, decision:z.enum(["APPROVED","REJECTED"]), notes:z.string().trim().max(2000).optional() });
-export const productDraftSchema = z.object({ title:z.string().trim().min(3).max(200), description:z.string().trim().max(20000).optional(), categoryId:uuidSchema, imageAssetIds:z.array(uuidSchema).min(1).max(PRODUCT_MEDIA_LIMITS.maxImages).refine((ids)=>new Set(ids).size===ids.length,"Duplicate image assets are not allowed"), videoAssetId:uuidSchema.optional() });
+export const productDraftSchema = z.object({
+  title:z.string().trim().min(3).max(200),
+  description:z.string().trim().max(20000).optional(),
+  categoryId:uuidSchema,
+  imageAssetIds:z.array(uuidSchema).min(1).max(PRODUCT_MEDIA_LIMITS.maxImages).refine((ids)=>new Set(ids).size===ids.length,"Duplicate image assets are not allowed"),
+  videoAssetId:uuidSchema.optional(),
+  variant:z.object({
+    sku:z.string().trim().min(3).max(64),
+    title:z.string().trim().min(1).max(120).default("Default"),
+    pricePaise:z.number().int().nonnegative(),
+    compareAtPaise:z.number().int().nonnegative().optional(),
+    onHand:z.number().int().nonnegative().default(0),
+  }).optional(),
+});
 export const qcSubmissionSchema = z.object({ productId:uuidSchema, notes:z.string().trim().max(2000).optional() });
 export const qcDecisionSchema = z.object({ qcSubmissionId:uuidSchema, decision:z.enum(["APPROVED","REJECTED"]), notes:z.string().trim().max(2000).optional() });
 export const inventoryAdjustSchema = z.object({ variantId:uuidSchema, onHand:z.number().int().nonnegative() });
