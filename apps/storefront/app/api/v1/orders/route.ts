@@ -1,5 +1,5 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, orderItems, orders, payments, products } from "@azadimart/database";
+import { createDatabase, orderItems, orders, payments } from "@azadimart/database";
 import { AppError, toApiError } from "@azadimart/shared";
 import { desc, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     const items=orderIds.length?await db.select({
       orderId:orderItems.orderId,title:orderItems.title,sku:orderItems.sku,quantity:orderItems.quantity,
       unitPricePaise:orderItems.unitPricePaise,
-    }).from(orderItems).innerJoin(products,eq(products.id,orderItems.productId))
+    }).from(orderItems)
       .where(inArray(orderItems.orderId,orderIds)):[];
     const firstItems=new Map<string,typeof items[number]>();
     for(const item of items) if(!firstItems.has(item.orderId)) firstItems.set(item.orderId,item);
