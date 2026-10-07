@@ -2,7 +2,7 @@ import { requireApiAccess } from "@azadimart/auth";
 import { auditLogs, createDatabase, orderItems, orders, productVariants, sellerSettings, shipmentEvents, shipments, sellers } from "@azadimart/database";
 import { createShipmentForOrder, getLogisticsProvider, type Address } from "@azadimart/logistics";
 import { AppError, sellerShippingSettingsSchema, toApiError } from "@azadimart/shared";
-import { and, countDistinct, eq, or } from "drizzle-orm";
+import { and, countDistinct, eq, lt, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
             eq(shipments.sellerId, principal.sellerId),
             or(
               eq(shipments.status, "FAILED"),
-              and(eq(shipments.status, "PENDING"), eq(shipments.updatedAt, existing.updatedAt)),
+              and(eq(shipments.status, "PENDING"), lt(shipments.updatedAt, new Date(Date.now() - 10 * 60 * 1000))),
             ),
           ))
           .returning({ id: shipments.id })
