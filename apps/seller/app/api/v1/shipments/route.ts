@@ -2,7 +2,7 @@ import { requireApiAccess } from "@azadimart/auth";
 import { auditLogs, createDatabase, orderItems, orders, productVariants, sellerSettings, shipmentEvents, shipments, sellers } from "@azadimart/database";
 import { createShipmentForOrder, getLogisticsProvider, type Address } from "@azadimart/logistics";
 import { AppError, sellerShippingSettingsSchema, toApiError } from "@azadimart/shared";
-import { and, countDistinct, eq } from "drizzle-orm";
+import { and, countDistinct, eq, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -184,7 +184,7 @@ export async function POST(request: Request) {
         .where(
           and(
             eq(orders.id, body.orderId),
-            eq(orders.status, "PACKED"),
+            or(eq(orders.status, "CONFIRMED"), eq(orders.status, "PACKED")),
           ),
         );
     }
