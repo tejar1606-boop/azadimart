@@ -8,7 +8,11 @@ type Seller = {
   legalName: string;
   email: string;
   phone: string | null;
+  taxIdentityType: "GSTIN" | "ENROLMENT_ID";
   gstin: string | null;
+  gstEnrolmentId: string | null;
+  businessState: string | null;
+  taxDeclarationAcceptedAt: string | null;
   status: string;
   verificationStatus: string | null;
   documentCount: number;
@@ -171,7 +175,7 @@ export default function SellersPage() {
                     </span>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-3 text-xs text-ink-muted">
-                    <span>Seller: {seller.status}</span>
+                    <span>Seller: {seller.status}</span><span>Tax: {seller.taxIdentityType === "ENROLMENT_ID" ? "Enrolment ID" : "GSTIN"}</span>
                     <span>Documents: {seller.documentCount}</span>
                     <span>Created: {new Date(seller.createdAt).toLocaleDateString("en-IN")}</span>
                   </div>
@@ -204,8 +208,11 @@ export default function SellersPage() {
                 <div><dt className="text-ink-muted">Legal name</dt><dd className="mt-1 font-medium">{detail.seller.legalName}</dd></div>
                 <div><dt className="text-ink-muted">Email</dt><dd className="mt-1 font-medium">{detail.seller.email}</dd></div>
                 <div><dt className="text-ink-muted">Phone</dt><dd className="mt-1 font-medium">{detail.seller.phone ?? "—"}</dd></div>
-                <div><dt className="text-ink-muted">GSTIN</dt><dd className="mt-1 font-medium">{detail.seller.gstin ?? "—"}</dd></div>
+                <div><dt className="text-ink-muted">Tax identity</dt><dd className="mt-1 font-medium">{detail.seller.taxIdentityType === "ENROLMENT_ID" ? "GST Enrolment ID" : "GSTIN"}</dd></div>
+                <div><dt className="text-ink-muted">{detail.seller.taxIdentityType === "ENROLMENT_ID" ? "Enrolment ID" : "GSTIN"}</dt><dd className="mt-1 font-mono text-sm font-medium">{detail.seller.taxIdentityType === "ENROLMENT_ID" ? (detail.seller.gstEnrolmentId ?? "—") : (detail.seller.gstin ?? "—")}</dd></div>
+                <div><dt className="text-ink-muted">Business state / UT</dt><dd className="mt-1 font-medium">{detail.seller.businessState ?? "—"}</dd></div>
                 <div><dt className="text-ink-muted">PAN</dt><dd className="mt-1 font-medium">{detail.seller.pan ?? "—"}</dd></div>
+                <div><dt className="text-ink-muted">Tax declaration</dt><dd className="mt-1 font-medium">{detail.seller.taxDeclarationAcceptedAt ? "Accepted" : "Missing"}</dd></div>
                 <div><dt className="text-ink-muted">KYC status</dt><dd className="mt-1 font-medium">{detail.verification?.status ?? "—"}</dd></div>
               </dl>
 
@@ -267,7 +274,7 @@ export default function SellersPage() {
                   </button>
                 </div>
                 <p className="mt-3 text-xs text-ink-muted">
-                  Approval activates seller access. The action is recorded in the audit log.
+                  For Enrolment ID sellers, verify the enrolment proof, PAN, business state and eligibility conditions before approval. Approval activates seller access and is recorded in the audit log.
                 </p>
               </div>
             </div>
