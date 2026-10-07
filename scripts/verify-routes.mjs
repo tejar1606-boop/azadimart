@@ -33,6 +33,7 @@ const catalog = {
     "/products/new",
     "/inventory",
     "/orders",
+    "/shipping",
     "/payouts",
     "/api/health",
     "/api/v1/products",
@@ -41,6 +42,7 @@ const catalog = {
     "/api/v1/orders",
     "/api/v1/shipments",
     "/api/v1/shipments/:shipmentId",
+    "/api/v1/shipping-settings",
   ],
   admin: [
     "/",
