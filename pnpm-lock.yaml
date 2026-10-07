@@ -38,6 +38,12 @@ importers:
       '@azadimart/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@azadimart/logistics':
+        specifier: workspace:*
+        version: link:../../packages/logistics
+      '@azadimart/payments':
+        specifier: workspace:*
+        version: link:../../packages/payments
       '@azadimart/shared':
         specifier: workspace:*
         version: link:../../packages/shared
