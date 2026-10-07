@@ -75,6 +75,7 @@ export const ADMIN_ROUTES = [
   "/api/v1/sellers",
   "/api/v1/qc",
   "/api/v1/themes",
+  "/api/v1/orders",
 ] as const;
 
 export const PRODUCT_MEDIA_LIMITS = {
