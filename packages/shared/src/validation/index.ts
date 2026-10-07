@@ -136,6 +136,10 @@ export const checkoutSchema = z.object({
   couponCode:z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,32}$/).optional(),
   paymentMethod:z.enum(["COD","RAZORPAY","CASHFREE"]).default("COD"),
 });
+export const orderStatusUpdateSchema = z.object({
+  status:z.enum(["CONFIRMED","PACKED","SHIPPED","OUT_FOR_DELIVERY","DELIVERED","CANCELLED"]),
+  notes:z.string().trim().max(500).optional(),
+});
 
 export const loginSchema = z.object({ email:z.string().trim().email().max(254).transform((value)=>value.toLowerCase()), password:z.string().min(8).max(256) });
 export const customerRegistrationSchema = z.object({
