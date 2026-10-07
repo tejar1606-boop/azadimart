@@ -5,12 +5,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Variant = { id: string; title: string; pricePaise: number; compareAtPaise: number | null; availableQuantity: number };
+type Category = { id: string; name: string; slug: string };
 type Product = { id: string; title: string; slug: string; description: string | null; categoryName: string; sellerName: string; variants: Variant[]; media?: Array<{ storageKey:string; kind:string; altText:string|null }> };
 
 const money = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
 
 export default function CatalogView() {
   const [items, setItems] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryId, setCategoryId] = useState("");
+  const [sort, setSort] = useState("newest");
   const [query, setQuery] = useState("");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
@@ -20,12 +24,14 @@ export default function CatalogView() {
     setLoading(true);
     setError("");
     try {
-      const params = new URLSearchParams({ limit: "48" });
+      const params = new URLSearchParams({ limit: "48", sort });
+      if (categoryId) params.set("categoryId", categoryId);
       if (search.trim()) params.set("q", search.trim());
       const response = await fetch("/api/v1/catalog/products?" + params.toString(), { cache: "no-store" });
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error ?? "Unable to load products.");
       setItems(body.items ?? []);
+      setCategories(body.categories ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load products.");
     } finally {
@@ -33,7 +39,7 @@ export default function CatalogView() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [categoryId, sort]);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -55,6 +61,8 @@ export default function CatalogView() {
             <button type="submit" className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-bold text-white">Search</button>
           </form>
         </div>
+
+        <div className="mt-5 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3 sm:flex-row"><select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="min-h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Filter by category"><option value="">All categories</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><select value={sort} onChange={(event) => setSort(event.target.value)} className="min-h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Sort products"><option value="newest">Newest</option><option value="price_asc">Price: Low to high</option><option value="price_desc">Price: High to low</option></select></div>
 
         <div className="mt-8 flex items-center justify-between text-sm">
           <p className="font-semibold">{query ? `Results for "${query}"` : "Latest on AzadiMart"}</p>
