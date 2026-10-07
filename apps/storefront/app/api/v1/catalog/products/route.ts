@@ -40,6 +40,7 @@ export async function GET(request: Request) {
       reservedQuantity: inventory.reserved,
       mediaAssetId: productMedia.mediaAssetId,
       mediaKind: productMedia.kind,
+      mediaStorageKey: mediaAssets.storageKey,
       mediaAltText: mediaAssets.altText,
     })
       .from(products)
@@ -63,7 +64,7 @@ export async function GET(request: Request) {
       sellerId: string;
       sellerName: string;
       variants: Array<{ id: string; title: string; sku: string; pricePaise: number; compareAtPaise: number | null; availableQuantity: number }>;
-      media: Array<{ assetId: string; kind: string; altText: string | null }>;
+      media: Array<{ assetId: string; kind: string; altText: string | null; storageKey: string }>;
     }>();
 
     for (const row of rows) {
@@ -95,6 +96,7 @@ export async function GET(request: Request) {
           assetId: row.mediaAssetId,
           kind: row.mediaKind ?? "IMAGE",
           altText: row.mediaAltText,
+          storageKey: row.mediaStorageKey ?? "",
         });
       }
       productMap.set(row.id, current);
