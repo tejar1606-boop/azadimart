@@ -130,6 +130,11 @@ export default function QCPage() {
                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
                   {item.media.map((media) => (
                     <a key={media.id} href={"/media/" + media.storageKey} target="_blank" rel="noreferrer" className="rounded-xl border p-3 text-sm hover:bg-slate-50">
+                      {media.kind === "IMAGE" ? (
+                        <span className="mb-2 block aspect-square w-full rounded-lg bg-slate-100 bg-cover bg-center" style={{ backgroundImage: `url("/media/${media.storageKey}")` }} />
+                      ) : media.kind === "VIDEO" ? (
+                        <video className="mb-2 block aspect-square w-full rounded-lg bg-black object-cover" src={"/media/" + media.storageKey} muted playsInline preload="metadata" />
+                      ) : null}
                       <span className="font-medium">{media.kind}</span>
                       <span className="mt-1 block truncate text-xs text-ink-muted">{media.altText ?? media.storageKey}</span>
                       <span className="mt-2 block text-xs font-medium text-saffron">Open media</span>
