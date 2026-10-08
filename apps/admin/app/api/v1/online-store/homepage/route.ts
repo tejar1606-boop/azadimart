@@ -1,8 +1,9 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, pageSections, pages, themeRevisions, themes } from "@azadimart/database";
+import { auditLogs, createDatabase, pageSections, pages, themeRevisions, themes } from "@azadimart/database";
 import { AppError, DEFAULT_HOME_SECTIONS, saveHomepageSchema, toApiError } from "@azadimart/shared";
 import { asc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { type DraftSnapshot, getPendingDraft } from "../homepage-draft";
 
 async function ensureHomepage() {
   const db = createDatabase();
@@ -63,11 +64,15 @@ export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
     await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
-    const { theme, page, sections } = await ensureHomepage();
+    const { db, theme, page, sections } = await ensureHomepage();
+    const draft = await getPendingDraft(db, theme.id);
     return NextResponse.json({
-      theme: { id: theme.id, name: theme.name, status: theme.status, settings: theme.settings },
+      theme: { id: theme.id, name: theme.name, status: theme.status, settings: draft?.themeSettings ?? theme.settings },
       page: { id: page.id, title: page.title, status: page.status },
-      sections,
+      sections: draft
+        ? draft.sections.map((section, index) => ({ id: "draft-" + index, pageId: page.id, position: index, ...section }))
+        : sections,
+      hasUnpublishedChanges: Boolean(draft),
     });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);
@@ -80,31 +85,26 @@ export async function PUT(request: Request) {
   try {
     const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
     const input = saveHomepageSchema.parse(await request.json());
-    const { db, theme, page } = await ensureHomepage();
-
+    const { db, theme } = await ensureHomepage();
     await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext('azadimart:theme_publish'))`);
-      await tx.update(themes).set({
-        settings: input.themeSettings,
-        status: "DRAFT",
-        updatedAt: new Date(),
-      }).where(eq(themes.id, theme.id));
-
-      await tx.delete(pageSections).where(eq(pageSections.pageId, page.id));
-      await tx.insert(pageSections).values(input.sections.map((section, index) => ({
-        pageId: page.id,
-        type: section.type,
-        position: index,
-        isVisible: section.isVisible,
-        settings: section.settings,
-      })));
-
-      await tx.update(pages).set({ status: "DRAFT", updatedAt: new Date() }).where(eq(pages.id, page.id));
+      const snapshot: DraftSnapshot = {
+        kind: "draft",
+        themeSettings: input.themeSettings,
+        sections: input.sections.map((section) => ({ type: section.type, isVisible: section.isVisible, settings: section.settings })),
+      };
       await tx.insert(themeRevisions).values({
         themeId: theme.id,
-        snapshot: { themeSettings: input.themeSettings, sections: input.sections },
+        snapshot,
         message: "Draft saved",
         createdByUserId: principal.userId,
+      });
+      await tx.insert(auditLogs).values({
+        actorUserId: principal.userId,
+        action: "HOMEPAGE_DRAFT_SAVED",
+        entityType: "theme",
+        entityId: theme.id,
+        metadata: { sectionCount: input.sections.length },
       });
     });
 

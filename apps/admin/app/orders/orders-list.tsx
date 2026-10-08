@@ -72,9 +72,7 @@ export default function OrdersList() {
     PAYMENT_PENDING: "PAID",
     PAID: "CONFIRMED",
     CONFIRMED: "PACKED",
-    PACKED: "SHIPPED",
-    SHIPPED: "OUT_FOR_DELIVERY",
-    OUT_FOR_DELIVERY: "DELIVERED",
+    // Later stages follow sellers' shipment updates.
   } as Record<string,string>)[current];
 
   if (error) return <div className="mt-7 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>;
@@ -114,7 +112,7 @@ export default function OrdersList() {
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 {nextStatusFor(order.status) ? <button type="button" disabled={working === order.id} onClick={() => void updateStatus(order, nextStatusFor(order.status)!)} className="rounded-full bg-slate-950 px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{working === order.id ? "Updating…" : "Move to " + nextStatusFor(order.status)!.replaceAll("_"," ")}</button> : null}
-                {["CREATED","PAYMENT_PENDING","PAID","CONFIRMED"].includes(order.status) ? <button type="button" disabled={working === order.id} onClick={() => void updateStatus(order, "CANCELLED")} className="rounded-full border border-red-200 px-4 py-2 text-xs font-bold text-red-700 disabled:opacity-40">Cancel order</button> : null}
+                {["CREATED","PAYMENT_PENDING","PAID","CONFIRMED","PACKED"].includes(order.status) ? <button type="button" disabled={working === order.id} onClick={() => void updateStatus(order, "CANCELLED")} className="rounded-full border border-red-200 px-4 py-2 text-xs font-bold text-red-700 disabled:opacity-40">Cancel order</button> : null}
                 <p className="text-xs text-slate-400">{order.discountPaise > 0 ? "Discount " + money(order.discountPaise) : "No discount"}{order.couponCode ? " · Coupon " + order.couponCode : ""}</p>
               </div>
             </article>

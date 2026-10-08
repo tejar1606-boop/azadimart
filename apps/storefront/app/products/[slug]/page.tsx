@@ -7,12 +7,25 @@ import { and, asc, eq, ne } from "drizzle-orm";
 import AddToCart from "./add-to-cart";
 import WishlistButton from "../../components/wishlist-button";
 
+/** One card per product: the query returns a row per variant x image. Keeps the
+ * cheapest active variant's price and the first image. */
+function onePerProduct<T extends { id: string; pricePaise: number; mediaStorageKey: string | null }>(rows: T[], limit: number): T[] {
+  const byId = new Map<string, T>();
+  for (const row of rows) {
+    const current = byId.get(row.id);
+    if (!current) byId.set(row.id, row);
+    else if (row.pricePaise < current.pricePaise) byId.set(row.id, { ...row, mediaStorageKey: current.mediaStorageKey ?? row.mediaStorageKey });
+  }
+  return [...byId.values()].slice(0, limit);
+}
+
 export const dynamic = "force-dynamic";
 
 const money = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
 
-export default async function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ProductDetailPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ variant?: string }> }) {
   const { slug } = await params;
+  const { variant: requestedVariantId } = await searchParams;
   const db = createDatabase();
 
   const rows = await db.select({
@@ -49,12 +62,17 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   const variants = rows.filter((row, index, all) => all.findIndex((candidate) => candidate.variantId === row.variantId) === index);
   const media = rows.filter((row, index, all) => row.mediaAssetId && all.findIndex((candidate) => candidate.mediaAssetId === row.mediaAssetId) === index);
-  const selectedVariant = variants[0];
+  // Stable order (price, then id); honour ?variant=, else the first one in stock.
+  variants.sort((a, b) => a.pricePaise - b.pricePaise || a.variantId.localeCompare(b.variantId));
+  const stockOf = (variant: (typeof variants)[number]) => Math.max(0, (variant.onHand ?? 0) - (variant.reserved ?? 0));
+  const selectedVariant = variants.find((variant) => variant.variantId === requestedVariantId)
+    ?? variants.find((variant) => stockOf(variant) > 0)
+    ?? variants[0];
   if (!selectedVariant) notFound();
   const availableQuantity = Math.max(0, (selectedVariant.onHand ?? 0) - (selectedVariant.reserved ?? 0));
   const hasDiscount = Boolean(selectedVariant.compareAtPaise && selectedVariant.compareAtPaise > selectedVariant.pricePaise);
   const discountPercent = hasDiscount ? Math.round((1 - selectedVariant.pricePaise / (selectedVariant.compareAtPaise ?? selectedVariant.pricePaise)) * 100) : 0;
-  const relatedRows = await db.select({
+  const relatedRows = onePerProduct(await db.select({
     id: products.id,
     title: products.title,
     slug: products.slug,
@@ -64,10 +82,11 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     mediaAltText: mediaAssets.altText,
   }).from(products)
     .innerJoin(productVariants, eq(productVariants.productId, products.id))
-    .leftJoin(productMedia, eq(productMedia.productId, products.id))
+    .leftJoin(productMedia, and(eq(productMedia.productId, products.id), eq(productMedia.kind, "IMAGE")))
     .leftJoin(mediaAssets, eq(mediaAssets.id, productMedia.mediaAssetId))
-    .where(and(eq(products.status, "LIVE"), eq(products.categoryId, first.categoryId), ne(products.id, first.id)))
-    .limit(8);
+    .where(and(eq(products.status, "LIVE"), eq(productVariants.isActive, true), eq(products.categoryId, first.categoryId), ne(products.id, first.id)))
+    .orderBy(asc(productMedia.sortOrder))
+    .limit(160), 8);
 
   return (
     <main className="min-h-screen bg-[#f8f7f3] px-4 py-8 sm:px-6 sm:py-12">
@@ -98,7 +117,29 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Availability</p>
               <p className={`mt-1 font-bold ${availableQuantity > 0 ? "text-emerald-700" : "text-red-600"}`}>{availableQuantity > 0 ? availableQuantity < 5 ? `Only ${availableQuantity} left` : "In stock" : "Currently out of stock"}</p>
               <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Variant</p>
-              <p className="mt-1 font-semibold">{selectedVariant.variantTitle}</p>
+              {variants.length > 1 ? (
+                <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Choose a variant">
+                  {variants.map((variant) => {
+                    const selected = variant.variantId === selectedVariant.variantId;
+                    const inStock = stockOf(variant) > 0;
+                    return (
+                      <Link
+                        key={variant.variantId}
+                        href={"?variant=" + variant.variantId}
+                        replace
+                        scroll={false}
+                        role="radio"
+                        aria-checked={selected}
+                        className={"rounded-full border px-3 py-1.5 text-xs font-bold " + (selected ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700") + (inStock ? "" : " line-through opacity-60")}
+                      >
+                        {variant.variantTitle} · {money(variant.pricePaise)}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="mt-1 font-semibold">{selectedVariant.variantTitle}</p>
+              )}
               <p className="mt-1 text-xs text-slate-400">SKU {selectedVariant.sku}</p>
             </div>
 
@@ -112,7 +153,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             {first.description ? <div className="mt-6"><p className="text-sm font-semibold">About this product</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-500">{first.description}</p></div> : null}
 
             <div className="mt-7">
-              <AddToCart variantId={selectedVariant.variantId} availableQuantity={availableQuantity} />
+              <AddToCart key={selectedVariant.variantId} variantId={selectedVariant.variantId} availableQuantity={availableQuantity} />
             </div>
           </section>
         </div>

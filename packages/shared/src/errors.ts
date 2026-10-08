@@ -59,6 +59,13 @@ function normalizeError(error: unknown): unknown {
       error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })),
     );
   }
+  // Postgres constraint/type errors caused by client input (driver errors
+  // carry a SQLSTATE `code`). Messages stay generic: constraint names and
+  // values are not exposed.
+  const sqlState = typeof (error as { code?: unknown })?.code === "string" ? (error as { code: string }).code : undefined;
+  if (sqlState === "23505") return new AppError("CONFLICT", "A record with these details already exists");
+  if (sqlState === "23503") return new AppError("VALIDATION_ERROR", "A referenced record does not exist");
+  if (sqlState === "22P02") return new AppError("VALIDATION_ERROR", "Invalid identifier or value format");
   // request.json() rejects malformed bodies with a SyntaxError.
   if (error instanceof SyntaxError) {
     return new AppError("VALIDATION_ERROR", "Request body must be valid JSON");

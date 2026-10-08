@@ -6,8 +6,7 @@ type Order = {
   id: string;
   orderNumber: string;
   status: string;
-  grandTotalPaise: number;
-  discountPaise: number;
+  sellerSubtotalPaise: number;
   couponCode: string | null;
   createdAt: string;
   productTitle: string;
@@ -190,7 +189,7 @@ export default function OrderList() {
                   {item.couponCode
                     ? "Customer used coupon " + item.couponCode
                     : "No coupon"}{" "}
-                  · Order total {money(item.grandTotalPaise)}
+                  · Your items {money(item.sellerSubtotalPaise)}
                 </span>
 
                 {shipment ? (
@@ -208,6 +207,16 @@ export default function OrderList() {
                         {working === shipment.id
                           ? "Updating…"
                           : "Mark " + nextStatus.replaceAll("_", " ").toLowerCase()}
+                      </button>
+                    ) : null}
+                    {["FAILED", "CANCELLED"].includes(shipment.status) && ["CONFIRMED", "PACKED"].includes(item.status) ? (
+                      <button
+                        type="button"
+                        disabled={working === item.id}
+                        onClick={() => void createShipment(item.id)}
+                        className="rounded-full bg-slate-950 px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
+                      >
+                        {working === item.id ? "Retrying…" : "Retry shipment"}
                       </button>
                     ) : null}
                   </>

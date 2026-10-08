@@ -13,7 +13,8 @@ export const wishlists = pgTable(
     name: text("name").notNull().default("Default"),
     ...timestamps,
   },
-  (table) => [index("wishlists_customer_id_idx").on(table.customerId)],
+  // One wishlist per customer; concurrent first loads used to create several.
+  (table) => [uniqueIndex("wishlists_customer_id_unique").on(table.customerId)],
 );
 
 export const wishlistItems = pgTable(
@@ -75,6 +76,8 @@ export const orders = pgTable(
       country: string;
     }>().notNull().default({ line1: "", city: "", state: "", postalCode: "", country: "IN" }),
     currency: text("currency").notNull().default("INR"),
+    /** Set when every seller's shipment is delivered; starts the return window. */
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
     ...timestamps,
   },
   (table) => [

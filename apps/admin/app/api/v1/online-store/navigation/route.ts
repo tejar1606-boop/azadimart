@@ -1,5 +1,5 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, navigation, navigationItems, themes } from "@azadimart/database";
+import { auditLogs, createDatabase, navigation, navigationItems, themes } from "@azadimart/database";
 import { AppError, navigationSchema, toApiError } from "@azadimart/shared";
 import { and, asc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -63,10 +63,11 @@ export async function GET(request:Request){
 export async function PUT(request:Request){
   const requestId=crypto.randomUUID();
   try{
-    await requireApiAccess(request,"admin",["ADMIN","SUPER_ADMIN"]);
+    const principal=await requireApiAccess(request,"admin",["ADMIN","SUPER_ADMIN"]);
     const input=navigationSchema.parse(await request.json());
     const {db,nav}=await getPrimaryNavigation();
     await db.transaction(async(tx)=>{
+      await tx.insert(auditLogs).values({actorUserId:principal.userId,action:"NAVIGATION_UPDATED",entityType:"navigation",entityId:nav.id,metadata:{itemCount:input.items.length}});
       await tx.delete(navigationItems).where(eq(navigationItems.navigationId,nav.id));
       if(input.items.length){
         await tx.insert(navigationItems).values(input.items.map((item,index)=>({

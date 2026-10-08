@@ -5,14 +5,14 @@ import {
   inventory,
   inventoryMovements,
   orderItems,
-  orders,
   shipmentEvents,
   shipments,
   sellers,
 } from "@azadimart/database";
 import { AppError, shipmentStatusUpdateSchema, toApiError } from "@azadimart/shared";
-import { and, countDistinct, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { syncOrderFulfillmentStatus } from "../order-fulfillment";
 
 const transitions: Record<string, string[]> = {
   // PENDING is an internal reservation state. Shipment creation owns the provider call and the PENDING -> CREATED/FAILED transition, so a seller cannot race that external side effect with a manual status mutation.
@@ -75,28 +75,10 @@ export async function PATCH(
         }
       }
 
-      if (
-        input.status === "CANCELLED" ||
-        (input.status === "FAILED" && shipment.status !== "PICKED_UP") ||
-        (input.status === "RETURNED" && shipment.status !== "DELIVERED")
-      ) {
-        for (const item of items) {
-          const released = await tx.update(inventory).set({
-            reserved: sql`${inventory.reserved} - ${item.quantity}`,
-            updatedAt: new Date(),
-          }).where(and(
-            eq(inventory.variantId, item.variantId),
-            gte(inventory.reserved, item.quantity),
-          )).returning({ variantId: inventory.variantId });
-          if (!released.length) throw new AppError("CONFLICT", `Inventory reservation could not be released for ${item.title}`);
-          await tx.insert(inventoryMovements).values({
-            variantId: item.variantId, movementType: "RELEASE", quantity: item.quantity,
-            referenceType: "SHIPMENT_CANCELLATION", referenceId: shipment.orderId,
-            notes: input.notes ?? "Shipment cancelled or returned before delivery",
-            createdByUserId: principal.userId,
-          });
-        }
-      }
+      // Shipment failure, cancellation or return does not release stock: the
+      // checkout reservation belongs to the order and is released exactly once
+      // by order cancellation (or finalized on delivery). Releasing here as
+      // well double-counted stock when the order was later cancelled.
 
       const updated = (await tx.update(shipments).set({
         status: input.status, updatedAt: new Date(),
@@ -108,24 +90,7 @@ export async function PATCH(
         shipmentId: shipment.id, status: input.status, description: input.notes ?? "Shipment status updated",
       });
 
-      const total = Number((await tx.select({ count: countDistinct(shipments.sellerId) })
-        .from(shipments).where(eq(shipments.orderId, shipment.orderId)))[0]?.count ?? 0);
-      const delivered = Number((await tx.select({ count: countDistinct(shipments.sellerId) })
-        .from(shipments).where(and(eq(shipments.orderId, shipment.orderId), eq(shipments.status, "DELIVERED"))))[0]?.count ?? 0);
-      if (total > 0 && delivered === total) {
-        await tx.update(orders).set({ status: "DELIVERED", updatedAt: new Date() })
-          .where(and(eq(orders.id, shipment.orderId), eq(orders.status, "SHIPPED")));
-      } else if (input.status === "OUT_FOR_DELIVERY") {
-        const outForDelivery = Number((await tx.select({ count: countDistinct(shipments.sellerId) })
-          .from(shipments).where(and(
-            eq(shipments.orderId, shipment.orderId),
-            inArray(shipments.status, ["OUT_FOR_DELIVERY", "DELIVERED"]),
-          )))[0]?.count ?? 0);
-        if (total > 0 && outForDelivery === total) {
-          await tx.update(orders).set({ status: "OUT_FOR_DELIVERY", updatedAt: new Date() })
-            .where(and(eq(orders.id, shipment.orderId), eq(orders.status, "SHIPPED")));
-        }
-      }
+      await syncOrderFulfillmentStatus(tx, shipment.orderId);
 
       await tx.insert(auditLogs).values({
         actorUserId: principal.userId,

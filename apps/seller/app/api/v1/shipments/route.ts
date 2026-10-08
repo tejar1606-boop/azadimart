@@ -2,8 +2,9 @@ import { requireApiAccess } from "@azadimart/auth";
 import { auditLogs, createDatabase, orderItems, orders, productVariants, sellerSettings, shipmentEvents, shipments, sellers } from "@azadimart/database";
 import { createShipmentForOrder, getLogisticsProvider, type Address } from "@azadimart/logistics";
 import { AppError, sellerShippingSettingsSchema, toApiError } from "@azadimart/shared";
-import { and, countDistinct, eq, lt, or, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { syncOrderFulfillmentStatus } from "./order-fulfillment";
 
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
@@ -38,10 +39,11 @@ export async function POST(request: Request) {
 
     const rawSettings = (await db.select({ shippingSettings: sellerSettings.shippingSettings })
       .from(sellerSettings).where(eq(sellerSettings.sellerId, sellerId)).limit(1))[0]?.shippingSettings;
-    if (!rawSettings) {
+    const parsedSettings = sellerShippingSettingsSchema.safeParse(rawSettings);
+    if (!parsedSettings.success) {
       throw new AppError("CONFLICT", "Configure your pickup address before creating shipments");
     }
-    const settings = sellerShippingSettingsSchema.parse(rawSettings);
+    const settings = parsedSettings.data;
     const provider = getLogisticsProvider(settings.preferredProvider);
     if (!provider.isConfigured) {
       throw new AppError("CONFLICT", settings.preferredProvider + " logistics is not configured yet");
@@ -57,7 +59,7 @@ export async function POST(request: Request) {
       .where(and(eq(shipments.orderId, orderId), eq(shipments.sellerId, sellerId))).limit(1))[0];
     const pendingShipmentStale = existing?.status === "PENDING"
       && Date.now() - new Date(existing.updatedAt).getTime() > 10 * 60 * 1000;
-    if (existing && existing.status !== "FAILED" && !pendingShipmentStale) {
+    if (existing && !["FAILED", "CANCELLED"].includes(existing.status) && !pendingShipmentStale) {
       return NextResponse.json({ shipment: existing });
     }
 
@@ -114,7 +116,7 @@ export async function POST(request: Request) {
 
       const stale = currentExisting?.status === "PENDING"
         && Date.now() - new Date(currentExisting.updatedAt).getTime() > 10 * 60 * 1000;
-      if (currentExisting && currentExisting.status !== "FAILED" && !stale) {
+      if (currentExisting && !["FAILED", "CANCELLED"].includes(currentExisting.status) && !stale) {
         return { reserved: null, existing: currentExisting };
       }
 
@@ -125,7 +127,7 @@ export async function POST(request: Request) {
               eq(shipments.id, currentExisting.id),
               eq(shipments.sellerId, sellerId),
               or(
-                eq(shipments.status, "FAILED"),
+                inArray(shipments.status, ["FAILED", "CANCELLED"]),
                 and(eq(shipments.status, "PENDING"), lt(shipments.updatedAt, new Date(Date.now() - 10 * 60 * 1000))),
               ),
             ))
@@ -203,22 +205,7 @@ export async function POST(request: Request) {
       metadata: { orderId, sellerId, provider: created.provider },
     });
 
-    const sellerCount = Number(
-      (await db.select({ count: countDistinct(orderItems.sellerId) }).from(orderItems)
-        .where(eq(orderItems.orderId, orderId)))[0]?.count ?? 0,
-    );
-    const createdShipmentSellerCount = Number(
-      (await db.select({ count: countDistinct(shipments.sellerId) }).from(shipments)
-        .where(and(eq(shipments.orderId, orderId), eq(shipments.status, "CREATED"))))[0]?.count ?? 0,
-    );
-    if (sellerCount > 0 && createdShipmentSellerCount === sellerCount) {
-      await db.update(orders)
-        .set({ status: "SHIPPED", updatedAt: new Date() })
-        .where(and(
-          eq(orders.id, orderId),
-          or(eq(orders.status, "CONFIRMED"), eq(orders.status, "PACKED")),
-        ));
-    }
+    await syncOrderFulfillmentStatus(db, orderId);
 
     return NextResponse.json({ shipment }, { status: 201 });
   } catch (error) {

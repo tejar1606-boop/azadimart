@@ -1,7 +1,7 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, orderItems, orders, payments, products, sellers } from "@azadimart/database";
+import { createDatabase, orderItems, orders, payments, sellers } from "@azadimart/database";
 import { AppError, toApiError } from "@azadimart/shared";
-import { desc, eq, inArray } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -14,8 +14,8 @@ export async function GET(request: Request) {
     if (!seller || seller.status !== "ACTIVE") throw new AppError("FORBIDDEN", "Seller account is not active");
 
     const rows = await db.select({
-      id:orders.id,orderNumber:orders.orderNumber,status:orders.status,grandTotalPaise:orders.grandTotalPaise,
-      discountPaise:orders.discountPaise,couponCode:orders.couponCode,createdAt:orders.createdAt,
+      id:orders.id,orderNumber:orders.orderNumber,status:orders.status,
+      couponCode:orders.couponCode,createdAt:orders.createdAt,
       orderItemId:orderItems.id,productTitle:orderItems.title,sku:orderItems.sku,quantity:orderItems.quantity,unitPricePaise:orderItems.unitPricePaise,
       productId:orderItems.productId,paymentStatus:payments.status,
     }).from(orderItems)
@@ -24,7 +24,11 @@ export async function GET(request: Request) {
       .where(eq(orderItems.sellerId, principal.sellerId))
       .orderBy(desc(orders.createdAt));
 
-    return NextResponse.json({ items:rows });
+    // Totals cover only this seller's lines: an order can include other
+    // sellers' items, whose amounts must not be exposed here.
+    const sellerTotals = new Map<string, number>();
+    for (const row of rows) sellerTotals.set(row.id, (sellerTotals.get(row.id) ?? 0) + row.unitPricePaise * row.quantity);
+    return NextResponse.json({ items:rows.map((row)=>({ ...row, sellerSubtotalPaise: sellerTotals.get(row.id) ?? 0 })) });
   } catch(error) {
     const {status,body}=toApiError(error,requestId);
     return NextResponse.json(body,{status});

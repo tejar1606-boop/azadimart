@@ -81,43 +81,60 @@ export async function POST(request: Request) {
     }
 
     const now = new Date();
-    await db.delete(sellerDocuments).where(eq(sellerDocuments.sellerId, principal.sellerId));
-    await db.insert(sellerDocuments).values(
-      input.documents.map((document) => ({
-        sellerId: principal.sellerId!,
-        type: document.type,
-        mediaAssetId: document.mediaAssetId,
-      })),
-    );
+    // One transaction with the seller row locked: concurrent submits cannot
+    // interleave delete/insert, and admin approval (which locks the same row)
+    // cannot run against a half-replaced document set.
+    await db.transaction(async (tx) => {
+      const locked = (await tx
+        .select({ status: sellers.status })
+        .from(sellers)
+        .where(eq(sellers.id, principal.sellerId!))
+        .limit(1)
+        .for("update"))[0];
+      if (!locked || ["ACTIVE", "SUSPENDED"].includes(locked.status)) {
+        throw new AppError("FORBIDDEN", "KYC cannot be changed for the current seller status");
+      }
+      const verification = (await tx
+        .select({ id: sellerVerifications.id, status: sellerVerifications.status })
+        .from(sellerVerifications)
+        .where(eq(sellerVerifications.sellerId, principal.sellerId!))
+        .limit(1))[0];
+      if (verification?.status === "IN_REVIEW") {
+        throw new AppError("CONFLICT", "Your KYC is under review. You can resubmit if it is rejected.");
+      }
 
-    const verificationRows = await db
-      .select({ id: sellerVerifications.id })
-      .from(sellerVerifications)
-      .where(eq(sellerVerifications.sellerId, principal.sellerId))
-      .limit(1);
+      await tx.delete(sellerDocuments).where(eq(sellerDocuments.sellerId, principal.sellerId!));
+      await tx.insert(sellerDocuments).values(
+        input.documents.map((document) => ({
+          sellerId: principal.sellerId!,
+          type: document.type,
+          mediaAssetId: document.mediaAssetId,
+        })),
+      );
 
-    if (verificationRows[0]) {
-      await db
-        .update(sellerVerifications)
-        .set({
+      if (verification) {
+        await tx
+          .update(sellerVerifications)
+          .set({
+            status: "IN_REVIEW",
+            reviewedByUserId: null,
+            reviewedAt: null,
+            notes: null,
+            updatedAt: now,
+          })
+          .where(eq(sellerVerifications.id, verification.id));
+      } else {
+        await tx.insert(sellerVerifications).values({
+          sellerId: principal.sellerId!,
           status: "IN_REVIEW",
-          reviewedByUserId: null,
-          reviewedAt: null,
-          notes: null,
-          updatedAt: now,
-        })
-        .where(eq(sellerVerifications.id, verificationRows[0].id));
-    } else {
-      await db.insert(sellerVerifications).values({
-        sellerId: principal.sellerId,
-        status: "IN_REVIEW",
-      });
-    }
+        });
+      }
 
-    await db
-      .update(sellers)
-      .set({ status: "KYC_SUBMITTED", updatedAt: now })
-      .where(eq(sellers.id, principal.sellerId));
+      await tx
+        .update(sellers)
+        .set({ status: "KYC_SUBMITTED", updatedAt: now })
+        .where(eq(sellers.id, principal.sellerId!));
+    });
 
     return NextResponse.json({
       ok: true,

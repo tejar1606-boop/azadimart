@@ -11,7 +11,7 @@ import {
   sellers,
 } from "@azadimart/database";
 import { AppError, toApiError } from "@azadimart/shared";
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 const transitions: Record<string, string[]> = {
@@ -117,7 +117,6 @@ export async function POST(
 
       const updated = (await tx.update(returns).set({
         status: nextStatus as typeof returns.$inferInsert.status,
-        reason: body.notes?.trim().slice(0, 500) || undefined,
         updatedAt: new Date(),
       }).where(and(eq(returns.id, current.id), eq(returns.status, current.status)))
         .returning({ id: returns.id, status: returns.status }))[0];
@@ -150,7 +149,8 @@ export async function POST(
         action: "RETURN_STATUS_CHANGED",
         entityType: "return",
         entityId: current.id,
-        metadata: { orderId: current.orderId, from: current.status, to: nextStatus },
+        // Seller notes live in the audit trail; returns.reason keeps the customer's reason.
+        metadata: { orderId: current.orderId, from: current.status, to: nextStatus, sellerNotes: body.notes?.trim().slice(0, 500) || null },
       });
 
       return { id: updated.id, status: updated.status, orderStatus };

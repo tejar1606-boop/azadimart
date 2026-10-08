@@ -25,7 +25,7 @@ export default function ShippingSettingsPage(){
       const response=await fetch("/api/v1/shipping-settings",{cache:"no-store"});
       const body=await response.json();
       if(!response.ok)throw new Error(body?.error?.message??"Unable to load shipping settings.");
-      if(body.settings)setForm(body.settings);
+      if(body.settings)setForm({...empty,...body.settings,pickup:{...empty.pickup,...body.settings.pickup}});
     }catch(err){setError(err instanceof Error?err.message:"Unable to load shipping settings.");}
     finally{setLoading(false);}
   })();},[]);

@@ -7,7 +7,7 @@ import {
   sellers,
 } from "@azadimart/database";
 import { AppError, sellerApprovalSchema, toApiError } from "@azadimart/shared";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -22,80 +22,74 @@ export async function POST(request: Request) {
     const input = sellerApprovalSchema.parse(await request.json());
     const db = createDatabase();
 
-    const sellerRows = await db
-      .select({
-        id: sellers.id,
-        userId: sellers.userId,
-        status: sellers.status,
-      })
-      .from(sellers)
-      .where(eq(sellers.id, input.sellerId))
-      .limit(1);
-
-    const seller = sellerRows[0];
-    if (!seller) {
-      throw new AppError("NOT_FOUND", "Seller not found");
-    }
-
-    const verificationRows = await db
-      .select({
-        id: sellerVerifications.id,
-        status: sellerVerifications.status,
-      })
-      .from(sellerVerifications)
-      .where(eq(sellerVerifications.sellerId, seller.id))
-      .limit(1);
-
-    const verification = verificationRows[0];
-    if (!verification || verification.status !== "IN_REVIEW") {
-      throw new AppError("UNPROCESSABLE", "Seller KYC is not pending admin review");
-    }
-
-    const documentRows = await db
-      .select({ id: sellerDocuments.id })
-      .from(sellerDocuments)
-      .where(eq(sellerDocuments.sellerId, seller.id))
-      .limit(1);
-
-    if (!documentRows[0]) {
-      throw new AppError("UNPROCESSABLE", "Seller KYC documents are required before approval");
-    }
-
-    const now = new Date();
     const approved = input.decision === "APPROVED";
+    const now = new Date();
 
-    await db
-      .update(sellerVerifications)
-      .set({
-        status: approved ? "APPROVED" : "REJECTED",
-        notes: input.notes ?? null,
-        reviewedByUserId: principal.userId,
-        reviewedAt: now,
-        updatedAt: now,
-      })
-      .where(eq(sellerVerifications.id, verification.id));
+    // Locks the seller row (KYC submission locks the same row), and the
+    // verification update is conditional on IN_REVIEW, so concurrent admins or
+    // a concurrent resubmission cannot produce a mixed decision.
+    const seller = await db.transaction(async (tx) => {
+      const seller = (await tx
+        .select({ id: sellers.id, userId: sellers.userId, status: sellers.status, taxIdentityType: sellers.taxIdentityType })
+        .from(sellers)
+        .where(eq(sellers.id, input.sellerId))
+        .limit(1)
+        .for("update"))[0];
+      if (!seller) {
+        throw new AppError("NOT_FOUND", "Seller not found");
+      }
 
-    await db
-      .update(sellers)
-      .set({
-        status: approved ? "ACTIVE" : "REJECTED",
-        approvedAt: approved ? now : null,
-        approvedByUserId: approved ? principal.userId : null,
-        updatedAt: now,
-      })
-      .where(eq(sellers.id, seller.id));
+      if (approved) {
+        const required = ["PAN", "BANK_PROOF", "ADDRESS_PROOF", seller.taxIdentityType === "ENROLMENT_ID" ? "GST_ENROLMENT" : "GST"];
+        const present = new Set((await tx
+          .select({ type: sellerDocuments.type })
+          .from(sellerDocuments)
+          .where(eq(sellerDocuments.sellerId, seller.id))).map((row) => row.type));
+        const missing = required.filter((type) => !present.has(type as typeof sellerDocuments.$inferSelect.type));
+        if (missing.length) {
+          throw new AppError("UNPROCESSABLE", "Seller KYC documents are missing: " + missing.join(", "));
+        }
+      }
 
-    await db.insert(auditLogs).values({
-      actorUserId: principal.userId,
-      action: approved ? "SELLER_APPROVED" : "SELLER_REJECTED",
-      entityType: "seller",
-      entityId: seller.id,
-      metadata: {
-        sellerUserId: seller.userId,
-        previousStatus: seller.status,
-        decision: input.decision,
-        notes: input.notes ?? null,
-      },
+      const decided = (await tx
+        .update(sellerVerifications)
+        .set({
+          status: approved ? "APPROVED" : "REJECTED",
+          notes: input.notes ?? null,
+          reviewedByUserId: principal.userId,
+          reviewedAt: now,
+          updatedAt: now,
+        })
+        .where(and(eq(sellerVerifications.sellerId, seller.id), eq(sellerVerifications.status, "IN_REVIEW")))
+        .returning({ id: sellerVerifications.id }))[0];
+      if (!decided) {
+        throw new AppError("UNPROCESSABLE", "Seller KYC is not pending admin review");
+      }
+
+      await tx
+        .update(sellers)
+        .set({
+          status: approved ? "ACTIVE" : "REJECTED",
+          approvedAt: approved ? now : null,
+          approvedByUserId: approved ? principal.userId : null,
+          updatedAt: now,
+        })
+        .where(eq(sellers.id, seller.id));
+
+      await tx.insert(auditLogs).values({
+        actorUserId: principal.userId,
+        action: approved ? "SELLER_APPROVED" : "SELLER_REJECTED",
+        entityType: "seller",
+        entityId: seller.id,
+        metadata: {
+          sellerUserId: seller.userId,
+          previousStatus: seller.status,
+          decision: input.decision,
+          notes: input.notes ?? null,
+        },
+      });
+
+      return seller;
     });
 
     return NextResponse.json({

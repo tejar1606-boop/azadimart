@@ -45,7 +45,8 @@ export default function CouponsManager(){
       if(f.fundingType==="SELLER"&&!f.sellerId) throw new Error("Select the seller who funds this coupon.");
       const body={
         ...f,
-        discountValue:Number(f.discountValue),
+        // FIXED amounts are entered in rupees but stored in paise like every other amount.
+        discountValue:f.discountType==="FIXED"?Math.round(Number(f.discountValue)*100):Number(f.discountValue),
         minimumOrderPaise:Number(f.minimumOrder)*100,
         maximumDiscountPaise:f.maximumDiscount?Number(f.maximumDiscount)*100:undefined,
         startsAt:new Date(f.startsAt).toISOString(),

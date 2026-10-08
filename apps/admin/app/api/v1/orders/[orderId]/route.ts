@@ -1,20 +1,18 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { auditLogs, createDatabase, inventory, orderItems, orders, payments } from "@azadimart/database";
-import { AppError, orderStatusUpdateSchema, toApiError } from "@azadimart/shared";
+import { auditLogs, cancelOrderInTransaction, createDatabase, orders } from "@azadimart/database";
+import { AppError, orderStatusUpdateSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { and, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+// SHIPPED / OUT_FOR_DELIVERY / DELIVERED are derived from sellers' shipments
+// (which also finalize inventory on delivery) and RETURNED from the returns
+// flow, so admins cannot set them by hand and strand reserved stock.
 const transitions: Record<string, string[]> = {
   CREATED: ["CONFIRMED", "CANCELLED"],
   PAYMENT_PENDING: ["PAID", "CANCELLED"],
   PAID: ["CONFIRMED", "CANCELLED"],
   CONFIRMED: ["PACKED", "CANCELLED"],
-  PACKED: ["SHIPPED"],
-  SHIPPED: ["OUT_FOR_DELIVERY", "DELIVERED"],
-  OUT_FOR_DELIVERY: ["DELIVERED"],
-  DELIVERED: ["RETURNED"],
-  CANCELLED: [],
-  RETURNED: [],
+  PACKED: ["CANCELLED"],
 };
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
@@ -22,6 +20,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ or
   try {
     const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
     const { orderId } = await params;
+    if (!uuidSchema.safeParse(orderId).success) throw new AppError("NOT_FOUND", "Order not found");
     const input = orderStatusUpdateSchema.parse(await request.json());
     const db = createDatabase();
 
@@ -36,16 +35,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ or
       if (!order) throw new AppError("NOT_FOUND", "Order not found");
       if (!transitions[order.status]?.includes(input.status)) throw new AppError("CONFLICT", "Invalid order status transition");
 
+      let updated: { id: string; status: string; orderNumber: string } | undefined;
       if (input.status === "CANCELLED") {
-        const items = await tx.select({ variantId: orderItems.variantId, quantity: orderItems.quantity }).from(orderItems).where(eq(orderItems.orderId, order.id));
-        for (const item of items) {
-          const released = await tx.update(inventory).set({ reserved: sql`GREATEST(0, ${inventory.reserved} - ${item.quantity})`, updatedAt: new Date() }).where(eq(inventory.variantId, item.variantId)).returning({ variantId: inventory.variantId });
-          if (!released.length) throw new AppError("CONFLICT", "Inventory record is missing for a cancelled item");
-        }
-        await tx.update(payments).set({ status: "FAILED", updatedAt: new Date() }).where(and(eq(payments.orderId, order.id), eq(payments.status, "PENDING")));
+        await cancelOrderInTransaction(tx, {
+          orderId: order.id,
+          fromStatus: order.status,
+          actorUserId: principal.userId,
+          reason: input.notes ?? "Cancelled by AzadiMart",
+          referenceType: "ADMIN_ORDER_CANCELLATION",
+        });
+        updated = { id: order.id, status: "CANCELLED", orderNumber: order.orderNumber };
+      } else {
+        updated = (await tx.update(orders).set({ status: input.status, updatedAt: new Date() }).where(and(eq(orders.id, order.id), eq(orders.status, order.status))).returning({ id: orders.id, status: orders.status, orderNumber: orders.orderNumber }))[0];
       }
-
-      const updated = (await tx.update(orders).set({ status: input.status, updatedAt: new Date() }).where(and(eq(orders.id, order.id), eq(orders.status, order.status))).returning({ id: orders.id, status: orders.status, orderNumber: orders.orderNumber }))[0];
       if (!updated) throw new AppError("CONFLICT", "Order changed before it could be updated");
 
       await tx.insert(auditLogs).values({

@@ -1,5 +1,5 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, inventory, mediaAssets, productMedia, productVariants, products, sellers } from "@azadimart/database";
+import { categories, createDatabase, inventory, mediaAssets, productMedia, productVariants, products, sellers } from "@azadimart/database";
 import { AppError, productDraftSchema, toApiError } from "@azadimart/shared";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -20,6 +20,9 @@ export async function POST(request: Request) {
     if (!seller || seller.status !== "ACTIVE") throw new AppError("FORBIDDEN", "Seller account is not active");
 
     const input = productDraftSchema.parse(await request.json());
+    const category = (await db.select({ id: categories.id }).from(categories)
+      .where(and(eq(categories.id, input.categoryId), eq(categories.isActive, true))).limit(1))[0];
+    if (!category) throw new AppError("VALIDATION_ERROR", "Choose an active category");
     const assetIds = [...input.imageAssetIds, ...(input.videoAssetId ? [input.videoAssetId] : [])];
     const assets = await db.select({ id: mediaAssets.id, kind: mediaAssets.kind, uploadedByUserId: mediaAssets.uploadedByUserId })
       .from(mediaAssets).where(and(inArray(mediaAssets.id, assetIds), eq(mediaAssets.uploadedByUserId, principal.userId)));
@@ -53,6 +56,7 @@ export async function POST(request: Request) {
           title: input.variant.title,
           pricePaise: input.variant.pricePaise,
           compareAtPaise: input.variant.compareAtPaise ?? null,
+          weightGrams: input.variant.weightGrams,
           attributes: {},
           isActive: true,
         }).returning({ id: productVariants.id }))[0];

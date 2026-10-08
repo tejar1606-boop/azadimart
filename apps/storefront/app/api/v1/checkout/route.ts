@@ -73,7 +73,8 @@ export async function POST(request:Request){
         .where(eq(cartItems.cartId,cart.id)).orderBy(asc(productVariants.id));
 
       if(rawLines.length===0)throw new AppError("UNPROCESSABLE","Your cart is empty");
-      if(rawLines.some(line=>line.productStatus!=="LIVE"||!line.variantActive))throw new AppError("UNPROCESSABLE","One or more cart items are no longer available");
+      const unavailable=rawLines.filter(line=>line.productStatus!=="LIVE"||!line.variantActive);
+      if(unavailable.length)throw new AppError("UNPROCESSABLE","No longer available — remove from your cart: "+unavailable.map(line=>line.title).join(", "));
 
       for(const line of rawLines){
         const supply=checkSellerSupplyToState({

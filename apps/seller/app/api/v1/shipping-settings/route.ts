@@ -18,8 +18,11 @@ export async function GET(request: Request) {
     const settings = (await db.select({ shippingSettings: sellerSettings.shippingSettings })
       .from(sellerSettings).where(eq(sellerSettings.sellerId, principal.sellerId)).limit(1))[0];
 
+    // Registration stores {} until the seller saves settings; report anything
+    // that is not a complete, valid configuration as "not configured".
+    const parsed = sellerShippingSettingsSchema.safeParse(settings?.shippingSettings);
     return NextResponse.json({
-      settings: settings?.shippingSettings ?? null,
+      settings: parsed.success ? parsed.data : null,
     });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-type CartItem={variantId:string;title:string;variantTitle:string;sku:string;quantity:number;pricePaise:number;lineTotalPaise:number};
+type CartItem={variantId:string;title:string;variantTitle:string;sku:string;quantity:number;pricePaise:number;lineTotalPaise:number;isAvailable?:boolean};
 type Address={id:string;label:string|null;line1:string;line2:string|null;city:string;state:string;postalCode:string;country:string;isDefault:boolean};
 const money=(p:number)=>"₹"+(p/100).toLocaleString("en-IN",{maximumFractionDigits:0});
 
@@ -13,6 +13,9 @@ export default function CheckoutView(){
   const [selectedAddress,setSelectedAddress]=useState("");
   const [coupon,setCoupon]=useState("");
   const [discount,setDiscount]=useState(0);
+  // Only a code that passed validation is sent with the order; a rejected or
+  // edited code left in the box must not fail checkout.
+  const [appliedCoupon,setAppliedCoupon]=useState<string>();
   const [couponMessage,setCouponMessage]=useState("");
   const [busy,setBusy]=useState(true);
   const [working,setWorking]=useState(false);
@@ -37,6 +40,7 @@ export default function CheckoutView(){
   useEffect(()=>{void load()},[]);
 
   const total=Math.max(0,(cart?.subtotalPaise??0)-discount);
+  const unavailableItems=(cart?.items??[]).filter(item=>item.isAvailable===false);
 
   async function applyCoupon(){
     if(!coupon.trim()||!cart)return;
@@ -46,8 +50,9 @@ export default function CheckoutView(){
       const body=await response.json();
       if(!response.ok)throw new Error(body?.error?.message??"Coupon could not be applied.");
       setDiscount(body.discountPaise??0);
+      setAppliedCoupon(coupon.trim());
       setCouponMessage(body.message??"Coupon applied.");
-    }catch(err){setDiscount(0);setCouponMessage(err instanceof Error?err.message:"Coupon could not be applied.");}
+    }catch(err){setDiscount(0);setAppliedCoupon(undefined);setCouponMessage(err instanceof Error?err.message:"Coupon could not be applied.");}
     finally{setWorking(false);}
   }
 
@@ -66,7 +71,7 @@ export default function CheckoutView(){
     if(!selectedAddress||!cart)return;
     setWorking(true);setError("");
     try{
-      const response=await fetch("/api/v1/checkout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({shippingAddressId:selectedAddress,couponCode:coupon.trim()||undefined,paymentMethod:"COD"})});
+      const response=await fetch("/api/v1/checkout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({shippingAddressId:selectedAddress,couponCode:appliedCoupon,paymentMethod:"COD"})});
       const body=await response.json();if(!response.ok)throw new Error(body?.error?.message??"Unable to place order.");
       window.location.href="/account/orders/"+encodeURIComponent(body.orderId);
     }catch(err){setError(err instanceof Error?err.message:"Unable to place order.");}
@@ -93,12 +98,13 @@ export default function CheckoutView(){
         </div>
         <aside className="h-fit rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7 lg:sticky lg:top-24">
           <h2 className="text-lg font-black">Order summary</h2>
-          <div className="mt-5 flex gap-2"><input value={coupon} onChange={e=>{setCoupon(e.target.value.toUpperCase());setDiscount(0);setCouponMessage("")}} placeholder="Coupon code" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm uppercase"/><button type="button" disabled={working||!coupon.trim()} onClick={()=>void applyCoupon()} className="rounded-xl border px-4 text-xs font-black">Apply</button></div>
+          <div className="mt-5 flex gap-2"><input value={coupon} onChange={e=>{setCoupon(e.target.value.toUpperCase());setDiscount(0);setAppliedCoupon(undefined);setCouponMessage("")}} placeholder="Coupon code" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm uppercase"/><button type="button" disabled={working||!coupon.trim()} onClick={()=>void applyCoupon()} className="rounded-xl border px-4 text-xs font-black">Apply</button></div>
           {couponMessage?<p className="mt-2 text-xs text-slate-500">{couponMessage}</p>:null}
+          {unavailableItems.length?<p className="mt-4 rounded-xl bg-red-50 p-3 text-xs font-semibold text-red-700">Not available in the requested quantity: {unavailableItems.map(item=>item.title).join(", ")}. <Link href="/cart" className="underline">Update your cart</Link> to continue.</p>:null}
           <div className="mt-6 space-y-3 border-t border-slate-100 pt-5 text-sm"><Row label="Subtotal" value={money(cart.subtotalPaise)}/><Row label="Discount" value={"−"+money(discount)}/><Row label="Shipping" value="Free"/><Row label="Total" value={money(total)} strong/></div>
           <div className="mt-5 rounded-2xl border border-slate-200 p-4"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-full bg-slate-950 text-xs font-black text-white">₹</span><div><p className="text-sm font-bold">Cash on Delivery</p><p className="mt-1 text-xs text-slate-500">Available for this checkout.</p></div></div></div>
           {selected?<p className="mt-4 text-xs text-slate-500">Delivering to {selected.city}, {selected.state}.</p>:null}
-          <button type="button" disabled={working||!selectedAddress||addresses.length===0} onClick={()=>void placeOrder()} className="mt-5 w-full rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white disabled:opacity-40">{working?"Processing…":"Place COD order"}</button><p className="mt-3 text-center text-[11px] leading-5 text-slate-400">By placing the order, you confirm the delivery address and order details shown above.</p>
+          <button type="button" disabled={working||!selectedAddress||addresses.length===0||unavailableItems.length>0} onClick={()=>void placeOrder()} className="mt-5 w-full rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white disabled:opacity-40">{working?"Processing…":"Place COD order"}</button><p className="mt-3 text-center text-[11px] leading-5 text-slate-400">By placing the order, you confirm the delivery address and order details shown above.</p>
         </aside>
       </div>}
     </div>

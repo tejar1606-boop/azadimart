@@ -1,7 +1,7 @@
 import { requireApiAccess } from "@azadimart/auth";
 import { createDatabase, orderItems, orders, payments, sellers } from "@azadimart/database";
 import { toApiError } from "@azadimart/shared";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -22,18 +22,27 @@ export async function GET(request: Request) {
         grandTotalPaise: orders.grandTotalPaise,
         couponCode: orders.couponCode,
         createdAt: orders.createdAt,
-        paymentStatus: payments.status,
+        orderItemId: orderItems.id,
         sellerId: orderItems.sellerId,
         sellerName: sellers.storeName,
         itemCount: orderItems.quantity,
       })
       .from(orders)
-      .leftJoin(payments, eq(payments.orderId, orders.id))
       .leftJoin(orderItems, eq(orderItems.orderId, orders.id))
       .leftJoin(sellers, eq(sellers.id, orderItems.sellerId))
       .orderBy(desc(orders.createdAt));
 
-    const grouped = new Map<string, typeof rows[number] & { sellers: Set<string>; sellerNames: Set<string>; itemCountTotal: number }>();
+    // Payments are fetched separately: an order can have several payment
+    // attempts, and joining them multiplied item rows (inflated item counts).
+    const orderIds = [...new Set(rows.map((row) => row.id))];
+    const paymentRows = orderIds.length
+      ? await db.select({ orderId: payments.orderId, status: payments.status })
+        .from(payments).where(inArray(payments.orderId, orderIds)).orderBy(desc(payments.createdAt))
+      : [];
+    const latestPayment = new Map<string, string>();
+    for (const payment of paymentRows) if (!latestPayment.has(payment.orderId)) latestPayment.set(payment.orderId, payment.status);
+
+    const grouped = new Map<string, typeof rows[number] & { paymentStatus: string | null; sellers: Set<string>; sellerNames: Set<string>; itemCountTotal: number }>();
     for (const row of rows) {
       const existing = grouped.get(row.id);
       if (existing) {
@@ -43,6 +52,7 @@ export async function GET(request: Request) {
       } else {
         grouped.set(row.id, {
           ...row,
+          paymentStatus: latestPayment.get(row.id) ?? null,
           sellers: new Set(row.sellerId ? [row.sellerId] : []),
           sellerNames: new Set(row.sellerName ? [row.sellerName] : []),
           itemCountTotal: row.itemCount ?? 0,

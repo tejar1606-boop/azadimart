@@ -1,6 +1,6 @@
 import { getSessionPrincipal } from "@azadimart/auth";
 import { createDatabase, mediaAssets, productMedia, productVariants, products, wishlistItems, wishlists } from "@azadimart/database";
-import { AppError, toApiError } from "@azadimart/shared";
+import { AppError, toApiError, uuidSchema } from "@azadimart/shared";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -13,10 +13,16 @@ async function customer(request: Request) {
   return { db, customerId: principal.customerId };
 }
 
-async function getWishlist(db: ReturnType<typeof createDatabase>, customerId: string) {
-  let wishlist = (await db.select().from(wishlists).where(eq(wishlists.customerId, customerId)).limit(1))[0];
-  if (!wishlist) wishlist = (await db.insert(wishlists).values({ customerId, name: "Default" }).returning())[0];
+/** Race-safe get-or-create (unique on customer_id). */
+async function ensureWishlist(db: ReturnType<typeof createDatabase>, customerId: string) {
+  await db.insert(wishlists).values({ customerId, name: "Default" }).onConflictDoNothing({ target: wishlists.customerId });
+  const wishlist = (await db.select().from(wishlists).where(eq(wishlists.customerId, customerId)).limit(1))[0];
   if (!wishlist) throw new AppError("INTERNAL", "Wishlist unavailable", undefined, false);
+  return wishlist;
+}
+
+async function getWishlist(db: ReturnType<typeof createDatabase>, customerId: string) {
+  const wishlist = await ensureWishlist(db, customerId);
 
   const rows = await db.select({
     id: wishlistItems.productId,
@@ -55,15 +61,17 @@ export async function POST(request: Request) {
     const { db, customerId } = await customer(request);
     const body = await request.json();
     const productId = typeof body?.productId === "string" ? body.productId : "";
-    if (!productId) throw new AppError("UNPROCESSABLE", "Product is required");
+    if (!uuidSchema.safeParse(productId).success) throw new AppError("VALIDATION_ERROR", "Product is required");
 
-    let wishlist = (await db.select().from(wishlists).where(eq(wishlists.customerId, customerId)).limit(1))[0];
-    if (!wishlist) wishlist = (await db.insert(wishlists).values({ customerId, name: "Default" }).returning())[0];
-    if (!wishlist) throw new AppError("INTERNAL", "Wishlist unavailable", undefined, false);
-
+    const wishlist = await ensureWishlist(db, customerId);
     const existing = (await db.select().from(wishlistItems).where(and(eq(wishlistItems.wishlistId, wishlist.id), eq(wishlistItems.productId, productId))).limit(1))[0];
-    if (existing) await db.delete(wishlistItems).where(and(eq(wishlistItems.wishlistId, wishlist.id), eq(wishlistItems.productId, productId)));
-    else await db.insert(wishlistItems).values({ wishlistId: wishlist.id, productId });
+    if (existing) {
+      await db.delete(wishlistItems).where(and(eq(wishlistItems.wishlistId, wishlist.id), eq(wishlistItems.productId, productId)));
+    } else {
+      const live = (await db.select({ id: products.id }).from(products).where(and(eq(products.id, productId), eq(products.status, "LIVE"))).limit(1))[0];
+      if (!live) throw new AppError("NOT_FOUND", "Product not found");
+      await db.insert(wishlistItems).values({ wishlistId: wishlist.id, productId }).onConflictDoNothing();
+    }
 
     return NextResponse.json(await getWishlist(db, customerId));
   } catch (error) {

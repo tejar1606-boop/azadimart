@@ -63,6 +63,15 @@ describe("errors", () => {
     expect(line).not.toContain("hunter2");
   });
 
+  it("maps Postgres input errors to 4xx without leaking details", () => {
+    const pg = (code: string) => Object.assign(new Error('duplicate key value violates unique constraint "products_sku_unique"'), { code });
+    expect(toApiError(pg("23505"), "r").status).toBe(409);
+    expect(toApiError(pg("23503"), "r").status).toBe(400);
+    expect(toApiError(pg("22P02"), "r").status).toBe(400);
+    expect(JSON.stringify(toApiError(pg("23505"), "r").body)).not.toContain("products_sku_unique");
+    expect(toApiError(pg("40001"), "r").status).toBe(500);
+  });
+
   it("does not log expected client errors", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     toApiError(new AppError("NOT_FOUND", "Missing"), "req-6");

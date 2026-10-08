@@ -4,6 +4,9 @@ import { AppError, toApiError } from "@azadimart/shared";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+/** Days after delivery during which a customer may request a return. */
+const RETURN_WINDOW_DAYS = Number(process.env.RETURN_WINDOW_DAYS ?? 7) || 7;
+
 export async function POST(
   request: Request,
   context: { params: Promise<{ orderId: string }> },
@@ -29,9 +32,16 @@ export async function POST(
       const order = (await tx.select({
         id: orders.id,
         status: orders.status,
+        deliveredAt: orders.deliveredAt,
+        updatedAt: orders.updatedAt,
       }).from(orders).where(and(eq(orders.id, orderId), eq(orders.customerId, principal.customerId!))).limit(1))[0];
       if (!order) throw new AppError("NOT_FOUND", "Order not found");
       if (order.status !== "DELIVERED") throw new AppError("CONFLICT", "Returns can be requested only after delivery");
+      // Orders delivered before delivered_at existed fall back to their last update.
+      const deliveredAt = order.deliveredAt ?? order.updatedAt;
+      if (Date.now() - deliveredAt.getTime() > RETURN_WINDOW_DAYS * 24 * 60 * 60 * 1000) {
+        throw new AppError("CONFLICT", `The return window of ${RETURN_WINDOW_DAYS} days after delivery has closed`);
+      }
 
       const requestedIds = requestedItems.map((item) => item.orderItemId).filter((id): id is string => !!id);
       if (requestedIds.length !== requestedItems.length || requestedIds.some((id) => !/^[0-9a-f-]{36}$/i.test(id))) {

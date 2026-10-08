@@ -8,7 +8,7 @@ const steps = ["Basics", "Media", "Pricing", "Review"];
 export default function ProductBuilder() {
   const router = useRouter();
   const [step,setStep] = useState(0);
-  const [form,setForm] = useState({title:"",description:"",categoryId:"",sku:"",variantTitle:"Default",price:"",compareAt:"",weightGrams:"0",onHand:"0"});
+  const [form,setForm] = useState({title:"",description:"",categoryId:"",sku:"",variantTitle:"Default",price:"",compareAt:"",weightGrams:"",onHand:"0"});
   const [images,setImages] = useState<Upload[]>([]);
   const [video,setVideo] = useState<Upload|null>(null);
   const [busy,setBusy] = useState(false);

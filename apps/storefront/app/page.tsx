@@ -18,6 +18,18 @@ import {
 } from "@azadimart/database";
 import { and, asc, desc, eq } from "drizzle-orm";
 
+/** One card per product: the query returns a row per variant x image. Keeps the
+ * cheapest active variant's price and the first image. */
+function onePerProduct<T extends { id: string; pricePaise: number; mediaStorageKey: string | null }>(rows: T[], limit: number): T[] {
+  const byId = new Map<string, T>();
+  for (const row of rows) {
+    const current = byId.get(row.id);
+    if (!current) byId.set(row.id, row);
+    else if (row.pricePaise < current.pricePaise) byId.set(row.id, { ...row, mediaStorageKey: current.mediaStorageKey ?? row.mediaStorageKey });
+  }
+  return [...byId.values()].slice(0, limit);
+}
+
 export const dynamic = "force-dynamic";
 
 type Settings = Record<string, unknown>;
@@ -129,7 +141,7 @@ async function getHome() {
     .filter((coupon) => coupon.startsAt <= now && (!coupon.endsAt || coupon.endsAt > now))
     .slice(0, 12);
 
-  const liveProducts: HomeProduct[] = await db.select({
+  const liveProducts: HomeProduct[] = onePerProduct(await db.select({
     id: products.id,
     title: products.title,
     slug: products.slug,
@@ -140,9 +152,9 @@ async function getHome() {
     .innerJoin(productVariants, eq(productVariants.productId, products.id))
     .leftJoin(productMedia, and(eq(productMedia.productId, products.id), eq(productMedia.kind, "IMAGE")))
     .leftJoin(mediaAssets, eq(mediaAssets.id, productMedia.mediaAssetId))
-    .where(eq(products.status, "LIVE"))
-    .orderBy(desc(products.createdAt))
-    .limit(12);
+    .where(and(eq(products.status, "LIVE"), eq(productVariants.isActive, true)))
+    .orderBy(desc(products.createdAt), asc(productMedia.sortOrder))
+    .limit(240), 12);
 
   return {
     themeSettings: (theme.settings ?? {}) as Settings,

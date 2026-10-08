@@ -55,7 +55,8 @@ export const productDraftSchema = z.object({
     title:z.string().trim().min(1).max(120).default("Default"),
     pricePaise:z.number().int().nonnegative(),
     compareAtPaise:z.number().int().nonnegative().optional(),
-    weightGrams:z.number().int().nonnegative().max(1000000).default(0),
+    // Couriers need a package weight to create shipments.
+    weightGrams:z.number().int().positive("Enter the package weight in grams").max(1000000),
     onHand:z.number().int().nonnegative().default(0),
   }).optional(),
 });
@@ -71,7 +72,8 @@ const couponBaseSchema = z.object({
   title:z.string().trim().min(2).max(120),
   description:z.string().trim().max(500).optional(),
   discountType:z.enum(["PERCENTAGE","FIXED","FREE_SHIPPING"]),
-  discountValue:z.number().int().min(0).max(10000).default(0),
+  // PERCENTAGE: 1-100 (checked below). FIXED: paise, up to ₹1,00,000.
+  discountValue:z.number().int().min(0).max(10_000_000).default(0),
   minimumOrderPaise:z.number().int().min(0).default(0),
   maximumDiscountPaise:z.number().int().positive().optional(),
   startsAt:z.string().datetime(),
@@ -120,7 +122,8 @@ export const couponSchema = couponBaseSchema.superRefine(validateCouponRules);
 export const couponUpdateSchema = couponBaseSchema.partial().superRefine(validateCouponRules);
 export const navigationItemSchema = z.object({
   label: z.string().trim().min(1).max(80),
-  href: z.string().trim().regex(/^\//, "Navigation links must use an internal path"),
+  // "/path" only: "//host" is a protocol-relative external link.
+  href: z.string().trim().regex(/^\/(?![/\\])/, "Navigation links must use an internal path"),
   isActive: z.boolean().default(true),
 });
 
@@ -153,7 +156,7 @@ export const checkoutSchema = z.object({
   paymentMethod:z.enum(["COD","RAZORPAY","CASHFREE"]).default("COD"),
 });
 export const orderStatusUpdateSchema = z.object({
-  status:z.enum(["CONFIRMED","PACKED","SHIPPED","OUT_FOR_DELIVERY","DELIVERED","CANCELLED"]),
+  status:z.enum(["PAID","CONFIRMED","PACKED","CANCELLED"]),
   notes:z.string().trim().max(500).optional(),
 });
 export const shipmentStatusUpdateSchema = z.object({

@@ -43,6 +43,8 @@ async function readCart(db: ReturnType<typeof createDatabase>, customerId: strin
       variantTitle: productVariants.title,
       sku: productVariants.sku,
       pricePaise: productVariants.pricePaise,
+      productStatus: products.status,
+      variantActive: productVariants.isActive,
       onHand: inventory.onHand,
       reserved: inventory.reserved,
       mediaStorageKey: mediaAssets.storageKey,
@@ -74,14 +76,17 @@ async function readCart(db: ReturnType<typeof createDatabase>, customerId: strin
       const rightOrder = rows.find((candidate) => candidate.id === row.id && candidate.mediaStorageKey === right.storageKey)?.mediaSortOrder ?? 0;
       return leftOrder - rightOrder;
     }),
-    availableQuantity: Math.max(0, (row.onHand ?? 0) - (row.reserved ?? 0)),
+    // Unlisted products and inactive variants count as unavailable.
+    availableQuantity: row.productStatus === "LIVE" && row.variantActive ? Math.max(0, (row.onHand ?? 0) - (row.reserved ?? 0)) : 0,
     lineTotalPaise: row.pricePaise * row.quantity,
-  }));
+  })).map((item) => ({ ...item, isAvailable: item.availableQuantity >= item.quantity }));
 
   return {
     cartId: cart.id,
     items,
-    subtotalPaise: items.reduce((sum, item) => sum + item.lineTotalPaise, 0),
+    // Matches what checkout and coupon validation will accept.
+    subtotalPaise: items.filter((item) => item.isAvailable).reduce((sum, item) => sum + item.lineTotalPaise, 0),
+    unavailableCount: items.filter((item) => !item.isAvailable).length,
     itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
   };
 }
@@ -160,7 +165,7 @@ export async function PUT(request: Request) {
     const input = cartItemMutationSchema.parse(await request.json());
     const cart = await ensureCart(db, customerId);
 
-    const item = (await db.select({ id: cartItems.id })
+    const item = (await db.select({ id: cartItems.id, quantity: cartItems.quantity })
       .from(cartItems)
       .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.variantId, input.variantId)))
       .limit(1))[0];
@@ -175,7 +180,9 @@ export async function PUT(request: Request) {
       .limit(1);
     const stock = stockRows[0];
     const availableQuantity = Math.max(0, (stock?.onHand ?? 0) - (stock?.reserved ?? 0));
-    if (!stock || stock.status !== "LIVE" || !stock.isActive || input.quantity > availableQuantity) {
+    // Reducing quantity is always allowed, so a line above current stock can be fixed with "−".
+    const reducing = input.quantity < item.quantity;
+    if (!stock || stock.status !== "LIVE" || !stock.isActive || (!reducing && input.quantity > availableQuantity)) {
       throw new AppError("UNPROCESSABLE", "Requested quantity is not available");
     }
 

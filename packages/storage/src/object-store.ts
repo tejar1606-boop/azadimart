@@ -45,7 +45,7 @@ export class LocalObjectStore implements ObjectStore {
     return absolute;
   }
 
-  async put(key: string, body: Uint8Array): Promise<void> {
+  async put(key: string, body: Uint8Array, _contentType?: string): Promise<void> {
     const absolute = this.resolve(key);
     await mkdir(path.dirname(absolute), { recursive: true });
     await writeFile(absolute, body, { flag: "wx" });
