@@ -1,6 +1,7 @@
 export const SECTION_TYPES = [
   "hero",
   "marquee",
+  "promo_banner",
   "featured_products",
   "category_grid",
   "trust_strip",

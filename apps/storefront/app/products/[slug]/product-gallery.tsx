@@ -3,30 +3,70 @@
 import Image from "next/image";
 import { useState } from "react";
 
-type GalleryMedia = { mediaAssetId: string; mediaStorageKey: string; altText: string | null };
+type GalleryMedia = { mediaAssetId: string; mediaStorageKey: string; altText: string | null; kind: "IMAGE" | "VIDEO" };
 
+function PlayIcon() {
+  return (
+    <span className="absolute inset-0 grid place-items-center bg-black/25">
+      <span className="grid h-8 w-8 place-items-center rounded-full bg-white/95 shadow">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" /></svg>
+      </span>
+    </span>
+  );
+}
+
+/** Square (1:1) gallery: product images first, then the product video. */
 export default function ProductGallery({ title, media }: { title: string; media: GalleryMedia[] }) {
+  const ordered = [...media.filter((item) => item.kind === "IMAGE"), ...media.filter((item) => item.kind === "VIDEO")];
   const [active, setActive] = useState(0);
-  const images = media.length ? media : [{ mediaAssetId: "placeholder", mediaStorageKey: "", altText: title }];
-  const fallback = { mediaAssetId: "placeholder", mediaStorageKey: "", altText: title }; const activeImage = images[active] ?? images[0] ?? fallback;
+  const current = ordered[active] ?? ordered[0];
+  const poster = ordered.find((item) => item.kind === "IMAGE");
 
   return (
     <section className="space-y-3">
-      <div className="relative aspect-square overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.05)] sm:aspect-[4/3] lg:aspect-square">
-        {activeImage.mediaStorageKey ? (
-          <Image src={"/media/" + activeImage.mediaStorageKey} alt={activeImage.altText ?? title} fill priority sizes="(max-width: 1024px) 100vw, 55vw" className="object-cover" />
+      <div className="relative aspect-square overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.05)]">
+        {current?.kind === "VIDEO" ? (
+          <video
+            key={current.mediaAssetId}
+            className="h-full w-full bg-black object-contain"
+            src={"/media/" + current.mediaStorageKey}
+            poster={poster ? "/media/" + poster.mediaStorageKey : undefined}
+            controls
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            aria-label={`${title} video`}
+          />
+        ) : current ? (
+          <Image src={"/media/" + current.mediaStorageKey} alt={current.altText ?? title} fill priority sizes="(max-width: 1024px) 100vw, 55vw" className="object-cover" />
         ) : (
           <div className="grid h-full place-items-center bg-gradient-to-br from-slate-100 via-white to-amber-50">
             <span className="text-8xl font-bold tracking-[-0.08em] text-slate-200">{title.slice(0, 1).toUpperCase()}</span>
           </div>
         )}
-        <span className="absolute left-4 top-4 rounded-full bg-slate-950 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white">Quality checked</span>
+        {current?.kind !== "VIDEO" ? <span className="absolute left-4 top-4 rounded-full bg-slate-950 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white">Quality checked</span> : null}
       </div>
-      {media.length > 1 ? (
+      {ordered.length > 1 ? (
         <div className="grid grid-cols-5 gap-2">
-          {media.slice(0, 5).map((item, index) => (
-            <button type="button" key={item.mediaAssetId} onClick={() => setActive(index)} aria-label={`View product image ${index + 1}`} className={`relative aspect-square overflow-hidden rounded-xl border-2 bg-white transition ${active === index ? "border-slate-950" : "border-slate-200 hover:border-slate-400"}`}>
-              <Image src={"/media/" + item.mediaStorageKey} alt={item.altText ?? title} fill sizes="120px" className="object-cover" />
+          {ordered.slice(0, 9).map((item, index) => (
+            <button
+              type="button"
+              key={item.mediaAssetId}
+              onClick={() => setActive(index)}
+              aria-label={item.kind === "VIDEO" ? "Play product video" : `View product image ${index + 1}`}
+              aria-pressed={active === index}
+              className={`relative aspect-square overflow-hidden rounded-xl border-2 bg-white transition ${active === index ? "border-slate-950" : "border-slate-200 hover:border-slate-400"}`}
+            >
+              {item.kind === "VIDEO" ? (
+                <>
+                  {poster ? <Image src={"/media/" + poster.mediaStorageKey} alt="" fill sizes="120px" className="object-cover" /> : <span className="absolute inset-0 bg-slate-900" />}
+                  <PlayIcon />
+                </>
+              ) : (
+                <Image src={"/media/" + item.mediaStorageKey} alt={item.altText ?? title} fill sizes="120px" className="object-cover" />
+              )}
             </button>
           ))}
         </div>

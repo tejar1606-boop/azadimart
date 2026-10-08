@@ -15,6 +15,12 @@ const nextConfig: NextConfig = {
     "@azadimart/payments",
     "@azadimart/storage",
   ],
+  images: {
+    // Keep high-quality uploads (e.g. WebP at quality 95) crisp: the optimizer
+    // re-encodes at 90 (Next's default is 75). Banners are served unoptimized.
+    qualities: [90],
+    formats: ["image/avif", "image/webp"],
+  },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },

@@ -187,6 +187,7 @@ function StoreSection({ section, data }: { section: HomeSection; data: HomeData 
   switch (section.type) {
     case "hero": return <Hero s={s} products={data.products} />;
     case "marquee": return <Marquee s={s} />;
+    case "promo_banner": return <PromoBanner s={s} />;
     case "category_grid": return <CategoryGrid s={s} categories={data.categories} />;
     case "featured_products": return <FeaturedProducts s={s} products={data.products} />;
     case "sales_coupons": return <Coupons s={s} coupons={data.coupons} />;
@@ -206,15 +207,17 @@ function Hero({ s, products }: { s: Settings; products: ProductCardData[] }) {
   const primaryLabel = str(s, "primaryLabel", "Shop now");
   const primaryHref = str(s, "primaryHref", "/products");
   const desktopImage = str(s, "desktopImageUrl");
+  const desktopVideo = str(s, "desktopVideoUrl");
   const mobileImage = str(s, "mobileImageUrl", desktopImage);
+  const mobileVideo = str(s, "mobileVideoUrl", str(s, "mobileImageUrl") ? "" : desktopVideo);
 
-  // A campaign banner set in the admin takes over the hero, full width.
-  if (desktopImage) {
+  // A campaign banner (image 2880 × 1080 / 1200 × 1500, or video) takes over the hero, full width.
+  if (desktopImage || desktopVideo) {
     return (
       <section aria-label="Featured campaign">
-        <Link href={resolveHref(primaryHref)} className="relative block aspect-[4/5] w-full overflow-hidden bg-slate-200 sm:aspect-[8/3]">
-          <Image src={mobileImage} alt={heading} fill priority sizes="100vw" className="object-cover sm:hidden" unoptimized />
-          <Image src={desktopImage} alt={heading} fill priority sizes="100vw" className="hidden object-cover sm:block" unoptimized />
+        <Link href={resolveHref(primaryHref)} className="block bg-slate-200">
+          <BannerArt image={mobileImage} video={mobileVideo} alt={heading} priority className="block aspect-[4/5] sm:hidden" />
+          <BannerArt image={desktopImage} video={desktopVideo} alt={heading} priority className="hidden aspect-[8/3] sm:block" />
         </Link>
       </section>
     );
@@ -246,7 +249,7 @@ function Hero({ s, products }: { s: Settings; products: ProductCardData[] }) {
         {collage.length >= 2 ? (
           <div className="relative grid grid-cols-2 gap-3 sm:gap-4">
             {collage.map((product, index) => (
-              <Link key={product.id} href={"/products/" + product.slug} className={"group relative overflow-hidden rounded-2xl bg-slate-100 " + (index % 2 ? "mt-8 aspect-[4/5]" : "aspect-[4/5]")}>
+              <Link key={product.id} href={"/products/" + product.slug} className={"group relative overflow-hidden rounded-2xl bg-slate-100 " + (index % 2 ? "mt-8 aspect-square" : "aspect-square")}>
                 <Image src={"/media/" + product.mediaStorageKey} alt={product.mediaAltText ?? product.title} fill priority={index < 2} sizes="(max-width:1024px) 45vw, 22vw" className="object-cover transition duration-500 group-hover:scale-[1.04]" />
                 <span className="absolute inset-x-2 bottom-2 rounded-xl bg-white/90 px-3 py-2 text-xs backdrop-blur">
                   <span className="line-clamp-1 font-medium">{product.title}</span>
@@ -267,6 +270,45 @@ function Hero({ s, products }: { s: Settings; products: ProductCardData[] }) {
         )}
       </Container>
     </section>
+  );
+}
+
+/** Banner art for one breakpoint: a muted looping video (image as poster) or an image. */
+function BannerArt({ image, video, alt, className, priority = false }: { image: string; video: string; alt: string; className: string; priority?: boolean }) {
+  return (
+    <span className={"relative w-full overflow-hidden " + className}>
+      {video ? (
+        <video className="absolute inset-0 h-full w-full object-cover" src={video} poster={image || undefined} autoPlay muted loop playsInline preload="metadata" aria-label={alt} />
+      ) : image ? (
+        <Image src={image} alt={alt} fill priority={priority} sizes="100vw" className="object-cover" unoptimized />
+      ) : null}
+    </span>
+  );
+}
+
+/** Full-width promotional strip: desktop 1800 × 320, mobile 800 × 329 (image or video). */
+function PromoBanner({ s }: { s: Settings }) {
+  const desktop = str(s, "desktopImageUrl");
+  const desktopVideo = str(s, "desktopVideoUrl");
+  if (!desktop && !desktopVideo) return null;
+  const mobile = str(s, "mobileImageUrl", desktop);
+  const mobileVideo = str(s, "mobileVideoUrl", str(s, "mobileImageUrl") ? "" : desktopVideo);
+  const alt = str(s, "alt", "AzadiMart offer");
+  const href = str(s, "href");
+  const images = (
+    <>
+      <BannerArt image={mobile} video={mobileVideo} alt={alt} className="block aspect-[800/329] sm:hidden" />
+      <BannerArt image={desktop} video={desktopVideo} alt={alt} className="hidden aspect-[1800/320] sm:block" />
+    </>
+  );
+  return (
+    <Container className="py-4 sm:py-6">
+      {href ? (
+        <Link href={resolveHref(href)} className="block overflow-hidden rounded-xl bg-slate-200 transition hover:opacity-95">{images}</Link>
+      ) : (
+        <div className="overflow-hidden rounded-xl bg-slate-200">{images}</div>
+      )}
+    </Container>
   );
 }
 

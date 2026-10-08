@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { directUpload, readImageSize } from "@azadimart/ui";
 
-type Upload = { id: string; fileName: string; kind: "IMAGE" | "VIDEO" };
+type Upload = { id: string; fileName: string; kind: "IMAGE" | "VIDEO"; url: string };
+const RECOMMENDED_PX = 1000;
 const steps = ["Basics", "Media", "Pricing", "Review"];
 
 export default function ProductBuilder() {
@@ -12,6 +14,7 @@ export default function ProductBuilder() {
   const [images,setImages] = useState<Upload[]>([]);
   const [video,setVideo] = useState<Upload|null>(null);
   const [busy,setBusy] = useState(false);
+  const [progress,setProgress] = useState(0);
   const [error,setError] = useState("");
   const [message,setMessage] = useState("");
   const [categories,setCategories] = useState<Array<{id:string;name:string}>>([]);
@@ -22,15 +25,19 @@ export default function ProductBuilder() {
   },[]);
 
   async function upload(file:File,kind:"IMAGE"|"VIDEO"){
-    setBusy(true);setError("");setMessage("");
+    setBusy(true);setError("");setMessage("");setProgress(0);
     try{
-      const body=new FormData();body.append("file",file);body.append("kind",kind);
-      const response=await fetch("/api/v1/media/products",{method:"POST",body});
-      const json=await response.json();
-      if(!response.ok)throw new Error(json?.error?.message??"Media upload failed.");
-      const item={id:json.mediaAssetId,fileName:json.fileName,kind} as Upload;
+      let note="";
+      if(kind==="IMAGE"){
+        // Product photos are shown in square (1:1) frames; the server enforces this too.
+        const size=await readImageSize(file);
+        if(Math.abs(size.width-size.height)/Math.max(size.width,size.height)>0.02)throw new Error(`Product images must be square (1:1). This image is ${size.width} × ${size.height}; use ${RECOMMENDED_PX} × ${RECOMMENDED_PX} or larger.`);
+        if(size.width<RECOMMENDED_PX)note=` Tip: ${RECOMMENDED_PX} × ${RECOMMENDED_PX} or larger looks sharper.`;
+      }
+      const result=await directUpload(file,{purpose:kind==="IMAGE"?"PRODUCT_IMAGE":"PRODUCT_VIDEO",onProgress:setProgress});
+      const item:Upload={id:result.mediaAssetId,fileName:file.name,kind,url:result.url};
       if(kind==="IMAGE")setImages(v=>[...v,item].slice(0,8));else setVideo(item);
-      setMessage(file.name+" uploaded.");
+      setMessage(file.name+" uploaded."+note);
     }catch(err){setError(err instanceof Error?err.message:"Media upload failed.");}
     finally{setBusy(false);}
   }
@@ -72,12 +79,12 @@ export default function ProductBuilder() {
         <label className="text-sm font-semibold sm:col-span-2">Description<textarea className="mt-2 min-h-36 w-full rounded-xl border border-slate-200 p-3" value={form.description} onChange={e=>set("description",e.target.value)} required/></label>
       </div>:null}
       {step===1?<div>
-        <div className="flex items-end justify-between"><div><h2 className="text-xl font-black">Product media</h2><p className="mt-1 text-sm text-slate-500">Up to 8 images and 1 video.</p></div><span className="text-xs text-slate-400">{images.length}/8 images</span></div>
+        <div className="flex items-end justify-between"><div><h2 className="text-xl font-black">Product media</h2><p className="mt-1 text-sm text-slate-500">Up to 8 square (1:1) images — {RECOMMENDED_PX} × {RECOMMENDED_PX} px or larger, JPG, PNG or high-quality WebP — and 1 video (MP4, WebM or MOV, any quality).</p></div><span className="text-xs text-slate-400">{images.length}/8 images</span></div>
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {images.map(item=><div key={item.id} className="rounded-2xl border p-3"><div className="grid aspect-square place-items-center rounded-xl bg-slate-50 text-xs font-black text-slate-300">IMAGE</div><p className="mt-2 truncate text-xs font-semibold">{item.fileName}</p></div>)}
+          {images.map((item,index)=><div key={item.id} className="rounded-2xl border p-3"><div className="relative aspect-square overflow-hidden rounded-xl bg-slate-50"><div className="h-full w-full bg-cover bg-center" style={{backgroundImage:`url("${item.url}")`}}/>{index===0?<span className="absolute left-2 top-2 rounded-full bg-slate-950 px-2 py-0.5 text-[10px] font-bold text-white">Cover</span>:null}</div><div className="mt-2 flex items-center justify-between gap-2"><p className="truncate text-xs font-semibold">{item.fileName}</p><button type="button" onClick={()=>setImages(v=>v.filter(x=>x.id!==item.id))} className="shrink-0 text-xs font-semibold text-red-600">Remove</button></div></div>)}
           {images.length<8?<label className="grid aspect-square cursor-pointer place-items-center rounded-2xl border-2 border-dashed text-xs font-bold text-slate-500">Add image<input className="hidden" type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={e=>{const f=e.target.files?.[0];if(f)void upload(f,"IMAGE");e.currentTarget.value=""}}/></label>:null}
         </div>
-        <div className="mt-6 rounded-2xl border p-4"><p className="text-sm font-semibold">Product video <span className="font-normal text-slate-400">(optional)</span></p>{video?<p className="mt-2 text-sm">{video.fileName}</p>:<label className="mt-3 inline-flex cursor-pointer rounded-full border px-4 py-2 text-xs font-bold">Add video<input className="hidden" type="file" accept="video/mp4,video/webm" disabled={busy} onChange={e=>{const f=e.target.files?.[0];if(f)void upload(f,"VIDEO");e.currentTarget.value=""}}/></label>}</div>
+        <div className="mt-6 rounded-2xl border p-4"><p className="text-sm font-semibold">Product video <span className="font-normal text-slate-400">(optional)</span></p>{video?<div className="mt-3 flex flex-wrap items-center gap-3"><video src={video.url} className="h-28 w-28 rounded-xl bg-black object-cover" muted playsInline controls/><div><p className="text-sm font-semibold">{video.fileName}</p><button type="button" onClick={()=>setVideo(null)} className="mt-1 text-xs font-semibold text-red-600">Remove</button></div></div>:<label className="mt-3 inline-flex cursor-pointer rounded-full border px-4 py-2 text-xs font-bold">Add video<input className="hidden" type="file" accept="video/mp4,video/webm,video/quicktime" disabled={busy} onChange={e=>{const f=e.target.files?.[0];if(f)void upload(f,"VIDEO");e.currentTarget.value=""}}/></label>}</div>
       </div>:null}
       {step===2?<div className="grid gap-5 sm:grid-cols-2">
         <Field label="Variant title" value={form.variantTitle} onChange={v=>set("variantTitle",v)}/>
@@ -88,6 +95,7 @@ export default function ProductBuilder() {
         <Field label="Opening inventory" value={form.onHand} onChange={v=>set("onHand",v)} inputMode="numeric"/>
       </div>:null}
       {step===3?<div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Ready for QC</p><h2 className="mt-2 text-2xl font-black">Review before creating your draft.</h2><div className="mt-5 grid gap-3 sm:grid-cols-2"><Summary label="Product" value={form.title||"—"}/><Summary label="Category" value={categories.find(category=>category.id===form.categoryId)?.name||"—"}/><Summary label="Images" value={String(images.length)}/><Summary label="Price" value={form.price?"₹"+form.price:"—"}/><Summary label="Package weight" value={form.weightGrams+" g"}/><Summary label="Opening stock" value={form.onHand}/></div><p className="mt-5 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">Draft products remain hidden from customers until they pass QC and are published by AzadiMart.</p></div>:null}
+      {busy&&step===1?<div className="mt-5"><p className="text-xs font-semibold text-slate-500">Uploading… {progress}%</p><div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-slate-950 transition-[width]" style={{width:progress+"%"}}/></div></div>:null}
       {error?<p className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>:null}{message?<p className="mt-5 rounded-xl bg-green-50 p-3 text-sm text-green-700">{message}</p>:null}
       <div className="mt-7 flex justify-between border-t border-slate-100 pt-5"><button type="button" disabled={step===0||busy} onClick={()=>setStep(v=>Math.max(0,v-1))} className="rounded-full border px-5 py-3 text-sm font-bold disabled:opacity-40">Back</button>{step<3?<button type="button" disabled={busy} onClick={()=>{const p=validate();if(p)setError(p);else setStep(v=>v+1)}} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:opacity-50">Continue</button>:<button type="button" disabled={busy} onClick={()=>void create()} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:opacity-50">{busy?"Creating…":"Create draft product"}</button>}</div>
     </div>

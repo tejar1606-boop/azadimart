@@ -24,7 +24,7 @@ export default function ProductCard({ product, priority = false, sizes = "(max-w
   const off = discountPercent(product.pricePaise, product.compareAtPaise);
   return (
     <Link href={"/products/" + product.slug} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition duration-300 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
-      <div className="relative aspect-[9/10] overflow-hidden bg-slate-100">
+      <div className="relative aspect-square overflow-hidden bg-slate-100">
         {product.mediaStorageKey ? (
           <Image
             src={"/media/" + product.mediaStorageKey}
