@@ -176,5 +176,26 @@ export const roleSchema = z.enum(ROLES);export const mediaUploadRequestSchema = 
   purpose: z.enum(["SITE_IMAGE", "SITE_VIDEO", "PRODUCT_IMAGE", "PRODUCT_VIDEO", "APLUS_IMAGE"]),
   contentType: z.string().max(100),
   byteSize: z.number().int().positive(),
+  /** Admin product uploads: the product whose seller folder receives the file. */
+  productId: uuidSchema.optional(),
 });
 export const mediaUploadCompleteSchema = z.object({ token: z.string().min(10).max(4000), altText: z.string().max(300).optional() });
+/** Admin manual product edit: details, variants (price, MRP, stock, weight) and media. */
+export const adminProductUpdateSchema = z.object({
+  title: z.string().trim().min(3).max(200),
+  description: z.string().trim().max(20000).optional().default(""),
+  categoryId: uuidSchema,
+  variants: z.array(z.object({
+    id: uuidSchema,
+    title: z.string().trim().min(1).max(120),
+    sku: z.string().trim().min(3).max(64),
+    pricePaise: z.number().int().positive("Price must be above ₹0"),
+    compareAtPaise: z.number().int().positive().nullable().optional(),
+    weightGrams: z.number().int().positive("Enter the package weight in grams").max(1000000),
+    onHand: z.number().int().nonnegative().max(1000000),
+    isActive: z.boolean(),
+  }).refine((v) => !v.compareAtPaise || v.compareAtPaise >= v.pricePaise, { message: "MRP can't be lower than the price", path: ["compareAtPaise"] })).min(1).max(50),
+  imageAssetIds: z.array(uuidSchema).min(1, "Keep at least one product image").max(PRODUCT_MEDIA_LIMITS.maxImages).refine((ids) => new Set(ids).size === ids.length, "Duplicate images"),
+  videoAssetId: uuidSchema.nullable().optional(),
+});
+export const adminProductStatusSchema = z.object({ action: z.enum(["hide", "show", "archive", "restore"]), reason: z.string().trim().max(500).optional() });

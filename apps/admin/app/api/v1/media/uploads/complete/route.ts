@@ -1,7 +1,7 @@
 import { requireApiAccess } from "@azadimart/auth";
 import { auditLogs, createDatabase, mediaAssets } from "@azadimart/database";
 import { AppError, mediaUploadCompleteSchema, toApiError } from "@azadimart/shared";
-import { finalizeUpload, getObjectStore, UploadError } from "@azadimart/storage";
+import { finalizeUpload, getObjectStore, UploadError, verifyUploadToken } from "@azadimart/storage";
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 
@@ -13,7 +13,9 @@ export async function POST(request: Request) {
     const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
     const input = mediaUploadCompleteSchema.parse(await request.json());
     const store = getObjectStore();
-    const upload = await finalizeUpload(store, { token: input.token, userId: principal.userId, allowedPurposes: ["SITE_IMAGE", "SITE_VIDEO"], keyPrefix: "site-media" });
+    const claims = verifyUploadToken(input.token, principal.userId);
+    const keyPrefix = claims.purpose === "PRODUCT_IMAGE" || claims.purpose === "PRODUCT_VIDEO" ? "product-media" : "site-media";
+    const upload = await finalizeUpload(store, { token: input.token, userId: principal.userId, allowedPurposes: ["SITE_IMAGE", "SITE_VIDEO", "PRODUCT_IMAGE", "PRODUCT_VIDEO"], keyPrefix });
 
     const db = createDatabase();
     const asset = await db.transaction(async (tx) => {

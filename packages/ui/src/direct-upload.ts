@@ -42,12 +42,12 @@ function put(url: string, file: File, headers: Record<string, string>, onProgres
  * No app-server request carries the file, so large videos are not limited by
  * serverless request-size limits.
  */
-export async function directUpload(file: File, options: { purpose: DirectUploadPurpose; altText?: string; onProgress?: (percent: number) => void }): Promise<DirectUploadResult> {
+export async function directUpload(file: File, options: { purpose: DirectUploadPurpose; productId?: string; altText?: string; onProgress?: (percent: number) => void }): Promise<DirectUploadResult> {
   const contentType = contentTypeOf(file);
   const ticket = await json(await fetch("/api/v1/media/uploads", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ purpose: options.purpose, contentType, byteSize: file.size }),
+    body: JSON.stringify({ purpose: options.purpose, contentType, byteSize: file.size, productId: options.productId }),
   }));
   await put(ticket.uploadUrl, file, ticket.headers ?? { "Content-Type": contentType }, options.onProgress);
   return json(await fetch("/api/v1/media/uploads/complete", {

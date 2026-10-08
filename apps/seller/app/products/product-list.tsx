@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 type Product = { id: string; title: string; status: string; slug: string; createdAt: string; coverImageUrl: string | null; pricePaise: number | null; available: number };
-type Action = "submit" | "unlist" | "relist" | "withdraw" | "archive" | "restore";
+type Action = "submit" | "unlist" | "relist" | "withdraw";
 
 const money = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
 
@@ -15,7 +15,7 @@ const STATUS: Record<string, { label: string; tone: string }> = {
   PENDING_ADMIN_APPROVAL: { label: "Awaiting approval", tone: "bg-amber-50 text-amber-800" },
   LIVE: { label: "Live", tone: "bg-green-50 text-green-700" },
   UNLISTED: { label: "Hidden from store", tone: "bg-slate-200 text-slate-700" },
-  ARCHIVED: { label: "Removed", tone: "bg-slate-100 text-slate-400" },
+  ARCHIVED: { label: "Removed by AzadiMart", tone: "bg-slate-100 text-slate-400" },
 };
 
 const TABS: Array<{ key: string; label: string; statuses: string[] }> = [
@@ -27,14 +27,13 @@ const TABS: Array<{ key: string; label: string; statuses: string[] }> = [
   { key: "removed", label: "Removed", statuses: ["ARCHIVED"] },
 ];
 
-/** Which actions a product offers in each status (mirrors the server rules). */
-function actionsFor(status: string): Array<{ action: Action; label: string; primary?: boolean; danger?: boolean }> {
+/** Which actions a product offers in each status (mirrors the server rules). Removing products is admin-only. */
+function actionsFor(status: string): Array<{ action: Action; label: string; primary?: boolean }> {
   switch (status) {
-    case "DRAFT": case "QC_REJECTED": return [{ action: "submit", label: "Submit for QC", primary: true }, { action: "archive", label: "Remove", danger: true }];
-    case "PENDING_QC": case "PENDING_ADMIN_APPROVAL": return [{ action: "withdraw", label: "Move to draft" }, { action: "archive", label: "Remove", danger: true }];
-    case "LIVE": return [{ action: "unlist", label: "Hide from store" }, { action: "archive", label: "Remove", danger: true }];
-    case "UNLISTED": return [{ action: "relist", label: "Show on store", primary: true }, { action: "archive", label: "Remove", danger: true }];
-    case "ARCHIVED": return [{ action: "restore", label: "Restore as draft" }];
+    case "DRAFT": case "QC_REJECTED": return [{ action: "submit", label: "Submit for QC", primary: true }];
+    case "PENDING_QC": case "PENDING_ADMIN_APPROVAL": return [{ action: "withdraw", label: "Move to draft" }];
+    case "LIVE": return [{ action: "unlist", label: "Hide from store" }];
+    case "UNLISTED": return [{ action: "relist", label: "Show on store", primary: true }];
     default: return [];
   }
 }
@@ -44,8 +43,6 @@ const SUCCESS: Record<Action, string> = {
   unlist: "is hidden from the store.",
   relist: "is live on the store again.",
   withdraw: "moved back to drafts.",
-  archive: "was removed. You can restore it from the Removed tab.",
-  restore: "restored as a draft. Submit it for QC to go live.",
 };
 
 export default function ProductList() {
@@ -55,7 +52,6 @@ export default function ProductList() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<Product | null>(null);
 
   async function load() {
     setLoading(true); setError("");
@@ -82,7 +78,7 @@ export default function ProductList() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed.");
-    } finally { setBusy(null); setConfirm(null); }
+    } finally { setBusy(null); }
   }
 
   const counts = useMemo(() => Object.fromEntries(TABS.map((t) => [t.key, items.filter((i) => t.statuses.includes(i.status)).length])), [items]);
@@ -127,13 +123,14 @@ export default function ProductList() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {!removed ? <Link href={"/products/" + product.id + "/aplus"} className="rounded-full px-3 py-2 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 hover:text-slate-950">A+ content</Link> : null}
-                    {actionsFor(product.status).map(({ action, label, primary, danger }) => (
+                    {removed ? <span className="text-xs text-slate-500">Contact AzadiMart support to restore</span> : null}
+                    {actionsFor(product.status).map(({ action, label, primary }) => (
                       <button
                         key={action}
                         type="button"
                         disabled={busy === product.id}
-                        onClick={() => (action === "archive" ? setConfirm(product) : void run(product, action))}
-                        className={"rounded-full px-3.5 py-2 text-xs font-semibold transition disabled:opacity-50 " + (primary ? "bg-chrome text-white hover:bg-black" : danger ? "text-red-600 ring-1 ring-red-200 hover:bg-red-50" : "text-slate-700 ring-1 ring-slate-300 hover:ring-slate-900")}
+                        onClick={() => void run(product, action)}
+                        className={"rounded-full px-3.5 py-2 text-xs font-semibold transition disabled:opacity-50 " + (primary ? "bg-chrome text-white hover:bg-black" : "text-slate-700 ring-1 ring-slate-300 hover:ring-slate-900")}
                       >
                         {busy === product.id ? "Working…" : label}
                       </button>
@@ -145,19 +142,6 @@ export default function ProductList() {
           </ul>
         )}
       </div>
-
-      {confirm ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="remove-title">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-lift">
-            <h2 id="remove-title" className="text-lg font-semibold">Remove this product?</h2>
-            <p className="mt-2 text-sm text-slate-600">&ldquo;{confirm.title}&rdquo; will disappear from the store and your active catalogue. Order history is kept, and you can restore it later from the <b>Removed</b> tab.</p>
-            <div className="mt-6 flex justify-end gap-2">
-              <button type="button" onClick={() => setConfirm(null)} className="rounded-full px-4 py-2 text-sm font-semibold ring-1 ring-slate-300">Cancel</button>
-              <button type="button" disabled={busy === confirm.id} onClick={() => void run(confirm, "archive")} className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy === confirm.id ? "Removing…" : "Remove product"}</button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }
