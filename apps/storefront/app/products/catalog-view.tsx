@@ -78,10 +78,9 @@ export default function CatalogView() {
             <select value={sort} onChange={(event) => setSort(event.target.value)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-semibold outline-none" aria-label="Desktop sort"><option value="newest">Newest</option><option value="price_asc">Price low</option><option value="price_desc">Price high</option></select>
             <input inputMode="numeric" value={minPrice} onChange={(e) => setMinPrice(e.target.value.replace(/\D/g, ""))} placeholder="Min ₹" className="w-20 rounded-full border border-slate-200 px-3 py-1.5 outline-none" aria-label="Minimum price"/>
             <input inputMode="numeric" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value.replace(/\D/g, ""))} placeholder="Max ₹" className="w-20 rounded-full border border-slate-200 px-3 py-1.5 outline-none" aria-label="Maximum price"/>
-            <span className="rounded-full bg-slate-950 px-3 py-1.5 text-white">All products</span>
-            <span className="rounded-full border border-slate-200 px-3 py-1.5">Popular</span>
-            <span className="rounded-full border border-slate-200 px-3 py-1.5">New arrivals</span>
-            <span className="rounded-full border border-slate-200 px-3 py-1.5">Top rated</span>
+            <button type="button" onClick={() => setSort("newest")} className={"rounded-full px-3 py-1.5 transition " + (sort === "newest" ? "bg-slate-950 text-white" : "border border-slate-200 hover:border-slate-300")}>Latest</button>
+            <button type="button" onClick={() => setSort("price_asc")} className={"rounded-full px-3 py-1.5 transition " + (sort === "price_asc" ? "bg-slate-950 text-white" : "border border-slate-200 hover:border-slate-300")}>Price low</button>
+            <button type="button" onClick={() => setSort("price_desc")} className={"rounded-full px-3 py-1.5 transition " + (sort === "price_desc" ? "bg-slate-950 text-white" : "border border-slate-200 hover:border-slate-300")}>Price high</button>
           </div>
           <p className="font-semibold">{query ? `Results for "${query}"` : "Latest on AzadiMart"}</p>
           <p className="text-slate-400">{items.length} products</p>
@@ -98,17 +97,21 @@ export default function CatalogView() {
             {items.map((product) => {
               const variant = product.variants[0];
               return (
-                <Link key={product.id} href={"/products/" + product.slug} className="group rounded-[1.35rem] border border-slate-200 bg-white p-3 shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
+                <article key={product.id} className="group rounded-[1.35rem] border border-slate-200 bg-white p-3 shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
                   <div className="relative grid aspect-square place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-slate-100 via-white to-amber-50">
-                    <WishlistButton productId={product.id} />
-                    {product.media?.find(media => media.kind === "IMAGE" && media.storageKey) ? <Image src={"/media/" + product.media.find(media => media.kind === "IMAGE")!.storageKey} alt={product.media.find(media => media.kind === "IMAGE")!.altText ?? product.title} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover transition duration-300 group-hover:scale-[1.03]" /> : <span className="text-5xl font-black tracking-[-0.06em] text-slate-200">{product.title.slice(0, 1).toUpperCase()}</span>}
-                    <span className="absolute left-2.5 top-2.5 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-slate-500">Verified</span>
+                    <Link href={"/products/" + product.slug} aria-label={"View " + product.title} className="absolute inset-0 z-0">
+                      {product.media?.find(media => media.kind === "IMAGE" && media.storageKey) ? <Image src={"/media/" + product.media.find(media => media.kind === "IMAGE")!.storageKey} alt={product.media.find(media => media.kind === "IMAGE")!.altText ?? product.title} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover transition duration-300 group-hover:scale-[1.03]" /> : <span className="grid h-full place-items-center text-5xl font-black tracking-[-0.06em] text-slate-200">{product.title.slice(0, 1).toUpperCase()}</span>}
+                    </Link>
+                    <div className="absolute right-2 top-2 z-10"><WishlistButton productId={product.id} /></div>
+                    <span className="absolute left-2.5 top-2.5 z-10 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-slate-500">Verified</span>
                   </div>
-                  <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-amber-600">{product.categoryName}</p>
-                  <p className="mt-1 line-clamp-2 text-sm font-bold leading-5">{product.title}</p>
-                  <div className="mt-2 flex items-baseline gap-2"><p className="text-base font-black">{money(variant?.pricePaise ?? 0)}</p>{variant?.compareAtPaise ? <p className="text-xs text-slate-400 line-through">{money(variant.compareAtPaise)}</p> : null}</div>
-                  <p className="mt-1 text-[11px] text-slate-400">{product.sellerName}</p>
-                </Link>
+                  <Link href={"/products/" + product.slug} className="block">
+                    <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-amber-600">{product.categoryName}</p>
+                    <p className="mt-1 line-clamp-2 text-sm font-bold leading-5">{product.title}</p>
+                    <div className="mt-2 flex items-baseline gap-2"><p className="text-base font-black">{money(variant?.pricePaise ?? 0)}</p>{variant?.compareAtPaise ? <p className="text-xs text-slate-400 line-through">{money(variant.compareAtPaise)}</p> : null}</div>
+                    <p className="mt-1 text-[11px] text-slate-400">{product.sellerName}</p>
+                  </Link>
+                </article>
               );
             })}
           </div>
