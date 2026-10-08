@@ -16,9 +16,9 @@ export async function POST(
     const provider = rawProvider.toUpperCase() as PaymentProviderCode;
     if (!providers.has(provider)) throw new AppError("VALIDATION_ERROR", "Unsupported payment provider");
 
-    const body = await request.json();
+    const rawBody = await request.text();
     const paymentProvider = getPaymentProvider(provider);
-    const event = await paymentProvider.parseWebhook(request.headers, body);
+    const event = await paymentProvider.parseWebhook(request.headers, rawBody);
     const db = createDatabase();
 
     const result = await db.transaction(async (tx) => {

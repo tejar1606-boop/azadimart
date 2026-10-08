@@ -28,7 +28,12 @@ export interface PaymentProvider {
   readonly isConfigured: boolean;
   createPayment(input: CreatePaymentInput): Promise<PaymentIntent>;
   refund(providerPaymentId: string, amountPaise: number, idempotencyKey: string): Promise<{ providerRefundId: string }>;
-  parseWebhook(headers: Headers, body: unknown): Promise<PaymentWebhookEvent>;
+  /**
+   * Verify and parse a provider webhook. Receives the exact raw request body:
+   * Razorpay and Cashfree sign the raw bytes, so signatures must be checked
+   * before (and independently of) JSON parsing.
+   */
+  parseWebhook(headers: Headers, rawBody: string): Promise<PaymentWebhookEvent>;
 }
 
 export class CodPaymentProvider implements PaymentProvider {
