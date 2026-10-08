@@ -108,9 +108,9 @@ export default function CartView() {
                   <div key={item.id} className="grid gap-4 p-5 sm:grid-cols-[92px_1fr_auto] sm:items-center sm:p-6">
                     <div className="grid aspect-square place-items-center rounded-2xl bg-gradient-to-br from-slate-100 via-white to-amber-50 text-3xl font-black text-slate-200" aria-hidden="true">{item.title.slice(0,1).toUpperCase()}</div>
                     <div>
-                      <p className="font-bold">{item.title}</p>
+                      <Link href={"/products/" + item.slug} className="font-bold hover:underline">{item.title}</Link>
                       <p className="mt-1 text-sm text-slate-500">{item.variantTitle} · {item.sku}</p>
-                      <p className="mt-2 text-base font-black">{money(item.pricePaise)}</p>
+                      <div className="mt-2 flex items-baseline gap-2"><p className="text-base font-black">{money(item.pricePaise)}</p><span className="text-xs text-slate-400">each</span></div>
                       <div className="mt-4 flex flex-wrap items-center gap-2">
                         <button type="button" disabled={busyId === item.id || item.quantity <= 1} onClick={() => void mutate(item, item.quantity - 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 text-sm disabled:opacity-40">−</button>
                         <span className="min-w-8 text-center text-sm font-bold">{item.quantity}</span>
@@ -133,7 +133,8 @@ export default function CartView() {
                 <div className="flex justify-between border-t border-white/10 pt-4 text-base font-bold"><span>Total</span><span>{money(cart?.subtotalPaise ?? 0)}</span></div>
               </div>
               <Link href="/checkout" className="mt-6 flex min-h-12 items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-slate-100">Proceed to checkout</Link>
-              <p className="mt-3 text-center text-[11px] text-white/45">You can review address, delivery and available payment options next.</p>
+              <p className="mt-3 text-center text-[11px] text-white/45">Your final payable amount is confirmed at checkout after coupon validation.</p>
+              <p className="mt-3 text-center text-[11px] text-white/45">You can review your address and available payment options next.</p>
               <div className="mt-5 space-y-2 text-xs text-white/50"><p>✓ Secure payment flow</p><p>✓ Seller-level fulfillment checks</p><p>✓ Coupons applied at checkout</p></div>
             </aside>
           </div>
