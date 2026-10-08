@@ -126,7 +126,10 @@ export async function POST(request: Request) {
       categoryIds?: string[];
       sellerIds?: string[];
     };
-    const eligibleLines = lines.filter((line) => matchesScope(scope, line));
+    // Seller-funded coupons only discount that seller's lines.
+    const eligibleLines = lines.filter(
+      (line) => matchesScope(scope, line) && (!coupon.sellerId || line.sellerId === coupon.sellerId),
+    );
     const eligibleSubtotalPaise = eligibleLines.reduce(
       (sum, line) => sum + line.pricePaise * line.quantity,
       0,

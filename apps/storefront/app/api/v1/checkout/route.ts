@@ -59,7 +59,8 @@ export async function POST(request:Request){
         .where(and(eq(customerAddresses.id,input.shippingAddressId),eq(customerAddresses.customerId,session.customerId!))).limit(1))[0];
       if(!address)throw new AppError("NOT_FOUND","Shipping address not found");
 
-      const cart=(await tx.select({id:carts.id}).from(carts).where(eq(carts.customerId,session.customerId!)).limit(1))[0];
+      // Row lock serializes concurrent submits for the same cart; the loser sees an empty cart instead of creating a duplicate order.
+      const cart=(await tx.select({id:carts.id}).from(carts).where(eq(carts.customerId,session.customerId!)).limit(1).for("update"))[0];
       if(!cart)throw new AppError("UNPROCESSABLE","Your cart is empty");
 
       const rawLines=await tx.select({
@@ -97,7 +98,8 @@ export async function POST(request:Request){
         const now=new Date();
         if(coupon.startsAt>now||(coupon.endsAt&&coupon.endsAt<=now))throw new AppError("UNPROCESSABLE","Coupon is outside its valid date range");
         const scope=(coupon.scope??{}) as {productIds?:string[];categoryIds?:string[];sellerIds?:string[]};
-        const eligible=rawLines.filter(line=>matchesScope(scope,line));
+        // Seller-funded coupons only discount that seller's lines.
+        const eligible=rawLines.filter(line=>matchesScope(scope,line)&&(!coupon.sellerId||line.sellerId===coupon.sellerId));
         const eligibleSubtotal=eligible.reduce((sum,line)=>sum+line.unitPricePaise*line.quantity,0);
         if(!eligible.length||eligibleSubtotal<coupon.minimumOrderPaise)throw new AppError("UNPROCESSABLE","Coupon is not applicable to this cart");
         if(coupon.sellerId&&!eligible.some(line=>line.sellerId===coupon.sellerId))throw new AppError("UNPROCESSABLE","Coupon is not applicable to this cart");
