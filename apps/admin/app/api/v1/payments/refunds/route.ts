@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const prepared = await db.transaction(async (tx) => {
       await tx.execute(sql`
         select pg_advisory_xact_lock(
-          hashtextextended(\${"refund:" + input.paymentId}, 0)
+          hashtextextended(${"refund:" + input.paymentId}, 0)
         )
       `);
 
@@ -43,7 +43,12 @@ export async function POST(request: Request) {
         .where(eq(refunds.idempotencyKey, input.idempotencyKey))
         .limit(1))[0];
 
-      if (existing) return { existing, reused: true as const };
+      if (existing) {
+        if (existing.paymentId !== input.paymentId || existing.amountPaise !== input.amountPaise) {
+          throw new AppError("CONFLICT", "idempotencyKey was already used for a different refund request");
+        }
+        return { existing, reused: true as const };
+      }
 
       const payment = (await tx.select({
         id: payments.id,
@@ -62,11 +67,13 @@ export async function POST(request: Request) {
       }).from(orders).where(eq(orders.id, payment.orderId)).limit(1))[0];
       if (!order) throw new AppError("NOT_FOUND", "Order not found");
 
-      const completed = (await tx.select({
-        amountPaise: sql<number>`coalesce(sum(case when \${refunds.status} = 'COMPLETED' then \${refunds.amountPaise} else 0 end), 0)`,
+      // Pending and in-flight refunds reserve their amount too; only FAILED
+      // refunds release it. Counting COMPLETED alone allowed over-refunds.
+      const committed = (await tx.select({
+        amountPaise: sql<number>`coalesce(sum(case when ${refunds.status} <> 'FAILED' then ${refunds.amountPaise} else 0 end), 0)`,
       }).from(refunds).where(eq(refunds.paymentId, payment.id)))[0]?.amountPaise ?? 0;
 
-      if (input.amountPaise + Number(completed) > payment.amountPaise) {
+      if (input.amountPaise + Number(committed) > payment.amountPaise) {
         throw new AppError("CONFLICT", "Refund amount exceeds the remaining refundable payment amount");
       }
 
@@ -160,54 +167,10 @@ export async function POST(request: Request) {
       throw new AppError("CONFLICT", "Refund state is incomplete");
     }
 
+    let result: { providerRefundId: string };
     try {
       const provider = getPaymentProvider(prepared.provider);
-      const result = await provider.refund(prepared.providerPaymentId, refund.amountPaise, refund.idempotencyKey);
-
-      const completed = await db.transaction(async (tx) => {
-        await tx.execute(sql`
-          select pg_advisory_xact_lock(
-            hashtextextended(\${"refund:" + refund.paymentId}, 0)
-          )
-        `);
-
-        const updated = (await tx.update(refunds).set({
-          status: "COMPLETED",
-          providerRefundId: result.providerRefundId,
-          updatedAt: new Date(),
-        }).where(and(eq(refunds.id, refund.id), eq(refunds.status, "PROCESSING"))).returning())[0];
-
-        if (!updated) throw new AppError("CONFLICT", "Refund state changed before provider completion");
-
-        const completedTotal = (await tx.select({
-          amountPaise: sql<number>`coalesce(sum(case when \${refunds.status} = 'COMPLETED' then \${refunds.amountPaise} else 0 end), 0)`,
-        }).from(refunds).where(eq(refunds.paymentId, refund.paymentId)))[0]?.amountPaise ?? 0;
-
-        const nextPaymentStatus = Number(completedTotal) >= prepared.paymentAmountPaise
-          ? "REFUNDED"
-          : "PARTIALLY_REFUNDED";
-
-        await tx.update(payments).set({
-          status: nextPaymentStatus,
-          updatedAt: new Date(),
-        }).where(eq(payments.id, refund.paymentId));
-
-        await tx.insert(auditLogs).values({
-          actorUserId: principal.userId,
-          action: "REFUND_COMPLETED",
-          entityType: "refund",
-          entityId: updated.id,
-          metadata: {
-            provider: prepared.provider,
-            providerRefundId: result.providerRefundId,
-            amountPaise: updated.amountPaise,
-          },
-        });
-
-        return updated;
-      });
-
-      return NextResponse.json({ ok: true, refund: completed });
+      result = await provider.refund(prepared.providerPaymentId, refund.amountPaise, refund.idempotencyKey);
     } catch (error) {
       await db.update(refunds).set({
         status: "FAILED",
@@ -217,6 +180,54 @@ export async function POST(request: Request) {
       if (error instanceof AppError) throw error;
       throw new AppError("CONFLICT", "Payment provider rejected the refund request");
     }
+
+    // The provider has accepted the refund. If recording it fails, the refund
+    // stays PROCESSING for reconciliation; marking it FAILED would invite a
+    // retry and a duplicate payout.
+    const completed = await db.transaction(async (tx) => {
+      await tx.execute(sql`
+        select pg_advisory_xact_lock(
+          hashtextextended(${"refund:" + refund.paymentId}, 0)
+        )
+      `);
+
+      const updated = (await tx.update(refunds).set({
+        status: "COMPLETED",
+        providerRefundId: result.providerRefundId,
+        updatedAt: new Date(),
+      }).where(and(eq(refunds.id, refund.id), eq(refunds.status, "PROCESSING"))).returning())[0];
+
+      if (!updated) throw new AppError("CONFLICT", "Refund state changed before provider completion");
+
+      const completedTotal = (await tx.select({
+        amountPaise: sql<number>`coalesce(sum(case when ${refunds.status} = 'COMPLETED' then ${refunds.amountPaise} else 0 end), 0)`,
+      }).from(refunds).where(eq(refunds.paymentId, refund.paymentId)))[0]?.amountPaise ?? 0;
+
+      const nextPaymentStatus = Number(completedTotal) >= prepared.paymentAmountPaise
+        ? "REFUNDED"
+        : "PARTIALLY_REFUNDED";
+
+      await tx.update(payments).set({
+        status: nextPaymentStatus,
+        updatedAt: new Date(),
+      }).where(eq(payments.id, refund.paymentId));
+
+      await tx.insert(auditLogs).values({
+        actorUserId: principal.userId,
+        action: "REFUND_COMPLETED",
+        entityType: "refund",
+        entityId: updated.id,
+        metadata: {
+          provider: prepared.provider,
+          providerRefundId: result.providerRefundId,
+          amountPaise: updated.amountPaise,
+        },
+      });
+
+      return updated;
+    });
+
+    return NextResponse.json({ ok: true, refund: completed });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);
     return NextResponse.json(body, { status });
