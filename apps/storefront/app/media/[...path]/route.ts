@@ -1,18 +1,19 @@
 import { mediaAssets, createDatabase } from "@azadimart/database";
-import { getObjectStore, isValidStorageKey } from "@azadimart/storage";
+import { getObjectStore, isValidStorageKey, mediaResponse } from "@azadimart/storage";
 import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-// Public product media only. KYC documents (kind DOCUMENT, private-documents/)
-// are never served here; admins fetch them through an authenticated API.
-const PUBLIC_PREFIX = "product-media/";
+// Public media only: seller product media and admin-uploaded site media.
+// KYC documents (kind DOCUMENT, private-documents/) are never served here;
+// admins fetch them through an authenticated API.
+const PUBLIC_PREFIXES = ["product-media/", "site-media/"];
 const MIME = new Set(["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm"]);
 
-export async function GET(_request: Request, { params }: { params: Promise<{ path: string[] }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   try {
     const { path: segments } = await params;
     const storageKey = segments.join("/");
-    if (!storageKey.startsWith(PUBLIC_PREFIX) || !isValidStorageKey(storageKey)) {
+    if (!PUBLIC_PREFIXES.some((prefix) => storageKey.startsWith(prefix)) || !isValidStorageKey(storageKey)) {
       return new NextResponse("Not Found", { status: 404 });
     }
 
@@ -27,15 +28,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pat
     const bytes = await getObjectStore().get(storageKey);
     if (!bytes) return new NextResponse("Not Found", { status: 404 });
 
-    return new NextResponse(bytes as BodyInit, {
-      status: 200,
-      headers: {
-        "Content-Type": asset.mimeType,
-        // Keys are immutable (random UUID per upload).
-        "Cache-Control": "public, max-age=31536000, immutable",
-        "X-Content-Type-Options": "nosniff",
-      },
-    });
+    // Keys are immutable (random UUID per upload).
+    return mediaResponse(bytes, asset.mimeType, request.headers.get("range"), "public, max-age=31536000, immutable");
   } catch {
     return new NextResponse("Not Found", { status: 404 });
   }

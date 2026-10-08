@@ -48,3 +48,4 @@ export function getStorageProvider(): StorageProvider {
   return active;
 }
 export * from "./object-store";
+export * from "./media";
