@@ -353,10 +353,10 @@ function StoreSection({ section, coupons, products: liveProducts }: { section: H
                 ) : (
                   <span className="grid h-full place-items-center text-4xl font-black text-slate-200">{product.title.slice(0, 1).toUpperCase()}</span>
                 )}
-                <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-slate-500">Verified seller</span>
+                <div className="absolute left-3 top-3 flex gap-1"><span className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-slate-500">Verified</span></div>
               </div>
               <p className="mt-3 line-clamp-2 text-sm font-semibold leading-5">{product.title}</p>
-              <p className="mt-1 text-base font-black">{money(product.pricePaise)}</p>
+              <div className="mt-1 flex items-center gap-2"><p className="text-base font-black">{money(product.pricePaise)}</p><span className="text-[10px] font-semibold text-emerald-600">Free delivery*</span></div>
             </Link>
           ))}
         </div>
