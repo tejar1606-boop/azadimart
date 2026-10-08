@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
+import { Turnstile, type TurnstileHandle } from "@azadimart/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -9,6 +10,9 @@ export default function CustomerLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string>();
+  const captchaRef = useRef<TurnstileHandle>(null);
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const [busy, setBusy] = useState(false);
 
   async function submit(event: FormEvent) {
@@ -19,14 +23,14 @@ export default function CustomerLoginPage() {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, captchaToken }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error?.message ?? "Unable to sign in.");
       router.replace("/account");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in.");
-    } finally { setBusy(false); }
+    } finally { setBusy(false); captchaRef.current?.reset(); }
   }
 
   return (
@@ -39,8 +43,9 @@ export default function CustomerLoginPage() {
         <form onSubmit={submit} className="mt-7 space-y-4">
           <label className="block text-sm font-semibold">Email<input className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-slate-400" type="email" value={email} onChange={(e)=>setEmail(e.target.value)} required /></label>
           <label className="block text-sm font-semibold">Password<input className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-slate-400" type="password" value={password} onChange={(e)=>setPassword(e.target.value)} required /></label>
+          <Turnstile ref={captchaRef} siteKey={siteKey} onToken={setCaptchaToken} action="login" />
           {error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
-          <button disabled={busy} className="w-full rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white disabled:opacity-50">{busy ? "Signing in…" : "Sign in"}</button>
+          <button disabled={busy || Boolean(siteKey && !captchaToken)} className="w-full rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white disabled:opacity-50">{busy ? "Signing in…" : "Sign in"}</button>
         </form>
         <p className="mt-6 text-center text-sm text-slate-500">New to AzadiMart? <Link href="/register" className="font-semibold text-slate-950 underline">Create account</Link></p>
       </div>

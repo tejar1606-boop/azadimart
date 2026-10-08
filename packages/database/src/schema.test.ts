@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getTableName } from "drizzle-orm";
 import {
   auditLogs,
+  loginAttempts,
   banners,
   brands,
   cartItems,
@@ -110,6 +111,7 @@ const tables = {
   coupons,
   coupon_redemptions: couponRedemptions,
   audit_logs: auditLogs,
+  login_attempts: loginAttempts,
 };
 
 describe("marketplace schema", () => {

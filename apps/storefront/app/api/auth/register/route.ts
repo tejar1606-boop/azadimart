@@ -1,4 +1,4 @@
-import { hashPassword } from "@azadimart/auth";
+import { getClientIp, hashPassword, verifyCaptcha } from "@azadimart/auth";
 import { createDatabase, customers, users } from "@azadimart/database";
 import { AppError, customerRegistrationSchema, toApiError } from "@azadimart/shared";
 import { eq } from "drizzle-orm";
@@ -8,6 +8,7 @@ export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
     const input = customerRegistrationSchema.parse(await request.json());
+    await verifyCaptcha(input.captchaToken, getClientIp(request));
     const db = createDatabase();
 
     const [existingEmail, existingPhone] = await Promise.all([

@@ -1,4 +1,4 @@
-import { loginUser, sessionCookie } from "@azadimart/auth";
+import { protectedLogin, sessionCookie } from "@azadimart/auth";
 import { createDatabase } from "@azadimart/database";
 import { loginSchema, toApiError } from "@azadimart/shared";
 import { NextResponse } from "next/server";
@@ -8,7 +8,7 @@ export async function POST(request: Request) {
 
   try {
     const input = loginSchema.parse(await request.json());
-    const result = await loginUser(createDatabase(), input.email, input.password, ["CUSTOMER"]);
+    const result = await protectedLogin(createDatabase(), request, input, "storefront", ["CUSTOMER"]);
     const response = NextResponse.json({
       ok: true,
       userId: result.userId,
@@ -19,6 +19,7 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     const { status, body } = toApiError(error, requestId);
-    return NextResponse.json(body, { status });
+    const retryAfter = (body.error.details as { retryAfterSeconds?: number } | undefined)?.retryAfterSeconds;
+    return NextResponse.json(body, { status, headers: retryAfter ? { "Retry-After": String(retryAfter) } : undefined });
   }
 }

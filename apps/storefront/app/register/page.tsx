@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
+import { Turnstile, type TurnstileHandle } from "@azadimart/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -8,18 +9,21 @@ export default function CustomerRegisterPage() {
   const router = useRouter();
   const [form,setForm]=useState({fullName:"",email:"",phone:"",password:""});
   const [error,setError]=useState("");
+  const [captchaToken, setCaptchaToken] = useState<string>();
+  const captchaRef = useRef<TurnstileHandle>(null);
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const [busy,setBusy]=useState(false);
   const set=(key:keyof typeof form,value:string)=>setForm((v)=>({...v,[key]:value}));
 
   async function submit(event:FormEvent){
     event.preventDefault(); setError(""); setBusy(true);
     try{
-      const response=await fetch("/api/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)});
+      const response=await fetch("/api/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...form,captchaToken})});
       const body=await response.json();
       if(!response.ok) throw new Error(body?.error?.message ?? "Unable to create your account.");
       router.replace("/login");
     }catch(err){setError(err instanceof Error ? err.message : "Unable to create your account.");}
-    finally{setBusy(false);}
+    finally{setBusy(false);captchaRef.current?.reset();}
   }
 
   return (
@@ -34,8 +38,9 @@ export default function CustomerRegisterPage() {
           <label className="block text-sm font-semibold">Email<input className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" type="email" value={form.email} onChange={(e)=>set("email",e.target.value)} required /></label>
           <label className="block text-sm font-semibold">Mobile number<input className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" type="tel" inputMode="numeric" maxLength={10} value={form.phone} onChange={(e)=>set("phone",e.target.value.replace(/\D/g,"").slice(0,10))} required /></label>
           <label className="block text-sm font-semibold">Password<input className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" type="password" minLength={8} value={form.password} onChange={(e)=>set("password",e.target.value)} required /></label>
+          <Turnstile ref={captchaRef} siteKey={siteKey} onToken={setCaptchaToken} action="register" />
           {error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
-          <button disabled={busy} className="w-full rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white disabled:opacity-50">{busy ? "Creating account…" : "Create account"}</button>
+          <button disabled={busy || Boolean(siteKey && !captchaToken)} className="w-full rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white disabled:opacity-50">{busy ? "Creating account…" : "Create account"}</button>
         </form>
         <p className="mt-6 text-center text-sm text-slate-500">Already registered? <Link href="/login" className="font-semibold text-slate-950 underline">Sign in</Link></p>
       </div>

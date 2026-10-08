@@ -54,6 +54,28 @@ export const sessions = pgTable(
   ],
 );
 
+// Every login attempt (success or failure) for brute-force protection and audit.
+// Keyed by the submitted email, not user id, so unknown emails are throttled
+// the same way as real accounts.
+export const loginAttempts = pgTable(
+  "login_attempts",
+  {
+    id,
+    email: text("email").notNull(),
+    ipAddress: text("ip_address").notNull(),
+    audience: text("audience").notNull(),
+    success: boolean("success").notNull(),
+    reason: text("reason"),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("login_attempts_email_created_idx").on(table.email, table.createdAt),
+    index("login_attempts_ip_created_idx").on(table.ipAddress, table.createdAt),
+  ],
+);
+
 export const customers = pgTable("customers", {
   id,
   userId: uuid("user_id")

@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
+import { Turnstile, type TurnstileHandle } from "@azadimart/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -30,6 +31,9 @@ export default function RegisterPage() {
     password: "",
   });
   const [error, setError] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string>();
+  const captchaRef = useRef<TurnstileHandle>(null);
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const [loading, setLoading] = useState(false);
 
   function setField(name: keyof typeof form, value: string | boolean) {
@@ -50,6 +54,7 @@ export default function RegisterPage() {
         ...form,
         gstin: form.gstin.trim() || undefined,
         gstEnrolmentId: form.gstEnrolmentId.trim().toUpperCase() || undefined,
+        captchaToken,
       };
 
       const response = await fetch("/api/auth/register", {
@@ -69,6 +74,7 @@ export default function RegisterPage() {
       setError("Unable to register right now. Please try again.");
     } finally {
       setLoading(false);
+      captchaRef.current?.reset();
     }
   }
 
@@ -165,10 +171,11 @@ export default function RegisterPage() {
             <input className="mt-2 w-full max-w-xl rounded-lg border border-slate-300 px-3 py-2.5" type="password" autoComplete="new-password" minLength={8} value={form.password} onChange={(e) => setField("password", e.target.value)} required />
           </label>
 
+          <Turnstile ref={captchaRef} siteKey={siteKey} onToken={setCaptchaToken} action="register" className="sm:col-span-2" />
           {error ? <p className="text-sm text-red-600 sm:col-span-2">{error}</p> : null}
 
           <div className="flex flex-wrap items-center gap-4 sm:col-span-2">
-            <button className="rounded-lg bg-saffron px-5 py-2.5 font-medium text-white disabled:opacity-60" type="submit" disabled={loading}>
+            <button className="rounded-lg bg-saffron px-5 py-2.5 font-medium text-white disabled:opacity-60" type="submit" disabled={loading || Boolean(siteKey && !captchaToken)}>
               {loading ? "Creating account…" : "Create seller account"}
             </button>
             <Link href="/login" className="text-sm text-saffron underline">Already registered? Sign in</Link>

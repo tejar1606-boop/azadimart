@@ -7,14 +7,15 @@ export const paginationSchema = z.object({ page:z.coerce.number().int().min(1).d
 export const moneySchema = z.object({ amountPaise:z.number().int().nonnegative(), currency:z.literal("INR").default("INR") });
 
 export const sellerRegistrationSchema = z.object({
-  storeName:z.string().trim().min(2).max(120), legalName:z.string().trim().min(2).max(160), email:z.string().email(),
+  storeName:z.string().trim().min(2).max(120), legalName:z.string().trim().min(2).max(160), email:z.string().trim().email().max(254).transform((value)=>value.toLowerCase()),
   phone:z.string().regex(/^[6-9]\d{9}$/, "Enter a valid Indian mobile number"),
   businessState:z.string().trim().min(2).max(80),
   taxIdentityType:z.enum(["GSTIN","ENROLMENT_ID"]),
   gstin:z.string().trim().toUpperCase().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/).optional(),
   gstEnrolmentId:z.string().trim().toUpperCase().regex(/^[A-Z0-9]{15}$/, "Enter the 15-character GST Enrolment ID").optional(),
   taxDeclarationAccepted:z.literal(true),
-  password:z.string().min(8).max(256)
+  password:z.string().min(8).max(256),
+  captchaToken:z.string().max(2048).optional(),
 }).superRefine((value, ctx) => {
   if (value.taxIdentityType === "GSTIN" && !value.gstin) {
     ctx.addIssue({ code:"custom", path:["gstin"], message:"GSTIN is required when GST registration is selected" });
@@ -160,11 +161,12 @@ export const shipmentStatusUpdateSchema = z.object({
   notes:z.string().trim().max(500).optional(),
 });
 
-export const loginSchema = z.object({ email:z.string().trim().email().max(254).transform((value)=>value.toLowerCase()), password:z.string().min(8).max(256) });
+export const loginSchema = z.object({ email:z.string().trim().email().max(254).transform((value)=>value.toLowerCase()), password:z.string().min(8).max(256), captchaToken:z.string().max(2048).optional() });
 export const customerRegistrationSchema = z.object({
   fullName: z.string().trim().min(2).max(120),
   email: z.string().trim().email().max(254).transform((value)=>value.toLowerCase()),
   phone: z.string().regex(/^[6-9]\d{9}$/, "Enter a valid Indian mobile number"),
   password: z.string().min(8).max(256),
+  captchaToken: z.string().max(2048).optional(),
 });
 export const roleSchema = z.enum(ROLES);

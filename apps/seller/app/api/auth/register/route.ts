@@ -1,4 +1,4 @@
-import { hashPassword } from "@azadimart/auth";
+import { getClientIp, hashPassword, verifyCaptcha } from "@azadimart/auth";
 import {
   createDatabase,
   sellerSettings,
@@ -21,6 +21,7 @@ export async function POST(request: Request) {
 
   try {
     const input = sellerRegistrationSchema.parse(await request.json());
+    await verifyCaptcha(input.captchaToken, getClientIp(request));
     const db = createDatabase();
 
     const existing = await db
