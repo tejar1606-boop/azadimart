@@ -125,7 +125,14 @@ export default async function HomePage() {
 
   return (
     <main className="bg-canvas">
-      {sections.map((section) => <StoreSection key={section.id} section={section} data={data} />)}
+      {sections.map((section) => {
+        // "Show on": desktop-only sections start at 1024 px; mobile-only ones stop there.
+        const showOn = section.settings.showOn;
+        const content = <StoreSection section={section} data={data} />;
+        if (showOn === "desktop") return <div key={section.id} className="hidden lg:block">{content}</div>;
+        if (showOn === "mobile") return <div key={section.id} className="lg:hidden">{content}</div>;
+        return <div key={section.id} className="contents">{content}</div>;
+      })}
       {!showsProducts && data.products.length ? (
         <Container className="py-10 sm:py-14">
           <SectionHeading eyebrow="Just in" heading="Fresh from our sellers" actionLabel="Shop all" actionHref="/products" />
@@ -191,6 +198,7 @@ function StoreSection({ section, data }: { section: HomeSection; data: HomeData 
     case "hero": return <Hero s={s} />;
     case "marquee": return <Marquee s={s} />;
     case "promo_banner": return <PromoBanner s={s} />;
+    case "banner_row": return <BannerRow s={s} />;
     case "category_grid": return <CategoryGrid s={s} categories={data.categories} />;
     case "featured_products": return <FeaturedProducts s={s} products={data.products} />;
     case "sales_coupons": return <Coupons s={s} coupons={data.coupons} />;
@@ -309,6 +317,38 @@ function PromoBanner({ s }: { s: Settings }) {
       ) : (
         <div className="overflow-hidden rounded-xl bg-slate-200">{images}</div>
       )}
+    </Container>
+  );
+}
+
+/**
+ * Banner row (Meesho-style mid-page banners): 1–3 clickable image banners side
+ * by side between product sections. One banner is 4:1, two are 2:1 each,
+ * three are 4:3 each. On phones they stack.
+ */
+function BannerRow({ s }: { s: Settings }) {
+  const banners = (Array.isArray(s.banners) ? s.banners : [])
+    .filter((b): b is Settings => Boolean(b) && typeof b === "object" && typeof (b as Settings).imageUrl === "string" && Boolean((b as Settings).imageUrl))
+    .slice(0, 3);
+  if (!banners.length) return null;
+  const aspect = banners.length === 1 ? "aspect-[4/1]" : banners.length === 2 ? "aspect-[2/1]" : "aspect-[4/3]";
+  const cols = banners.length === 1 ? "" : banners.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3";
+  const heading = str(s, "heading");
+  return (
+    <Container className="py-5 sm:py-7">
+      {heading ? <h2 className="mb-4 text-xl font-semibold tracking-[-0.03em] sm:text-2xl">{heading}</h2> : null}
+      <div className={"grid gap-3 sm:gap-4 " + cols}>
+        {banners.map((b, i) => {
+          const alt = str(b, "alt", heading || "AzadiMart offer");
+          const href = str(b, "href") ? safeHref(str(b, "href")) : undefined;
+          const art = (
+            <span className={"relative block overflow-hidden rounded-xl bg-slate-200 " + aspect}>
+              <Image src={str(b, "imageUrl")} alt={alt} fill sizes={banners.length === 1 ? "(max-width:1280px) 100vw, 1232px" : "(max-width:640px) 100vw, 40vw"} className="object-cover transition duration-500 group-hover:scale-[1.02]" unoptimized />
+            </span>
+          );
+          return href ? <Link key={i} href={href} className="group block" aria-label={alt}>{art}</Link> : <div key={i}>{art}</div>;
+        })}
+      </div>
     </Container>
   );
 }

@@ -2,6 +2,7 @@ export const SECTION_TYPES = [
   "hero",
   "marquee",
   "promo_banner",
+  "banner_row",
   "featured_products",
   "category_grid",
   "trust_strip",
@@ -14,6 +15,17 @@ export const SECTION_TYPES = [
 ] as const;
 
 export type SectionType = (typeof SECTION_TYPES)[number];
+
+/** Which screens a homepage section appears on (settings.showOn). Desktop means 1024 px and wider. */
+export const SECTION_SHOW_ON = ["all", "desktop", "mobile"] as const;
+export type SectionShowOn = (typeof SECTION_SHOW_ON)[number];
+
+/** Banner row: 1–3 clickable banners side by side. Recommended size per banner, by count. */
+export const BANNER_ROW_SIZES: Record<1 | 2 | 3, { width: number; height: number }> = {
+  1: { width: 1800, height: 450 },
+  2: { width: 880, height: 440 },
+  3: { width: 600, height: 450 },
+};
 
 export type ThemeSectionDraft = {
   id?: string;

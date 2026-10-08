@@ -3,6 +3,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { DEFAULT_HOME_SECTIONS, SECTION_TYPES, type ThemeSectionDraft } from "@azadimart/shared";
+import BannerRowField, { type RowBanner } from "./banner-row-field";
 import HeroSlidesField, { slidesFromSettings } from "./hero-slides-field";
 import MediaField from "./media-field";
 import NavigationEditor from "./navigation-editor";
@@ -11,12 +12,17 @@ type Row = ThemeSectionDraft & { id:string };
 type HomepageSectionResponse = { id:string; type:string; position:number; isVisible:boolean; settings:Record<string,unknown> };
 
 const LABELS: Record<string,string> = {
-  hero:"Hero banner", marquee:"Scrolling highlights strip", promo_banner:"Promo banner", category_grid:"Category grid", featured_products:"Featured products",
+  hero:"Hero banner", marquee:"Scrolling highlights strip", promo_banner:"Promo banner", banner_row:"Banner row (1–3 banners)", category_grid:"Category grid", featured_products:"Featured products",
   sales_coupons:"Sales coupons", image_banner:"Image + text banner", trust_strip:"Trust & value strip", rich_text:"Rich text",
   video:"Video", seller_cta:"Seller callout", newsletter:"Newsletter",
 };
 
-function defaults(type:string){ return DEFAULT_HOME_SECTIONS.find((s)=>s.type===type)?.settings ?? {heading:LABELS[type] ?? "New section"}; }
+function defaults(type:string){
+  // Mid-page banner rows are usually a desktop feature (like Meesho); start them desktop-only with two empty banners.
+  if(type==="banner_row") return {heading:"",showOn:"desktop",banners:[{},{}]};
+  return DEFAULT_HOME_SECTIONS.find((s)=>s.type===type)?.settings ?? {heading:LABELS[type] ?? "New section"};
+}
+const SHOW_ON_LABEL: Record<string,string> = { all:"All devices", desktop:"Desktop only", mobile:"Mobile only" };
 function val(s:Row,key:string){ return String(s.settings[key] ?? ""); }
 /** A value, or an updater applied to the latest settings (avoids lost updates when async uploads finish together). */
 type SettingValue = unknown | ((settings:Record<string,unknown>)=>unknown);
@@ -72,9 +78,15 @@ export default function OnlineStoreEditor(){
       <section className="space-y-3">
         {sections.map((s,i)=><article key={s.id} className={"rounded-2xl border bg-white p-4 shadow-sm "+(s.isVisible?"border-slate-200":"border-dashed border-slate-300 opacity-60")}>
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div className="flex items-start gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950 text-xs font-bold text-white">{i+1}</span><div><h2 className="font-semibold">{LABELS[s.type] ?? s.type}</h2><p className="text-xs text-slate-500">{s.type}</p></div></div>
+            <div className="flex items-start gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950 text-xs font-bold text-white">{i+1}</span><div><h2 className="flex flex-wrap items-center gap-2 font-semibold">{LABELS[s.type] ?? s.type}{s.settings.showOn==="desktop"||s.settings.showOn==="mobile" ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">{SHOW_ON_LABEL[String(s.settings.showOn)]}</span> : null}</h2><p className="text-xs text-slate-500">{s.type}</p></div></div>
             <div className="flex flex-wrap gap-2"><button onClick={()=>move(i,-1)} className="rounded-md border px-2.5 py-1.5 text-xs">↑</button><button onClick={()=>move(i,1)} className="rounded-md border px-2.5 py-1.5 text-xs">↓</button><button onClick={()=>setSections(x=>x.map((v,idx)=>idx===i?{...v,isVisible:!v.isVisible}:v))} className="rounded-md border px-2.5 py-1.5 text-xs">{s.isVisible?"Hide":"Show"}</button><button onClick={()=>remove(i)} className="rounded-md border border-red-200 px-2.5 py-1.5 text-xs text-red-600">Remove</button></div>
           </div>
+          <label className="mt-4 flex flex-wrap items-center gap-2 text-sm font-medium">Show on
+            <select className="rounded-lg border p-2 text-sm" value={String(s.settings.showOn ?? "all")} onChange={e=>setSections(x=>x.map((v,idx)=>idx===i?setVal(v,"showOn",e.target.value):v))}>
+              {Object.entries(SHOW_ON_LABEL).map(([value,label])=><option key={value} value={value}>{label}</option>)}
+            </select>
+            <span className="text-xs font-normal text-slate-500">Desktop = screens 1024 px and wider (laptops, desktops).</span>
+          </label>
           <SectionFields section={s} onChange={(key,value)=>setSections(x=>x.map((v,idx)=>idx===i?setVal(v,key,value):v))}/>
         </article>)}
 
@@ -92,11 +104,16 @@ export default function OnlineStoreEditor(){
 
 function SectionFields({section,onChange}:{section:Row;onChange:(key:string,value:SettingValue)=>void}){
   const t=section.type;
-  const common=["hero","marquee","promo_banner","image_banner","category_grid","trust_strip","featured_products","sales_coupons","seller_cta","newsletter","rich_text","video"].includes(t);
+  const common=["hero","marquee","promo_banner","banner_row","image_banner","category_grid","trust_strip","featured_products","sales_coupons","seller_cta","newsletter","rich_text","video"].includes(t);
   if(!common) return null;
   return <div className="mt-4 grid gap-3 md:grid-cols-2">
-    {t!=="category_grid" && t!=="marquee" && t!=="promo_banner" && <Field label="Heading"><input className="w-full rounded-lg border p-2.5" value={val(section,"heading")} onChange={e=>onChange("heading",e.target.value)}/></Field>}
-    {t!=="hero" && t!=="image_banner" && t!=="marquee" && t!=="promo_banner" && <Field label="Subtitle"><input className="w-full rounded-lg border p-2.5" value={val(section,"subtitle")} onChange={e=>onChange("subtitle",e.target.value)}/></Field>}
+    {t!=="category_grid" && t!=="marquee" && t!=="promo_banner" && t!=="banner_row" && <Field label="Heading"><input className="w-full rounded-lg border p-2.5" value={val(section,"heading")} onChange={e=>onChange("heading",e.target.value)}/></Field>}
+    {t==="banner_row" && <>
+      <Field label="Heading above the banners (optional)" wide><input className="w-full rounded-lg border p-2.5" placeholder="e.g. Deals of the day" value={val(section,"heading")} onChange={e=>onChange("heading",e.target.value)}/></Field>
+      <BannerRowField banners={Array.isArray(section.settings.banners)?section.settings.banners as RowBanner[]:[]} onChange={(update)=>onChange("banners",(settings:Record<string,unknown>)=>update(Array.isArray(settings.banners)?settings.banners as RowBanner[]:[]))}/>
+      <p className="text-xs text-slate-500 md:col-span-2">Place this row between product sections with the ↑ ↓ arrows. Banners without an image are hidden on the store.</p>
+    </>}
+    {t!=="hero" && t!=="image_banner" && t!=="marquee" && t!=="promo_banner" && t!=="banner_row" && <Field label="Subtitle"><input className="w-full rounded-lg border p-2.5" value={val(section,"subtitle")} onChange={e=>onChange("subtitle",e.target.value)}/></Field>}
     {(t==="hero"||t==="image_banner") && <><Field label="Eyebrow"><input className="w-full rounded-lg border p-2.5" value={val(section,"eyebrow")} onChange={e=>onChange("eyebrow",e.target.value)}/></Field><Field label="Heading"><input className="w-full rounded-lg border p-2.5" value={val(section,"heading")} onChange={e=>onChange("heading",e.target.value)}/></Field><Field label="Description" wide><textarea className="min-h-24 w-full rounded-lg border p-2.5" value={val(section,"description")} onChange={e=>onChange("description",e.target.value)}/></Field><Field label="Button label"><input className="w-full rounded-lg border p-2.5" value={val(section,t==="hero"?"primaryLabel":"buttonLabel")} onChange={e=>onChange(t==="hero"?"primaryLabel":"buttonLabel",e.target.value)}/></Field><Field label="Button link"><input className="w-full rounded-lg border p-2.5" value={val(section,t==="hero"?"primaryHref":"buttonHref")} onChange={e=>onChange(t==="hero"?"primaryHref":"buttonHref",e.target.value)}/></Field>{t==="hero" ? <>
       <HeroSlidesField slides={slidesFromSettings(section.settings)} onChange={(update)=>onChange("slides",(settings:Record<string,unknown>)=>update(slidesFromSettings(settings)))}/>
       <p className="text-xs text-slate-500 md:col-span-2">The heading, text and buttons above are used for the designed banner shown when there are no slides.</p>
@@ -126,6 +143,10 @@ function Preview({section}:{section:Row}){
   if(section.type==="hero") return <div className="min-h-44 bg-slate-950 p-5 text-white"><p className="text-[10px] uppercase tracking-[0.18em] text-amber-300">{String(s.eyebrow??"Made for India")}</p><h3 className="mt-2 text-2xl font-bold leading-tight">{heading}</h3><p className="mt-2 text-xs text-slate-300">{String(s.description??"")}</p><button className="mt-4 rounded-full bg-white px-4 py-2 text-xs font-bold text-slate-950">{String(s.primaryLabel??"Shop now")}</button></div>;
   if(section.type==="category_grid") return <div className="bg-white p-4"><h3 className="text-sm font-bold">{String(s.heading??"Shop by category")}</h3><p className="text-[11px] text-slate-500">{String(s.subtitle??"")}</p><div className="mt-3 grid grid-cols-2 gap-2">{(Array.isArray(s.categories)?s.categories:[]).slice(0,4).map((c:unknown)=><div key={String(c)} className="rounded-lg bg-slate-100 p-3 text-[11px] font-semibold">{String(c)}</div>)}</div></div>;
   if(section.type==="promo_banner") return s.desktopImageUrl ? <div className="bg-white p-2"><div className="aspect-[1800/320] w-full bg-cover bg-center" style={{backgroundImage:`url("${String(s.desktopImageUrl).replace(/"/g,"")}")`}}/></div> : <div className="grid aspect-[1800/320] place-items-center bg-slate-100 text-[11px] font-semibold text-slate-400">Promo banner · upload 1800 × 320</div>;
+  if(section.type==="banner_row"){
+    const banners=(Array.isArray(s.banners)?s.banners:[]) as RowBanner[];
+    return <div className="bg-white p-2">{s.heading?<p className="px-1 pb-1.5 text-xs font-bold">{String(s.heading)}</p>:null}<div className={"grid gap-1.5 "+(banners.length===2?"grid-cols-2":banners.length>=3?"grid-cols-3":"")}>{(banners.length?banners:[{}]).slice(0,3).map((b,i)=>b.imageUrl?<div key={i} className={"w-full rounded bg-cover bg-center "+(banners.length<=1?"aspect-[4/1]":banners.length===2?"aspect-[2/1]":"aspect-[4/3]")} style={{backgroundImage:`url("${String(b.imageUrl).replace(/"/g,"")}")`}}/>:<div key={i} className={"grid place-items-center rounded bg-slate-100 text-[10px] font-semibold text-slate-400 "+(banners.length<=1?"aspect-[4/1]":banners.length===2?"aspect-[2/1]":"aspect-[4/3]")}>Banner {i+1}</div>)}</div></div>;
+  }
   if(section.type==="marquee") return <div className="overflow-hidden bg-black px-4 py-3 text-[11px] font-medium uppercase tracking-[0.12em] text-white">{(Array.isArray(s.items)&&s.items.length?s.items:["Cash on Delivery available","KYC-verified sellers","Easy 7-day returns"]).filter((v):v is string=>typeof v==="string").join("  ✦  ")}</div>;
   if(section.type==="trust_strip") return <div className="grid grid-cols-2 border-y bg-white p-3">{(Array.isArray(s.items)?s.items:[]).filter((v):v is string=>typeof v==="string").slice(0,4).map((item)=><div key={item} className="p-2 text-center text-[10px] font-semibold text-slate-700">{item}</div>)}</div>;
   if(section.type==="seller_cta") return <div className="bg-slate-950 p-5 text-white"><p className="text-[10px] uppercase tracking-[0.18em] text-amber-300">{String(s.eyebrow??"Built for ambitious sellers")}</p><h3 className="mt-2 text-lg font-bold">{String(s.heading??"Take your business online.")}</h3><p className="mt-2 text-xs text-slate-300">{String(s.description??"")}</p><div className="mt-4 h-8 rounded-full bg-white/10"/></div>;
