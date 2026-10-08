@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { directUpload, PortalPageHeader, readImageSize } from "@azadimart/ui";
+import SeoFields from "../../_components/seo-fields";
 
 type Variant = { id: string; title: string; sku: string; pricePaise: number; compareAtPaise: number | null; weightGrams: number; isActive: boolean; onHand: number; reserved: number };
 type Media = { mediaAssetId: string; kind: "IMAGE" | "VIDEO"; url: string };
 type Detail = {
-  product: { id: string; title: string; slug: string; description: string | null; status: string; categoryId: string; sellerName: string };
+  product: { id: string; title: string; slug: string; description: string | null; metaTitle: string | null; metaDescription: string | null; status: string; categoryId: string; sellerName: string };
   variants: Variant[];
   media: Media[];
   categories: Array<{ id: string; name: string; isActive: boolean }>;
@@ -26,6 +27,8 @@ export default function ProductEditor({ productId, storefrontUrl }: { productId:
   const [data, setData] = useState<Detail | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [metaTitle, setMetaTitle] = useState("");
+  const [metaDescription, setMetaDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [variants, setVariants] = useState<Array<Variant & { price: string; mrp: string }>>([]);
   const [images, setImages] = useState<Media[]>([]);
@@ -45,6 +48,8 @@ export default function ProductEditor({ productId, storefrontUrl }: { productId:
     setData(body);
     setTitle(body.product.title);
     setDescription(body.product.description ?? "");
+    setMetaTitle(body.product.metaTitle ?? "");
+    setMetaDescription(body.product.metaDescription ?? "");
     setCategoryId(body.product.categoryId);
     setVariants(body.variants.map((v: Variant) => ({ ...v, price: rupees(v.pricePaise), mrp: rupees(v.compareAtPaise) })));
     setImages(body.media.filter((m: Media) => m.kind === "IMAGE"));
@@ -74,7 +79,7 @@ export default function ProductEditor({ productId, storefrontUrl }: { productId:
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title, description, categoryId,
+          title, description, categoryId, metaTitle, metaDescription,
           variants: variants.map((v) => ({ id: v.id, title: v.title, sku: v.sku, pricePaise: toPaise(v.price), compareAtPaise: v.mrp ? toPaise(v.mrp) : null, weightGrams: Number(v.weightGrams) || 0, onHand: Number(v.onHand) || 0, isActive: v.isActive })),
           imageAssetIds: images.map((m) => m.mediaAssetId),
           videoAssetId: video?.mediaAssetId ?? null,
@@ -152,6 +157,22 @@ export default function ProductEditor({ productId, storefrontUrl }: { productId:
                 </select>
               </label>
               <label className="text-sm font-medium">Description<textarea className={field + " min-h-36"} value={description} maxLength={20000} onChange={(e) => setDescription(e.target.value)} /></label>
+            </div>
+          </section>
+
+          <section className={card}>
+            <h2 className="font-semibold">Search engine (SEO)</h2>
+            <p className="mt-1 text-sm text-slate-500">How this product appears on Google and when the link is shared on WhatsApp.</p>
+            <div className="mt-4">
+              <SeoFields
+                title={metaTitle}
+                description={metaDescription}
+                onTitle={setMetaTitle}
+                onDescription={setMetaDescription}
+                autoTitle={`${title || "Product name"} – Buy online at ₹${variants[0]?.price || "…"}`}
+                autoDescription={`Buy ${title || "this product"} for ₹${variants[0]?.price || "…"} from ${data.product.sellerName}, a verified seller on AzadiMart. Cash on Delivery and easy returns.`}
+                path={"/products/" + data.product.slug}
+              />
             </div>
           </section>
 

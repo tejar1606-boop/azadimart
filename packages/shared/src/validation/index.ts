@@ -197,6 +197,9 @@ export const adminProductUpdateSchema = z.object({
   }).refine((v) => !v.compareAtPaise || v.compareAtPaise >= v.pricePaise, { message: "MRP can't be lower than the price", path: ["compareAtPaise"] })).min(1).max(50),
   imageAssetIds: z.array(uuidSchema).min(1, "Keep at least one product image").max(PRODUCT_MEDIA_LIMITS.maxImages).refine((ids) => new Set(ids).size === ids.length, "Duplicate images"),
   videoAssetId: uuidSchema.nullable().optional(),
+  // SEO overrides (empty = generated automatically from the product).
+  metaTitle: z.string().trim().max(70, "Keep the search title under 70 characters").optional().default(""),
+  metaDescription: z.string().trim().max(170, "Keep the search description under 170 characters").optional().default(""),
 });
 export const adminProductStatusSchema = z.object({ action: z.enum(["hide", "show", "archive", "restore"]), reason: z.string().trim().max(500).optional() });
 
@@ -206,7 +209,11 @@ export const adminCategoryUpdateSchema = z.object({
   name: categoryName.optional(),
   isActive: z.boolean().optional(),
   parentId: uuidSchema.nullable().optional(),
-}).refine((v) => v.name !== undefined || v.isActive !== undefined || v.parentId !== undefined, "Nothing to update");
+  // SEO: search title/description and the intro shown on the category page ("" clears).
+  metaTitle: z.string().trim().max(70, "Keep the search title under 70 characters").optional(),
+  metaDescription: z.string().trim().max(170, "Keep the search description under 170 characters").optional(),
+  description: z.string().trim().max(3000).optional(),
+}).refine((v) => Object.values(v).some((x) => x !== undefined), "Nothing to update");
 /** Sibling categories in their new order. */
 export const adminCategoryOrderSchema = z.object({ ids: z.array(uuidSchema).min(1).max(500).refine((ids) => new Set(ids).size === ids.length, "Duplicate categories") });
 /** Live products in their new storefront order (all of them, or one category's). */

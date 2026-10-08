@@ -99,6 +99,13 @@
       "when": 1791472977176,
       "tag": "20261008152257_product_position",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791480750783,
+      "tag": "20261008173230_seo_fields",
+      "breakpoints": true
     }
   ]
 }

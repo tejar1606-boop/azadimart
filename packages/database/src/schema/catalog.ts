@@ -24,6 +24,10 @@ export const categories = pgTable(
     name: text("name").notNull(),
     isActive: boolean("is_active").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
+    // SEO: search-result title/description (auto-generated when empty) and an intro shown on the category page.
+    metaTitle: text("meta_title"),
+    metaDescription: text("meta_description"),
+    description: text("description"),
     ...timestamps,
   },
   (table) => [
@@ -64,6 +68,9 @@ export const products = pgTable(
     status: productStatusEnum("status").notNull().default("DRAFT"),
     // Storefront display order set by admins (1 = first). Null = not arranged yet; shown after arranged products, newest first.
     position: integer("position"),
+    // SEO overrides for search results and link previews; auto-generated from the product when empty.
+    metaTitle: text("meta_title"),
+    metaDescription: text("meta_description"),
     ...timestamps,
   },
   (table) => [

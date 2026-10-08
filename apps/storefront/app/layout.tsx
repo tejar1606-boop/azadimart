@@ -5,6 +5,7 @@ import MobileTabBar from "./components/mobile-tab-bar";
 import SiteFooter from "./components/site-footer";
 import SiteHeader from "./components/site-header";
 import { getStoreChrome } from "./lib/chrome";
+import { SITE_NAME, SITE_URL } from "./lib/seo";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -14,6 +15,8 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
+  // Makes canonical and preview-image URLs absolute.
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "AzadiMart — One trusted Indian marketplace",
     template: "%s | AzadiMart",
@@ -27,8 +30,11 @@ export const metadata: Metadata = {
     description:
       "A modern Indian marketplace built around verified sellers and a trustworthy customer experience.",
     type: "website",
-    siteName: "AzadiMart",
+    siteName: SITE_NAME,
+    locale: "en_IN",
   },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 } },
+  formatDetection: { telephone: false },
   twitter: {
     card: "summary_large_image",
     title: "AzadiMart — One trusted Indian marketplace",
@@ -40,7 +46,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#000000",
+  themeColor: "#0b2a5b",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

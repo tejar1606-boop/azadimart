@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { PortalPageHeader } from "@azadimart/ui";
+import SeoFields from "../../_components/seo-fields";
 
-type Category = { id: string; name: string; slug: string; parentId: string | null; isActive: boolean; sortOrder: number; productCount: number; liveCount: number };
+type Category = { id: string; name: string; slug: string; parentId: string | null; isActive: boolean; sortOrder: number; productCount: number; liveCount: number; metaTitle: string | null; metaDescription: string | null; description: string | null };
+type SeoDraft = { id: string; name: string; slug: string; metaTitle: string; metaDescription: string; description: string };
 
 const field = "h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-slate-900";
 const small = "grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-xs hover:border-slate-900 disabled:opacity-30";
@@ -19,6 +21,7 @@ export default function CategoriesPage() {
   const [parentId, setParentId] = useState("");
   const [editing, setEditing] = useState<{ id: string; name: string; parentId: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Category | null>(null);
+  const [seo, setSeo] = useState<SeoDraft | null>(null);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/v1/catalog/categories", { cache: "no-store" });
@@ -98,6 +101,7 @@ export default function CategoriesPage() {
           <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
             <Link href={`/catalog/arrange?categoryId=${category.id}`} className="rounded-full px-3 py-1.5 ring-1 ring-slate-200 hover:ring-slate-900">Products &amp; order</Link>
             <button type="button" onClick={() => setEditing({ id: category.id, name: category.name, parentId: category.parentId ?? "" })} className="rounded-full px-3 py-1.5 ring-1 ring-slate-200 hover:ring-slate-900">Edit</button>
+            <button type="button" onClick={() => setSeo({ id: category.id, name: category.name, slug: category.slug, metaTitle: category.metaTitle ?? "", metaDescription: category.metaDescription ?? "", description: category.description ?? "" })} className={"rounded-full px-3 py-1.5 ring-1 hover:ring-slate-900 " + (category.metaTitle || category.description ? "text-india ring-india/30" : "ring-slate-200")} title="Search engine text and page intro">SEO</button>
             <button type="button" disabled={busy} onClick={() => void call(`/api/v1/catalog/categories/${category.id}`, { method: "PATCH", body: JSON.stringify({ isActive: !category.isActive }) }, category.isActive ? `${category.name} is hidden from the store.` : `${category.name} is visible on the store.`)} className="rounded-full px-3 py-1.5 ring-1 ring-slate-200 hover:ring-slate-900">{category.isActive ? "Hide" : "Show"}</button>
             <button type="button" disabled={busy || category.productCount > 0 || hasChildren} title={category.productCount > 0 ? "Move its products to another category first" : hasChildren ? "Remove its sub-categories first" : "Delete"} onClick={() => setConfirmDelete(category)} className="rounded-full px-3 py-1.5 text-red-600 ring-1 ring-red-200 hover:bg-red-50 disabled:opacity-30">Delete</button>
           </div>
@@ -153,6 +157,36 @@ export default function CategoriesPage() {
         )}
       </div>
       <p className="mt-3 text-xs text-slate-500">The order here is the order of category tiles and menus on the store. A category can only be deleted when it has no products; hide it instead to keep its products.</p>
+
+      {seo ? (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="seo-title">
+          <form className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-lift" onSubmit={(e) => {
+            e.preventDefault();
+            void call(`/api/v1/catalog/categories/${seo.id}`, { method: "PATCH", body: JSON.stringify({ metaTitle: seo.metaTitle, metaDescription: seo.metaDescription, description: seo.description }) }, `SEO saved for ${seo.name}.`).then((ok) => ok && setSeo(null));
+          }}>
+            <h2 id="seo-title" className="text-lg font-semibold">SEO · {seo.name}</h2>
+            <p className="mt-1 text-sm text-slate-500">Help shoppers find this category on Google.</p>
+            <label className="mt-5 block text-sm font-medium">Category intro (shown at the bottom of the category page)
+              <textarea className="mt-1 min-h-28 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" maxLength={3000} placeholder={`e.g. Discover ${seo.name.toLowerCase()} from verified Indian sellers…`} value={seo.description} onChange={(e) => setSeo({ ...seo, description: e.target.value })} />
+            </label>
+            <div className="mt-4">
+              <SeoFields
+                title={seo.metaTitle}
+                description={seo.metaDescription}
+                onTitle={(v) => setSeo({ ...seo, metaTitle: v })}
+                onDescription={(v) => setSeo({ ...seo, metaDescription: v })}
+                autoTitle={`${seo.name} – Shop online in India`}
+                autoDescription={seo.description.slice(0, 158) || `Shop ${seo.name} online from KYC-verified Indian sellers on AzadiMart. Quality-checked products, best prices, Cash on Delivery and easy returns.`}
+                path={"/c/" + seo.slug}
+              />
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" onClick={() => setSeo(null)} className="rounded-full px-4 py-2 text-sm font-semibold ring-1 ring-slate-300">Cancel</button>
+              <button disabled={busy} className="rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50">Save SEO</button>
+            </div>
+          </form>
+        </div>
+      ) : null}
 
       {confirmDelete ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-title">

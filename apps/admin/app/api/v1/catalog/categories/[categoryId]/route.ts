@@ -39,6 +39,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ca
         changes.name = input.name; // The web address (slug) stays the same so existing links keep working.
       }
       if (input.isActive !== undefined) changes.isActive = input.isActive;
+      if (input.metaTitle !== undefined) changes.metaTitle = input.metaTitle || null;
+      if (input.metaDescription !== undefined) changes.metaDescription = input.metaDescription || null;
+      if (input.description !== undefined) changes.description = input.description || null;
 
       const row = (await tx.update(categories).set(changes).where(eq(categories.id, categoryId)).returning())[0]!;
       await tx.insert(auditLogs).values({ actorUserId: principal.userId, action: "CATEGORY_UPDATED", entityType: "category", entityId: categoryId, metadata: { before: { name: current.name, isActive: current.isActive, parentId: current.parentId }, after: { name: row.name, isActive: row.isActive, parentId: row.parentId } } });

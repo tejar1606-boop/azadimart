@@ -8,6 +8,7 @@ import HeroSlidesField, { slidesFromSettings } from "./hero-slides-field";
 import MediaField from "./media-field";
 import NavigationEditor from "./navigation-editor";
 import ShowcaseField from "./showcase-field";
+import SeoFields from "../_components/seo-fields";
 
 type Row = ThemeSectionDraft & { id:string };
 type HomepageSectionResponse = { id:string; type:string; position:number; isVisible:boolean; settings:Record<string,unknown> };
@@ -98,6 +99,7 @@ export default function OnlineStoreEditor(){
       <aside className="xl:sticky xl:top-6 xl:self-start space-y-4">
         <div className="rounded-2xl border bg-white p-4 shadow-sm"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Preview</p><p className="font-semibold">Storefront</p></div><span className="text-xs text-slate-500">Responsive</span></div><div className="mt-4 overflow-hidden rounded-xl border bg-[#fbfaf7]">{sections.filter(s=>s.isVisible).map((s)=><Preview key={s.id} section={s}/>)}</div></div>
         <div className="rounded-2xl border bg-white p-4 shadow-sm"><p className="text-sm font-semibold">Theme settings</p><label className="mt-3 block text-sm font-medium">Brand accent<input className="mt-1 w-full rounded-lg border p-2.5" value={String(themeSettings.accent ?? "#F59E0B")} onChange={e=>setThemeSettings(x=>({...x,accent:e.target.value}))}/></label><label className="mt-3 block text-sm font-medium">Announcement<input className="mt-1 w-full rounded-lg border p-2.5" value={String(themeSettings.announcement ?? "")} onChange={e=>setThemeSettings(x=>({...x,announcement:e.target.value}))}/></label></div>
+        <HomepageSeo seo={(themeSettings.seo && typeof themeSettings.seo==="object" ? themeSettings.seo : {}) as Record<string,unknown>} onChange={(key,value)=>setThemeSettings(x=>({...x,seo:{...((x.seo && typeof x.seo==="object") ? x.seo as Record<string,unknown> : {}),[key]:value}}))}/>
       </aside>
     </div>
     <NavigationEditor />
@@ -157,4 +159,21 @@ function Preview({section}:{section:Row}){
   if(section.type==="sales_coupons") return <div className="bg-amber-50 p-4"><h3 className="text-sm font-bold">{heading}</h3><div className="mt-3 rounded-xl border border-dashed border-amber-300 bg-white p-3 text-xs"><b>WELCOME10</b><span className="ml-2 text-slate-500">10% off</span></div></div>;
   if(section.type==="newsletter") return <div className="bg-slate-900 p-5 text-white"><h3 className="text-lg font-bold">{heading}</h3><p className="mt-1 text-xs text-slate-300">{String(s.description??"")}</p><div className="mt-3 h-9 rounded-lg bg-white/10"/></div>;
   return <div className="border-b bg-white p-4"><p className="text-[10px] uppercase tracking-wide text-slate-500">{String(s.eyebrow??"")}</p><h3 className="mt-1 text-lg font-bold">{heading}</h3><p className="mt-1 text-xs text-slate-500">{String(s.description??s.subtitle??"")}</p></div>;
+}
+
+
+/** Homepage title, description and share image for Google and WhatsApp/Facebook link previews. Saved with the theme. */
+function HomepageSeo({seo,onChange}:{seo:Record<string,unknown>;onChange:(key:string,value:string)=>void}){
+  const text=(key:string)=>typeof seo[key]==="string"?String(seo[key]):"";
+  return <div className="rounded-2xl border bg-white p-4 shadow-sm">
+    <p className="text-sm font-semibold">Search engine (SEO)</p>
+    <p className="mt-1 text-xs text-slate-500">How the homepage appears on Google and when shared. Save and publish to apply.</p>
+    <div className="mt-3">
+      <SeoFields title={text("title")} description={text("description")} onTitle={(v)=>onChange("title",v)} onDescription={(v)=>onChange("description",v)}
+        autoTitle="AzadiMart — Online shopping from verified Indian sellers"
+        autoDescription="Shop fashion, home & kitchen, beauty, electronics and more from KYC-verified Indian sellers. Quality-checked products, Cash on Delivery and easy returns across India."
+        path="/" siteSuffix={false}/>
+    </div>
+    <div className="mt-3"><MediaField kind="image" label="Share image" hint="1200 × 630 px" size={{width:1200,height:630}} value={text("imageUrl")} onChange={(v)=>onChange("imageUrl",v)}/></div>
+  </div>;
 }

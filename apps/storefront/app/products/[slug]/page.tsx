@@ -8,6 +8,41 @@ import ProductCard from "../../components/product-card";
 import { type AplusBlock, aplusComparedProductIds } from "@azadimart/shared";
 import { AplusContent } from "@azadimart/ui";
 import WishlistButton from "../../components/wishlist-button";
+import type { Metadata } from "next";
+import { SITE_NAME, absoluteUrl, clip, jsonLd } from "../../lib/seo";
+
+/** Search title/description: the product's own SEO text if set, else built from name, price and seller. */
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  try {
+    const db = createDatabase();
+    const row = (await db.select({
+      title: products.title, description: products.description, metaTitle: products.metaTitle, metaDescription: products.metaDescription,
+      categoryName: categories.name, sellerName: sellers.storeName, pricePaise: productVariants.pricePaise, imageKey: mediaAssets.storageKey,
+    }).from(products)
+      .innerJoin(categories, eq(categories.id, products.categoryId))
+      .innerJoin(sellers, eq(sellers.id, products.sellerId))
+      .innerJoin(productVariants, and(eq(productVariants.productId, products.id), eq(productVariants.isActive, true)))
+      .leftJoin(productMedia, and(eq(productMedia.productId, products.id), eq(productMedia.kind, "IMAGE")))
+      .leftJoin(mediaAssets, eq(mediaAssets.id, productMedia.mediaAssetId))
+      .where(and(eq(products.slug, slug), eq(products.status, "LIVE")))
+      .orderBy(asc(productVariants.pricePaise), asc(productMedia.sortOrder)).limit(1))[0];
+    if (!row) return { title: "Product not found", robots: { index: false } };
+    const price = "₹" + (row.pricePaise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    const title = row.metaTitle?.trim() || `${row.title} – Buy online at ${price}`;
+    const description = clip(row.metaDescription?.trim() || `Buy ${row.title} for ${price} from ${row.sellerName}, a verified seller on AzadiMart. ${clip(row.description, 90)} Cash on Delivery and easy returns.`);
+    const image = row.imageKey ? absoluteUrl("/media/" + row.imageKey) : undefined;
+    return {
+      title,
+      description,
+      alternates: { canonical: "/products/" + slug },
+      openGraph: { title, description, url: "/products/" + slug, siteName: SITE_NAME, locale: "en_IN", type: "website", ...(image ? { images: [{ url: image, width: 1000, height: 1000, alt: row.title }] } : {}) },
+      twitter: { card: "summary_large_image", title, description, ...(image ? { images: [image] } : {}) },
+    };
+  } catch {
+    return {};
+  }
+}
 
 /** One card per product: the query returns a row per variant x image. Keeps the
  * cheapest active variant's price and the first image. */
@@ -37,6 +72,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
     description: products.description,
     categoryId: products.categoryId,
     categoryName: categories.name,
+    categorySlug: categories.slug,
     sellerName: sellers.storeName,
     variantId: productVariants.id,
     variantTitle: productVariants.title,
@@ -99,7 +135,41 @@ export default async function ProductDetailPage({ params, searchParams }: { para
   return (
     <main className="min-h-[60vh] bg-canvas px-4 py-8 sm:px-6 sm:py-12">
       <div className="mx-auto max-w-7xl">
-        <Link href="/products" className="text-sm font-semibold text-slate-500 hover:text-slate-950">← Back to marketplace</Link>
+        <nav aria-label="Breadcrumb" className="text-xs text-slate-500">
+          <Link href="/" className="hover:text-slate-900">Home</Link><span className="mx-1.5">/</span>
+          <Link href={"/c/" + first.categorySlug} className="hover:text-slate-900">{first.categoryName}</Link><span className="mx-1.5">/</span>
+          <span className="text-slate-900">{first.title}</span>
+        </nav>
+        {/* Product and breadcrumb structured data: lets Google show price, stock and the category trail in results. */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd([
+          {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            name: first.title,
+            description: clip(first.description || first.title, 500),
+            sku: selectedVariant.sku,
+            category: first.categoryName,
+            image: media.filter((m) => m.mediaKind === "IMAGE" && m.mediaStorageKey).slice(0, 8).map((m) => absoluteUrl("/media/" + m.mediaStorageKey)),
+            offers: {
+              "@type": "Offer",
+              url: absoluteUrl("/products/" + first.slug),
+              priceCurrency: "INR",
+              price: (selectedVariant.pricePaise / 100).toFixed(2),
+              availability: availableQuantity > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+              itemCondition: "https://schema.org/NewCondition",
+              seller: { "@type": "Organization", name: first.sellerName },
+            },
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Home", item: absoluteUrl("/") },
+              { "@type": "ListItem", position: 2, name: first.categoryName, item: absoluteUrl("/c/" + first.categorySlug) },
+              { "@type": "ListItem", position: 3, name: first.title, item: absoluteUrl("/products/" + first.slug) },
+            ],
+          },
+        ])} />
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
           <div className="relative"><ProductGallery

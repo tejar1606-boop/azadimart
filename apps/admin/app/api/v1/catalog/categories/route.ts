@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
     const db = createDatabase();
     const [rows, counts] = await Promise.all([
-      db.select({ id: categories.id, name: categories.name, slug: categories.slug, parentId: categories.parentId, isActive: categories.isActive, sortOrder: categories.sortOrder })
+      db.select({ id: categories.id, name: categories.name, slug: categories.slug, parentId: categories.parentId, isActive: categories.isActive, sortOrder: categories.sortOrder, metaTitle: categories.metaTitle, metaDescription: categories.metaDescription, description: categories.description })
         .from(categories).orderBy(asc(categories.sortOrder), asc(categories.name)),
       db.select({ categoryId: products.categoryId, total: count() }).from(products).groupBy(products.categoryId),
     ]);

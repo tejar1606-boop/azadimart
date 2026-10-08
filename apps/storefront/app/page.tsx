@@ -20,6 +20,8 @@ import { ArrowRightIcon, BadgeIcon, CashIcon, CheckIcon, ReturnIcon, ShieldIcon 
 import ProductCard, { type ProductCardData } from "./components/product-card";
 import { TricolourRibbon } from "./components/site-header";
 import { getCategoryRail, type RailCategory } from "./lib/category-rail";
+import { SITE_NAME, SITE_URL, absoluteUrl, clip, jsonLd } from "./lib/seo";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
@@ -133,6 +135,27 @@ async function getHome() {
 
 type HomeData = Awaited<ReturnType<typeof getHome>>;
 
+/** Homepage title, description and share image, editable in Online Store > Search engine (SEO). */
+export async function generateMetadata(): Promise<Metadata> {
+  let seo: Record<string, unknown> = {};
+  try {
+    const theme = (await createDatabase().select({ settings: themes.settings }).from(themes).where(eq(themes.status, "PUBLISHED")).limit(1))[0];
+    const value = (theme?.settings as Record<string, unknown> | undefined)?.seo;
+    if (value && typeof value === "object") seo = value as Record<string, unknown>;
+  } catch { /* defaults below */ }
+  const text = (key: string) => (typeof seo[key] === "string" ? String(seo[key]).trim() : "");
+  const title = text("title") || "AzadiMart — Online shopping from verified Indian sellers";
+  const description = clip(text("description") || "Shop fashion, home & kitchen, beauty, electronics and more from KYC-verified Indian sellers. Quality-checked products, Cash on Delivery and easy returns across India.");
+  const image = text("imageUrl");
+  return {
+    title: { absolute: title },
+    description,
+    alternates: { canonical: "/" },
+    openGraph: { title, description, url: "/", type: "website", siteName: SITE_NAME, locale: "en_IN", ...(image ? { images: [{ url: absoluteUrl(image), width: 1200, height: 630 }] } : {}) },
+    twitter: { card: "summary_large_image", title, description, ...(image ? { images: [absoluteUrl(image)] } : {}) },
+  };
+}
+
 export default async function HomePage() {
   const data = await getHome();
   const sections = data.sections.length ? data.sections : FALLBACK_SECTIONS;
@@ -140,6 +163,11 @@ export default async function HomePage() {
 
   return (
     <main className="bg-canvas">
+      {/* Tells Google who runs the site and enables the search box in results. */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd([
+        { "@context": "https://schema.org", "@type": "Organization", name: SITE_NAME, url: SITE_URL, logo: absoluteUrl("/icon.png") },
+        { "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, url: SITE_URL, potentialAction: { "@type": "SearchAction", target: { "@type": "EntryPoint", urlTemplate: SITE_URL + "/products?q={search_term_string}" }, "query-input": "required name=search_term_string" } },
+      ])} />
       {sections.map((section) => {
         // "Show on": desktop-only sections start at 1024 px; mobile-only ones stop there.
         const showOn = section.settings.showOn;

@@ -9,7 +9,7 @@ import type { RailCategory } from "../lib/category-rail";
 
 type Variant = { id: string; title: string; pricePaise: number; compareAtPaise: number | null; availableQuantity: number };
 /** Set on a category page (/c/<slug>): the category is fixed and shown as the page title. */
-export type FixedCategory = { id: string; name: string; slug: string; parent: { name: string; slug: string } | null; children: Array<{ name: string; slug: string }> };
+export type FixedCategory = { id: string; name: string; slug: string; intro?: string | null; parent: { name: string; slug: string } | null; children: Array<{ name: string; slug: string }> };
 type Product = { id: string; title: string; slug: string; description: string | null; categoryName: string; sellerName: string; variants: Variant[]; media?: Array<{ storageKey: string; kind: string; altText: string | null }> };
 
 const SORTS: Array<[string, string]> = [["featured", "Featured"], ["newest", "Newest"], ["price_asc", "Price: Low to high"], ["price_desc", "Price: High to low"]];
@@ -176,6 +176,12 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
                 })}
               </div>
             )}
+            {category?.intro ? (
+              <section aria-labelledby="category-about" className="mt-10 rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-7">
+                <h2 id="category-about" className="text-base font-semibold sm:text-lg">About {category.name}</h2>
+                <p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-600">{category.intro}</p>
+              </section>
+            ) : null}
           </section>
         </div>
       </div>
