@@ -214,19 +214,19 @@ function FooterColumn({ title }: { title: string }) {
 
 function DefaultHero() {
   return (
-    <section className="relative isolate mx-auto my-6 aspect-square w-full max-w-3xl overflow-hidden rounded-[2rem] bg-slate-950 p-6 text-white shadow-[0_30px_80px_rgba(15,23,42,0.16)] sm:p-10 lg:my-8 lg:max-w-4xl lg:p-14">
+    <section className="relative isolate mx-auto my-6 aspect-[4/5] w-full overflow-hidden rounded-[2rem] bg-slate-950 p-5 text-white shadow-[0_30px_80px_rgba(15,23,42,0.16)] sm:aspect-[16/10] sm:p-8 lg:my-8 lg:aspect-[16/7] lg:max-w-7xl lg:p-12">
       <div className="absolute -right-28 -top-20 -z-10 h-80 w-80 rounded-full bg-amber-400/20 blur-3xl" />
       <div className="absolute -bottom-28 left-1/3 -z-10 h-96 w-96 rounded-full bg-sky-400/10 blur-3xl" />
       <div className="absolute right-8 top-10 hidden h-[420px] w-[300px] rotate-6 rounded-[2rem] border border-white/10 bg-white/[0.04] backdrop-blur lg:block" />
-      <div className="flex h-full max-w-3xl flex-col justify-between">
+      <div className="relative z-10 flex h-full max-w-3xl flex-col justify-center">
         <div className="inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-300">Built for India • Designed for the world</div>
-        <h1 className="mt-4 text-3xl font-black leading-[1.02] tracking-[-0.045em] sm:mt-5 sm:text-5xl lg:mt-6 lg:text-7xl">One marketplace.<br /><span className="text-white/55">A billion possibilities.</span></h1>
-        <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 sm:mt-5 sm:text-base sm:leading-7 lg:mt-6 lg:text-lg">Discover products from verified sellers across farming, fashion, home, beauty and more — brought together in one trusted shopping experience.</p>
+        <h1 className="mt-4 text-3xl font-black leading-[1.02] tracking-[-0.045em] sm:mt-5 sm:text-5xl lg:mt-5 lg:text-6xl xl:text-7xl">One marketplace.<br /><span className="text-white/55">A billion possibilities.</span></h1>
+        <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 sm:mt-5 sm:text-base sm:leading-7 lg:mt-5 lg:text-base xl:text-lg">Discover products from verified sellers across farming, fashion, home, beauty and more — brought together in one trusted shopping experience.</p>
         <div className="mt-5 flex flex-wrap gap-2.5 sm:mt-6 sm:gap-3">
           <Link href="/products" className="rounded-full bg-white px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-slate-100">Explore marketplace</Link>
           <Link href="/seller" className="rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold transition hover:bg-white/10">Become a seller</Link>
         </div>
-        <div className="mt-6 grid max-w-2xl grid-cols-2 gap-2 sm:mt-8 sm:grid-cols-4 sm:gap-3">
+        <div className="mt-6 grid max-w-2xl grid-cols-2 gap-2 sm:mt-7 sm:grid-cols-4 sm:gap-3 lg:mt-8">
           {[
             ["Verified", "Seller network"],
             ["Curated", "Product catalog"],
@@ -248,12 +248,12 @@ function StoreSection({ section, coupons, products: liveProducts }: { section: H
   const limit = Math.max(1, Math.min(12, Math.floor(num(s, "limit", 8))));
 
   if (section.type === "hero") return (
-    <section className="relative isolate mx-auto my-6 aspect-square w-full max-w-3xl overflow-hidden rounded-[2rem] bg-slate-950 p-6 text-white shadow-[0_25px_60px_rgba(15,23,42,0.14)] sm:p-10 lg:my-8 lg:max-w-4xl lg:p-14">
+    <section className="relative isolate mx-auto my-6 aspect-[4/5] w-full overflow-hidden rounded-[2rem] bg-slate-950 p-5 text-white shadow-[0_25px_60px_rgba(15,23,42,0.14)] sm:aspect-[16/10] sm:p-8 lg:my-8 lg:aspect-[16/7] lg:max-w-7xl lg:p-12">
       <div className="absolute -right-20 top-10 -z-10 h-72 w-72 rounded-full bg-amber-400/20 blur-3xl" />
       <div className="max-w-4xl">
         <span className="inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-300">{str(s, "eyebrow", "Made for India")}</span>
-        <h1 className="mt-4 max-w-4xl text-3xl font-black leading-[1.02] tracking-[-0.045em] sm:mt-5 sm:text-5xl lg:mt-6 lg:text-7xl">{str(s, "heading", "Everything India. One trusted marketplace.")}</h1>
-        <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 sm:mt-5 sm:text-base sm:leading-7 lg:mt-6 lg:text-lg">{str(s, "description", "Discover products from verified sellers across farming, fashion, home and beauty.")}</p>
+        <h1 className="mt-4 max-w-4xl text-3xl font-black leading-[1.02] tracking-[-0.045em] sm:mt-5 sm:text-5xl lg:mt-5 lg:text-6xl xl:text-7xl">{str(s, "heading", "Everything India. One trusted marketplace.")}</h1>
+        <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 sm:mt-5 sm:text-base sm:leading-7 lg:mt-5 lg:text-base xl:text-lg">{str(s, "description", "Discover products from verified sellers across farming, fashion, home and beauty.")}</p>
         <div className="mt-5 flex flex-wrap gap-2.5 sm:mt-6 sm:gap-3">
           <Link href={str(s, "primaryHref", "/products")} className="rounded-full bg-white px-5 py-3 text-sm font-bold text-slate-950">{str(s, "primaryLabel", "Shop now")}</Link>
           {str(s, "secondaryLabel") ? <Link href={str(s, "secondaryHref", "/seller")} className="rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold">{str(s, "secondaryLabel")}</Link> : null}
