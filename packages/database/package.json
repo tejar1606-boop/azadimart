@@ -18,10 +18,12 @@
   "dependencies": {
     "@azadimart/shared": "workspace:*",
     "@neondatabase/serverless": "^0.10.4",
-    "drizzle-orm": "^0.38.3"
+    "drizzle-orm": "^0.38.3",
+    "ws": "8.18.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@types/ws": "8.5.13",
     "drizzle-kit": "^0.30.1",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
