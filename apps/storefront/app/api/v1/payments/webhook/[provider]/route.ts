@@ -22,10 +22,6 @@ export async function POST(
     const db = createDatabase();
 
     const result = await db.transaction(async (tx) => {
-      // CAPTURED/FAILED/REFUNDED webhooks for the same provider payment can
-      // arrive concurrently. Serialize them before reading the current state
-      // so a stale FAILED event cannot overwrite a concurrently applied
-      // CAPTURED event.
       await tx.execute(sql`
         select pg_advisory_xact_lock(
           hashtextextended(${event.provider + ":" + event.providerPaymentId}, 0)
@@ -53,13 +49,8 @@ export async function POST(
         eq(payments.providerPaymentId, event.providerPaymentId),
       )).limit(1))[0];
 
-      if (!payment) {
-        throw new AppError("NOT_FOUND", "Payment record not found");
-      }
+      if (!payment) throw new AppError("NOT_FOUND", "Payment record not found");
 
-      // Webhooks can arrive out of order. Never allow a late FAILED/CAPTURED
-      // event to move a payment backwards from a terminal REFUNDED state,
-      // and never allow FAILED to overwrite an already CAPTURED payment.
       const shouldApply =
         payment.status === "PENDING" ||
         (payment.status === "FAILED" && event.status === "CAPTURED") ||
@@ -86,8 +77,14 @@ export async function POST(
       }).where(eq(payments.id, payment.id));
 
       if (event.status === "CAPTURED") {
+        // A COD order may already be CONFIRMED, while online-payment orders
+        // are expected to be PAYMENT_PENDING. In either case a verified
+        // capture should transition the order to PAID.
         await tx.update(orders).set({ status: "PAID", updatedAt: new Date() })
-          .where(and(eq(orders.id, payment.orderId), eq(orders.status, "PAYMENT_PENDING")));
+          .where(and(
+            eq(orders.id, payment.orderId),
+            sql`${orders.status} IN ('PAYMENT_PENDING', 'CONFIRMED')`,
+          ));
       }
 
       return {
