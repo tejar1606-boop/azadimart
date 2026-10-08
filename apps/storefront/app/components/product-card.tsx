@@ -37,15 +37,19 @@ export default function ProductCard({ product, priority = false, sizes = "(max-w
         ) : (
           <span className="grid h-full place-items-center bg-gradient-to-br from-slate-100 to-brand-50 text-4xl font-semibold text-slate-300">{product.title.slice(0, 1).toUpperCase()}</span>
         )}
-        {off > 0 ? <span className="absolute left-2.5 top-2.5 rounded-full bg-save px-2 py-0.5 text-[11px] font-semibold text-white">{off}% off</span> : null}
         <WishlistButton productId={product.id} />
       </div>
       <div className="flex flex-1 flex-col p-3 sm:p-3.5">
         {product.sellerName ? <p className="truncate text-[11px] font-medium uppercase tracking-[0.06em] text-slate-400">{product.sellerName}</p> : null}
         <p className="mt-0.5 line-clamp-2 text-[13px] leading-5 text-slate-800 sm:text-sm">{product.title}</p>
-        <div className="mt-auto flex flex-wrap items-baseline gap-x-2 pt-2">
+        <div className="mt-auto flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 pt-2">
           <span className="text-base font-semibold text-slate-950 sm:text-lg">{formatPrice(product.pricePaise)}</span>
-          {off > 0 ? <span className="text-xs text-slate-400 line-through">{formatPrice(product.compareAtPaise!)}</span> : null}
+          {off > 0 ? (
+            <>
+              <span className="text-xs text-slate-500">MRP <span className="line-through">{formatPrice(product.compareAtPaise!)}</span></span>
+              <span className="text-xs font-semibold text-save">{off}% off</span>
+            </>
+          ) : null}
         </div>
       </div>
     </Link>

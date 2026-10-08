@@ -185,7 +185,7 @@ function PillLink({ href, children, variant = "primary" }: { href: string; child
 function StoreSection({ section, data }: { section: HomeSection; data: HomeData }) {
   const s = section.settings;
   switch (section.type) {
-    case "hero": return <Hero s={s} products={data.products} />;
+    case "hero": return <Hero s={s} />;
     case "marquee": return <Marquee s={s} />;
     case "promo_banner": return <PromoBanner s={s} />;
     case "category_grid": return <CategoryGrid s={s} categories={data.categories} />;
@@ -201,7 +201,7 @@ function StoreSection({ section, data }: { section: HomeSection; data: HomeData 
   }
 }
 
-function Hero({ s, products }: { s: Settings; products: ProductCardData[] }) {
+function Hero({ s }: { s: Settings }) {
   const heading = str(s, "heading", "Everything India loves, from sellers you can trust.");
   const description = str(s, "description", "Shop quality-checked products from KYC-verified Indian sellers. Cash on Delivery and easy returns on every order.");
   const primaryLabel = str(s, "primaryLabel", "Shop now");
@@ -223,52 +223,36 @@ function Hero({ s, products }: { s: Settings; products: ProductCardData[] }) {
     );
   }
 
-  const collage = products.filter((product) => product.mediaStorageKey).slice(0, 4);
+  // No banner uploaded yet: a designed banner in the same frame (8:3 desktop,
+  // 4:5 mobile) so the layout does not change when one is uploaded.
   return (
-    <section className="overflow-hidden border-b border-slate-200 bg-white">
-      <Container className="grid items-center gap-10 py-10 sm:py-14 lg:grid-cols-[1.05fr_0.95fr] lg:py-20">
-        <div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-700">
+    <section aria-label="Welcome">
+      <div className="relative isolate overflow-hidden bg-chrome text-white">
+        <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_80%_20%,rgba(229,133,48,0.55),transparent_55%),radial-gradient(ellipse_at_10%_90%,rgba(24,102,78,0.55),transparent_55%)]" />
+        <div aria-hidden className="absolute -right-24 top-1/2 -z-10 hidden h-[140%] w-1/2 -translate-y-1/2 rounded-full border border-white/10 sm:block" />
+        <div aria-hidden className="absolute -right-4 top-1/2 -z-10 hidden h-[95%] w-1/3 -translate-y-1/2 rounded-full border border-white/10 sm:block" />
+        <div className="mx-auto flex aspect-[4/5] max-w-7xl flex-col justify-end px-5 pb-10 sm:aspect-[8/3] sm:justify-center sm:px-6 sm:pb-0">
+          <span className="inline-flex w-fit items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200 backdrop-blur">
             <span className="h-1.5 w-1.5 rounded-full bg-brand" />{str(s, "eyebrow", "Made for India")}
           </span>
-          <h1 className="mt-5 max-w-xl text-[34px] font-semibold leading-[1.08] tracking-[-0.045em] sm:text-5xl lg:text-[58px]">{heading}</h1>
-          <p className="mt-5 max-w-lg text-[15px] leading-7 text-slate-600 sm:text-base">{description}</p>
-          <div className="mt-7 flex flex-wrap gap-3">
+          <h1 className="mt-4 max-w-2xl text-[32px] font-semibold leading-[1.06] tracking-[-0.045em] sm:text-5xl lg:text-6xl">{heading}</h1>
+          <p className="mt-4 max-w-xl text-[15px] leading-7 text-white/75 sm:text-base">{description}</p>
+          <div className="mt-6 flex flex-wrap gap-3">
             <PillLink href={primaryHref}>{primaryLabel}<ArrowRightIcon size={16} /></PillLink>
-            {str(s, "secondaryLabel") ? <PillLink href={str(s, "secondaryHref", "/seller")} variant="outline">{str(s, "secondaryLabel")}</PillLink> : null}
+            {str(s, "secondaryLabel") ? <PillLink href={str(s, "secondaryHref", "/seller")} variant="outlineLight">{str(s, "secondaryLabel")}</PillLink> : null}
           </div>
-          <ul className="mt-8 grid max-w-lg grid-cols-3 gap-3 border-t border-slate-100 pt-6">
-            {[["KYC-verified", "sellers"], ["Quality", "checked"], ["Cash on", "Delivery"]].map(([a, b]) => (
-              <li key={a} className="flex items-center gap-2 text-xs leading-4 text-slate-600 sm:text-[13px]">
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-india-light text-india"><CheckIcon size={15} /></span>
-                <span><span className="font-semibold text-slate-900">{a}</span><br />{b}</span>
-              </li>
-            ))}
-          </ul>
         </div>
-        {collage.length >= 2 ? (
-          <div className="relative grid grid-cols-2 gap-3 sm:gap-4">
-            {collage.map((product, index) => (
-              <Link key={product.id} href={"/products/" + product.slug} className={"group relative overflow-hidden rounded-2xl bg-slate-100 " + (index % 2 ? "mt-8 aspect-square" : "aspect-square")}>
-                <Image src={"/media/" + product.mediaStorageKey} alt={product.mediaAltText ?? product.title} fill priority={index < 2} sizes="(max-width:1024px) 45vw, 22vw" className="object-cover transition duration-500 group-hover:scale-[1.04]" />
-                <span className="absolute inset-x-2 bottom-2 rounded-xl bg-white/90 px-3 py-2 text-xs backdrop-blur">
-                  <span className="line-clamp-1 font-medium">{product.title}</span>
-                  <span className="font-semibold">{"₹" + (product.pricePaise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div className="relative aspect-[5/4] overflow-hidden rounded-3xl bg-gradient-to-br from-brand-500 via-brand-400 to-amber-200 p-8 text-white">
-            <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/15" />
-            <div className="absolute -bottom-20 -left-10 h-72 w-72 rounded-full bg-india/30" />
-            <div className="relative flex h-full flex-col justify-end">
-              <p className="text-sm font-semibold uppercase tracking-[0.14em] text-white/80">AzadiMart</p>
-              <p className="mt-2 text-3xl font-semibold leading-tight tracking-[-0.03em] sm:text-4xl">Proudly Indian.<br />Verified sellers.</p>
-            </div>
-          </div>
-        )}
-      </Container>
+      </div>
+      <div className="border-b border-slate-200 bg-white">
+        <ul className="mx-auto grid max-w-7xl grid-cols-3 gap-3 px-4 py-4 sm:px-6">
+          {[["KYC-verified", "sellers"], ["Quality", "checked"], ["Cash on", "Delivery"]].map(([a, b]) => (
+            <li key={a} className="flex items-center justify-center gap-2 text-xs leading-4 text-slate-600 sm:text-[13px]">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-india-light text-india"><CheckIcon size={15} /></span>
+              <span><span className="font-semibold text-slate-900">{a}</span> {b}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </section>
   );
 }

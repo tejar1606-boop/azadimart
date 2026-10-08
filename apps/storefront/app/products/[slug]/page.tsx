@@ -116,7 +116,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
 
             <div className="mt-6 flex flex-wrap items-end gap-3">
               <span className="text-3xl font-bold">{money(selectedVariant.pricePaise)}</span>
-              {hasDiscount ? <span className="text-base text-slate-400 line-through">{money(selectedVariant.compareAtPaise!)}</span> : null}
+              {hasDiscount ? <span className="text-base text-slate-500">MRP <span className="line-through">{money(selectedVariant.compareAtPaise!)}</span></span> : null}
               {hasDiscount ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{discountPercent}% off</span> : null}
             </div>
             <p className="mt-2 text-xs text-slate-400">Inclusive of applicable taxes • Final price shown at checkout</p>
