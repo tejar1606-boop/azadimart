@@ -50,6 +50,27 @@
       "when": 1791347400000,
       "tag": "20261007103000_variant_package_weight",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791351900000,
+      "tag": "20261007114500_payment_integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791354600000,
+      "tag": "20261007123000_published_theme_integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791357300000,
+      "tag": "20261007131500_refund_lifecycle",
+      "breakpoints": true
     }
   ]
 }
