@@ -60,7 +60,7 @@ export default async function OrderDetailsPage({ params }: { params: Promise<{ i
             <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">{order.paymentStatus ?? "PENDING"}</span>
           </div>
           {terminal ? (
-            <div className="mt-6 rounded-2xl bg-slate-50 p-5"><p className="font-black">{order.status === "CANCELLED" ? "This order was cancelled." : "This order was returned."}</p><p className="mt-1 text-sm text-slate-500">The current order state is shown from AzadiMart's order system.</p></div>
+            <div className="mt-6 rounded-2xl bg-slate-50 p-5"><p className="font-black">{order.status === "CANCELLED" ? "This order was cancelled." : "This order was returned."}</p><p className="mt-1 text-sm text-slate-500">The current order state is shown from AzadiMart&apos;s order system.</p></div>
           ) : (
             <div className="mt-7 grid gap-5 sm:grid-cols-4">
               {states.map((state, index) => {
