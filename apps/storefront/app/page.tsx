@@ -238,8 +238,8 @@ export default async function HomePage() {
       </div>
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-3 py-2 backdrop-blur lg:hidden">
         <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
-          {[["Home","/"],["Categories","/products"],["Wishlist","/products"],["Cart","/cart"]].map(([label,href], i) => (
-            <Link key={label} href={label === "Wishlist" ? "/wishlist" : href} className="flex flex-col items-center gap-1 rounded-lg py-1.5 text-[10px] font-semibold text-slate-600">
+          {[["Home","/"],["Categories","/products"],["Wishlist","/wishlist"],["Cart","/cart"]].map(([label,href], i) => (
+            <Link key={label} href={href} className="flex flex-col items-center gap-1 rounded-lg py-1.5 text-[10px] font-semibold text-slate-600">
               <span className="grid h-6 w-6 place-items-center rounded-full bg-slate-100 text-[9px] font-black text-slate-700">{i === 0 ? "⌂" : i === 1 ? "≡" : i === 2 ? "♡" : "🛒"}</span>{label}
             </Link>
           ))}
