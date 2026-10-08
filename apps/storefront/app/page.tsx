@@ -19,6 +19,7 @@ import HeroCarousel, { type HeroSlide } from "./components/hero-carousel";
 import { ArrowRightIcon, BadgeIcon, CashIcon, CheckIcon, ReturnIcon, ShieldIcon } from "./components/icons";
 import ProductCard, { type ProductCardData } from "./components/product-card";
 import { TricolourRibbon } from "./components/site-header";
+import { getCategoryRail, type RailCategory } from "./lib/category-rail";
 
 export const dynamic = "force-dynamic";
 
@@ -113,7 +114,21 @@ async function getHome() {
     }
   }
 
-  return { sections, coupons: activeCoupons, products: liveProducts as ProductCardData[], categories: homeCategories };
+  // Category showcase banners need every category (with photos) and a few products per chosen category.
+  const showcaseIds = [...new Set(sections.filter((x) => x.type === "category_showcase" && typeof x.settings.categoryId === "string").map((x) => String(x.settings.categoryId)))];
+  const rail = showcaseIds.length ? await getCategoryRail() : [];
+  const showcaseProducts: Record<string, ProductCardData[]> = {};
+  if (showcaseIds.length) {
+    const familyOf = (id: string) => [id, ...rail.filter((c) => c.parentId === id).map((c) => c.id)];
+    const wanted = new Set(showcaseIds.flatMap(familyOf));
+    const rows = onePerProduct(productRows.filter((r) => wanted.has(r.categoryId)), 400);
+    for (const id of showcaseIds) {
+      const family = new Set(familyOf(id));
+      showcaseProducts[id] = rows.filter((r) => family.has(r.categoryId) && r.mediaStorageKey).slice(0, 6) as ProductCardData[];
+    }
+  }
+
+  return { sections, coupons: activeCoupons, products: liveProducts as ProductCardData[], categories: homeCategories, rail, showcaseProducts };
 }
 
 type HomeData = Awaited<ReturnType<typeof getHome>>;
@@ -199,6 +214,7 @@ function StoreSection({ section, data }: { section: HomeSection; data: HomeData 
     case "marquee": return <Marquee s={s} />;
     case "promo_banner": return <PromoBanner s={s} />;
     case "banner_row": return <BannerRow s={s} />;
+    case "category_showcase": return <CategoryShowcase s={s} rail={data.rail} products={data.showcaseProducts} />;
     case "category_grid": return <CategoryGrid s={s} categories={data.categories} />;
     case "featured_products": return <FeaturedProducts s={s} products={data.products} />;
     case "sales_coupons": return <Coupons s={s} coupons={data.coupons} />;
@@ -317,6 +333,76 @@ function PromoBanner({ s }: { s: Settings }) {
       ) : (
         <div className="overflow-hidden rounded-xl bg-slate-200">{images}</div>
       )}
+    </Container>
+  );
+}
+
+const SHOWCASE_STYLE: Record<string, { panel: string; text: string; sub: string; button: string; tile: string }> = {
+  saffron: { panel: "bg-gradient-to-br from-[#ffb366] via-brand-500 to-brand-600", text: "text-white", sub: "text-white/85", button: "bg-white text-navy hover:bg-brand-50", tile: "bg-brand-50" },
+  green: { panel: "bg-gradient-to-br from-[#2fa52a] via-india to-india-dark", text: "text-white", sub: "text-white/85", button: "bg-white text-india-dark hover:bg-india-light", tile: "bg-india-light" },
+  navy: { panel: "bg-gradient-to-br from-navy-soft via-navy to-navy-deep", text: "text-white", sub: "text-white/80", button: "bg-tiranga-saffron text-white hover:bg-brand-600", tile: "bg-slate-100" },
+  rose: { panel: "bg-gradient-to-br from-rose-100 via-rose-50 to-white", text: "text-rose-950", sub: "text-rose-900/75", button: "bg-rose-600 text-white hover:bg-rose-700", tile: "bg-rose-50" },
+  sky: { panel: "bg-gradient-to-br from-sky-100 via-sky-50 to-white", text: "text-sky-950", sub: "text-sky-900/75", button: "bg-sky-700 text-white hover:bg-sky-800", tile: "bg-sky-50" },
+  sand: { panel: "bg-gradient-to-br from-amber-100 via-orange-50 to-white", text: "text-amber-950", sub: "text-amber-900/75", button: "bg-navy text-white hover:bg-navy-deep", tile: "bg-amber-50" },
+};
+
+type ShowcaseTile = { label: string; href: string; imageSrc: string | null };
+
+/**
+ * "Top category" banner (like Meesho's Top Categories): a coloured panel with
+ * the category name and View all on the left, and up to six photo tiles on
+ * the right. Tiles are the admin's own, or else the category's
+ * sub-categories, or else its newest live products.
+ */
+function CategoryShowcase({ s, rail, products: byCategory }: { s: Settings; rail: RailCategory[]; products: Record<string, ProductCardData[]> }) {
+  const category = rail.find((c) => c.id === str(s, "categoryId"));
+  if (!category) return null;
+  const style = SHOWCASE_STYLE[str(s, "theme", "saffron")] ?? SHOWCASE_STYLE.saffron!;
+  const custom = (Array.isArray(s.tiles) ? s.tiles : [])
+    .filter((t): t is Settings => Boolean(t) && typeof t === "object" && Boolean(str(t as Settings, "imageUrl")) && Boolean(str(t as Settings, "label")))
+    .map((t) => ({ label: str(t, "label"), href: safeHref(str(t, "href")) ?? "/c/" + category.slug, imageSrc: str(t, "imageUrl") }));
+  const children = rail.filter((c) => c.parentId === category.id && c.count > 0);
+  const tiles: ShowcaseTile[] = (custom.length
+    ? custom
+    : children.length
+      ? [{ label: "All " + category.name, href: "/c/" + category.slug, imageSrc: category.imageKey ? "/media/" + category.imageKey : null }, ...children.map((c) => ({ label: c.name, href: "/c/" + c.slug, imageSrc: c.imageKey ? "/media/" + c.imageKey : null }))]
+      : (byCategory[category.id] ?? []).map((p) => ({ label: p.title, href: "/products/" + p.slug, imageSrc: p.mediaStorageKey ? "/media/" + p.mediaStorageKey : null }))
+  ).slice(0, 6);
+  const heading = str(s, "heading", category.name);
+  const image = str(s, "imageUrl");
+
+  return (
+    <Container className="py-4 sm:py-6">
+      <div className="grid overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+        <div className={"relative flex min-h-[200px] flex-col justify-between overflow-hidden p-6 sm:p-7 " + style.panel}>
+          {image ? <Image src={image} alt="" fill sizes="(max-width:1024px) 100vw, 380px" className="object-cover opacity-90" unoptimized /> : null}
+          {image ? <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" /> : null}
+          <div className={"relative " + (image ? "text-white" : style.text)}>
+            <p className={"text-[11px] font-semibold uppercase tracking-[0.18em] " + (image ? "text-white/80" : style.sub)}>{str(s, "eyebrow", "Top category")}</p>
+            <h2 className="mt-2 text-[28px] font-semibold leading-[1.05] tracking-[-0.035em] sm:text-[34px]">{heading}</h2>
+            {str(s, "subtitle") ? <p className={"mt-2 max-w-xs text-sm leading-6 " + (image ? "text-white/85" : style.sub)}>{str(s, "subtitle")}</p> : null}
+          </div>
+          <Link href={"/c/" + category.slug} className={"relative mt-6 inline-flex w-fit items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm transition " + (image ? "bg-white text-navy hover:bg-brand-50" : style.button)}>
+            {str(s, "buttonLabel", "View all")}<ArrowRightIcon size={16} />
+          </Link>
+        </div>
+        {tiles.length ? (
+          <ul className="flex snap-x gap-3 overflow-x-auto p-4 [scrollbar-width:none] sm:grid sm:grid-cols-4 sm:gap-4 sm:overflow-visible sm:p-6 lg:grid-cols-6 lg:content-center">
+            {tiles.map((tile) => (
+              <li key={tile.href + tile.label} className="w-[36%] shrink-0 snap-start sm:w-auto">
+                <Link href={tile.href} className="group block">
+                  <span className={"relative block aspect-square overflow-hidden rounded-xl " + style.tile}>
+                    {tile.imageSrc ? <Image src={tile.imageSrc} alt="" fill sizes="(max-width:640px) 36vw, (max-width:1024px) 22vw, 140px" className="object-cover transition duration-500 group-hover:scale-[1.05]" /> : null}
+                  </span>
+                  <span className="mt-2 line-clamp-2 block text-center text-[12.5px] font-semibold leading-snug text-slate-800 group-hover:text-brand-600">{tile.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="grid place-items-center p-8 text-sm text-slate-500">Products for this category are coming soon.</div>
+        )}
+      </div>
     </Container>
   );
 }

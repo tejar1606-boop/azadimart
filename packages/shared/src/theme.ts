@@ -3,6 +3,7 @@ export const SECTION_TYPES = [
   "marquee",
   "promo_banner",
   "banner_row",
+  "category_showcase",
   "featured_products",
   "category_grid",
   "trust_strip",
@@ -19,6 +20,10 @@ export type SectionType = (typeof SECTION_TYPES)[number];
 /** Which screens a homepage section appears on (settings.showOn). Desktop means 1024 px and wider. */
 export const SECTION_SHOW_ON = ["all", "desktop", "mobile"] as const;
 export type SectionShowOn = (typeof SECTION_SHOW_ON)[number];
+
+/** Colour themes for the "Top category" banner (Meesho-style category showcase). */
+export const SHOWCASE_THEMES = ["saffron", "green", "navy", "rose", "sky", "sand"] as const;
+export type ShowcaseTheme = (typeof SHOWCASE_THEMES)[number];
 
 /** Banner row: 1–3 clickable banners side by side. Recommended size per banner, by count. */
 export const BANNER_ROW_SIZES: Record<1 | 2 | 3, { width: number; height: number }> = {

@@ -7,12 +7,13 @@ import BannerRowField, { type RowBanner } from "./banner-row-field";
 import HeroSlidesField, { slidesFromSettings } from "./hero-slides-field";
 import MediaField from "./media-field";
 import NavigationEditor from "./navigation-editor";
+import ShowcaseField from "./showcase-field";
 
 type Row = ThemeSectionDraft & { id:string };
 type HomepageSectionResponse = { id:string; type:string; position:number; isVisible:boolean; settings:Record<string,unknown> };
 
 const LABELS: Record<string,string> = {
-  hero:"Hero banner", marquee:"Scrolling highlights strip", promo_banner:"Promo banner", banner_row:"Banner row (1–3 banners)", category_grid:"Category grid", featured_products:"Featured products",
+  hero:"Hero banner", marquee:"Scrolling highlights strip", promo_banner:"Promo banner", banner_row:"Banner row (1–3 banners)", category_showcase:"Top category banner", category_grid:"Category grid", featured_products:"Featured products",
   sales_coupons:"Sales coupons", image_banner:"Image + text banner", trust_strip:"Trust & value strip", rich_text:"Rich text",
   video:"Video", seller_cta:"Seller callout", newsletter:"Newsletter",
 };
@@ -20,6 +21,7 @@ const LABELS: Record<string,string> = {
 function defaults(type:string){
   // Mid-page banner rows are usually a desktop feature (like Meesho); start them desktop-only with two empty banners.
   if(type==="banner_row") return {heading:"",showOn:"desktop",banners:[{},{}]};
+  if(type==="category_showcase") return {theme:"saffron",buttonLabel:"View all",showOn:"all"};
   return DEFAULT_HOME_SECTIONS.find((s)=>s.type===type)?.settings ?? {heading:LABELS[type] ?? "New section"};
 }
 const SHOW_ON_LABEL: Record<string,string> = { all:"All devices", desktop:"Desktop only", mobile:"Mobile only" };
@@ -104,16 +106,17 @@ export default function OnlineStoreEditor(){
 
 function SectionFields({section,onChange}:{section:Row;onChange:(key:string,value:SettingValue)=>void}){
   const t=section.type;
-  const common=["hero","marquee","promo_banner","banner_row","image_banner","category_grid","trust_strip","featured_products","sales_coupons","seller_cta","newsletter","rich_text","video"].includes(t);
+  const common=["hero","marquee","promo_banner","banner_row","category_showcase","image_banner","category_grid","trust_strip","featured_products","sales_coupons","seller_cta","newsletter","rich_text","video"].includes(t);
   if(!common) return null;
   return <div className="mt-4 grid gap-3 md:grid-cols-2">
-    {t!=="category_grid" && t!=="marquee" && t!=="promo_banner" && t!=="banner_row" && <Field label="Heading"><input className="w-full rounded-lg border p-2.5" value={val(section,"heading")} onChange={e=>onChange("heading",e.target.value)}/></Field>}
+    {t==="category_showcase" && <ShowcaseField settings={section.settings} onChange={onChange}/>}
+    {t!=="category_grid" && t!=="marquee" && t!=="promo_banner" && t!=="banner_row" && t!=="category_showcase" && <Field label="Heading"><input className="w-full rounded-lg border p-2.5" value={val(section,"heading")} onChange={e=>onChange("heading",e.target.value)}/></Field>}
     {t==="banner_row" && <>
       <Field label="Heading above the banners (optional)" wide><input className="w-full rounded-lg border p-2.5" placeholder="e.g. Deals of the day" value={val(section,"heading")} onChange={e=>onChange("heading",e.target.value)}/></Field>
       <BannerRowField banners={Array.isArray(section.settings.banners)?section.settings.banners as RowBanner[]:[]} onChange={(update)=>onChange("banners",(settings:Record<string,unknown>)=>update(Array.isArray(settings.banners)?settings.banners as RowBanner[]:[]))}/>
       <p className="text-xs text-slate-500 md:col-span-2">Place this row between product sections with the ↑ ↓ arrows. Banners without an image are hidden on the store.</p>
     </>}
-    {t!=="hero" && t!=="image_banner" && t!=="marquee" && t!=="promo_banner" && t!=="banner_row" && <Field label="Subtitle"><input className="w-full rounded-lg border p-2.5" value={val(section,"subtitle")} onChange={e=>onChange("subtitle",e.target.value)}/></Field>}
+    {t!=="hero" && t!=="image_banner" && t!=="marquee" && t!=="promo_banner" && t!=="banner_row" && t!=="category_showcase" && <Field label="Subtitle"><input className="w-full rounded-lg border p-2.5" value={val(section,"subtitle")} onChange={e=>onChange("subtitle",e.target.value)}/></Field>}
     {(t==="hero"||t==="image_banner") && <><Field label="Eyebrow"><input className="w-full rounded-lg border p-2.5" value={val(section,"eyebrow")} onChange={e=>onChange("eyebrow",e.target.value)}/></Field><Field label="Heading"><input className="w-full rounded-lg border p-2.5" value={val(section,"heading")} onChange={e=>onChange("heading",e.target.value)}/></Field><Field label="Description" wide><textarea className="min-h-24 w-full rounded-lg border p-2.5" value={val(section,"description")} onChange={e=>onChange("description",e.target.value)}/></Field><Field label="Button label"><input className="w-full rounded-lg border p-2.5" value={val(section,t==="hero"?"primaryLabel":"buttonLabel")} onChange={e=>onChange(t==="hero"?"primaryLabel":"buttonLabel",e.target.value)}/></Field><Field label="Button link"><input className="w-full rounded-lg border p-2.5" value={val(section,t==="hero"?"primaryHref":"buttonHref")} onChange={e=>onChange(t==="hero"?"primaryHref":"buttonHref",e.target.value)}/></Field>{t==="hero" ? <>
       <HeroSlidesField slides={slidesFromSettings(section.settings)} onChange={(update)=>onChange("slides",(settings:Record<string,unknown>)=>update(slidesFromSettings(settings)))}/>
       <p className="text-xs text-slate-500 md:col-span-2">The heading, text and buttons above are used for the designed banner shown when there are no slides.</p>
@@ -147,6 +150,7 @@ function Preview({section}:{section:Row}){
     const banners=(Array.isArray(s.banners)?s.banners:[]) as RowBanner[];
     return <div className="bg-white p-2">{s.heading?<p className="px-1 pb-1.5 text-xs font-bold">{String(s.heading)}</p>:null}<div className={"grid gap-1.5 "+(banners.length===2?"grid-cols-2":banners.length>=3?"grid-cols-3":"")}>{(banners.length?banners:[{}]).slice(0,3).map((b,i)=>b.imageUrl?<div key={i} className={"w-full rounded bg-cover bg-center "+(banners.length<=1?"aspect-[4/1]":banners.length===2?"aspect-[2/1]":"aspect-[4/3]")} style={{backgroundImage:`url("${String(b.imageUrl).replace(/"/g,"")}")`}}/>:<div key={i} className={"grid place-items-center rounded bg-slate-100 text-[10px] font-semibold text-slate-400 "+(banners.length<=1?"aspect-[4/1]":banners.length===2?"aspect-[2/1]":"aspect-[4/3]")}>Banner {i+1}</div>)}</div></div>;
   }
+  if(section.type==="category_showcase") return <div className="grid grid-cols-[38%_1fr] bg-white"><div className="bg-gradient-to-br from-[#ffb366] to-brand-600 p-3 text-white"><p className="text-[8px] uppercase tracking-[0.18em] opacity-80">{String(s.eyebrow||"Top category")}</p><p className="mt-1 text-sm font-bold leading-tight">{String(s.heading||"Category")}</p><span className="mt-2 inline-block rounded-full bg-white px-2 py-0.5 text-[9px] font-semibold text-slate-900">{String(s.buttonLabel||"View all")}</span></div><div className="grid grid-cols-3 gap-1.5 p-2">{Array.from({length:6}).map((_,i)=><div key={i} className="aspect-square rounded bg-slate-100"/>)}</div></div>;
   if(section.type==="marquee") return <div className="overflow-hidden bg-black px-4 py-3 text-[11px] font-medium uppercase tracking-[0.12em] text-white">{(Array.isArray(s.items)&&s.items.length?s.items:["Cash on Delivery available","KYC-verified sellers","Easy 7-day returns"]).filter((v):v is string=>typeof v==="string").join("  ✦  ")}</div>;
   if(section.type==="trust_strip") return <div className="grid grid-cols-2 border-y bg-white p-3">{(Array.isArray(s.items)?s.items:[]).filter((v):v is string=>typeof v==="string").slice(0,4).map((item)=><div key={item} className="p-2 text-center text-[10px] font-semibold text-slate-700">{item}</div>)}</div>;
   if(section.type==="seller_cta") return <div className="bg-slate-950 p-5 text-white"><p className="text-[10px] uppercase tracking-[0.18em] text-amber-300">{String(s.eyebrow??"Built for ambitious sellers")}</p><h3 className="mt-2 text-lg font-bold">{String(s.heading??"Take your business online.")}</h3><p className="mt-2 text-xs text-slate-300">{String(s.description??"")}</p><div className="mt-4 h-8 rounded-full bg-white/10"/></div>;
