@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import WishlistButton from "../components/wishlist-button";
 
 type Variant = { id: string; title: string; pricePaise: number; compareAtPaise: number | null; availableQuantity: number };
 type Category = { id: string; name: string; slug: string };
@@ -100,6 +101,7 @@ export default function CatalogView() {
               return (
                 <Link key={product.id} href={"/products/" + product.slug} className="group rounded-[1.35rem] border border-slate-200 bg-white p-3 shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
                   <div className="relative grid aspect-square place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-slate-100 via-white to-amber-50">
+                    <WishlistButton productId={product.id} />
                     {product.media?.find(media => media.kind === "IMAGE" && media.storageKey) ? <Image src={"/media/" + product.media.find(media => media.kind === "IMAGE")!.storageKey} alt={product.media.find(media => media.kind === "IMAGE")!.altText ?? product.title} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover transition duration-300 group-hover:scale-[1.03]" /> : <span className="text-5xl font-black tracking-[-0.06em] text-slate-200">{product.title.slice(0, 1).toUpperCase()}</span>}
                     <span className="absolute left-2.5 top-2.5 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-slate-500">Verified</span>
                   </div>
