@@ -5,7 +5,9 @@ import * as schema from "./schema/index";
 
 // The WebSocket driver is required for interactive transactions (db.transaction);
 // the neon-http driver throws "No transactions support in neon-http driver".
-neonConfig.webSocketConstructor = ws;
+// Prefer Node's built-in WebSocket (Node 22+): the `ws` package breaks when
+// bundled by Next.js ("Connection terminated unexpectedly").
+neonConfig.webSocketConstructor = globalThis.WebSocket ?? ws;
 
 export type Database = ReturnType<typeof createDatabase>;
 
