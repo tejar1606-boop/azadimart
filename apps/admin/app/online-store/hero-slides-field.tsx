@@ -36,7 +36,7 @@ export default function HeroSlidesField({ slides, onChange }: { slides: HeroSlid
     <div className="space-y-4 md:col-span-2">
       <div className="flex items-baseline justify-between">
         <p className="text-sm font-semibold">Banner slides <span className="font-normal text-slate-400">({slides.length}/{MAX_SLIDES})</span></p>
-        <p className="text-xs text-slate-500">Rotate every 6 s · pause on hover · swipe on mobile</p>
+        <p className="text-xs text-slate-500">Rotate every 4 s · pause on hover · swipe on mobile</p>
       </div>
       {slides.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">No slides yet. The designed banner with your heading and buttons is shown until you add one.</p> : null}
       {slides.map((slide, index) => {

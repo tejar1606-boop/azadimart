@@ -13,7 +13,7 @@ export type HeroSlide = {
   alt: string;
 };
 
-const INTERVAL_MS = 6000;
+const INTERVAL_MS = 4000;
 
 function SlideArt({ image, video, alt, active, priority, className }: { image?: string; video?: string; alt: string; active: boolean; priority: boolean; className: string }) {
   const ref = useRef<HTMLVideoElement>(null);
