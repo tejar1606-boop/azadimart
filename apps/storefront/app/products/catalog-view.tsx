@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import WishlistButton from "../components/wishlist-button";
 
 type Variant = { id: string; title: string; pricePaise: number; compareAtPaise: number | null; availableQuantity: number };
@@ -23,7 +23,7 @@ export default function CatalogView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  async function load(search = "") {
+  const load = useCallback(async (search = "") => {
     setLoading(true);
     setError("");
     try {
