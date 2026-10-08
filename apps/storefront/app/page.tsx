@@ -192,6 +192,7 @@ export default async function HomePage() {
               { id: "grocery", label: "Grocery", href: "/products", isActive: true },
             ]).map((item) => <Link key={"desktop-cat-"+item.id} href={item.href ?? "/products"} className="shrink-0 hover:text-slate-950">{item.label}</Link>)}
           </div>
+          </div>
         </div>
 
         {data.sections.length === 0 ? (
