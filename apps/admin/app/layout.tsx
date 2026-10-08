@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 const NAV = [
   ["/dashboard","Dashboard"],["/orders","Orders"],["/products","Products"],["/sellers","Sellers"],["/customers","Customers"],
-  ["/qc","QC"],["/logistics","Logistics"],["/payments","Payments"],["/finance","Finance"],["/returns","Returns"],
+  ["/qc","QC"],["/aplus","A+ review"],["/logistics","Logistics"],["/payments","Payments"],["/finance","Finance"],["/returns","Returns"],
   ["/support","Support"],["/marketing","Marketing"],["/security","Security & Audit"],["/online-store","Online Store"],
 ] as const;
 

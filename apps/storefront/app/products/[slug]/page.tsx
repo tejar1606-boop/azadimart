@@ -1,10 +1,12 @@
 import Link from "next/link";
 import ProductGallery from "./product-gallery";
 import { notFound } from "next/navigation";
-import { createDatabase, inventory, mediaAssets, productMedia, productVariants, products, sellers, categories } from "@azadimart/database";
+import { createDatabase, inventory, mediaAssets, productMedia, productVariants, products, sellers, categories, productAplusContent, productSummaries } from "@azadimart/database";
 import { and, asc, eq, ne } from "drizzle-orm";
 import AddToCart from "./add-to-cart";
 import ProductCard from "../../components/product-card";
+import { type AplusBlock, aplusComparedProductIds } from "@azadimart/shared";
+import { AplusContent } from "@azadimart/ui";
 import WishlistButton from "../../components/wishlist-button";
 
 /** One card per product: the query returns a row per variant x image. Keeps the
@@ -88,6 +90,12 @@ export default async function ProductDetailPage({ params, searchParams }: { para
     .orderBy(asc(productMedia.sortOrder))
     .limit(160), 8);
 
+  // Approved A+ content only; comparison columns show LIVE products.
+  const aplusRow = (await db.select({ blocks: productAplusContent.blocks }).from(productAplusContent).where(eq(productAplusContent.productId, first.id)).limit(1))[0];
+  const aplusBlocks = (aplusRow?.blocks ?? []) as AplusBlock[];
+  const aplusSummaries = aplusBlocks.length ? await productSummaries(db, [first.id, ...aplusComparedProductIds(aplusBlocks)]) : {};
+  const aplusCompared = Object.fromEntries(Object.values(aplusSummaries).filter((summary) => summary.status === "LIVE" && summary.id !== first.id).map((summary) => [summary.id, { ...summary, href: "/products/" + summary.slug }]));
+
   return (
     <main className="min-h-[60vh] bg-canvas px-4 py-8 sm:px-6 sm:py-12">
       <div className="mx-auto max-w-7xl">
@@ -157,6 +165,14 @@ export default async function ProductDetailPage({ params, searchParams }: { para
             </div>
           </section>
         </div>
+
+        {aplusBlocks.length ? (
+          <section aria-label="From the seller" className="mt-12 border-t border-slate-200 pt-10">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">From the seller</p>
+            <h2 className="mt-2 mb-6 text-2xl font-bold tracking-tight sm:text-3xl">Product details</h2>
+            <AplusContent blocks={aplusBlocks} product={{ id: first.id, title: first.title, imageUrl: aplusSummaries[first.id]?.imageUrl ?? null, pricePaise: selectedVariant.pricePaise }} compared={aplusCompared} />
+          </section>
+        ) : null}
 
         {relatedRows.length > 0 ? (
           <section className="mt-12 border-t border-slate-200 pt-10">

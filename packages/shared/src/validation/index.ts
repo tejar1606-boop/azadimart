@@ -173,7 +173,7 @@ export const customerRegistrationSchema = z.object({
   captchaToken: z.string().max(2048).optional(),
 });
 export const roleSchema = z.enum(ROLES);export const mediaUploadRequestSchema = z.object({
-  purpose: z.enum(["SITE_IMAGE", "SITE_VIDEO", "PRODUCT_IMAGE", "PRODUCT_VIDEO"]),
+  purpose: z.enum(["SITE_IMAGE", "SITE_VIDEO", "PRODUCT_IMAGE", "PRODUCT_VIDEO", "APLUS_IMAGE"]),
   contentType: z.string().max(100),
   byteSize: z.number().int().positive(),
 });

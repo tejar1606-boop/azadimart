@@ -5,11 +5,12 @@ import {
   jsonb,
   pgTable,
   text,
+  timestamp,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { id, timestamps } from "./columns";
-import { mediaKindEnum, productStatusEnum, verificationStatusEnum } from "./enums";
+import { aplusStatusEnum, mediaKindEnum, productStatusEnum, verificationStatusEnum } from "./enums";
 import { users } from "./identity";
 import { sellers } from "./sellers";
 import { mediaAssets } from "./cms";
@@ -134,10 +135,21 @@ export const productAplusContent = pgTable(
     productId: uuid("product_id")
       .notNull()
       .references(() => products.id, { onDelete: "cascade" }),
+    /** Approved content shown on the storefront. */
     blocks: jsonb("blocks").$type<Record<string, unknown>[]>().notNull().default([]),
+    /** Seller's working copy; becomes `blocks` when an admin approves it. */
+    draftBlocks: jsonb("draft_blocks").$type<Record<string, unknown>[]>().notNull().default([]),
+    status: aplusStatusEnum("status").notNull().default("DRAFT"),
+    reviewNotes: text("review_notes"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id),
     ...timestamps,
   },
-  (table) => [uniqueIndex("product_aplus_content_product_id_unique").on(table.productId)],
+  (table) => [
+    uniqueIndex("product_aplus_content_product_id_unique").on(table.productId),
+    index("product_aplus_content_status_idx").on(table.status),
+  ],
 );
 
 export const inventoryMovements = pgTable(

@@ -145,7 +145,7 @@ export default function QCPage() {
 
               <div className="mt-6">
                 <h3 className="font-semibold">A+ content</h3>
-                <p className="mt-2 text-sm text-ink-muted">{item.aplusBlocks.length ? item.aplusBlocks.length + " content block(s) submitted." : "No A+ content submitted."}</p>
+                <p className="mt-2 text-sm text-ink-muted">{item.aplusBlocks.length ? <>{item.aplusBlocks.length} block(s) drafted. Review them in <a href="/aplus" className="font-medium text-saffron">A+ review</a> once the seller submits.</> : "No A+ content yet."}</p>
               </div>
 
               <div className="mt-6">

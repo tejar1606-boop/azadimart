@@ -12,7 +12,7 @@ import type { ObjectStore } from "./object-store";
  *   3. finalizeUpload() -> checks token, size, real file type and image rules
  */
 
-export type UploadPurpose = "SITE_IMAGE" | "SITE_VIDEO" | "PRODUCT_IMAGE" | "PRODUCT_VIDEO";
+export type UploadPurpose = "SITE_IMAGE" | "SITE_VIDEO" | "PRODUCT_IMAGE" | "PRODUCT_VIDEO" | "APLUS_IMAGE";
 
 const GB = 1024 * 1024 * 1024;
 const MB = 1024 * 1024;
@@ -33,6 +33,8 @@ export const UPLOAD_RULES: Record<UploadPurpose, PurposeRule> = {
   SITE_VIDEO: { kind: "VIDEO", maxBytes: 5 * GB, contentTypes: VIDEO_TYPES },
   PRODUCT_IMAGE: { kind: "IMAGE", maxBytes: 50 * MB, contentTypes: IMAGE_TYPES, square: { minPx: 500 } },
   PRODUCT_VIDEO: { kind: "VIDEO", maxBytes: 5 * GB, contentTypes: VIDEO_TYPES },
+  // A+ modules use banner and square shapes; the editor enforces each slot's size.
+  APLUS_IMAGE: { kind: "IMAGE", maxBytes: 50 * MB, contentTypes: IMAGE_TYPES },
 };
 
 const EXTENSIONS: Record<string, string> = {

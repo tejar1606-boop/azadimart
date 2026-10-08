@@ -47,7 +47,7 @@ export async function GET(request: Request) {
         .orderBy(asc(productMedia.sortOrder)),
       db.select({
         productId: productAplusContent.productId,
-        blocks: productAplusContent.blocks,
+        blocks: productAplusContent.draftBlocks,
       }).from(productAplusContent).where(inArray(productAplusContent.productId, productIds)),
     ]);
 

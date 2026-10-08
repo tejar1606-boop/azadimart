@@ -109,3 +109,6 @@ export const ticketStatusEnum = pgEnum("ticket_status", ["OPEN", "IN_PROGRESS", 
 export const pageStatusEnum = pgEnum("page_status", ["DRAFT", "PUBLISHED"]);
 
 export const themeStatusEnum = pgEnum("theme_status", ["DRAFT", "PUBLISHED", "ARCHIVED"]);
+
+/** A+ content review: DRAFT -> PENDING_REVIEW -> APPROVED | REJECTED. */
+export const aplusStatusEnum = pgEnum("aplus_status", ["DRAFT", "PENDING_REVIEW", "APPROVED", "REJECTED"]);

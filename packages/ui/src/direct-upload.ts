@@ -1,4 +1,4 @@
-export type DirectUploadPurpose = "SITE_IMAGE" | "SITE_VIDEO" | "PRODUCT_IMAGE" | "PRODUCT_VIDEO";
+export type DirectUploadPurpose = "SITE_IMAGE" | "SITE_VIDEO" | "PRODUCT_IMAGE" | "PRODUCT_VIDEO" | "APLUS_IMAGE";
 
 export type DirectUploadResult = {
   mediaAssetId: string;
