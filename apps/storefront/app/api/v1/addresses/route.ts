@@ -1,7 +1,7 @@
 import { requireApiAccess } from "@azadimart/auth";
 import { createDatabase, customerAddresses } from "@azadimart/database";
 import { addressSchema, AppError, toApiError } from "@azadimart/shared";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
