@@ -21,6 +21,39 @@ export const users = pgTable(
   ],
 );
 
+export const roles = pgTable("roles", {
+  id,
+  name: text("name").notNull(),
+  description: text("description"),
+  ...timestamps,
+}, (table) => [uniqueIndex("roles_name_unique").on(table.name)]);
+
+export const userRoles = pgTable(
+  "user_roles",
+  {
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    roleId: uuid("role_id").notNull().references(() => roles.id, { onDelete: "cascade" }),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("user_roles_user_role_unique").on(table.userId, table.roleId)],
+);
+
+export const sessions = pgTable(
+  "sessions",
+  {
+    id,
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("sessions_token_hash_unique").on(table.tokenHash),
+    index("sessions_user_id_idx").on(table.userId),
+  ],
+);
+
 export const customers = pgTable("customers", {
   id,
   userId: uuid("user_id")

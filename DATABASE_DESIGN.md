@@ -4,7 +4,7 @@
 - PostgreSQL / Neon
 - UUID primary keys
 - timestamptz timestamps
-- numeric monetary fields
+- monetary amounts stored as integer paise with INR as the initial currency
 - foreign keys and constraints
 - versioned migrations
 - transactions for critical workflows
@@ -12,6 +12,8 @@
 
 ## Identity
 `users`, `roles`, `user_roles`, `sessions`
+
+`users.role` is the authoritative coarse application role used by request guards. `roles/user_roles` provide the foundation for future granular roles and scoped permissions; they must not silently override `users.role`.
 
 ## Customers
 `customers`, `customer_addresses`, `wishlists`, `wishlist_items`
@@ -23,6 +25,8 @@ Seller-owned records must be scoped by authenticated seller identity.
 
 ## Catalog
 `categories`, `brands`, `products`, `product_variants`, `product_attributes`, `product_media`, `product_aplus_content`
+
+`products.brand_id` is optional so unbranded/private-label products remain supported.
 
 Product lifecycle: draft → pending_qc → approved/rejected → published/unpublished/archived.
 
@@ -69,11 +73,16 @@ Financial history must not be physically deleted after settlement.
 
 Theme publishing creates a new revision. Rollback creates a new revision; history is preserved.
 
+`navigation_items` is the normalized navigation source of truth. The legacy `navigation.items` JSON field should not be used by new writes.
+
 ## Security
 Never store plaintext passwords. Never expose credentials or private documents. Enforce ownership and role checks server-side.
 
 ## Indexing
 Index common filters and joins: seller_id, category_id, status, approval_status, slug, order_number, payment_status, shipment status, QC status, created_at.
+
+## Returns
+`returns` identify the return request; `return_items` records the affected order items and quantities.
 
 ## Migration rule
 All schema changes use reviewed, versioned migrations. Do not patch production tables manually.

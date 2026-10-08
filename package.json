@@ -20,9 +20,10 @@
     "verify:routes": "node scripts/verify-routes.mjs",
     "verify:contracts": "pnpm --filter @azadimart/shared test -- src/api",
     "db:generate": "pnpm --filter @azadimart/database generate",
-    "db:migrate": "pnpm --filter @azadimart/database migrate",
+    "db:migrate": "node scripts/db-migrate-safe.mjs",
     "db:studio": "pnpm --filter @azadimart/database studio",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "db:check": "node scripts/db-preflight.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
