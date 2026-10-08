@@ -62,10 +62,13 @@ export const products = pgTable(
     slug: text("slug").notNull(),
     description: text("description"),
     status: productStatusEnum("status").notNull().default("DRAFT"),
+    // Storefront display order set by admins (1 = first). Null = not arranged yet; shown after arranged products, newest first.
+    position: integer("position"),
     ...timestamps,
   },
   (table) => [
     uniqueIndex("products_seller_slug_unique").on(table.sellerId, table.slug),
+    index("products_position_idx").on(table.position),
     index("products_seller_id_idx").on(table.sellerId),
     index("products_status_idx").on(table.status),
     index("products_category_id_idx").on(table.categoryId),

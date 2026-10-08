@@ -199,3 +199,23 @@ export const adminProductUpdateSchema = z.object({
   videoAssetId: uuidSchema.nullable().optional(),
 });
 export const adminProductStatusSchema = z.object({ action: z.enum(["hide", "show", "archive", "restore"]), reason: z.string().trim().max(500).optional() });
+
+const categoryName = z.string().trim().min(2, "Category name needs at least 2 characters").max(60);
+export const adminCategoryCreateSchema = z.object({ name: categoryName, parentId: uuidSchema.nullable().optional() });
+export const adminCategoryUpdateSchema = z.object({
+  name: categoryName.optional(),
+  isActive: z.boolean().optional(),
+  parentId: uuidSchema.nullable().optional(),
+}).refine((v) => v.name !== undefined || v.isActive !== undefined || v.parentId !== undefined, "Nothing to update");
+/** Sibling categories in their new order. */
+export const adminCategoryOrderSchema = z.object({ ids: z.array(uuidSchema).min(1).max(500).refine((ids) => new Set(ids).size === ids.length, "Duplicate categories") });
+/** Live products in their new storefront order (all of them, or one category's). */
+export const adminProductArrangeSchema = z.object({
+  categoryId: uuidSchema.nullable().optional(),
+  productIds: z.array(uuidSchema).min(1).max(2000).refine((ids) => new Set(ids).size === ids.length, "Duplicate products"),
+});
+/** Move products (e.g. listed by a seller in the wrong place) to another category. */
+export const adminMoveCategorySchema = z.object({
+  categoryId: uuidSchema,
+  productIds: z.array(uuidSchema).min(1).max(500).refine((ids) => new Set(ids).size === ids.length, "Duplicate products"),
+});

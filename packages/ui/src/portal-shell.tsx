@@ -41,8 +41,10 @@ export function PortalShell({
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
-  const current = sections.flatMap((section) => section.items).find((item) => isActive(item.href));
+  // The most specific matching link wins, so /catalog/arrange highlights "Arrange" rather than "/catalog" too.
+  const matches = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  const current = sections.flatMap((section) => section.items).filter((item) => matches(item.href)).sort((a, b) => b.href.length - a.href.length)[0];
+  const isActive = (href: string) => current?.href === href;
 
   const nav = (
     <nav aria-label={product} className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">

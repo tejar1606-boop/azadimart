@@ -81,7 +81,8 @@ async function getHome() {
       .leftJoin(productMedia, and(eq(productMedia.productId, products.id), eq(productMedia.kind, "IMAGE")))
       .leftJoin(mediaAssets, eq(mediaAssets.id, productMedia.mediaAssetId))
       .where(and(eq(products.status, "LIVE"), eq(productVariants.isActive, true)))
-      .orderBy(desc(products.createdAt), asc(productMedia.sortOrder))
+      // Admin-arranged order first (Arrange products page); unarranged products follow, newest first.
+      .orderBy(asc(products.position), desc(products.createdAt), asc(productMedia.sortOrder))
       .limit(400),
     db.select({ id: categories.id, name: categories.name })
       .from(categories).where(and(eq(categories.isActive, true), isNull(categories.parentId)))

@@ -27,6 +27,8 @@ export const PortalIcons = {
   inventory: (p: P) => <I {...p}><path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z" /><path d="m3 12 9 4.5 9-4.5M3 16.5 12 21l9-4.5" /></I>,
   payouts: (p: P) => <I {...p}><circle cx="12" cy="12" r="8.5" /><path d="M9 8.5h6M9 11.5h6M12 11.5c0 2.5-1.5 4-3 4l4.5 3" /></I>,
   kyc: (p: P) => <I {...p}><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="11" r="2.2" /><path d="M5.5 16.5a3.6 3.6 0 0 1 7 0M14.5 9.5h3.5M14.5 13h3" /></I>,
+  categories: (p: P) => <I {...p}><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" /><circle cx="17" cy="17" r="3.5" /></I>,
+  arrange: (p: P) => <I {...p}><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" /><path d="M14 7h6m-2.5-2.5L20 7l-2.5 2.5M10 17H4m2.5-2.5L4 17l2.5 2.5" /></I>,
   menu: (p: P) => <I {...p}><path d="M4 7h16M4 12h16M4 17h16" /></I>,
   close: (p: P) => <I {...p}><path d="M6 6l12 12M18 6 6 18" /></I>,
   logout: (p: P) => <I {...p}><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" /><path d="M10 16l-4-4 4-4M6 12h10" /></I>,

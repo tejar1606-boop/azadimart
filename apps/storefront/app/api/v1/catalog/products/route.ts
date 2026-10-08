@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q")?.trim() ?? "";
     const categoryId = searchParams.get("categoryId");
-    const sort = searchParams.get("sort") ?? "newest";
+    const sort = searchParams.get("sort") ?? "featured";
     const minPrice = Number(searchParams.get("minPrice"));
     const maxPrice = Number(searchParams.get("maxPrice"));
     const limit = toPositiveInt(searchParams.get("limit"), 24, 60);
@@ -61,7 +61,11 @@ export async function GET(request: Request) {
           ? asc(productVariants.pricePaise)
           : sort === "price_desc"
             ? desc(productVariants.pricePaise)
-            : desc(products.createdAt),
+            : sort === "newest"
+              ? desc(products.createdAt)
+              // "featured": the order admins set on the Arrange products page, then newest first.
+              : asc(products.position),
+        desc(products.createdAt),
         asc(productMedia.sortOrder),
       );
 

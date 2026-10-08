@@ -17,7 +17,7 @@ export default function CatalogView() {
   const [items, setItems] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryId, setCategoryId] = useState(urlCategory);
-  const [sort, setSort] = useState("newest");
+  const [sort, setSort] = useState("featured");
   const [query, setQuery] = useState(urlQuery);
   useEffect(() => { setQuery(urlQuery); }, [urlQuery]);
   useEffect(() => { setCategoryId(urlCategory); }, [urlCategory]);
@@ -62,16 +62,17 @@ export default function CatalogView() {
 
         <div className="mt-5 grid gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:grid-cols-2 lg:hidden">
           <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Filter by category"><option value="">All categories</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
-          <select value={sort} onChange={(event) => setSort(event.target.value)} className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Sort products"><option value="newest">Newest</option><option value="price_asc">Price: Low to high</option><option value="price_desc">Price: High to low</option></select>
+          <select value={sort} onChange={(event) => setSort(event.target.value)} className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Sort products"><option value="featured">Featured</option><option value="newest">Newest</option><option value="price_asc">Price: Low to high</option><option value="price_desc">Price: High to low</option></select>
           <div className="grid grid-cols-2 gap-2"><input inputMode="numeric" value={minPrice} onChange={(e) => setMinPrice(e.target.value.replace(/\D/g, ""))} placeholder="Min ₹" className="min-h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none" aria-label="Minimum price"/><input inputMode="numeric" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value.replace(/\D/g, ""))} placeholder="Max ₹" className="min-h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none" aria-label="Maximum price"/></div>
         </div>
 
         <div className="mt-8 flex items-center justify-between text-sm">
           <div className="hidden lg:flex items-center gap-2 text-xs font-semibold text-slate-500">
             <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-semibold outline-none" aria-label="Desktop category filter"><option value="">All categories</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
-            <select value={sort} onChange={(event) => setSort(event.target.value)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-semibold outline-none" aria-label="Desktop sort"><option value="newest">Newest</option><option value="price_asc">Price low</option><option value="price_desc">Price high</option></select>
+            <select value={sort} onChange={(event) => setSort(event.target.value)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-semibold outline-none" aria-label="Desktop sort"><option value="featured">Featured</option><option value="newest">Newest</option><option value="price_asc">Price low</option><option value="price_desc">Price high</option></select>
             <input inputMode="numeric" value={minPrice} onChange={(e) => setMinPrice(e.target.value.replace(/\D/g, ""))} placeholder="Min ₹" className="w-20 rounded-full border border-slate-200 px-3 py-1.5 outline-none" aria-label="Minimum price"/>
             <input inputMode="numeric" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value.replace(/\D/g, ""))} placeholder="Max ₹" className="w-20 rounded-full border border-slate-200 px-3 py-1.5 outline-none" aria-label="Maximum price"/>
+            <button type="button" onClick={() => setSort("featured")} className={"rounded-full px-3 py-1.5 transition " + (sort === "featured" ? "bg-slate-950 text-white" : "border border-slate-200 hover:border-slate-300")}>Featured</button>
             <button type="button" onClick={() => setSort("newest")} className={"rounded-full px-3 py-1.5 transition " + (sort === "newest" ? "bg-slate-950 text-white" : "border border-slate-200 hover:border-slate-300")}>Latest</button>
             <button type="button" onClick={() => setSort("price_asc")} className={"rounded-full px-3 py-1.5 transition " + (sort === "price_asc" ? "bg-slate-950 text-white" : "border border-slate-200 hover:border-slate-300")}>Price low</button>
             <button type="button" onClick={() => setSort("price_desc")} className={"rounded-full px-3 py-1.5 transition " + (sort === "price_desc" ? "bg-slate-950 text-white" : "border border-slate-200 hover:border-slate-300")}>Price high</button>
