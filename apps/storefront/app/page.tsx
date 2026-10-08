@@ -1,5 +1,6 @@
 import CouponCard from "./components/coupon-card";
 import WishlistButton from "./components/wishlist-button";
+import MarketplaceHeader from "./components/marketplace-header";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -158,31 +159,7 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-slate-950">
-      <div className="bg-slate-950 px-4 py-2 text-center text-[11px] font-medium tracking-wide text-white/80">{announcement}</div>
-      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6 lg:gap-6">
-          <Link href="/" className="shrink-0 text-xl font-black tracking-[-0.04em]">Azadi<span className="text-amber-500">Mart</span></Link>
-          <nav className="hidden min-w-0 flex-1 items-center gap-5 lg:flex">
-            {data.navigationItems.map((item) => (
-              <Link key={item.id} href={item.href ?? "/"} className="text-sm font-medium text-slate-600 transition hover:text-slate-950">{item.label}</Link>
-            ))}
-          </nav>
-          <div className="ml-auto flex items-center gap-2 sm:gap-3">
-            <Link href="/products" className="hidden min-w-56 rounded-md border border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-xs text-slate-400 transition hover:border-slate-300 sm:block">Search for products, categories and brands</Link>
-            <Link href="/products" className="rounded-full bg-slate-950 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-slate-800 sm:px-5">Shop</Link>
-          </div>
-        </div>
-        <div className="border-t border-slate-100 bg-white px-4 pb-2.5 pt-2 lg:hidden">
-          <div className="mx-auto mb-2 flex max-w-7xl rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-            <Link href="/products" className="w-full text-xs text-slate-400">Search for products, categories and brands</Link>
-          </div>
-          <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto">
-            {data.navigationItems.map((item) => (
-              <Link key={"mobile-" + item.id} href={item.href ?? "/"} className="shrink-0 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600">{item.label}</Link>
-            ))}
-          </div>
-        </div>
-      </header>
+      <MarketplaceHeader announcement={announcement} navigationItems={data.navigationItems} />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="hidden border-b border-slate-200 bg-white py-3 lg:block">
@@ -261,7 +238,7 @@ export default async function HomePage() {
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-3 py-2 backdrop-blur lg:hidden">
         <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
           {[["Home","/"],["Categories","/products"],["Wishlist","/products"],["Cart","/cart"]].map(([label,href], i) => (
-            <Link key={label} href={href} className="flex flex-col items-center gap-1 rounded-lg py-1.5 text-[10px] font-semibold text-slate-600">
+            <Link key={label} href={label === "Wishlist" ? "/wishlist" : href} className="flex flex-col items-center gap-1 rounded-lg py-1.5 text-[10px] font-semibold text-slate-600">
               <span className="grid h-6 w-6 place-items-center rounded-full bg-slate-100 text-[9px] font-black text-slate-700">{i === 0 ? "⌂" : i === 1 ? "≡" : i === 2 ? "♡" : "🛒"}</span>{label}
             </Link>
           ))}
