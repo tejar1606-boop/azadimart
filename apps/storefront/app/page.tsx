@@ -214,7 +214,7 @@ function FooterColumn({ title }: { title: string }) {
 
 function DefaultHero() {
   return (
-    <section className="relative isolate mx-auto my-6 aspect-[4/5] w-full overflow-hidden rounded-[2rem] bg-slate-950 p-5 text-white shadow-[0_30px_80px_rgba(15,23,42,0.16)] sm:aspect-[16/10] sm:p-8 lg:my-8 lg:aspect-[16/7] lg:max-w-7xl lg:p-12">
+    <section className="relative isolate mx-auto my-6 aspect-[2/1] w-full overflow-hidden rounded-[2rem] bg-slate-950 p-5 text-white shadow-[0_30px_80px_rgba(15,23,42,0.16)] sm:p-8 lg:my-8 lg:max-w-7xl lg:p-12">
       <div className="absolute -right-28 -top-20 -z-10 h-80 w-80 rounded-full bg-amber-400/20 blur-3xl" />
       <div className="absolute -bottom-28 left-1/3 -z-10 h-96 w-96 rounded-full bg-sky-400/10 blur-3xl" />
       <div className="absolute right-8 top-10 hidden h-[420px] w-[300px] rotate-6 rounded-[2rem] border border-white/10 bg-white/[0.04] backdrop-blur lg:block" />
