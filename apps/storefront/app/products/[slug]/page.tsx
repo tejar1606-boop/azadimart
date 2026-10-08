@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { createDatabase, inventory, mediaAssets, productMedia, productVariants, products, sellers, categories } from "@azadimart/database";
 import { and, asc, eq, ne } from "drizzle-orm";
 import AddToCart from "./add-to-cart";
+import WishlistButton from "../../components/wishlist-button";
 
 export const dynamic = "force-dynamic";
 
@@ -74,10 +75,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         <Link href="/products" className="text-sm font-semibold text-slate-500 hover:text-slate-950">← Back to marketplace</Link>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
-          <ProductGallery
+          <div className="relative"><ProductGallery
             title={first.title}
             media={media.filter((item) => Boolean(item.mediaAssetId && item.mediaStorageKey && item.mediaKind === "IMAGE")).map((item) => ({ mediaAssetId: String(item.mediaAssetId), mediaStorageKey: String(item.mediaStorageKey), altText: item.altText }))}
           />
+          <div className="absolute right-3 top-3 z-10"><WishlistButton productId={first.id} /></div>
+          </div>
 
           <section className="h-fit rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.05)] sm:p-8 lg:sticky lg:top-28">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">{first.categoryName}</p>
