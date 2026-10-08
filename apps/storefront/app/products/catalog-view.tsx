@@ -17,6 +17,8 @@ export default function CatalogView() {
   const [sort, setSort] = useState("newest");
   const [query, setQuery] = useState("");
   const [input, setInput] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -27,6 +29,8 @@ export default function CatalogView() {
       const params = new URLSearchParams({ limit: "48", sort });
       if (categoryId) params.set("categoryId", categoryId);
       if (search.trim()) params.set("q", search.trim());
+      if (minPrice) params.set("minPrice", String(Number(minPrice) * 100));
+      if (maxPrice) params.set("maxPrice", String(Number(maxPrice) * 100));
       const response = await fetch("/api/v1/catalog/products?" + params.toString(), { cache: "no-store" });
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error ?? "Unable to load products.");
@@ -39,7 +43,7 @@ export default function CatalogView() {
     }
   }
 
-  useEffect(() => { void load(query); }, [categoryId, sort]);
+  useEffect(() => { void load(query); }, [categoryId, sort, minPrice, maxPrice]);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -62,10 +66,18 @@ export default function CatalogView() {
           </form>
         </div>
 
-        <div className="mt-5 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row lg:hidden"><label className="sr-only" htmlFor="catalog-category">Category</label><select id="catalog-category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="min-h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Filter by category"><option value="">All categories</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><label className="sr-only" htmlFor="catalog-sort">Sort</label><select id="catalog-sort" value={sort} onChange={(event) => setSort(event.target.value)} className="min-h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Sort products"><option value="newest">Newest</option><option value="price_asc">Price: Low to high</option><option value="price_desc">Price: High to low</option></select></div>
+        <div className="mt-5 grid gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:grid-cols-2 lg:hidden">
+          <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Filter by category"><option value="">All categories</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
+          <select value={sort} onChange={(event) => setSort(event.target.value)} className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Sort products"><option value="newest">Newest</option><option value="price_asc">Price: Low to high</option><option value="price_desc">Price: High to low</option></select>
+          <div className="grid grid-cols-2 gap-2"><input inputMode="numeric" value={minPrice} onChange={(e) => setMinPrice(e.target.value.replace(/\D/g, ""))} placeholder="Min ₹" className="min-h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none" aria-label="Minimum price"/><input inputMode="numeric" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value.replace(/\D/g, ""))} placeholder="Max ₹" className="min-h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none" aria-label="Maximum price"/></div>
+        </div>
 
         <div className="mt-8 flex items-center justify-between text-sm">
           <div className="hidden lg:flex items-center gap-2 text-xs font-semibold text-slate-500">
+            <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-semibold outline-none" aria-label="Desktop category filter"><option value="">All categories</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
+            <select value={sort} onChange={(event) => setSort(event.target.value)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-semibold outline-none" aria-label="Desktop sort"><option value="newest">Newest</option><option value="price_asc">Price low</option><option value="price_desc">Price high</option></select>
+            <input inputMode="numeric" value={minPrice} onChange={(e) => setMinPrice(e.target.value.replace(/\D/g, ""))} placeholder="Min ₹" className="w-20 rounded-full border border-slate-200 px-3 py-1.5 outline-none" aria-label="Minimum price"/>
+            <input inputMode="numeric" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value.replace(/\D/g, ""))} placeholder="Max ₹" className="w-20 rounded-full border border-slate-200 px-3 py-1.5 outline-none" aria-label="Maximum price"/>
             <span className="rounded-full bg-slate-950 px-3 py-1.5 text-white">All products</span>
             <span className="rounded-full border border-slate-200 px-3 py-1.5">Popular</span>
             <span className="rounded-full border border-slate-200 px-3 py-1.5">New arrivals</span>
