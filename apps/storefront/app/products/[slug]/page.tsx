@@ -135,7 +135,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               ))}
             </div>
           </section>
-        )}
+        ) : null}
       </div>
     </main>
   );
