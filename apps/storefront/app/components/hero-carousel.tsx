@@ -36,13 +36,15 @@ function SlideArt({ image, video, alt, active, priority, className }: { image?: 
 
 /**
  * Homepage banner slider: 2880 × 1080 desktop / 1200 × 1500 mobile frames,
- * image or video per slide, optional link, autoplay with pause, arrows,
- * dots and swipe. Autoplay is off for users who prefer reduced motion.
+ * image or video per slide, optional link, arrows, dots and swipe.
+ * Slides advance every 4 s, including while the pointer rests on the
+ * banner. Autoplay stops only for the pause button or a hidden tab. With
+ * "reduce motion" on, slides still change but without the sliding animation.
  */
 export default function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
-  const [hovered, setHovered] = useState(false);
+  const [tabHidden, setTabHidden] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const touchX = useRef<number | null>(null);
   const count = slides.length;
@@ -55,13 +57,19 @@ export default function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
     return () => query.removeEventListener("change", onChange);
   }, []);
 
+  useEffect(() => {
+    const onVisibility = () => setTabHidden(document.hidden);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
   const go = useCallback((next: number) => setIndex(((next % count) + count) % count), [count]);
 
   useEffect(() => {
-    if (count < 2 || paused || hovered || reducedMotion) return;
+    if (count < 2 || paused || tabHidden) return;
     const timer = window.setTimeout(() => go(index + 1), INTERVAL_MS);
     return () => window.clearTimeout(timer);
-  }, [count, go, hovered, index, paused, reducedMotion]);
+  }, [count, go, index, paused, tabHidden]);
 
   if (!count) return null;
 
@@ -70,8 +78,6 @@ export default function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
       aria-roledescription="carousel"
       aria-label="Featured campaigns"
       className="relative bg-slate-200"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       onTouchStart={(event) => { touchX.current = event.touches[0]?.clientX ?? null; }}
       onTouchEnd={(event) => {
         const start = touchX.current; const end = event.changedTouches[0]?.clientX;
@@ -81,7 +87,7 @@ export default function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
       }}
     >
       <div className="relative overflow-hidden">
-        <div className="flex transition-transform duration-500 ease-out motion-reduce:transition-none" style={{ transform: `translateX(-${index * 100}%)` }}>
+        <div className={"flex " + (reducedMotion ? "" : "transition-transform duration-500 ease-out")} style={{ transform: `translateX(-${index * 100}%)` }}>
           {slides.map((slide, i) => {
             const active = i === index;
             const mobileImage = slide.mobileImageUrl || slide.desktopImageUrl;
@@ -109,14 +115,12 @@ export default function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
           <div className="absolute inset-x-0 bottom-3 flex items-center justify-center gap-3 sm:bottom-5">
             <div className="flex items-center gap-1.5 rounded-full bg-black/25 px-2.5 py-1.5 backdrop-blur">
               {slides.map((_, i) => (
-                <button key={i} type="button" onClick={() => go(i)} aria-label={`Show banner ${i + 1}`} aria-current={i === index} className={"h-1.5 rounded-full transition-all " + (i === index ? "w-6 bg-white" : "w-1.5 bg-white/60 hover:bg-white/90")} />
+                <button key={i} type="button" onClick={() => go(i)} aria-label={`Show banner ${i + 1}`} aria-current={i === index} className={"h-1.5 rounded-full transition-all " + (i === index ? "w-6 bg-tiranga-saffron" : "w-1.5 bg-white/70 hover:bg-white")} />
               ))}
             </div>
-            {!reducedMotion ? (
-              <button type="button" onClick={() => setPaused((value) => !value)} aria-label={paused ? "Play banners" : "Pause banners"} className="grid h-7 w-7 place-items-center rounded-full bg-black/25 text-[10px] text-white backdrop-blur hover:bg-black/40">
-                {paused ? "▶" : "❚❚"}
-              </button>
-            ) : null}
+            <button type="button" onClick={() => setPaused((value) => !value)} aria-label={paused ? "Play banners" : "Pause banners"} className="grid h-7 w-7 place-items-center rounded-full bg-black/25 text-[10px] text-white backdrop-blur hover:bg-black/40">
+              {paused ? "▶" : "❚❚"}
+            </button>
           </div>
         </>
       ) : null}

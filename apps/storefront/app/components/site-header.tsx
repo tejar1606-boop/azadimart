@@ -6,8 +6,20 @@ import { type FormEvent, useEffect, useState } from "react";
 import type { StoreChrome } from "../lib/chrome";
 import { BagIcon, CloseIcon, HeartIcon, MenuIcon, SearchIcon, UserIcon } from "./icons";
 
+/** Brand name in the tricolour palette: saffron "Azadi", India green "Mart". */
 export function Wordmark({ className = "" }: { className?: string }) {
-  return <span className={"font-bold tracking-[-0.04em] " + className}>Azadi<span className="text-brand">Mart</span></span>;
+  return <span className={"font-bold tracking-[-0.04em] " + className}><span className="text-brand">Azadi</span><span className="text-india">Mart</span></span>;
+}
+
+/** Thin saffron · white · green ribbon used on the header, banner and footer (colours only, not the flag). */
+export function TricolourRibbon({ className = "h-1" }: { className?: string }) {
+  return (
+    <div aria-hidden="true" className={"flex w-full " + className}>
+      <span className="flex-1 bg-tiranga-saffron" />
+      <span className="flex-1 bg-tiranga-white" />
+      <span className="flex-1 bg-tiranga-green" />
+    </div>
+  );
 }
 
 function AnnouncementBar({ messages }: { messages: string[] }) {
@@ -18,8 +30,8 @@ function AnnouncementBar({ messages }: { messages: string[] }) {
     return () => window.clearInterval(timer);
   }, [messages.length]);
   return (
-    <div className="bg-black px-4 py-2 text-center text-[11px] font-medium tracking-[0.04em] text-white sm:text-xs" aria-live="polite">
-      {messages[index]}
+    <div className="bg-navy px-4 py-2 text-center text-[11px] font-medium tracking-[0.04em] text-white sm:text-xs" aria-live="polite">
+      <span className="mr-2 text-tiranga-saffron" aria-hidden="true">✦</span>{messages[index]}<span className="ml-2 text-[#5fd35a]" aria-hidden="true">✦</span>
     </div>
   );
 }
@@ -70,6 +82,7 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
 
   return (
     <>
+      <TricolourRibbon />
       <AnnouncementBar messages={chrome.announcements} />
       <header className="sticky top-0 z-40 bg-white shadow-header">
         {/* Logo | search | icons. The outer columns share the leftover space equally, so the search is exactly centred. */}
@@ -96,9 +109,9 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
         {chrome.navigation.length ? (
           <nav aria-label="Categories" className="hidden border-t border-slate-100 lg:block">
             <div className="mx-auto flex max-w-7xl items-center justify-center gap-1 overflow-x-auto px-4 sm:px-6">
-              <Link href="/products" className={"shrink-0 px-3 py-3 text-[13px] font-semibold uppercase tracking-[0.06em] transition " + (pathname === "/products" ? "text-brand-600" : "text-slate-900 hover:text-brand-600")}>All products</Link>
+              <Link href="/products" className={"relative shrink-0 px-3 py-3 text-[13px] font-semibold uppercase tracking-[0.06em] transition " + (pathname === "/products" ? "text-brand-600 after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand" : "text-navy hover:text-brand-600")}>All products</Link>
               {chrome.navigation.map((item) => (
-                <Link key={item.href + item.label} href={item.href} className="shrink-0 px-3 py-3 text-[13px] font-medium uppercase tracking-[0.06em] text-slate-700 transition hover:text-brand-600">{item.label}</Link>
+                <Link key={item.href + item.label} href={item.href} className={"relative shrink-0 px-3 py-3 text-[13px] font-medium uppercase tracking-[0.06em] transition " + (pathname === item.href ? "text-brand-600 after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand" : "text-slate-700 hover:text-brand-600")}>{item.label}</Link>
               ))}
             </div>
           </nav>

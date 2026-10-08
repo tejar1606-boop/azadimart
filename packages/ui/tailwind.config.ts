@@ -30,7 +30,12 @@ const config: Config = {
         panel: "#f3f4f6",
         chrome: { DEFAULT: "#111111", soft: "#1c1c1c", line: "#2a2a2a" },
         save: "#13a047",
-        india: { DEFAULT: "#18664e", light: "#e8f3ef" },
+        // India green (tricolour) for positive accents; light is its tint.
+        india: { DEFAULT: "#138808", dark: "#0e6606", light: "#eaf6e8" },
+        // Deep navy used instead of black on the storefront's bars and footer.
+        navy: { DEFAULT: "#0b2a5b", deep: "#071d42", soft: "#16407f" },
+        // Exact tricolour shades for ribbons and wordmark.
+        tiranga: { saffron: "#ff9933", white: "#ffffff", green: "#138808" },
       },
       fontFamily: {
         sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],

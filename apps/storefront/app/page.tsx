@@ -18,6 +18,7 @@ import CouponCard from "./components/coupon-card";
 import HeroCarousel, { type HeroSlide } from "./components/hero-carousel";
 import { ArrowRightIcon, BadgeIcon, CashIcon, CheckIcon, ReturnIcon, ShieldIcon } from "./components/icons";
 import ProductCard, { type ProductCardData } from "./components/product-card";
+import { TricolourRibbon } from "./components/site-header";
 
 export const dynamic = "force-dynamic";
 
@@ -236,14 +237,14 @@ function Hero({ s }: { s: Settings }) {
   const primaryLabel = str(s, "primaryLabel", "Shop now");
   const primaryHref = str(s, "primaryHref", "/products");
   const slides = heroSlides(s);
-  if (slides.length) return <HeroCarousel slides={slides} />;
+  if (slides.length) return <><HeroCarousel slides={slides} /><TricolourRibbon /></>;
 
   // No banner uploaded yet: a designed banner in the same frame (8:3 desktop,
   // 4:5 mobile) so the layout does not change when one is uploaded.
   return (
     <section aria-label="Welcome">
-      <div className="relative isolate overflow-hidden bg-chrome text-white">
-        <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_80%_20%,rgba(229,133,48,0.55),transparent_55%),radial-gradient(ellipse_at_10%_90%,rgba(24,102,78,0.55),transparent_55%)]" />
+      <div className="relative isolate overflow-hidden bg-navy text-white">
+        <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_85%_15%,rgba(255,153,51,0.55),transparent_55%),radial-gradient(ellipse_at_10%_95%,rgba(19,136,8,0.5),transparent_55%)]" />
         <div aria-hidden className="absolute -right-24 top-1/2 -z-10 hidden h-[140%] w-1/2 -translate-y-1/2 rounded-full border border-white/10 sm:block" />
         <div aria-hidden className="absolute -right-4 top-1/2 -z-10 hidden h-[95%] w-1/3 -translate-y-1/2 rounded-full border border-white/10 sm:block" />
         <div className="mx-auto flex aspect-[4/5] max-w-7xl flex-col justify-end px-5 pb-10 sm:aspect-[8/3] sm:justify-center sm:px-6 sm:pb-0">
@@ -258,6 +259,7 @@ function Hero({ s }: { s: Settings }) {
           </div>
         </div>
       </div>
+      <TricolourRibbon />
       <div className="border-b border-slate-200 bg-white">
         <ul className="mx-auto grid max-w-7xl grid-cols-3 gap-3 px-4 py-4 sm:px-6">
           {[["KYC-verified", "sellers"], ["Quality", "checked"], ["Cash on", "Delivery"]].map(([a, b]) => (
@@ -316,11 +318,11 @@ function Marquee({ s }: { s: Settings }) {
   const messages = items.length ? items : ["Cash on Delivery available", "KYC-verified sellers", "Quality-checked products", "Easy 7-day returns", "Secure checkout"];
   const row = [...messages, ...messages];
   return (
-    <section aria-label="Highlights" className="overflow-hidden bg-black py-3 text-white">
+    <section aria-label="Highlights" className="overflow-hidden bg-navy py-3 text-white">
       <div className="flex w-max animate-marquee gap-10 whitespace-nowrap motion-reduce:animate-none">
         {[...row, ...row].map((item, index) => (
           <span key={index} aria-hidden={index >= messages.length} className="flex items-center gap-10 text-[13px] font-medium uppercase tracking-[0.12em]">
-            {item}<span className="text-brand">✦</span>
+            {item}<span className={index % 2 ? "text-[#5fd35a]" : "text-tiranga-saffron"}>✦</span>
           </span>
         ))}
       </div>
@@ -405,7 +407,8 @@ function WhyBanner({ s }: { s: Settings }) {
   return (
     <Container className="py-10 sm:py-14">
       <div className="grid overflow-hidden lg:grid-cols-2">
-        <div className="flex flex-col justify-center bg-brand p-8 text-white sm:p-12">
+        <div className="relative flex flex-col justify-center bg-gradient-to-br from-brand-500 to-brand-600 p-8 text-white sm:p-12">
+          <TricolourRibbon className="absolute inset-x-0 bottom-0 h-1" />
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80">{str(s, "eyebrow", "Why AzadiMart")}</p>
           <h2 className="mt-3 text-[32px] font-semibold leading-[1.08] tracking-[-0.04em] sm:text-5xl">{str(s, "heading", "Shopping you can trust.")}</h2>
           <p className="mt-4 max-w-md text-[15px] leading-7 text-white/90">{str(s, "description", "We verify every seller and check every product, so you can shop with confidence.")}</p>
@@ -455,8 +458,10 @@ function TrustStrip({ s }: { s: Settings }) {
 function SellerCta({ s }: { s: Settings }) {
   return (
     <Container className="py-10 sm:py-14">
-      <div className="relative overflow-hidden bg-[#111111] p-8 text-white sm:p-12">
-        <div aria-hidden className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-brand/25 blur-3xl" />
+      <div className="relative overflow-hidden bg-navy p-8 text-white sm:p-12">
+        <div aria-hidden className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-tiranga-saffron/25 blur-3xl" />
+        <div aria-hidden className="absolute -bottom-28 -left-16 h-72 w-72 rounded-full bg-tiranga-green/25 blur-3xl" />
+        <TricolourRibbon className="absolute inset-x-0 top-0 h-1" />
         <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-400">{str(s, "eyebrow", "Sell on AzadiMart")}</p>
