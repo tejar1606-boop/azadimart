@@ -90,7 +90,7 @@ export default function CategoriesPage() {
               <p className="truncate font-semibold">{category.parentId ? <span className="text-slate-400">↳ </span> : null}{category.name}
                 {!category.isActive ? <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-600">Hidden</span> : null}
               </p>
-              <p className="text-xs text-slate-500">{category.liveCount} live · {category.productCount} total products · /{category.slug}</p>
+              <p className="text-xs text-slate-500">{category.liveCount} live · {category.productCount} total products · <span className="font-mono">/c/{category.slug}</span></p>
             </div>
           )}
         </div>

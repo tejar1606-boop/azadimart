@@ -1,5 +1,5 @@
 import { createDatabase, inventory, productMedia, productVariants, products, categories, mediaAssets, sellers } from "@azadimart/database";
-import { and, asc, desc, eq, gte, ilike, lte, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, lte, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +8,8 @@ function toPositiveInt(value: string | null, fallback: number, max: number) {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? Math.min(parsed, max) : fallback;
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
@@ -22,7 +24,10 @@ export async function GET(request: Request) {
 
     const db = createDatabase();
     const filters = [eq(products.status, "LIVE"), eq(productVariants.isActive, true)];
-    if (categoryId) filters.push(eq(products.categoryId, categoryId));
+    // A main category also shows its sub-categories' products.
+    if (categoryId && UUID.test(categoryId)) {
+      filters.push(or(eq(products.categoryId, categoryId), inArray(products.categoryId, db.select({ id: categories.id }).from(categories).where(eq(categories.parentId, categoryId))))!);
+    }
     if (query) filters.push(or(ilike(products.title, "%" + query + "%"), ilike(products.description, "%" + query + "%"))!);
     if (Number.isFinite(minPrice) && minPrice >= 0) filters.push(gte(productVariants.pricePaise, minPrice));
     if (Number.isFinite(maxPrice) && maxPrice > 0) filters.push(lte(productVariants.pricePaise, maxPrice));
@@ -119,7 +124,7 @@ export async function GET(request: Request) {
 
     const items = [...productMap.values()].filter((product) => product.variants.length > 0).slice(0, limit);
     const categoryRows = await db
-      .select({ id: categories.id, name: categories.name, slug: categories.slug })
+      .select({ id: categories.id, name: categories.name, slug: categories.slug, parentId: categories.parentId })
       .from(categories)
       .where(eq(categories.isActive, true))
       .orderBy(asc(categories.sortOrder), asc(categories.name));

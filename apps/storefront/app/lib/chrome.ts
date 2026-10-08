@@ -20,7 +20,7 @@ export async function getStoreChrome(): Promise<StoreChrome> {
     const db = createDatabase();
     const [theme, categoryRows] = await Promise.all([
       db.select({ id: themes.id, settings: themes.settings }).from(themes).where(eq(themes.status, "PUBLISHED")).limit(1).then((rows) => rows[0]),
-      db.select({ id: categories.id, name: categories.name })
+      db.select({ id: categories.id, name: categories.name, slug: categories.slug })
         .from(categories)
         .where(and(eq(categories.isActive, true), isNull(categories.parentId)))
         .orderBy(asc(categories.sortOrder), asc(categories.name))
@@ -44,7 +44,7 @@ export async function getStoreChrome(): Promise<StoreChrome> {
       : "";
     const announcements = announcement.split(/[|•]/).map((part) => part.trim()).filter(Boolean);
 
-    const categoryLinks = categoryRows.map((category) => ({ id: category.id, name: category.name, href: "/products?categoryId=" + category.id }));
+    const categoryLinks = categoryRows.map((category) => ({ id: category.id, name: category.name, href: "/c/" + category.slug }));
     return {
       announcements: announcements.length ? announcements : DEFAULT_ANNOUNCEMENTS,
       navigation: navLinks.length ? navLinks : categoryLinks.slice(0, 8).map((category) => ({ label: category.name, href: category.href })),

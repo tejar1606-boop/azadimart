@@ -34,7 +34,7 @@ type HomeCoupon = {
   minimumOrderPaise: number;
   endsAt: Date | null;
 };
-type HomeCategory = { id: string; name: string; imageKey: string | null; productCount: number };
+type HomeCategory = { id: string; name: string; slug: string; imageKey: string | null; productCount: number };
 
 const str = (settings: Settings, key: string, fallback = "") => (typeof settings[key] === "string" && String(settings[key]).trim() ? String(settings[key]) : fallback);
 const num = (settings: Settings, key: string, fallback: number) => (typeof settings[key] === "number" && Number.isFinite(settings[key]) ? Number(settings[key]) : fallback);
@@ -84,7 +84,7 @@ async function getHome() {
       // Admin-arranged order first (Arrange products page); unarranged products follow, newest first.
       .orderBy(asc(products.position), desc(products.createdAt), asc(productMedia.sortOrder))
       .limit(400),
-    db.select({ id: categories.id, name: categories.name })
+    db.select({ id: categories.id, name: categories.name, slug: categories.slug })
       .from(categories).where(and(eq(categories.isActive, true), isNull(categories.parentId)))
       .orderBy(asc(categories.sortOrder), asc(categories.name)).limit(24),
   ]);
@@ -341,7 +341,7 @@ function CategoryGrid({ s, categories: all }: { s: Settings; categories: HomeCat
       <SectionHeading eyebrow="Explore" heading={str(s, "heading", "Shop by category")} subtitle={str(s, "subtitle")} actionLabel="All products" actionHref="/products" />
       <div className={"mt-6 grid gap-3 sm:gap-4 " + (tiles.length >= 4 ? "grid-cols-2 md:grid-cols-4" : tiles.length === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-1 sm:grid-cols-2")}>
         {tiles.map((category, index) => (
-          <Link key={category.id} href={"/products?categoryId=" + category.id} className={"group relative flex flex-col " + (tiles.length >= 3 ? "aspect-[4/5]" : "aspect-[16/9] sm:aspect-[2/1]") + " justify-end overflow-hidden bg-gradient-to-br p-4 sm:p-5 " + TILE_TINTS[index % TILE_TINTS.length]}>
+          <Link key={category.id} href={"/c/" + category.slug} className={"group relative flex flex-col " + (tiles.length >= 3 ? "aspect-[4/5]" : "aspect-[16/9] sm:aspect-[2/1]") + " justify-end overflow-hidden bg-gradient-to-br p-4 sm:p-5 " + TILE_TINTS[index % TILE_TINTS.length]}>
             {category.imageKey ? (
               <>
                 <Image src={"/media/" + category.imageKey} alt="" fill sizes="(max-width:768px) 46vw, 24vw" className="object-cover transition duration-500 group-hover:scale-[1.04]" />

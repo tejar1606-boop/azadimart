@@ -57,7 +57,7 @@ export default function HeroSlidesField({ slides, onChange }: { slides: HeroSlid
               <MediaField kind="video" label="Desktop video (optional)" hint="Same shape as 2880 × 1080" value={slide.desktopVideoUrl ?? ""} onChange={(v) => update(index, { desktopVideoUrl: v || undefined })} />
               <MediaField kind="video" label="Mobile video (optional)" hint="Same shape as 1200 × 1500" value={slide.mobileVideoUrl ?? ""} onChange={(v) => update(index, { mobileVideoUrl: v || undefined })} />
               <label className="text-sm font-medium">Link (optional)
-                <input className="mt-1 w-full rounded-lg border p-2.5 text-sm" placeholder="/products?categoryId=… or https://…" value={slide.href ?? ""} onChange={(e) => update(index, { href: e.target.value || undefined })} />
+                <input className="mt-1 w-full rounded-lg border p-2.5 text-sm" placeholder="/c/electronics-accessories or https://…" value={slide.href ?? ""} onChange={(e) => update(index, { href: e.target.value || undefined })} />
                 <span className="mt-1 block text-xs font-normal text-slate-500">Leave empty for a banner that isn&apos;t clickable.</span>
               </label>
               <label className="text-sm font-medium">Describe the banner

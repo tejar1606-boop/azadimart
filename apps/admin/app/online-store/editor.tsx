@@ -111,7 +111,7 @@ function SectionFields({section,onChange}:{section:Row;onChange:(key:string,valu
       <MediaField kind="image" label="Mobile banner" hint="800 × 329 px" size={{width:800,height:329}} value={val(section,"mobileImageUrl")} onChange={v=>onChange("mobileImageUrl",v)}/>
       <MediaField kind="video" label="Desktop video (optional)" hint="Same shape as 1800 × 320" value={val(section,"desktopVideoUrl")} onChange={v=>onChange("desktopVideoUrl",v)}/>
       <MediaField kind="video" label="Mobile video (optional)" hint="Same shape as 800 × 329" value={val(section,"mobileVideoUrl")} onChange={v=>onChange("mobileVideoUrl",v)}/>
-      <Field label="Link (where the banner goes)"><input className="w-full rounded-lg border p-2.5" placeholder="/products?categoryId=…" value={val(section,"href")} onChange={e=>onChange("href",e.target.value)}/></Field>
+      <Field label="Link (where the banner goes)"><input className="w-full rounded-lg border p-2.5" placeholder="/c/electronics-accessories" value={val(section,"href")} onChange={e=>onChange("href",e.target.value)}/></Field>
       <Field label="Alt text (describe the banner)"><input className="w-full rounded-lg border p-2.5" placeholder="e.g. Diwali sale — up to 40% off" value={val(section,"alt")} onChange={e=>onChange("alt",e.target.value)}/></Field>
       <p className="text-xs text-slate-500 md:col-span-2">Add as many promo banners as you like and drag them between sections with the arrows. A banner without a desktop image or video is hidden on the store. A video plays muted on loop, with the image shown while it loads.</p>
     </>}

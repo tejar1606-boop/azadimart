@@ -1,19 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import ProductCard from "../components/product-card";
 
 type Variant = { id: string; title: string; pricePaise: number; compareAtPaise: number | null; availableQuantity: number };
-type Category = { id: string; name: string; slug: string };
+type Category = { id: string; name: string; slug: string; parentId?: string | null };
+/** Set on a category page (/c/<slug>): the category is fixed and shown as the page title. */
+export type FixedCategory = { id: string; name: string; slug: string; parent: { name: string; slug: string } | null; children: Array<{ name: string; slug: string }> };
 type Product = { id: string; title: string; slug: string; description: string | null; categoryName: string; sellerName: string; variants: Variant[]; media?: Array<{ storageKey:string; kind:string; altText:string|null }> };
 
-export default function CatalogView() {
+export default function CatalogView({ category }: { category?: FixedCategory }) {
+  const router = useRouter();
   // Header search and category links arrive as ?q= / ?categoryId=.
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get("q") ?? "";
-  const urlCategory = searchParams.get("categoryId") ?? "";
+  const urlCategory = category?.id ?? searchParams.get("categoryId") ?? "";
   const [items, setItems] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryId, setCategoryId] = useState(urlCategory);
@@ -54,21 +57,32 @@ export default function CatalogView() {
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <nav aria-label="Breadcrumb" className="text-xs text-slate-500"><Link href="/" className="hover:text-slate-900">Home</Link><span className="mx-1.5">/</span><span className="text-slate-900">Shop</span></nav>
-            <h1 className="mt-2 text-[28px] font-semibold tracking-[-0.035em] sm:text-[40px]">{query ? `Results for “${query}”` : categories.find((category) => category.id === categoryId)?.name ?? "All products"}</h1>
+            <nav aria-label="Breadcrumb" className="text-xs text-slate-500">
+              <Link href="/" className="hover:text-slate-900">Home</Link><span className="mx-1.5">/</span>
+              {category ? <><Link href="/products" className="hover:text-slate-900">Shop</Link><span className="mx-1.5">/</span></> : null}
+              {category?.parent ? <><Link href={"/c/" + category.parent.slug} className="hover:text-slate-900">{category.parent.name}</Link><span className="mx-1.5">/</span></> : null}
+              <span className="text-slate-900">{category?.name ?? "Shop"}</span>
+            </nav>
+            <h1 className="mt-2 text-[28px] font-semibold tracking-[-0.035em] sm:text-[40px]">{query ? `Results for “${query}”` : category?.name ?? categories.find((c) => c.id === categoryId)?.name ?? "All products"}</h1>
             <p className="mt-1 text-sm text-slate-500">{loading ? "Loading products…" : `${items.length} product${items.length === 1 ? "" : "s"} from verified sellers`}</p>
+            {category?.children.length ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="rounded-full bg-slate-950 px-3.5 py-1.5 text-xs font-semibold text-white">All {category.name}</span>
+                {category.children.map((child) => <Link key={child.slug} href={"/c/" + child.slug} className="rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-900">{child.name}</Link>)}
+              </div>
+            ) : null}
           </div>
         </div>
 
         <div className="mt-5 grid gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:grid-cols-2 lg:hidden">
-          <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Filter by category"><option value="">All categories</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
+          <select value={categoryId} onChange={(event) => { const next = categories.find((c) => c.id === event.target.value); router.push(next ? "/c/" + next.slug : "/products"); }} className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Filter by category"><option value="">All categories</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.parentId ? "— " : ""}{c.name}</option>)}</select>
           <select value={sort} onChange={(event) => setSort(event.target.value)} className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Sort products"><option value="featured">Featured</option><option value="newest">Newest</option><option value="price_asc">Price: Low to high</option><option value="price_desc">Price: High to low</option></select>
           <div className="grid grid-cols-2 gap-2"><input inputMode="numeric" value={minPrice} onChange={(e) => setMinPrice(e.target.value.replace(/\D/g, ""))} placeholder="Min ₹" className="min-h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none" aria-label="Minimum price"/><input inputMode="numeric" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value.replace(/\D/g, ""))} placeholder="Max ₹" className="min-h-10 rounded-xl border border-slate-200 px-3 text-sm outline-none" aria-label="Maximum price"/></div>
         </div>
 
         <div className="mt-8 flex items-center justify-between text-sm">
           <div className="hidden lg:flex items-center gap-2 text-xs font-semibold text-slate-500">
-            <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-semibold outline-none" aria-label="Desktop category filter"><option value="">All categories</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
+            <select value={categoryId} onChange={(event) => { const next = categories.find((c) => c.id === event.target.value); router.push(next ? "/c/" + next.slug : "/products"); }} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-semibold outline-none" aria-label="Desktop category filter"><option value="">All categories</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.parentId ? "— " : ""}{c.name}</option>)}</select>
             <select value={sort} onChange={(event) => setSort(event.target.value)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-semibold outline-none" aria-label="Desktop sort"><option value="featured">Featured</option><option value="newest">Newest</option><option value="price_asc">Price low</option><option value="price_desc">Price high</option></select>
             <input inputMode="numeric" value={minPrice} onChange={(e) => setMinPrice(e.target.value.replace(/\D/g, ""))} placeholder="Min ₹" className="w-20 rounded-full border border-slate-200 px-3 py-1.5 outline-none" aria-label="Minimum price"/>
             <input inputMode="numeric" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value.replace(/\D/g, ""))} placeholder="Max ₹" className="w-20 rounded-full border border-slate-200 px-3 py-1.5 outline-none" aria-label="Maximum price"/>
