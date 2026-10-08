@@ -85,15 +85,15 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
       <TricolourRibbon />
       <AnnouncementBar messages={chrome.announcements} />
       <header className="sticky top-0 z-40 bg-white shadow-header">
-        {/* Logo | search | icons. The outer columns share the leftover space equally, so the search is exactly centred. */}
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:gap-4 sm:px-6 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,36rem)_minmax(0,1fr)] lg:h-[72px]">
-          <div className="flex min-w-0 items-center">
+        {/* Full-width bar like Meesho and Flipkart: logo pinned left, search right after it, account and cart at the far right. */}
+        <div className="flex h-16 items-center gap-2 px-4 sm:gap-4 sm:px-6 lg:h-[72px] lg:gap-8 lg:px-10 2xl:px-14">
+          <div className="flex shrink-0 items-center">
             <button type="button" onClick={() => setMenuOpen(true)} className={iconButton + " -ml-2 mr-1 lg:hidden"} aria-label="Open menu">
               <MenuIcon />
             </button>
             <Link href="/" className="text-[22px] leading-none lg:text-[26px]" aria-label="AzadiMart home"><Wordmark /></Link>
           </div>
-          <SearchForm className="hidden w-full md:block" />
+          <SearchForm className="hidden w-full max-w-2xl md:block" />
           <nav aria-label="Account" className="ml-auto flex items-center justify-end gap-0.5 sm:gap-1">
             <Link href="/account" className="relative flex h-10 min-w-10 items-center justify-center gap-2 rounded-full text-slate-900 transition hover:bg-slate-100 lg:px-3" aria-label="Account">
               <UserIcon /><span className="hidden text-sm font-medium lg:inline">Account</span>
@@ -108,7 +108,7 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
         <div className="border-t border-slate-100 px-4 pb-3 pt-2 md:hidden"><SearchForm autoFocus /></div>
         {chrome.navigation.length ? (
           <nav aria-label="Categories" className="hidden border-t border-slate-100 lg:block">
-            <div className="mx-auto flex max-w-7xl items-center justify-center gap-1 overflow-x-auto px-4 sm:px-6">
+            <div className="flex items-center gap-1 overflow-x-auto px-4 sm:px-6 lg:px-7 2xl:px-11">
               <Link href="/products" className={"relative shrink-0 px-3 py-3 text-[13px] font-semibold uppercase tracking-[0.06em] transition " + (pathname === "/products" ? "text-brand-600 after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand" : "text-navy hover:text-brand-600")}>All products</Link>
               {chrome.navigation.map((item) => (
                 <Link key={item.href + item.label} href={item.href} className={"relative shrink-0 px-3 py-3 text-[13px] font-medium uppercase tracking-[0.06em] transition " + (pathname === item.href ? "text-brand-600 after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand" : "text-slate-700 hover:text-brand-600")}>{item.label}</Link>
