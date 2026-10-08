@@ -45,6 +45,10 @@ const code = "E2E" + Date.now().toString().slice(-8);
 r = await admin("/api/v1/coupons", { method: "POST", body: { code, title: "E2E 10% off", discountType: "PERCENTAGE", discountValue: 10, startsAt: new Date(Date.now() - 60000).toISOString(), usageLimit: 5 } });
 check("admin creates coupon", r.status === 200 || r.status === 201, r.status + " " + JSON.stringify(r.json?.error ?? ""));
 
+// start from an empty cart so leftovers from manual testing don't skew totals
+const existing = await shop("/api/v1/cart");
+for (const item of existing.json?.items ?? []) await shop("/api/v1/cart", { method: "DELETE", body: { variantId: item.variantId } });
+
 // cart + address
 r = await shop("/api/v1/cart", { method: "POST", body: { variantId, quantity: 2 } });
 check("add 2 to cart", r.status === 200 || r.status === 201, r.status + " " + JSON.stringify(r.json?.error ?? ""));

@@ -34,7 +34,7 @@ export default function AddToCart({ variantId, availableQuantity }: { variantId:
         <span className="min-w-8 text-center text-sm font-bold">{quantity}</span>
         <button type="button" onClick={() => setQuantity((v) => Math.min(availableQuantity, v + 1))} disabled={quantity >= availableQuantity} className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 disabled:opacity-40" aria-label="Increase quantity">+</button>
       </div>
-      <button type="button" onClick={() => void add()} disabled={busy || availableQuantity < 1} className="mt-4 w-full rounded-full bg-slate-950 px-5 py-3.5 text-sm font-black text-white disabled:opacity-50">
+      <button type="button" onClick={() => void add()} disabled={busy || availableQuantity < 1} className="mt-4 w-full rounded-full bg-brand px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:bg-slate-300">
         {busy ? "Adding…" : availableQuantity > 0 ? "Add to cart" : "Out of stock"}
       </button>
       {message ? <Link href="/cart" className="mt-3 block text-center text-sm font-semibold text-amber-700">{message} View cart →</Link> : null}

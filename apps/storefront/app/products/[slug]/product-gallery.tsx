@@ -17,7 +17,7 @@ export default function ProductGallery({ title, media }: { title: string; media:
           <Image src={"/media/" + activeImage.mediaStorageKey} alt={activeImage.altText ?? title} fill priority sizes="(max-width: 1024px) 100vw, 55vw" className="object-cover" />
         ) : (
           <div className="grid h-full place-items-center bg-gradient-to-br from-slate-100 via-white to-amber-50">
-            <span className="text-8xl font-black tracking-[-0.08em] text-slate-200">{title.slice(0, 1).toUpperCase()}</span>
+            <span className="text-8xl font-bold tracking-[-0.08em] text-slate-200">{title.slice(0, 1).toUpperCase()}</span>
           </div>
         )}
         <span className="absolute left-4 top-4 rounded-full bg-slate-950 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white">Quality checked</span>

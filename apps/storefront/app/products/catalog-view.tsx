@@ -1,23 +1,26 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import WishlistButton from "../components/wishlist-button";
+import ProductCard from "../components/product-card";
 
 type Variant = { id: string; title: string; pricePaise: number; compareAtPaise: number | null; availableQuantity: number };
 type Category = { id: string; name: string; slug: string };
 type Product = { id: string; title: string; slug: string; description: string | null; categoryName: string; sellerName: string; variants: Variant[]; media?: Array<{ storageKey:string; kind:string; altText:string|null }> };
 
-const money = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
-
 export default function CatalogView() {
+  // Header search and category links arrive as ?q= / ?categoryId=.
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q") ?? "";
+  const urlCategory = searchParams.get("categoryId") ?? "";
   const [items, setItems] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [categoryId, setCategoryId] = useState("");
+  const [categoryId, setCategoryId] = useState(urlCategory);
   const [sort, setSort] = useState("newest");
-  const [query, setQuery] = useState("");
-  const [input, setInput] = useState("");
+  const [query, setQuery] = useState(urlQuery);
+  useEffect(() => { setQuery(urlQuery); }, [urlQuery]);
+  useEffect(() => { setCategoryId(urlCategory); }, [urlCategory]);
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [loading, setLoading] = useState(true);
@@ -46,24 +49,15 @@ export default function CatalogView() {
 
   useEffect(() => { void load(query); }, [load, query]);
 
-  function submit(event: React.FormEvent) {
-    event.preventDefault();
-    setQuery(input);
-  }
-
   return (
-    <main className="min-h-screen bg-[#f8f7f3] px-4 py-8 sm:px-6 sm:py-12">
+    <main className="min-h-[60vh] bg-canvas px-4 py-8 sm:px-6 sm:py-12">
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Marketplace</p>
-            <h1 className="mt-2 text-4xl font-black tracking-[-0.045em] sm:text-6xl">Discover products.</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">A curated catalog from sellers that have passed AzadiMart&apos;s onboarding and quality controls.</p>
+            <nav aria-label="Breadcrumb" className="text-xs text-slate-500"><Link href="/" className="hover:text-slate-900">Home</Link><span className="mx-1.5">/</span><span className="text-slate-900">Shop</span></nav>
+            <h1 className="mt-2 text-[28px] font-semibold tracking-[-0.035em] sm:text-[40px]">{query ? `Results for “${query}”` : categories.find((category) => category.id === categoryId)?.name ?? "All products"}</h1>
+            <p className="mt-1 text-sm text-slate-500">{loading ? "Loading products…" : `${items.length} product${items.length === 1 ? "" : "s"} from verified sellers`}</p>
           </div>
-          <form onSubmit={submit} className="flex w-full max-w-xl gap-2 rounded-full border border-slate-200 bg-white p-1.5 shadow-sm">
-            <input value={input} onChange={(event) => setInput(event.target.value)} className="min-w-0 flex-1 bg-transparent px-4 text-sm outline-none" placeholder="Search products, brands or categories" aria-label="Search products" />
-            <button type="submit" className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-bold text-white">Search</button>
-          </form>
         </div>
 
         <div className="mt-5 grid gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:grid-cols-2 lg:hidden">
@@ -82,8 +76,6 @@ export default function CatalogView() {
             <button type="button" onClick={() => setSort("price_asc")} className={"rounded-full px-3 py-1.5 transition " + (sort === "price_asc" ? "bg-slate-950 text-white" : "border border-slate-200 hover:border-slate-300")}>Price low</button>
             <button type="button" onClick={() => setSort("price_desc")} className={"rounded-full px-3 py-1.5 transition " + (sort === "price_desc" ? "bg-slate-950 text-white" : "border border-slate-200 hover:border-slate-300")}>Price high</button>
           </div>
-          <p className="font-semibold">{query ? `Results for "${query}"` : "Latest on AzadiMart"}</p>
-          <p className="text-slate-400">{items.length} products</p>
         </div>
 
         {error ? <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
@@ -91,27 +83,17 @@ export default function CatalogView() {
         {loading ? (
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="animate-pulse rounded-2xl border border-slate-200 bg-white p-3"><div className="aspect-square rounded-xl bg-slate-100"/><div className="mt-3 h-4 rounded bg-slate-100"/><div className="mt-2 h-4 w-2/3 rounded bg-slate-100"/></div>)}</div>
         ) : items.length === 0 ? (
-          <div className="mt-8 rounded-[2rem] border border-dashed border-slate-300 bg-white p-12 text-center"><p className="text-xl font-black">No matching products yet.</p><p className="mt-2 text-sm text-slate-500">Try a different search or return to the homepage.</p><Link href="/" className="mt-5 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white">Back home</Link></div>
+          <div className="mt-8 rounded-[2rem] border border-dashed border-slate-300 bg-white p-12 text-center"><p className="text-xl font-bold">No matching products yet.</p><p className="mt-2 text-sm text-slate-500">Try a different search or return to the homepage.</p><Link href="/" className="mt-5 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white">Back home</Link></div>
         ) : (
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
             {items.map((product) => {
-              const variant = product.variants[0];
+              const variant = [...product.variants].sort((a, b) => a.pricePaise - b.pricePaise)[0];
+              const image = product.media?.find((media) => media.kind === "IMAGE" && media.storageKey);
               return (
-                <article key={product.id} className="group rounded-[1.35rem] border border-slate-200 bg-white p-3 shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
-                  <div className="relative grid aspect-square place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-slate-100 via-white to-amber-50">
-                    <Link href={"/products/" + product.slug} aria-label={"View " + product.title} className="absolute inset-0 z-0">
-                      {product.media?.find(media => media.kind === "IMAGE" && media.storageKey) ? <Image src={"/media/" + product.media.find(media => media.kind === "IMAGE")!.storageKey} alt={product.media.find(media => media.kind === "IMAGE")!.altText ?? product.title} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover transition duration-300 group-hover:scale-[1.03]" /> : <span className="grid h-full place-items-center text-5xl font-black tracking-[-0.06em] text-slate-200">{product.title.slice(0, 1).toUpperCase()}</span>}
-                    </Link>
-                    <div className="absolute right-2 top-2 z-10"><WishlistButton productId={product.id} /></div>
-                    <span className="absolute left-2.5 top-2.5 z-10 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-slate-500">Verified</span>
-                  </div>
-                  <Link href={"/products/" + product.slug} className="block">
-                    <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-amber-600">{product.categoryName}</p>
-                    <p className="mt-1 line-clamp-2 text-sm font-bold leading-5">{product.title}</p>
-                    <div className="mt-2 flex items-baseline gap-2"><p className="text-base font-black">{money(variant?.pricePaise ?? 0)}</p>{variant?.compareAtPaise ? <p className="text-xs text-slate-400 line-through">{money(variant.compareAtPaise)}</p> : null}</div>
-                    <p className="mt-1 text-[11px] text-slate-400">{product.sellerName}</p>
-                  </Link>
-                </article>
+                <ProductCard
+                  key={product.id}
+                  product={{ id: product.id, slug: product.slug, title: product.title, pricePaise: variant?.pricePaise ?? 0, compareAtPaise: variant?.compareAtPaise, mediaStorageKey: image?.storageKey, mediaAltText: image?.altText, sellerName: product.sellerName }}
+                />
               );
             })}
           </div>

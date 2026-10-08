@@ -1,10 +1,10 @@
-import Image from "next/image";
 import Link from "next/link";
 import ProductGallery from "./product-gallery";
 import { notFound } from "next/navigation";
 import { createDatabase, inventory, mediaAssets, productMedia, productVariants, products, sellers, categories } from "@azadimart/database";
 import { and, asc, eq, ne } from "drizzle-orm";
 import AddToCart from "./add-to-cart";
+import ProductCard from "../../components/product-card";
 import WishlistButton from "../../components/wishlist-button";
 
 /** One card per product: the query returns a row per variant x image. Keeps the
@@ -89,7 +89,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
     .limit(160), 8);
 
   return (
-    <main className="min-h-screen bg-[#f8f7f3] px-4 py-8 sm:px-6 sm:py-12">
+    <main className="min-h-[60vh] bg-canvas px-4 py-8 sm:px-6 sm:py-12">
       <div className="mx-auto max-w-7xl">
         <Link href="/products" className="text-sm font-semibold text-slate-500 hover:text-slate-950">← Back to marketplace</Link>
 
@@ -103,11 +103,11 @@ export default async function ProductDetailPage({ params, searchParams }: { para
 
           <section className="h-fit rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.05)] sm:p-8 lg:sticky lg:top-28">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">{first.categoryName}</p>
-            <h1 className="mt-3 text-3xl font-black tracking-[-0.045em] sm:text-5xl">{first.title}</h1>
+            <h1 className="mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-5xl">{first.title}</h1>
             <p className="mt-3 text-sm text-slate-500">Sold by <span className="font-semibold text-slate-800">{first.sellerName}</span></p>
 
             <div className="mt-6 flex flex-wrap items-end gap-3">
-              <span className="text-3xl font-black">{money(selectedVariant.pricePaise)}</span>
+              <span className="text-3xl font-bold">{money(selectedVariant.pricePaise)}</span>
               {hasDiscount ? <span className="text-base text-slate-400 line-through">{money(selectedVariant.compareAtPaise!)}</span> : null}
               {hasDiscount ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{discountPercent}% off</span> : null}
             </div>
@@ -161,19 +161,11 @@ export default async function ProductDetailPage({ params, searchParams }: { para
         {relatedRows.length > 0 ? (
           <section className="mt-12 border-t border-slate-200 pt-10">
             <div className="flex items-end justify-between gap-4">
-              <div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">More to explore</p><h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">You may also like</h2></div>
+              <div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">More to explore</p><h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">You may also like</h2></div>
               <Link href="/products" className="text-sm font-bold text-slate-500 hover:text-slate-950">View all →</Link>
             </div>
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {relatedRows.map((item) => (
-                <Link key={item.id} href={"/products/" + item.slug} className="group rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-                  <div className="relative aspect-square overflow-hidden rounded-xl bg-slate-100">
-                    {item.mediaStorageKey ? <Image src={"/media/" + item.mediaStorageKey} alt={item.mediaAltText ?? item.title} fill sizes="(max-width: 640px) 50vw, 25vw" className="object-cover transition group-hover:scale-105" /> : null}
-                  </div>
-                  <p className="mt-3 line-clamp-2 text-sm font-bold">{item.title}</p>
-                  <div className="mt-1 flex gap-2"><span className="font-black">{money(item.pricePaise)}</span>{item.compareAtPaise ? <span className="text-xs text-slate-400 line-through">{money(item.compareAtPaise)}</span> : null}</div>
-                </Link>
-              ))}
+              {relatedRows.map((item) => <ProductCard key={item.id} product={item} />)}
             </div>
           </section>
         ) : null}

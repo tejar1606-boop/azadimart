@@ -1,5 +1,17 @@
 import type { Metadata, Viewport } from "next";
+import { Poppins } from "next/font/google";
 import "@azadimart/ui/globals.css";
+import MobileTabBar from "./components/mobile-tab-bar";
+import SiteFooter from "./components/site-footer";
+import SiteHeader from "./components/site-header";
+import { getStoreChrome } from "./lib/chrome";
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-sans",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -28,13 +40,19 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0f172a",
+  themeColor: "#000000",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const chrome = await getStoreChrome();
   return (
-    <html lang="en">
-      <body className="min-h-screen antialiased">{children}</body>
+    <html lang="en" className={poppins.variable}>
+      <body className="min-h-screen bg-canvas font-sans text-slate-950 antialiased">
+        <SiteHeader chrome={chrome} />
+        {children}
+        <SiteFooter chrome={chrome} />
+        <MobileTabBar />
+      </body>
     </html>
   );
 }
