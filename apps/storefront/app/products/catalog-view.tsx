@@ -42,14 +42,13 @@ export default function CatalogView() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [categoryId, sort, minPrice, maxPrice]);
 
-  useEffect(() => { void load(query); }, [categoryId, sort, minPrice, maxPrice]);
+  useEffect(() => { void load(query); }, [load, query]);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
     setQuery(input);
-    void load(input);
   }
 
   return (
