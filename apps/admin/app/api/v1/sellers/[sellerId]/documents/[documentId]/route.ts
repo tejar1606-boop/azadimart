@@ -1,13 +1,13 @@
 import { requireApiAccess } from "@azadimart/auth";
 import {
+  auditLogs,
   createDatabase,
   mediaAssets,
   sellerDocuments,
 } from "@azadimart/database";
 import { AppError, toApiError, uuidSchema } from "@azadimart/shared";
 import { eq } from "drizzle-orm";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
+import { getObjectStore } from "@azadimart/storage";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -17,18 +17,11 @@ export async function GET(
   const requestId = crypto.randomUUID();
 
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
     const { sellerId, documentId } = await context.params;
 
     if (!uuidSchema.safeParse(sellerId).success || !uuidSchema.safeParse(documentId).success) {
       throw new AppError("VALIDATION_ERROR", "Invalid document reference");
-    }
-
-    if (process.env.NODE_ENV === "production") {
-      throw new AppError(
-        "UNPROCESSABLE",
-        "Local document download is disabled in production. Configure object storage access first.",
-      );
     }
 
     const db = createDatabase();
@@ -48,9 +41,20 @@ export async function GET(
       throw new AppError("NOT_FOUND", "Document not found");
     }
 
-    const fileName = path.basename(document.storageKey);
-    const absolutePath = path.join(process.cwd(), ".data", "private-documents", sellerId, fileName);
-    const bytes = await readFile(absolutePath);
+    const fileName = document.storageKey.split("/").pop() ?? "document";
+    const bytes = await getObjectStore().get(document.storageKey);
+    if (!bytes) {
+      throw new AppError("NOT_FOUND", "Document file is missing from storage");
+    }
+
+    // KYC documents hold PAN/bank details; record every access.
+    await db.insert(auditLogs).values({
+      actorUserId: principal.userId,
+      action: "SELLER_DOCUMENT_VIEWED",
+      entityType: "seller_document",
+      entityId: documentId,
+      metadata: { sellerId },
+    });
 
     return new NextResponse(bytes as BodyInit, {
       status: 200,

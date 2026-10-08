@@ -2,8 +2,7 @@ import { requireApiAccess } from "@azadimart/auth";
 import { createDatabase, mediaAssets, sellers } from "@azadimart/database";
 import { AppError, toApiError } from "@azadimart/shared";
 import { and, eq } from "drizzle-orm";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { assertUploadsAvailable, getObjectStore } from "@azadimart/storage";
 import { NextResponse } from "next/server";
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -44,10 +43,12 @@ export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
 
   try {
-    if (process.env.NODE_ENV === "production") {
+    try {
+      assertUploadsAvailable();
+    } catch {
       throw new AppError(
         "UNPROCESSABLE",
-        "Local document upload is disabled in production. Configure object storage first.",
+        "File uploads are unavailable: object storage is not configured.",
       );
     }
 
@@ -72,7 +73,9 @@ export async function POST(request: Request) {
       throw new AppError("FORBIDDEN", "Document upload is not allowed for the current seller status");
     }
 
-    const formData = await request.formData();
+    const formData = await request.formData().catch(() => {
+      throw new AppError("VALIDATION_ERROR", "Upload must be multipart/form-data");
+    });
     const value = formData.get("file");
     if (!(value instanceof File)) {
       throw new AppError("VALIDATION_ERROR", "A document file is required");
@@ -90,10 +93,8 @@ export async function POST(request: Request) {
 
     const fileId = crypto.randomUUID();
     const storageKey = `private-documents/${seller.id}/${fileId}.${detected.extension}`;
-    const root = path.join(process.cwd(), ".data", "private-documents");
-    const absolutePath = path.join(root, seller.id, `${fileId}.${detected.extension}`);
-    await mkdir(path.dirname(absolutePath), { recursive: true });
-    await writeFile(absolutePath, bytes, { flag: "wx" });
+    const store = getObjectStore();
+    await store.put(storageKey, bytes, detected.mimeType);
 
     try {
       const rows = await db
@@ -123,7 +124,7 @@ export async function POST(request: Request) {
         { status: 201 },
       );
     } catch (error) {
-      await unlink(absolutePath).catch(() => undefined);
+      await store.delete(storageKey).catch(() => undefined);
       throw error;
     }
   } catch (error) {

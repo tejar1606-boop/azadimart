@@ -8,7 +8,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@azadimart/ui", "@azadimart/shared", "@azadimart/auth"],
+  transpilePackages: ["@azadimart/ui", "@azadimart/shared", "@azadimart/auth", "@azadimart/storage"],
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },

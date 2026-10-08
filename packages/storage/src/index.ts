@@ -47,3 +47,4 @@ export function setStorageProvider(provider: StorageProvider): void {
 export function getStorageProvider(): StorageProvider {
   return active;
 }
+export * from "./object-store";

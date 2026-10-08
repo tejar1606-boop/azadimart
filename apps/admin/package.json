@@ -11,15 +11,16 @@
   },
   "dependencies": {
     "@azadimart/auth": "workspace:*",
+    "@azadimart/database": "workspace:*",
+    "@azadimart/logistics": "workspace:*",
+    "@azadimart/payments": "workspace:*",
     "@azadimart/shared": "workspace:*",
+    "@azadimart/storage": "workspace:^",
     "@azadimart/ui": "workspace:*",
+    "drizzle-orm": "^0.38.3",
     "next": "^15.1.3",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "@azadimart/database": "workspace:*",
-    "drizzle-orm": "^0.38.3",
-    "@azadimart/logistics": "workspace:*",
-    "@azadimart/payments": "workspace:*"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
