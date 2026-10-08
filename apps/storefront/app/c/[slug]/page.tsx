@@ -3,6 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense, cache } from "react";
+import { getCategoryRail } from "../../lib/category-rail";
 import CatalogView, { type FixedCategory } from "../../products/catalog-view";
 
 export const dynamic = "force-dynamic";
@@ -30,11 +31,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 /** A category's own page, e.g. /c/electronics-accessories. Link menus and banners here. */
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
-  const category = await findCategory((await params).slug);
+  const [category, rail] = await Promise.all([findCategory((await params).slug), getCategoryRail()]);
   if (!category) notFound();
   return (
     <Suspense>
-      <CatalogView category={category} />
+      <CatalogView category={category} rail={rail} />
     </Suspense>
   );
 }
