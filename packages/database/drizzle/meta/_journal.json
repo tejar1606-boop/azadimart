@@ -113,6 +113,13 @@
       "when": 1791484299240,
       "tag": "20261008183139_rate_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791486437644,
+      "tag": "20261008190717_product_reviews",
+      "breakpoints": true
     }
   ]
 }

@@ -21,6 +21,7 @@ export default function SellerChrome({ counts, children }: { counts: SellerCount
     { title: "Catalogue", items: [
       { href: "/products", label: "Products", icon: "products", badge: badge(counts?.needsWork ?? 0) },
       { href: "/inventory", label: "Inventory", icon: "inventory" },
+      { href: "/reviews", label: "Customer reviews", icon: "star" },
     ] },
     { title: "Orders", items: [
       { href: "/orders", label: "Orders", icon: "orders", badge: badge(counts?.toShip ?? 0) },

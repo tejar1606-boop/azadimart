@@ -28,7 +28,8 @@
     "e2e:smoke": "node scripts/e2e-smoke.mjs",
     "e2e:seller": "node scripts/e2e-seller.mjs",
     "db:seed:catalog": "node scripts/seed-catalog.mjs",
-    "e2e:aplus": "node scripts/e2e-aplus.mjs"
+    "e2e:aplus": "node scripts/e2e-aplus.mjs",
+    "e2e:reviews": "node scripts/e2e-reviews.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

@@ -71,6 +71,9 @@ export const products = pgTable(
     // SEO overrides for search results and link previews; auto-generated from the product when empty.
     metaTitle: text("meta_title"),
     metaDescription: text("meta_description"),
+    // Published review totals, kept in step with product_reviews (average = ratingTotal / reviewCount).
+    reviewCount: integer("review_count").notNull().default(0),
+    ratingTotal: integer("rating_total").notNull().default(0),
     ...timestamps,
   },
   (table) => [

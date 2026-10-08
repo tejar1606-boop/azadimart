@@ -52,6 +52,8 @@ export async function GET(request: Request) {
       mediaKind: productMedia.kind,
       mediaStorageKey: mediaAssets.storageKey,
       mediaAltText: mediaAssets.altText,
+      reviewCount: products.reviewCount,
+      ratingTotal: products.ratingTotal,
     })
       .from(products)
       .innerJoin(productVariants, eq(productVariants.productId, products.id))
@@ -83,6 +85,8 @@ export async function GET(request: Request) {
       categoryName: string;
       sellerId: string;
       sellerName: string;
+      reviewCount: number;
+      ratingTotal: number;
       variants: Array<{ id: string; title: string; sku: string; pricePaise: number; compareAtPaise: number | null; availableQuantity: number }>;
       media: Array<{ assetId: string; kind: string; altText: string | null; storageKey: string }>;
     }>();
@@ -97,6 +101,8 @@ export async function GET(request: Request) {
         categoryName: row.categoryName,
         sellerId: row.sellerId,
         sellerName: row.sellerName,
+        reviewCount: row.reviewCount,
+        ratingTotal: row.ratingTotal,
         variants: [],
         media: [],
       };

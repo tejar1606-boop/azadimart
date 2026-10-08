@@ -79,6 +79,8 @@ async function getHome() {
       sellerName: sellers.storeName,
       mediaStorageKey: mediaAssets.storageKey,
       mediaAltText: mediaAssets.altText,
+      reviewCount: products.reviewCount,
+      ratingTotal: products.ratingTotal,
     }).from(products)
       .innerJoin(productVariants, eq(productVariants.productId, products.id))
       .innerJoin(sellers, eq(sellers.id, products.sellerId))

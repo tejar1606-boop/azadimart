@@ -10,6 +10,9 @@ import { AplusContent } from "@azadimart/ui";
 import WishlistButton from "../../components/wishlist-button";
 import type { Metadata } from "next";
 import { SITE_NAME, absoluteUrl, clip, jsonLd } from "../../lib/seo";
+import { loadReviewPhotos, loadReviewSummary, loadReviews } from "../../lib/reviews";
+import { RatingPill } from "../../components/stars";
+import ReviewsSection from "./reviews-section";
 
 /** Search title/description: the product's own SEO text if set, else built from name, price and seller. */
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -118,6 +121,8 @@ export default async function ProductDetailPage({ params, searchParams }: { para
     compareAtPaise: productVariants.compareAtPaise,
     mediaStorageKey: mediaAssets.storageKey,
     mediaAltText: mediaAssets.altText,
+    reviewCount: products.reviewCount,
+    ratingTotal: products.ratingTotal,
   }).from(products)
     .innerJoin(productVariants, eq(productVariants.productId, products.id))
     .leftJoin(productMedia, and(eq(productMedia.productId, products.id), eq(productMedia.kind, "IMAGE")))
@@ -125,6 +130,8 @@ export default async function ProductDetailPage({ params, searchParams }: { para
     .where(and(eq(products.status, "LIVE"), eq(productVariants.isActive, true), eq(products.categoryId, first.categoryId), ne(products.id, first.id)))
     .orderBy(asc(productMedia.sortOrder))
     .limit(160), 8);
+
+  const [reviewSummary, reviewPage, reviewPhotos] = await Promise.all([loadReviewSummary(db, first.id), loadReviews(db, first.id), loadReviewPhotos(db, first.id)]);
 
   // Approved A+ content only; comparison columns show LIVE products.
   const aplusRow = (await db.select({ blocks: productAplusContent.blocks }).from(productAplusContent).where(eq(productAplusContent.productId, first.id)).limit(1))[0];
@@ -159,6 +166,17 @@ export default async function ProductDetailPage({ params, searchParams }: { para
               itemCondition: "https://schema.org/NewCondition",
               seller: { "@type": "Organization", name: first.sellerName },
             },
+            ...(reviewSummary.count ? {
+              aggregateRating: { "@type": "AggregateRating", ratingValue: reviewSummary.average.toFixed(1), reviewCount: reviewSummary.count, bestRating: 5, worstRating: 1 },
+              review: reviewPage.items.slice(0, 5).map((r) => ({
+                "@type": "Review",
+                reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5 },
+                author: { "@type": "Person", name: r.authorName },
+                datePublished: r.createdAt.slice(0, 10),
+                ...(r.title ? { name: r.title } : {}),
+                ...(r.body ? { reviewBody: clip(r.body, 500) } : {}),
+              })),
+            } : {}),
           },
           {
             "@context": "https://schema.org",
@@ -183,6 +201,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">{first.categoryName}</p>
             <h1 className="mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-5xl">{first.title}</h1>
             <p className="mt-3 text-sm text-slate-500">Sold by <span className="font-semibold text-slate-800">{first.sellerName}</span></p>
+            {reviewSummary.count ? <a href="#reviews" className="mt-2 inline-flex hover:opacity-80"><RatingPill average={reviewSummary.average} count={reviewSummary.count} /></a> : null}
 
             <div className="mt-6 flex flex-wrap items-end gap-3">
               <span className="text-3xl font-bold">{money(selectedVariant.pricePaise)}</span>
@@ -243,6 +262,8 @@ export default async function ProductDetailPage({ params, searchParams }: { para
             <AplusContent blocks={aplusBlocks} product={{ id: first.id, title: first.title, imageUrl: aplusSummaries[first.id]?.imageUrl ?? null, pricePaise: selectedVariant.pricePaise }} compared={aplusCompared} />
           </section>
         ) : null}
+
+        <ReviewsSection productId={first.id} slug={first.slug} productTitle={first.title} summary={reviewSummary} initial={reviewPage} photos={reviewPhotos} />
 
         {relatedRows.length > 0 ? (
           <section className="mt-12 border-t border-slate-200 pt-10">

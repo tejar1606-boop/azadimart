@@ -173,7 +173,7 @@ export const customerRegistrationSchema = z.object({
   captchaToken: z.string().max(2048).optional(),
 });
 export const roleSchema = z.enum(ROLES);export const mediaUploadRequestSchema = z.object({
-  purpose: z.enum(["SITE_IMAGE", "SITE_VIDEO", "PRODUCT_IMAGE", "PRODUCT_VIDEO", "APLUS_IMAGE"]),
+  purpose: z.enum(["SITE_IMAGE", "SITE_VIDEO", "PRODUCT_IMAGE", "PRODUCT_VIDEO", "APLUS_IMAGE", "REVIEW_IMAGE"]),
   contentType: z.string().max(100),
   byteSize: z.number().int().positive(),
   /** Admin product uploads: the product whose seller folder receives the file. */
@@ -225,4 +225,23 @@ export const adminProductArrangeSchema = z.object({
 export const adminMoveCategorySchema = z.object({
   categoryId: uuidSchema,
   productIds: z.array(uuidSchema).min(1).max(500).refine((ids) => new Set(ids).size === ids.length, "Duplicate products"),
+});
+
+// Reviews: links are not allowed (spam), text is optional but bounded.
+const NO_LINKS = /(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|in|net|org|xyz|shop|link|io|co)\b)/i;
+const reviewText = (max: number) => z.string().trim().max(max).optional().default("").refine((v) => !NO_LINKS.test(v), "Please remove web links from your review");
+export const reviewSubmitSchema = z.object({
+  productId: uuidSchema,
+  rating: z.number().int().min(1, "Choose a star rating").max(5),
+  title: reviewText(100),
+  body: reviewText(2000),
+  mediaAssetIds: z.array(uuidSchema).max(4, "Add up to 4 photos").default([]).refine((ids) => new Set(ids).size === ids.length, "Duplicate photos"),
+});
+export const adminReviewModerationSchema = z.object({
+  status: z.enum(["PUBLISHED", "HIDDEN"]),
+  reason: z.string().trim().max(300).optional(),
+});
+/** Seller's public reply to a review ("" removes it). */
+export const sellerReviewReplySchema = z.object({
+  reply: z.string().trim().max(1000).refine((v) => !NO_LINKS.test(v), "Please remove web links from your reply"),
 });

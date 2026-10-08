@@ -1,3 +1,4 @@
+import { RatingPill } from "./stars";
 import Image from "next/image";
 import Link from "next/link";
 import WishlistButton from "./wishlist-button";
@@ -11,6 +12,9 @@ export type ProductCardData = {
   mediaStorageKey?: string | null;
   mediaAltText?: string | null;
   sellerName?: string | null;
+  /** Published review totals (average = ratingTotal / reviewCount). */
+  reviewCount?: number | null;
+  ratingTotal?: number | null;
 };
 
 export const formatPrice = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -42,6 +46,7 @@ export default function ProductCard({ product, priority = false, sizes = "(max-w
       <div className="flex flex-1 flex-col p-3 sm:p-3.5">
         {product.sellerName ? <p className="truncate text-[11px] font-medium uppercase tracking-[0.06em] text-slate-400">{product.sellerName}</p> : null}
         <p className="mt-0.5 line-clamp-2 text-[13px] leading-5 text-slate-800 sm:text-sm">{product.title}</p>
+        {product.reviewCount ? <span className="mt-1.5"><RatingPill average={(product.ratingTotal ?? 0) / product.reviewCount} count={product.reviewCount} compact /></span> : null}
         <div className="mt-auto flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 pt-2">
           <span className="text-base font-semibold text-slate-950 sm:text-lg">{formatPrice(product.pricePaise)}</span>
           {off > 0 ? (

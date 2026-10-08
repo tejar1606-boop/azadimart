@@ -1,5 +1,5 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, orderItems, orders, payments, sellers } from "@azadimart/database";
+import { createDatabase, orderItems, orders, payments, sellers, products } from "@azadimart/database";
 import { AppError, toApiError } from "@azadimart/shared";
 import { asc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -26,8 +26,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     const items = await db.select({
       id: orderItems.id, sellerId: orderItems.sellerId, sellerName: sellers.storeName,
       title: orderItems.title, sku: orderItems.sku, quantity: orderItems.quantity,
-      unitPricePaise: orderItems.unitPricePaise,
-    }).from(orderItems).innerJoin(sellers, eq(sellers.id, orderItems.sellerId))
+      unitPricePaise: orderItems.unitPricePaise, productSlug: products.slug,
+    }).from(orderItems).innerJoin(sellers, eq(sellers.id, orderItems.sellerId)).innerJoin(products, eq(products.id, orderItems.productId))
       .where(eq(orderItems.orderId, order.id)).orderBy(asc(orderItems.createdAt));
 
     return NextResponse.json({ order: { ...order, items } });

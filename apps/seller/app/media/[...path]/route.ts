@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 // Public media only: seller product media and admin-uploaded site media.
 // KYC documents (kind DOCUMENT, private-documents/) are never served here;
 // admins fetch them through an authenticated API.
-const PUBLIC_PREFIXES = ["product-media/", "site-media/"];
+const PUBLIC_PREFIXES = ["product-media/", "site-media/", "review-media/"];
 const MIME = new Set(["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "video/quicktime"]);
 
 export async function GET(request: Request, { params }: { params: Promise<{ path: string[] }> }) {

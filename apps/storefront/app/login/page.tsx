@@ -27,7 +27,9 @@ export default function CustomerLoginPage() {
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error?.message ?? "Unable to sign in.");
-      router.replace("/account");
+      // Return to the page that asked for sign-in (same-site paths only), else the account page.
+      const next = new URLSearchParams(window.location.search).get("next") ?? "";
+      router.replace(/^\/(?![/\\])/.test(next) ? next : "/account");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in.");
     } finally { setBusy(false); captchaRef.current?.reset(); }
