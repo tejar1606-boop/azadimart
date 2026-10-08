@@ -1,4 +1,5 @@
 import CouponCard from "./components/coupon-card";
+import WishlistButton from "./components/wishlist-button";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -230,7 +231,7 @@ export default async function HomePage() {
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {data.products.map((product) => (
                 <Link href={"/products/" + product.slug} key={"feed-"+product.id} className="group rounded-xl border border-slate-200 bg-white p-2.5 transition hover:-translate-y-0.5 hover:shadow-md">
-                  <div className="relative aspect-square overflow-hidden rounded-lg bg-slate-100">
+                  <div className="relative aspect-square overflow-hidden rounded-lg bg-slate-100"><WishlistButton productId={product.id} />
                     {product.mediaStorageKey ? <Image src={"/media/"+product.mediaStorageKey} alt={product.mediaAltText ?? product.title} fill sizes="(max-width:640px) 45vw, 20vw" className="object-cover transition group-hover:scale-105" /> : <span className="grid h-full place-items-center text-3xl font-black text-slate-200">{product.title.slice(0,1).toUpperCase()}</span>}
                   </div>
                   <p className="mt-2 line-clamp-2 text-xs font-medium leading-4">{product.title}</p>
