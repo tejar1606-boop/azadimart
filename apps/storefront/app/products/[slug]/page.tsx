@@ -19,6 +19,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     title: products.title,
     slug: products.slug,
     description: products.description,
+    categoryId: products.categoryId,
     categoryName: categories.name,
     sellerName: sellers.storeName,
     variantId: productVariants.id,
@@ -64,7 +65,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     .innerJoin(productVariants, eq(productVariants.productId, products.id))
     .leftJoin(productMedia, eq(productMedia.productId, products.id))
     .leftJoin(mediaAssets, eq(mediaAssets.id, productMedia.mediaAssetId))
-    .where(and(eq(products.status, "LIVE"), eq(products.categoryId, first.categoryName), ne(products.id, first.id)))
+    .where(and(eq(products.status, "LIVE"), eq(products.categoryId, first.categoryId), ne(products.id, first.id)))
     .limit(8);
 
   return (
