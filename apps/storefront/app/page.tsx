@@ -170,6 +170,20 @@ export default async function HomePage() {
       </header>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="hidden border-b border-slate-200 py-3 lg:block">
+          <div className="flex items-center gap-5 overflow-x-auto text-xs font-semibold text-slate-600">
+            {(data.navigationItems.length ? data.navigationItems : [
+              { id: "popular", label: "Popular", href: "/products", isActive: true },
+              { id: "fashion", label: "Fashion", href: "/products", isActive: true },
+              { id: "home", label: "Home & Kitchen", href: "/products", isActive: true },
+              { id: "beauty", label: "Beauty & Health", href: "/products", isActive: true },
+              { id: "electronics", label: "Electronics", href: "/products", isActive: true },
+              { id: "kids", label: "Kids", href: "/products", isActive: true },
+              { id: "grocery", label: "Grocery", href: "/products", isActive: true },
+            ]).map((item) => <Link key={"desktop-cat-"+item.id} href={item.href ?? "/products"} className="shrink-0 hover:text-slate-950">{item.label}</Link>)}
+          </div>
+        </div>
+
         {data.sections.length === 0 ? (
           <DefaultHero />
         ) : (
@@ -178,7 +192,24 @@ export default async function HomePage() {
           ))
         )}
 
-        <footer className="border-t border-slate-200 py-10 sm:py-14">
+        {data.products.length > 0 ? (
+          <section className="py-8 sm:py-12">
+            <SectionHeading eyebrow="Discover more" heading="Products for you" subtitle="More picks from AzadiMart sellers" />
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              {data.products.map((product) => (
+                <Link href={"/products/" + product.slug} key={"feed-"+product.id} className="group rounded-xl border border-slate-200 bg-white p-2.5 transition hover:-translate-y-0.5 hover:shadow-md">
+                  <div className="relative aspect-square overflow-hidden rounded-lg bg-slate-100">
+                    {product.mediaStorageKey ? <Image src={"/media/"+product.mediaStorageKey} alt={product.mediaAltText ?? product.title} fill sizes="(max-width:640px) 45vw, 20vw" className="object-cover transition group-hover:scale-105" /> : <span className="grid h-full place-items-center text-3xl font-black text-slate-200">{product.title.slice(0,1).toUpperCase()}</span>}
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-xs font-medium leading-4">{product.title}</p>
+                  <p className="mt-1 text-sm font-black">{money(product.pricePaise)}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        <footer className="border-t border-slate-200 py-10 pb-24 sm:py-14 lg:pb-14">
           <div className="grid gap-8 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
             <div>
               <p className="text-lg font-black">Azadi<span className="text-amber-500">Mart</span></p>
@@ -194,6 +225,16 @@ export default async function HomePage() {
           </div>
         </footer>
       </div>
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-3 py-2 backdrop-blur lg:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
+          {[["Home","/"],["Categories","/products"],["Wishlist","/products"],["Cart","/cart"]].map(([label,href], i) => (
+            <Link key={label} href={href} className="flex flex-col items-center gap-1 rounded-lg py-1.5 text-[10px] font-semibold text-slate-600">
+              <span className="grid h-6 w-6 place-items-center rounded-full bg-slate-100 text-[9px] font-black text-slate-700">{i === 0 ? "⌂" : i === 1 ? "≡" : i === 2 ? "♡" : "🛒"}</span>{label}
+            </Link>
+          ))}
+        </div>
+      </nav>
+
     </main>
   );
 }
