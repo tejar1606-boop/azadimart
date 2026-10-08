@@ -62,9 +62,15 @@ export default function CatalogView() {
           </form>
         </div>
 
-        <div className="mt-5 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3 sm:flex-row"><label className="sr-only" htmlFor="catalog-category">Category</label><select id="catalog-category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="min-h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Filter by category"><option value="">All categories</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><label className="sr-only" htmlFor="catalog-sort">Sort</label><select id="catalog-sort" value={sort} onChange={(event) => setSort(event.target.value)} className="min-h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Sort products"><option value="newest">Newest</option><option value="price_asc">Price: Low to high</option><option value="price_desc">Price: High to low</option></select></div>
+        <div className="mt-5 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row lg:hidden"><label className="sr-only" htmlFor="catalog-category">Category</label><select id="catalog-category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="min-h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Filter by category"><option value="">All categories</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><label className="sr-only" htmlFor="catalog-sort">Sort</label><select id="catalog-sort" value={sort} onChange={(event) => setSort(event.target.value)} className="min-h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none" aria-label="Sort products"><option value="newest">Newest</option><option value="price_asc">Price: Low to high</option><option value="price_desc">Price: High to low</option></select></div>
 
         <div className="mt-8 flex items-center justify-between text-sm">
+          <div className="hidden lg:flex items-center gap-2 text-xs font-semibold text-slate-500">
+            <span className="rounded-full bg-slate-950 px-3 py-1.5 text-white">All products</span>
+            <span className="rounded-full border border-slate-200 px-3 py-1.5">Popular</span>
+            <span className="rounded-full border border-slate-200 px-3 py-1.5">New arrivals</span>
+            <span className="rounded-full border border-slate-200 px-3 py-1.5">Top rated</span>
+          </div>
           <p className="font-semibold">{query ? `Results for "${query}"` : "Latest on AzadiMart"}</p>
           <p className="text-slate-400">{items.length} products</p>
         </div>
