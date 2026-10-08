@@ -160,7 +160,10 @@ export default async function HomePage() {
             <Link href="/products" className="rounded-full bg-slate-950 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-slate-800 sm:px-5">Shop</Link>
           </div>
         </div>
-        <div className="border-t border-slate-100 bg-white px-4 py-2.5 lg:hidden">
+        <div className="border-t border-slate-100 bg-white px-4 pb-2.5 pt-2 lg:hidden">
+          <div className="mx-auto mb-2 flex max-w-7xl rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+            <Link href="/products" className="w-full text-xs text-slate-400">Search for products, categories and brands</Link>
+          </div>
           <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto">
             {data.navigationItems.map((item) => (
               <Link key={"mobile-" + item.id} href={item.href ?? "/"} className="shrink-0 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600">{item.label}</Link>
