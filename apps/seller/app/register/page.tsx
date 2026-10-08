@@ -116,46 +116,51 @@ export default function RegisterPage() {
             </select>
           </label>
 
-          <div className="sm:col-span-2">
-            <p className="text-sm font-medium">Tax identity</p>
+          <fieldset className="sm:col-span-2">
+            <legend className="text-sm font-medium">Do you have a GSTIN?</legend>
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setField("taxIdentityType", "GSTIN")}
-                className={`rounded-xl border p-4 text-left ${form.taxIdentityType === "GSTIN" ? "border-saffron bg-orange-50" : "border-slate-200"}`}
-              >
-                <span className="block font-semibold">I have a GSTIN</span>
-                <span className="mt-1 block text-xs text-ink-muted">Use your valid GST registration number.</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setField("taxIdentityType", "ENROLMENT_ID")}
-                className={`rounded-xl border p-4 text-left ${form.taxIdentityType === "ENROLMENT_ID" ? "border-saffron bg-orange-50" : "border-slate-200"}`}
-              >
-                <span className="block font-semibold">I have an Enrolment ID</span>
-                <span className="mt-1 block text-xs text-ink-muted">For eligible unregistered suppliers of goods.</span>
-              </button>
+              {([
+                ["GSTIN", "Yes, I have a GSTIN", "Sell to customers across India."],
+                ["ENROLMENT_ID", "No, I don't have GST", "Sell in your own state with a free GST Enrolment ID."],
+              ] as const).map(([value, title, hint]) => (
+                <label key={value} className={"flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition " + (form.taxIdentityType === value ? "border-brand bg-brand/5 ring-1 ring-brand/30" : "border-slate-200 hover:border-slate-400")}>
+                  <input type="radio" name="taxIdentityType" className="mt-1 h-4 w-4 accent-brand" checked={form.taxIdentityType === value} onChange={() => setField("taxIdentityType", value)} />
+                  <span><span className="block font-semibold">{title}</span><span className="mt-0.5 block text-xs text-ink-muted">{hint}</span></span>
+                </label>
+              ))}
             </div>
-          </div>
+          </fieldset>
 
           {form.taxIdentityType === "GSTIN" ? (
             <label className="text-sm font-medium sm:col-span-2">
               GSTIN
-              <input className="mt-2 w-full max-w-xl rounded-lg border border-slate-300 px-3 py-2.5 uppercase" value={form.gstin} onChange={(e) => setField("gstin", e.target.value.toUpperCase())} maxLength={15} autoComplete="off" required />
-              <span className="mt-1 block text-xs text-ink-muted">Your GSTIN will be reviewed during KYC.</span>
+              <input className="mt-2 w-full max-w-xl rounded-lg border border-slate-300 px-3 py-2.5 uppercase" value={form.gstin} onChange={(e) => setField("gstin", e.target.value.toUpperCase())} maxLength={15} autoComplete="off" placeholder="e.g. 29ABCDE1234F1Z5" required />
+              <span className="mt-1 block text-xs text-ink-muted">15 characters. Your GSTIN is checked during KYC.</span>
             </label>
           ) : (
-            <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <label className="text-sm font-medium">
+            <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2 sm:p-5">
+              <div>
+                <p className="text-sm font-semibold">Sell without GST using a free Enrolment ID</p>
+                <p className="mt-1 text-xs leading-5 text-ink-muted">Under GST rules, small sellers can sell online without GST registration if they get an Enrolment ID from the GST portal. It&apos;s free, needs only your PAN, and takes about 5 minutes.</p>
+              </div>
+              <ol className="space-y-2 text-xs leading-5 text-slate-700">
+                {[
+                  <>Open the <a className="font-semibold text-brand-600 underline" href="https://www.gst.gov.in/" target="_blank" rel="noreferrer">GST portal (gst.gov.in)</a>.</>,
+                  <>Go to <b>Services → User Services → Generate User Id for Unregistered Applicant</b> and click <b>Yes</b>.</>,
+                  <>Tick <b>&ldquo;To apply as a supplier to e-commerce operators&rdquo;</b>.</>,
+                  <>Enter your PAN, the name on your PAN, email, mobile, state and business address, then verify the OTP.</>,
+                  <>Your 15-character <b>Enrolment ID</b> appears on screen and is emailed to you. Enter it below.</>,
+                ].map((step, i) => (
+                  <li key={i} className="flex gap-2.5"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-chrome text-[10px] font-bold text-white">{i + 1}</span><span>{step}</span></li>
+                ))}
+              </ol>
+              <label className="block text-sm font-medium">
                 GST Enrolment ID
                 <input className="mt-2 w-full max-w-xl rounded-lg border border-slate-300 bg-white px-3 py-2.5 uppercase" value={form.gstEnrolmentId} onChange={(e) => setField("gstEnrolmentId", e.target.value.replace(/[^a-z0-9]/gi, "").slice(0, 15).toUpperCase())} maxLength={15} autoComplete="off" required />
               </label>
-              <p className="mt-2 text-xs leading-5 text-amber-900">
-                This route is only for sellers who are eligible under the applicable GST exemption. The seller must have PAN, an enrolled business state/UT, and an enrolment number before supplying through an eligible e-commerce operator. Inter-State goods supplies are not permitted under this route.
+              <p className="rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+                With an Enrolment ID you can sell only to customers in your business state/UT (selected above), and you need a PAN. You can add a GSTIN later to sell across India. You must register for GST if your turnover or business type requires it.
               </p>
-              <a className="mt-2 inline-block text-xs font-semibold text-saffron underline" href="https://www.gst.gov.in/" target="_blank" rel="noreferrer">
-                Get your Enrolment ID on the GST portal →
-              </a>
             </div>
           )}
 
