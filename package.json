@@ -23,7 +23,8 @@
     "db:migrate": "node scripts/db-migrate-safe.mjs",
     "db:studio": "pnpm --filter @azadimart/database studio",
     "format": "prettier --write .",
-    "db:check": "node scripts/db-preflight.mjs"
+    "db:check": "node scripts/db-preflight.mjs",
+    "db:seed:demo": "node scripts/seed-demo.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
