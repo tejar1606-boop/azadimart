@@ -125,7 +125,7 @@ export default async function DashboardPage() {
     !shippingConfigured && { href: "/shipping", label: "Add your pickup address and courier preference", detail: "Required before you can ship orders." },
     toShip.length > 0 && { href: "/orders", label: `${toShip.length} order${toShip.length === 1 ? "" : "s"} waiting for shipment`, detail: "Create shipments so customers get tracking." },
     totalProducts === 0 && { href: "/products/new", label: "Create your first product", detail: "Add photos, price, stock and package weight, then submit for QC." },
-    (byStatus.QC_REJECTED ?? 0) > 0 && { href: "/products", label: `${byStatus.QC_REJECTED} product${byStatus.QC_REJECTED === 1 ? "" : "s"} need changes after QC`, detail: "Review the QC feedback and resubmit." },
+    (byStatus.QC_REJECTED ?? 0) > 0 && { href: "/products", label: `${byStatus.QC_REJECTED} product${byStatus.QC_REJECTED === 1 ? " needs" : "s need"} changes after QC`, detail: "Review the QC feedback and resubmit." },
     (byStatus.DRAFT ?? 0) > 0 && { href: "/products", label: `${byStatus.DRAFT} draft product${byStatus.DRAFT === 1 ? "" : "s"} not submitted`, detail: "Submit drafts for QC to go live." },
   ].filter(Boolean) as Array<{ href: string; label: string; detail: string }>;
 
@@ -141,7 +141,7 @@ export default async function DashboardPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Seller dashboard</p>
-          <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-5xl">{seller.storeName}</h1>
+          <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">{seller.storeName}</h1>
           <p className="mt-2 text-sm text-slate-500">Your store at a glance. Figures cover only your own products and order lines.</p>
         </div>
         <Link href="/products/new" className="rounded-full bg-slate-950 px-5 py-3 text-center text-sm font-black text-white">Create product</Link>

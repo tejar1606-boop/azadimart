@@ -48,7 +48,7 @@ export default function ShippingSettingsPage(){
   return <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-12">
     <Link href="/orders" className="text-sm font-semibold text-slate-500">← Orders</Link>
     <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Fulfillment setup</p>
-    <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-5xl">Shipping.</h1>
+    <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">Shipping.</h1>
     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Save your pickup address and choose the provider you plan to use. External carrier credentials are added later.</p>
 
     <section className="mt-7 rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">

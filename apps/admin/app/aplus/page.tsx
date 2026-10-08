@@ -46,7 +46,7 @@ export default function AplusReviewPage() {
   }
 
   return (
-    <main className="px-6 py-10">
+    <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
       <p className="text-sm uppercase tracking-wide text-ink-muted">Marketplace operations</p>
       <h1 className="mt-2 text-3xl font-semibold">A+ content review</h1>
       <p className="mt-2 text-sm text-ink-muted">Check seller A+ content before it appears on product pages. Approved content replaces the live version.</p>

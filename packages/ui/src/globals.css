@@ -4,10 +4,10 @@
 
 :root {
   --azadimart-ink: #0f172a;
-  --azadimart-saffron: #f97316;
+  --azadimart-saffron: #e58530;
 }
 
 body {
   color: var(--azadimart-ink);
-  background: #f8fafc;
+  background: #f3f4f6;
 }

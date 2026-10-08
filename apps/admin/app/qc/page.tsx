@@ -68,7 +68,7 @@ export default function QCPage() {
   const item = items.find((entry) => entry.id === selected) ?? null;
 
   return (
-    <main className="px-4 py-6 md:px-8 md:py-10">
+    <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
       <p className="text-sm uppercase tracking-wide text-ink-muted">Marketplace operations</p>
       <h1 className="mt-1 text-3xl font-semibold">Quality control</h1>
       <p className="mt-2 max-w-3xl text-sm text-ink-muted">

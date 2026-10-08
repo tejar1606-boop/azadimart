@@ -15,6 +15,8 @@ const AD = process.env.ADMIN_URL ?? "http://localhost:3002";
 const SF = process.env.STOREFRONT_URL ?? "http://localhost:3000";
 const PW = process.env.DEMO_PASSWORD || "AzadiDemo2026!";
 const sql = neon(process.env.DATABASE_URL);
+// Unique per run so earlier approved content can't satisfy the checks.
+const RUN = Date.now().toString(36);
 let pass = 0, fail = 0;
 const check = (n, ok, x = "") => { ok ? pass++ : fail++; console.log((ok ? "PASS " : "FAIL ") + n + (x ? "  " + x : "")); };
 
@@ -62,8 +64,8 @@ check("A+ images upload (wide banner allowed for A+)", Boolean(banner?.url && ba
 
 const blocks = [
   { type: "banner", desktopImageUrl: banner.url, mobileImageUrl: bannerMobile.url, alt: "E2E A+ banner" },
-  { type: "image_text", heading: "E2E text-only module", body: "No image needed here." },
-  { type: "image_text", imageUrl: square.url, imagePosition: "right", heading: "E2E built to last", body: "Polycarbonate shell." },
+  { type: "image_text", heading: `E2E text-only module ${RUN}`, body: "No image needed here." },
+  { type: "image_text", imageUrl: square.url, imagePosition: "right", heading: `E2E built to last ${RUN}`, body: "Polycarbonate shell." },
   { type: "features", heading: "Why you'll love it", items: [{ title: "Light", imageUrl: square.url }, { title: "Strong" }, { title: "Silent wheels" }] },
   { type: "comparison", heading: "Compare", productIds: [other1.id, other2.id], rows: [{ label: "Warranty", values: ["3 years", "1 year", "2 years"] }] },
   { type: "text", heading: "E2E story", body: "Made in India." },
@@ -101,7 +103,7 @@ r = await seller(`/api/v1/products/${target.id}/aplus`);
 check("seller sees feedback", r.json?.status === "REJECTED" && /brighten/.test(r.json?.reviewNotes ?? ""), JSON.stringify({ s: r.json?.status, n: r.json?.reviewNotes }));
 
 let page = await fetch(`${SF}/products/${target.slug}`).then((x) => x.text());
-check("not shown on storefront before approval", !page.includes("E2E built to last"));
+check("not shown on storefront before approval", !page.includes(`E2E built to last ${RUN}`));
 
 r = await seller(`/api/v1/products/${target.id}/aplus`, { method: "PUT", body: { blocks } });
 r = await seller(`/api/v1/products/${target.id}/aplus/submit`, { method: "POST" });
@@ -109,13 +111,13 @@ r = await admin(`/api/v1/aplus/${target.id}`, { method: "POST", body: { decision
 check("admin approves after resubmission", r.status === 200 && r.json?.status === "APPROVED", r.status + " " + JSON.stringify(r.json?.error ?? ""));
 
 page = await fetch(`${SF}/products/${target.slug}`).then((x) => x.text());
-check("storefront shows approved A+ content", page.includes("From the seller") && page.includes("E2E built to last") && page.includes("E2E text-only module"));
+check("storefront shows approved A+ content", page.includes("From the seller") && page.includes(`E2E built to last ${RUN}`) && page.includes(`E2E text-only module ${RUN}`));
 check("comparison shows the compared products", page.includes(other1.title.replace(/&/g, "&amp;").slice(0, 20)));
 
 // edits after approval stay hidden until approved again
-await seller(`/api/v1/products/${target.id}/aplus`, { method: "PUT", body: { blocks: [{ type: "text", body: "E2E unapproved edit" }] } });
+await seller(`/api/v1/products/${target.id}/aplus`, { method: "PUT", body: { blocks: [{ type: "text", body: `E2E unapproved edit ${RUN}` }] } });
 page = await fetch(`${SF}/products/${target.slug}`).then((x) => x.text());
-check("unapproved edit does not change the live page", page.includes("E2E built to last") && !page.includes("E2E unapproved edit"));
+check("unapproved edit does not change the live page", page.includes(`E2E built to last ${RUN}`) && !page.includes(`E2E unapproved edit ${RUN}`));
 // restore the approved version as the draft
 await seller(`/api/v1/products/${target.id}/aplus`, { method: "PUT", body: { blocks } });
 

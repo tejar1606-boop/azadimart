@@ -67,7 +67,7 @@ export default function Page() {
   }, []);
 
   return (
-    <main className="px-4 py-6 md:px-8 md:py-10">
+    <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
       <div>
         <p className="text-sm uppercase tracking-wide text-ink-muted">Marketplace operations</p>
         <h1 className="mt-1 text-3xl font-semibold">Product approval</h1>

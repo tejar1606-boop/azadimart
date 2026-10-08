@@ -1,28 +1,47 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Poppins } from "next/font/google";
+import { headers } from "next/headers";
+import { getSessionPrincipal } from "@azadimart/auth";
+import { createDatabase, productAplusContent, products, qcSubmissions, sellerVerifications } from "@azadimart/database";
+import { count, eq } from "drizzle-orm";
 import "@azadimart/ui/globals.css";
+import AdminChrome, { type AdminCounts } from "./_components/admin-chrome";
+
+const poppins = Poppins({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "AzadiMart Admin",
+  title: { default: "AzadiMart Admin", template: "%s · AzadiMart Admin" },
   description: "Operations and commerce console",
+  robots: { index: false, follow: false },
 };
 
-const NAV = [
-  ["/dashboard","Dashboard"],["/orders","Orders"],["/products","Products"],["/sellers","Sellers"],["/customers","Customers"],
-  ["/qc","QC"],["/aplus","A+ review"],["/logistics","Logistics"],["/payments","Payments"],["/finance","Finance"],["/returns","Returns"],
-  ["/support","Support"],["/marketing","Marketing"],["/security","Security & Audit"],["/online-store","Online Store"],
-] as const;
+/** Work-queue counts for the sidebar; only computed for a signed-in admin. */
+async function adminCounts(): Promise<AdminCounts | null> {
+  try {
+    const cookie = (await headers()).get("cookie");
+    if (!cookie) return null;
+    const db = createDatabase();
+    const principal = await getSessionPrincipal(new Request("http://azadimart.internal", { headers: { cookie } }), db);
+    if (!principal || (principal.role !== "ADMIN" && principal.role !== "SUPER_ADMIN")) return null;
+    const [sellersPending, qcPending, approvals, aplusPending] = await Promise.all([
+      db.select({ n: count() }).from(sellerVerifications).where(eq(sellerVerifications.status, "IN_REVIEW")),
+      db.select({ n: count() }).from(qcSubmissions).where(eq(qcSubmissions.status, "PENDING")),
+      db.select({ n: count() }).from(products).where(eq(products.status, "PENDING_ADMIN_APPROVAL")),
+      db.select({ n: count() }).from(productAplusContent).where(eq(productAplusContent.status, "PENDING_REVIEW")),
+    ]);
+    return { sellers: Number(sellersPending[0]?.n ?? 0), qc: Number(qcPending[0]?.n ?? 0), approvals: Number(approvals[0]?.n ?? 0), aplus: Number(aplusPending[0]?.n ?? 0) };
+  } catch {
+    return null;
+  }
+}
 
-export default function RootLayout({children}:{children:React.ReactNode}){
- return <html lang="en"><body className="min-h-screen bg-slate-50 antialiased">
-  <div className="min-h-screen md:flex">
-   <aside className="hidden w-60 shrink-0 border-r bg-white p-4 md:block">
-    <div className="sticky top-4"><p className="text-xs uppercase tracking-wide text-slate-500">admin.azadimart.com</p><p className="mt-1 text-lg font-black">Azadi<span className="text-amber-500">Mart</span></p><nav className="mt-7 flex max-h-[calc(100vh-120px)] flex-col gap-1 overflow-y-auto">{NAV.map(([href,label])=><Link key={href} href={href} className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950">{label}</Link>)}</nav></div>
-   </aside>
-   <div className="min-w-0 flex-1">
-    <div className="sticky top-0 z-20 border-b bg-white/95 px-4 py-3 backdrop-blur md:hidden"><div className="flex items-center justify-between"><p className="font-black">Azadi<span className="text-amber-500">Mart</span></p><span className="text-xs text-slate-500">Admin</span></div><nav className="mt-3 flex gap-2 overflow-x-auto pb-1">{NAV.map(([href,label])=><Link key={href} href={href} className="shrink-0 rounded-full border bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">{label}</Link>)}</nav></div>
-    {children}
-   </div>
-  </div>
- </body></html>
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const counts = await adminCounts();
+  return (
+    <html lang="en" className={poppins.variable}>
+      <body className="min-h-screen bg-panel font-sans text-slate-950 antialiased">
+        <AdminChrome counts={counts}>{children}</AdminChrome>
+      </body>
+    </html>
+  );
 }

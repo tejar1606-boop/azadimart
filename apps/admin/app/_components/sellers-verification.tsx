@@ -129,7 +129,7 @@ export default function SellersPage() {
   );
 
   return (
-    <main className="px-4 py-6 md:px-8 md:py-10">
+    <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
           <p className="text-sm uppercase tracking-wide text-ink-muted">Marketplace operations</p>

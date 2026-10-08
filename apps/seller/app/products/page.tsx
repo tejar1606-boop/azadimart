@@ -6,7 +6,7 @@ export default function ProductsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Seller catalog</p>
-          <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-5xl">Your products</h1>
+          <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">Your products</h1>
           <p className="mt-2 text-sm text-slate-500">Manage drafts, QC submissions and live catalog listings from one place.</p>
         </div>
         <a href="/products/new" className="rounded-full bg-slate-950 px-5 py-3 text-center text-sm font-black text-white">Create product</a>
