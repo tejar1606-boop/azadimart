@@ -1,4 +1,4 @@
-import { neon } from "@neondatabase/serverless";
+import { neonConfig, Pool } from "@neondatabase/serverless";
 import { randomBytes, scryptSync } from "node:crypto";
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
@@ -8,7 +8,10 @@ if (process.env.ALLOW_DEMO_SEED !== "YES") {
   throw new Error("Set ALLOW_DEMO_SEED=YES to explicitly enable the demo seed.");
 }
 
-const sql = neon(databaseUrl);
+// The HTTP client has no interactive transactions; use a WebSocket pool
+// (Node 22+ provides a global WebSocket).
+neonConfig.webSocketConstructor = globalThis.WebSocket;
+const pool = new Pool({ connectionString: databaseUrl });
 const now = new Date();
 
 function uuid() {
@@ -34,7 +37,12 @@ const variantId = uuid();
 const inventoryId = uuid();
 const cartId = uuid();
 
-await sql.begin(async (tx) => {
+const client = await pool.connect();
+const tx = async (strings, ...values) =>
+  (await client.query(strings[0] + values.map((_, i) => "$" + (i + 1) + strings[i + 1]).join(""), values)).rows;
+
+try {
+  await client.query("BEGIN");
   const existing = await tx`
     select
       (select id from users where email = 'demo.admin@azadimart.test' limit 1) as admin_id,
@@ -118,7 +126,14 @@ await sql.begin(async (tx) => {
     )
     values (${inventoryId}, ${variantId}, ${sellerId}, 25, 0, ${now}, ${now})
   `;
-});
+  await client.query("COMMIT");
+} catch (error) {
+  await client.query("ROLLBACK");
+  throw error;
+} finally {
+  client.release();
+  await pool.end();
+}
 
 console.log("AzadiMart demo seed completed.");
 console.log("Admin:    demo.admin@azadimart.test");
