@@ -44,6 +44,17 @@ type HomeNav = { id: string; label: string; href: string | null; isActive: boole
 const money = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
 const str = (settings: Settings, key: string, fallback = "") =>
   typeof settings[key] === "string" ? String(settings[key]) : fallback;
+const marketplaceCategories = [
+  ["Women", ["Sarees", "Kurtis", "Western Wear", "Jewellery", "Women Footwear", "Bags"]],
+  ["Men", ["T-Shirts", "Shirts", "Ethnic Wear", "Footwear", "Watches", "Accessories"]],
+  ["Kids", ["Girls", "Boys", "Toys & Games", "Baby Care", "Kids Footwear"]],
+  ["Home & Kitchen", ["Kitchen", "Home Decor", "Storage", "Home Textiles", "Appliances", "Furniture"]],
+  ["Beauty & Health", ["Makeup", "Personal Care", "Healthcare", "Wellness", "Baby & Mom"]],
+  ["Electronics", ["Mobiles & Accessories", "Audio", "Wearables", "Cables & Chargers", "Gadgets"]],
+  ["Sports & Fitness", ["Cricket", "Fitness", "Badminton", "Football", "Cycling"]],
+  ["Grocery & Food", ["Dry Fruits", "Spices", "Snacks", "Beverages", "Staples"]],
+] as const;
+
 const num = (settings: Settings, key: string, fallback: number) =>
   typeof settings[key] === "number" && Number.isFinite(settings[key]) ? Number(settings[key]) : fallback;
 
@@ -173,8 +184,26 @@ export default async function HomePage() {
       </header>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="hidden border-b border-slate-200 py-3 lg:block">
-          <div className="flex items-center gap-5 overflow-x-auto text-xs font-semibold text-slate-600">
+        <div className="hidden border-b border-slate-200 bg-white py-3 lg:block">
+          <div className="mx-auto max-w-7xl">
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-bold text-slate-800">
+                <span className="grid h-7 w-7 place-items-center rounded-md bg-slate-950 text-white">☰</span>
+                All Categories
+                <span className="text-slate-400 transition group-open:rotate-180">⌄</span>
+              </summary>
+              <div className="mt-4 grid grid-cols-4 gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+                {marketplaceCategories.map(([name, children]) => (
+                  <div key={name}>
+                    <Link href="/products" className="text-sm font-bold text-slate-900 hover:text-amber-600">{name}</Link>
+                    <div className="mt-2 space-y-1.5">
+                      {children.slice(0, 5).map((child) => <Link key={child} href="/products" className="block text-xs text-slate-500 hover:text-slate-900">{child}</Link>)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
+            <div className="mt-3 flex items-center gap-5 overflow-x-auto text-xs font-semibold text-slate-600">
             {(data.navigationItems.length ? data.navigationItems : [
               { id: "popular", label: "Popular", href: "/products", isActive: true },
               { id: "fashion", label: "Fashion", href: "/products", isActive: true },
