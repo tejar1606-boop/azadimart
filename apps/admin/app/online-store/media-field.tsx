@@ -2,6 +2,16 @@
 
 import { useRef, useState } from "react";
 
+function imageSize(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { resolve({ width: img.naturalWidth, height: img.naturalHeight }); URL.revokeObjectURL(url); };
+    img.onerror = () => { reject(new Error("Could not read this image")); URL.revokeObjectURL(url); };
+    img.src = url;
+  });
+}
+
 /** Upload (or paste a link to) a storefront image or video, with preview. */
 export default function MediaField({
   label,
@@ -9,22 +19,37 @@ export default function MediaField({
   kind,
   value,
   onChange,
+  size,
 }: {
   label: string;
   hint?: string;
   kind: "image" | "video";
   value: string;
   onChange: (url: string) => void;
+  /** Required image size: the shape must match (it fills a fixed frame); smaller files only warn. */
+  size?: { width: number; height: number };
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [showLink, setShowLink] = useState(false);
+  const [warning, setWarning] = useState("");
 
   async function upload(file: File) {
     setError("");
+    setWarning("");
     setUploading(true);
     try {
+      if (size && kind === "image") {
+        const actual = await imageSize(file);
+        const expectedRatio = size.width / size.height;
+        if (Math.abs(actual.width / actual.height - expectedRatio) / expectedRatio > 0.02) {
+          throw new Error(`This image is ${actual.width} × ${actual.height}. Upload ${size.width} × ${size.height} (same shape) so nothing gets cropped.`);
+        }
+        if (actual.width < size.width) {
+          setWarning(`Uploaded at ${actual.width} × ${actual.height}. ${size.width} × ${size.height} looks sharper on large screens.`);
+        }
+      }
       const form = new FormData();
       form.set("file", file);
       const response = await fetch("/api/v1/media", { method: "POST", body: form });
@@ -72,6 +97,7 @@ export default function MediaField({
             <input className="w-full rounded-lg border bg-white p-2 text-xs font-normal" placeholder="https://…" value={value.startsWith("/media/") ? "" : value} onChange={(event) => onChange(event.target.value.trim())} />
           ) : null}
           {error ? <p className="text-xs font-normal text-red-600">{error}</p> : null}
+          {warning ? <p className="text-xs font-normal text-amber-700">{warning}</p> : null}
         </div>
       </div>
       <input
