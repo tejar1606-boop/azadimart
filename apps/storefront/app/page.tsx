@@ -15,6 +15,7 @@ import {
 } from "@azadimart/database";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import CouponCard from "./components/coupon-card";
+import HeroCarousel, { type HeroSlide } from "./components/hero-carousel";
 import { ArrowRightIcon, BadgeIcon, CashIcon, CheckIcon, ReturnIcon, ShieldIcon } from "./components/icons";
 import ProductCard, { type ProductCardData } from "./components/product-card";
 
@@ -201,27 +202,40 @@ function StoreSection({ section, data }: { section: HomeSection; data: HomeData 
   }
 }
 
+/** Only on-site paths or https links (no protocol-relative or script URLs). */
+function safeHref(href: string): string | undefined {
+  const value = href.trim();
+  if (/^\/(?![/\\])/.test(value)) return resolveHref(value);
+  if (/^https:\/\//i.test(value)) return value;
+  return undefined;
+}
+
+/** Banner slides from the hero settings; the original single-banner fields become slide 1. */
+function heroSlides(s: Settings): HeroSlide[] {
+  const raw = Array.isArray(s.slides) ? (s.slides as Settings[]) : [];
+  // Once slides have been edited (even to none) the old single-banner fields are ignored.
+  const fromLegacy: Settings[] = !Array.isArray(s.slides) && (str(s, "desktopImageUrl") || str(s, "desktopVideoUrl"))
+    ? [{ desktopImageUrl: s.desktopImageUrl, mobileImageUrl: s.mobileImageUrl, desktopVideoUrl: s.desktopVideoUrl, mobileVideoUrl: s.mobileVideoUrl, href: s.primaryHref, alt: s.heading }]
+    : [];
+  return [...raw, ...fromLegacy]
+    .map((slide) => ({
+      desktopImageUrl: str(slide, "desktopImageUrl") || undefined,
+      mobileImageUrl: str(slide, "mobileImageUrl") || undefined,
+      desktopVideoUrl: str(slide, "desktopVideoUrl") || undefined,
+      mobileVideoUrl: str(slide, "mobileVideoUrl") || undefined,
+      href: str(slide, "href") ? safeHref(str(slide, "href")) : undefined,
+      alt: str(slide, "alt", "AzadiMart offer"),
+    }))
+    .filter((slide) => slide.desktopImageUrl || slide.desktopVideoUrl);
+}
+
 function Hero({ s }: { s: Settings }) {
   const heading = str(s, "heading", "Everything India loves, from sellers you can trust.");
   const description = str(s, "description", "Shop quality-checked products from KYC-verified Indian sellers. Cash on Delivery and easy returns on every order.");
   const primaryLabel = str(s, "primaryLabel", "Shop now");
   const primaryHref = str(s, "primaryHref", "/products");
-  const desktopImage = str(s, "desktopImageUrl");
-  const desktopVideo = str(s, "desktopVideoUrl");
-  const mobileImage = str(s, "mobileImageUrl", desktopImage);
-  const mobileVideo = str(s, "mobileVideoUrl", str(s, "mobileImageUrl") ? "" : desktopVideo);
-
-  // A campaign banner (image 2880 × 1080 / 1200 × 1500, or video) takes over the hero, full width.
-  if (desktopImage || desktopVideo) {
-    return (
-      <section aria-label="Featured campaign">
-        <Link href={resolveHref(primaryHref)} className="block bg-slate-200">
-          <BannerArt image={mobileImage} video={mobileVideo} alt={heading} priority className="block aspect-[4/5] sm:hidden" />
-          <BannerArt image={desktopImage} video={desktopVideo} alt={heading} priority className="hidden aspect-[8/3] sm:block" />
-        </Link>
-      </section>
-    );
-  }
+  const slides = heroSlides(s);
+  if (slides.length) return <HeroCarousel slides={slides} />;
 
   // No banner uploaded yet: a designed banner in the same frame (8:3 desktop,
   // 4:5 mobile) so the layout does not change when one is uploaded.
@@ -278,7 +292,7 @@ function PromoBanner({ s }: { s: Settings }) {
   const mobile = str(s, "mobileImageUrl", desktop);
   const mobileVideo = str(s, "mobileVideoUrl", str(s, "mobileImageUrl") ? "" : desktopVideo);
   const alt = str(s, "alt", "AzadiMart offer");
-  const href = str(s, "href");
+  const href = str(s, "href") ? safeHref(str(s, "href")) : undefined;
   const images = (
     <>
       <BannerArt image={mobile} video={mobileVideo} alt={alt} className="block aspect-[800/329] sm:hidden" />
@@ -288,7 +302,7 @@ function PromoBanner({ s }: { s: Settings }) {
   return (
     <Container className="py-4 sm:py-6">
       {href ? (
-        <Link href={resolveHref(href)} className="block overflow-hidden rounded-xl bg-slate-200 transition hover:opacity-95">{images}</Link>
+        <Link href={href} className="block overflow-hidden rounded-xl bg-slate-200 transition hover:opacity-95">{images}</Link>
       ) : (
         <div className="overflow-hidden rounded-xl bg-slate-200">{images}</div>
       )}

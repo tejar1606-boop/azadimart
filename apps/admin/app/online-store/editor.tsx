@@ -3,6 +3,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { DEFAULT_HOME_SECTIONS, SECTION_TYPES, type ThemeSectionDraft } from "@azadimart/shared";
+import HeroSlidesField, { slidesFromSettings } from "./hero-slides-field";
 import MediaField from "./media-field";
 import NavigationEditor from "./navigation-editor";
 
@@ -17,7 +18,9 @@ const LABELS: Record<string,string> = {
 
 function defaults(type:string){ return DEFAULT_HOME_SECTIONS.find((s)=>s.type===type)?.settings ?? {heading:LABELS[type] ?? "New section"}; }
 function val(s:Row,key:string){ return String(s.settings[key] ?? ""); }
-function setVal(s:Row,key:string,value:unknown):Row{ return {...s,settings:{...s.settings,[key]:value}}; }
+/** A value, or an updater applied to the latest settings (avoids lost updates when async uploads finish together). */
+type SettingValue = unknown | ((settings:Record<string,unknown>)=>unknown);
+function setVal(s:Row,key:string,value:SettingValue):Row{ const next = typeof value==="function" ? (value as (settings:Record<string,unknown>)=>unknown)(s.settings) : value; return {...s,settings:{...s.settings,[key]:next}}; }
 
 export default function OnlineStoreEditor(){
   const [themeId,setThemeId]=useState("");
@@ -87,7 +90,7 @@ export default function OnlineStoreEditor(){
   </div>
 }
 
-function SectionFields({section,onChange}:{section:Row;onChange:(key:string,value:unknown)=>void}){
+function SectionFields({section,onChange}:{section:Row;onChange:(key:string,value:SettingValue)=>void}){
   const t=section.type;
   const common=["hero","marquee","promo_banner","image_banner","category_grid","trust_strip","featured_products","sales_coupons","seller_cta","newsletter","rich_text","video"].includes(t);
   if(!common) return null;
@@ -95,11 +98,8 @@ function SectionFields({section,onChange}:{section:Row;onChange:(key:string,valu
     {t!=="category_grid" && t!=="marquee" && t!=="promo_banner" && <Field label="Heading"><input className="w-full rounded-lg border p-2.5" value={val(section,"heading")} onChange={e=>onChange("heading",e.target.value)}/></Field>}
     {t!=="hero" && t!=="image_banner" && t!=="marquee" && t!=="promo_banner" && <Field label="Subtitle"><input className="w-full rounded-lg border p-2.5" value={val(section,"subtitle")} onChange={e=>onChange("subtitle",e.target.value)}/></Field>}
     {(t==="hero"||t==="image_banner") && <><Field label="Eyebrow"><input className="w-full rounded-lg border p-2.5" value={val(section,"eyebrow")} onChange={e=>onChange("eyebrow",e.target.value)}/></Field><Field label="Heading"><input className="w-full rounded-lg border p-2.5" value={val(section,"heading")} onChange={e=>onChange("heading",e.target.value)}/></Field><Field label="Description" wide><textarea className="min-h-24 w-full rounded-lg border p-2.5" value={val(section,"description")} onChange={e=>onChange("description",e.target.value)}/></Field><Field label="Button label"><input className="w-full rounded-lg border p-2.5" value={val(section,t==="hero"?"primaryLabel":"buttonLabel")} onChange={e=>onChange(t==="hero"?"primaryLabel":"buttonLabel",e.target.value)}/></Field><Field label="Button link"><input className="w-full rounded-lg border p-2.5" value={val(section,t==="hero"?"primaryHref":"buttonHref")} onChange={e=>onChange(t==="hero"?"primaryHref":"buttonHref",e.target.value)}/></Field>{t==="hero" ? <>
-      <MediaField kind="image" label="Desktop banner" hint="2880 × 1080 px" size={{width:2880,height:1080}} value={val(section,"desktopImageUrl")} onChange={v=>onChange("desktopImageUrl",v)}/>
-      <MediaField kind="image" label="Mobile banner" hint="1200 × 1500 px" size={{width:1200,height:1500}} value={val(section,"mobileImageUrl")} onChange={v=>onChange("mobileImageUrl",v)}/>
-      <MediaField kind="video" label="Desktop video (optional)" hint="Same shape as 2880 × 1080" value={val(section,"desktopVideoUrl")} onChange={v=>onChange("desktopVideoUrl",v)}/>
-      <MediaField kind="video" label="Mobile video (optional)" hint="Same shape as 1200 × 1500" value={val(section,"mobileVideoUrl")} onChange={v=>onChange("mobileVideoUrl",v)}/>
-      <p className="text-xs text-slate-500 md:col-span-2">With a banner image or video, the hero shows it full width and links to the button link (a video plays muted on loop, with the image shown while it loads). Without either, the designed hero with heading and buttons is shown.</p>
+      <HeroSlidesField slides={slidesFromSettings(section.settings)} onChange={(update)=>onChange("slides",(settings:Record<string,unknown>)=>update(slidesFromSettings(settings)))}/>
+      <p className="text-xs text-slate-500 md:col-span-2">The heading, text and buttons above are used for the designed banner shown when there are no slides.</p>
     </> : <MediaField kind="image" label="Side image (optional)" hint="Recommended 1200 × 900" value={val(section,"imageUrl")} onChange={v=>onChange("imageUrl",v)}/>}</>}
     {(t==="trust_strip"||t==="marquee") && <Field label="Items (one per line)" wide><textarea className="min-h-28 w-full rounded-lg border p-2.5" value={Array.isArray(section.settings.items)?section.settings.items.filter((v): v is string=>typeof v==="string").join("\n"):""} onChange={e=>onChange("items",e.target.value.split("\n").map(v=>v.trim()).filter(Boolean))}/></Field>}
     {t==="seller_cta" && <><Field label="Eyebrow"><input className="w-full rounded-lg border p-2.5" value={val(section,"eyebrow")} onChange={e=>onChange("eyebrow",e.target.value)}/></Field><Field label="Description"><textarea className="min-h-20 w-full rounded-lg border p-2.5" value={val(section,"description")} onChange={e=>onChange("description",e.target.value)}/></Field><Field label="Primary label"><input className="w-full rounded-lg border p-2.5" value={val(section,"primaryLabel")} onChange={e=>onChange("primaryLabel",e.target.value)}/></Field><Field label="Primary link"><input className="w-full rounded-lg border p-2.5" value={val(section,"primaryHref")} onChange={e=>onChange("primaryHref",e.target.value)}/></Field><Field label="Secondary label"><input className="w-full rounded-lg border p-2.5" value={val(section,"secondaryLabel")} onChange={e=>onChange("secondaryLabel",e.target.value)}/></Field><Field label="Secondary link"><input className="w-full rounded-lg border p-2.5" value={val(section,"secondaryHref")} onChange={e=>onChange("secondaryHref",e.target.value)}/></Field></>}
