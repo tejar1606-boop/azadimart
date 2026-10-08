@@ -3,7 +3,7 @@ import Link from "next/link";
 import ProductGallery from "./product-gallery";
 import { notFound } from "next/navigation";
 import { createDatabase, inventory, mediaAssets, productMedia, productVariants, products, sellers, categories } from "@azadimart/database";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
 import AddToCart from "./add-to-cart";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +52,20 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const availableQuantity = Math.max(0, (selectedVariant.onHand ?? 0) - (selectedVariant.reserved ?? 0));
   const hasDiscount = Boolean(selectedVariant.compareAtPaise && selectedVariant.compareAtPaise > selectedVariant.pricePaise);
   const discountPercent = hasDiscount ? Math.round((1 - selectedVariant.pricePaise / (selectedVariant.compareAtPaise ?? selectedVariant.pricePaise)) * 100) : 0;
+  const relatedRows = await db.select({
+    id: products.id,
+    title: products.title,
+    slug: products.slug,
+    pricePaise: productVariants.pricePaise,
+    compareAtPaise: productVariants.compareAtPaise,
+    mediaStorageKey: mediaAssets.storageKey,
+    mediaAltText: mediaAssets.altText,
+  }).from(products)
+    .innerJoin(productVariants, eq(productVariants.productId, products.id))
+    .leftJoin(productMedia, eq(productMedia.productId, products.id))
+    .leftJoin(mediaAssets, eq(mediaAssets.id, productMedia.mediaAssetId))
+    .where(and(eq(products.status, "LIVE"), eq(products.categoryId, first.categoryName), ne(products.id, first.id)))
+    .limit(8);
 
   return (
     <main className="min-h-screen bg-[#f8f7f3] px-4 py-8 sm:px-6 sm:py-12">
@@ -98,6 +112,26 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             </div>
           </section>
         </div>
+
+        {relatedRows.length > 0 ? (
+          <section className="mt-12 border-t border-slate-200 pt-10">
+            <div className="flex items-end justify-between gap-4">
+              <div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">More to explore</p><h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">You may also like</h2></div>
+              <Link href="/products" className="text-sm font-bold text-slate-500 hover:text-slate-950">View all →</Link>
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {relatedRows.map((item) => (
+                <Link key={item.id} href={"/products/" + item.slug} className="group rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                  <div className="relative aspect-square overflow-hidden rounded-xl bg-slate-100">
+                    {item.mediaStorageKey ? <Image src={"/media/" + item.mediaStorageKey} alt={item.mediaAltText ?? item.title} fill sizes="(max-width: 640px) 50vw, 25vw" className="object-cover transition group-hover:scale-105" /> : null}
+                  </div>
+                  <p className="mt-3 line-clamp-2 text-sm font-bold">{item.title}</p>
+                  <div className="mt-1 flex gap-2"><span className="font-black">{money(item.pricePaise)}</span>{item.compareAtPaise ? <span className="text-xs text-slate-400 line-through">{money(item.compareAtPaise)}</span> : null}</div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );
