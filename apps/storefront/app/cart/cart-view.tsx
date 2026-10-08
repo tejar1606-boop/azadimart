@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -14,6 +15,7 @@ type CartItem = {
   pricePaise: number;
   availableQuantity: number;
   lineTotalPaise: number;
+  media: Array<{ storageKey: string; altText: string | null; kind: string }>;
 };
 
 type CartState = {
@@ -106,7 +108,13 @@ export default function CartView() {
               <div className="divide-y divide-slate-100">
                 {items.map((item) => (
                   <div key={item.id} className="grid gap-4 p-5 sm:grid-cols-[92px_1fr_auto] sm:items-center sm:p-6">
-                    <div className="grid aspect-square place-items-center rounded-2xl bg-gradient-to-br from-slate-100 via-white to-amber-50 text-3xl font-black text-slate-200" aria-hidden="true">{item.title.slice(0,1).toUpperCase()}</div>
+                    <div className="relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-slate-100 via-white to-amber-50">
+                      {item.media?.find((media) => media.kind === "IMAGE" && media.storageKey) ? (
+                        <Image src={"/media/" + item.media.find((media) => media.kind === "IMAGE")!.storageKey} alt={item.media.find((media) => media.kind === "IMAGE")!.altText ?? item.title} fill sizes="92px" className="object-cover" />
+                      ) : (
+                        <div className="grid h-full place-items-center text-3xl font-black text-slate-200" aria-hidden="true">{item.title.slice(0, 1).toUpperCase()}</div>
+                      )}
+                    </div>
                     <div>
                       <Link href={"/products/" + item.slug} className="font-bold hover:underline">{item.title}</Link>
                       <p className="mt-1 text-sm text-slate-500">{item.variantTitle} · {item.sku}</p>
