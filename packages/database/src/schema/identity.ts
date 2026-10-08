@@ -1,4 +1,4 @@
-import { boolean, index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { id, timestamps } from "./columns";
 import { userRoleEnum, userStatusEnum } from "./enums";
 
@@ -103,4 +103,18 @@ export const customerAddresses = pgTable(
     ...timestamps,
   },
   (table) => [index("customer_addresses_customer_id_idx").on(table.customerId)],
+);
+
+/**
+ * Fixed-window request counters for rate limiting (e.g. "register:ip:203.0.113.7").
+ * Kept in Postgres so limits hold across all server instances.
+ */
+export const rateLimitBuckets = pgTable(
+  "rate_limit_buckets",
+  {
+    key: text("key").primaryKey(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull(),
+  },
+  (table) => [index("rate_limit_buckets_window_start_idx").on(table.windowStart)],
 );

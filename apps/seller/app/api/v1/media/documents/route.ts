@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireApiAccess, enforceRateLimit } from "@azadimart/auth";
 import { createDatabase, mediaAssets, sellers } from "@azadimart/database";
 import { AppError, toApiError } from "@azadimart/shared";
 import { and, eq } from "drizzle-orm";
@@ -58,6 +58,7 @@ export async function POST(request: Request) {
     }
 
     const db = createDatabase();
+    await enforceRateLimit(db, request, "upload", { subject: principal.userId });
     const sellerRows = await db
       .select({ id: sellers.id, status: sellers.status })
       .from(sellers)

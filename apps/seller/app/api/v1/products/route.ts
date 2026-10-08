@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireApiAccess, enforceRateLimit } from "@azadimart/auth";
 import { categories, createDatabase, inventory, mediaAssets, productMedia, productVariants, products, sellers } from "@azadimart/database";
 import { AppError, productDraftSchema, toApiError } from "@azadimart/shared";
 import { and, desc, eq, inArray } from "drizzle-orm";
@@ -18,6 +18,7 @@ export async function POST(request: Request) {
     const db = createDatabase();
     const seller = (await db.select({ id: sellers.id, status: sellers.status }).from(sellers).where(and(eq(sellers.id, principal.sellerId), eq(sellers.userId, principal.userId))).limit(1))[0];
     if (!seller || seller.status !== "ACTIVE") throw new AppError("FORBIDDEN", "Seller account is not active");
+    await enforceRateLimit(db, request, "productCreate", { subject: principal.userId });
 
     const input = productDraftSchema.parse(await request.json());
     const category = (await db.select({ id: categories.id }).from(categories)

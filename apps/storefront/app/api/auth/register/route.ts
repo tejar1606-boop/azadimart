@@ -1,4 +1,4 @@
-import { getClientIp, hashPassword, verifyCaptcha } from "@azadimart/auth";
+import { getClientIp, hashPassword, verifyCaptcha, enforceRateLimit } from "@azadimart/auth";
 import { createDatabase, customers, users } from "@azadimart/database";
 import { AppError, customerRegistrationSchema, toApiError } from "@azadimart/shared";
 import { eq } from "drizzle-orm";
@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
+    await enforceRateLimit(createDatabase(), request, "register");
     const input = customerRegistrationSchema.parse(await request.json());
     await verifyCaptcha(input.captchaToken, getClientIp(request));
     const db = createDatabase();

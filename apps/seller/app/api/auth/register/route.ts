@@ -1,4 +1,4 @@
-import { getClientIp, hashPassword, verifyCaptcha } from "@azadimart/auth";
+import { getClientIp, hashPassword, verifyCaptcha, enforceRateLimit } from "@azadimart/auth";
 import {
   createDatabase,
   sellerSettings,
@@ -20,6 +20,7 @@ export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
 
   try {
+    await enforceRateLimit(createDatabase(), request, "register");
     const input = sellerRegistrationSchema.parse(await request.json());
     await verifyCaptcha(input.captchaToken, getClientIp(request));
     const db = createDatabase();

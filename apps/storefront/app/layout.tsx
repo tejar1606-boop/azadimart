@@ -43,6 +43,9 @@ export const metadata: Metadata = {
   },
 };
 
+// Rendered per request: the Content-Security-Policy nonce is new on every response.
+export const dynamic = "force-dynamic";
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,

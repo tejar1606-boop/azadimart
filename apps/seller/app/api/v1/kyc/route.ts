@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireApiAccess, enforceRateLimit } from "@azadimart/auth";
 import {
   createDatabase,
   mediaAssets,
@@ -25,6 +25,7 @@ export async function POST(request: Request) {
 
     const input = sellerKycSubmissionSchema.parse(await request.json());
     const db = createDatabase();
+    await enforceRateLimit(db, request, "kycSubmit", { subject: principal.userId });
 
     const sellerRows = await db
       .select({ id: sellers.id, status: sellers.status, taxIdentityType: sellers.taxIdentityType, gstin: sellers.gstin, gstEnrolmentId: sellers.gstEnrolmentId, businessState: sellers.businessState, taxDeclarationAcceptedAt: sellers.taxDeclarationAcceptedAt })

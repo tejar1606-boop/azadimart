@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireApiAccess, enforceRateLimit } from "@azadimart/auth";
 import {
   cartItems,
   carts,
@@ -68,6 +68,7 @@ export async function POST(request: Request) {
 
   try {
     const session = await requireApiAccess(request, "storefront", ["CUSTOMER"]);
+    await enforceRateLimit(createDatabase(), request, "coupon", { subject: session.userId });
     if (!session.customerId) throw new AppError("UNAUTHORIZED", "Customer profile required");
 
     const input = couponValidationSchema.parse(await request.json());

@@ -10,7 +10,8 @@
     "./roles": "./src/roles.ts",
     "./api": "./src/api/index.ts",
     "./validation": "./src/validation/index.ts",
-    "./routes": "./src/routes.ts"
+    "./routes": "./src/routes.ts",
+    "./security": "./src/security.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

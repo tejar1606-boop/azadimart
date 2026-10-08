@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireApiAccess, enforceRateLimit } from "@azadimart/auth";
 import {
   cartItems, carts, couponRedemptions, coupons, createDatabase, customerAddresses,
   customers, inventory, orderItems, orders, payments, productVariants, products, sellers, users,
@@ -36,6 +36,7 @@ export async function POST(request:Request){
   try{
     const input=checkoutSchema.parse(await request.json());
     const {session,db}=await getCheckoutState(request);
+    await enforceRateLimit(db,request,"checkout",{subject:session.userId});
     if(input.paymentMethod!=="COD") {
       getPaymentProvider(input.paymentMethod);
       throw new AppError("UNPROCESSABLE", input.paymentMethod+" payments are not configured yet. Choose Cash on Delivery.");

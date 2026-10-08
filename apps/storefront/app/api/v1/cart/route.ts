@@ -1,4 +1,4 @@
-import { getSessionPrincipal } from "@azadimart/auth";
+import { getSessionPrincipal, enforceRateLimit } from "@azadimart/auth";
 import {
   carts,
   cartItems,
@@ -106,6 +106,7 @@ export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
     const { db, customerId } = await getCustomer(request);
+    await enforceRateLimit(db, request, "cart", { subject: customerId });
     const input = cartItemMutationSchema.parse(await request.json());
     const cart = await ensureCart(db, customerId);
 
@@ -162,6 +163,7 @@ export async function PUT(request: Request) {
   const requestId = crypto.randomUUID();
   try {
     const { db, customerId } = await getCustomer(request);
+    await enforceRateLimit(db, request, "cart", { subject: customerId });
     const input = cartItemMutationSchema.parse(await request.json());
     const cart = await ensureCart(db, customerId);
 
@@ -198,6 +200,7 @@ export async function DELETE(request: Request) {
   const requestId = crypto.randomUUID();
   try {
     const { db, customerId } = await getCustomer(request);
+    await enforceRateLimit(db, request, "cart", { subject: customerId });
     const input = cartRemoveSchema.parse(await request.json());
     const cart = await ensureCart(db, customerId);
     await db.delete(cartItems).where(and(eq(cartItems.cartId, cart.id), eq(cartItems.variantId, input.variantId)));
