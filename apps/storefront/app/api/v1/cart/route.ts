@@ -4,6 +4,8 @@ import {
   cartItems,
   createDatabase,
   inventory,
+  mediaAssets,
+  productMedia,
   productVariants,
   products,
 } from "@azadimart/database";
@@ -43,15 +45,35 @@ async function readCart(db: ReturnType<typeof createDatabase>, customerId: strin
       pricePaise: productVariants.pricePaise,
       onHand: inventory.onHand,
       reserved: inventory.reserved,
+      mediaStorageKey: mediaAssets.storageKey,
+      mediaAltText: mediaAssets.altText,
+      mediaKind: productMedia.kind,
+      mediaSortOrder: productMedia.sortOrder,
     })
     .from(cartItems)
     .innerJoin(productVariants, eq(productVariants.id, cartItems.variantId))
     .innerJoin(products, eq(products.id, productVariants.productId))
     .leftJoin(inventory, eq(inventory.variantId, productVariants.id))
+    .leftJoin(productMedia, eq(productMedia.productId, products.id))
+    .leftJoin(mediaAssets, eq(mediaAssets.id, productMedia.mediaAssetId))
     .where(eq(cartItems.cartId, cart.id));
 
-  const items = rows.map((row) => ({
+  const grouped = new Map<string, (typeof rows)[number] & { media: Array<{ storageKey: string; altText: string | null; kind: string }> }>();
+  for (const row of rows) {
+    const current = grouped.get(row.id) ?? { ...row, media: [] };
+    if (row.mediaStorageKey && row.mediaKind && !current.media.some((media) => media.storageKey === row.mediaStorageKey)) {
+      current.media.push({ storageKey: row.mediaStorageKey, altText: row.mediaAltText, kind: row.mediaKind });
+    }
+    grouped.set(row.id, current);
+  }
+
+  const items = [...grouped.values()].map((row) => ({
     ...row,
+    media: row.media.sort((left, right) => {
+      const leftOrder = rows.find((candidate) => candidate.id === row.id && candidate.mediaStorageKey === left.storageKey)?.mediaSortOrder ?? 0;
+      const rightOrder = rows.find((candidate) => candidate.id === row.id && candidate.mediaStorageKey === right.storageKey)?.mediaSortOrder ?? 0;
+      return leftOrder - rightOrder;
+    }),
     availableQuantity: Math.max(0, (row.onHand ?? 0) - (row.reserved ?? 0)),
     lineTotalPaise: row.pricePaise * row.quantity,
   }));
