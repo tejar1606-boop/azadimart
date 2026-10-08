@@ -114,6 +114,8 @@ let m = await fetch(`${SF}/media/${img.storage_key}`);
 check("storefront serves product image from shared storage", m.status === 200 && m.headers.get("content-type") === "image/png", String(m.status));
 m = await fetch(`${AD}/media/${img.storage_key}`);
 check("admin QC can view product image", m.status === 200, String(m.status));
+m = await fetch(`${SE}/media/${img.storage_key}`);
+check("seller app can show its own product image (upload preview)", m.status === 200, String(m.status));
 const [vid] = await sql`select storage_key from media_assets where id=${videoId ?? null}`;
 m = vid ? await fetch(`${SF}/media/${vid.storage_key}`, { headers: { range: "bytes=0-1023" } }) : { status: 0 };
 check("product video streams with byte ranges (206)", m.status === 206, String(m.status));

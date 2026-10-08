@@ -100,7 +100,33 @@ export async function GET(request: Request) {
       updatedAt: products.updatedAt,
     }).from(products).where(eq(products.sellerId, principal.sellerId)).orderBy(desc(products.createdAt));
 
-    return NextResponse.json({ products: rows });
+    // Cover image (first image by sort order), cheapest variant and stock for the list view.
+    const productIds = rows.map((row) => row.id);
+    const [mediaRows, variantRows] = productIds.length ? await Promise.all([
+      db.select({ productId: productMedia.productId, storageKey: mediaAssets.storageKey, sortOrder: productMedia.sortOrder })
+        .from(productMedia).innerJoin(mediaAssets, eq(mediaAssets.id, productMedia.mediaAssetId))
+        .where(and(inArray(productMedia.productId, productIds), eq(productMedia.kind, "IMAGE"))),
+      db.select({ productId: productVariants.productId, pricePaise: productVariants.pricePaise, onHand: inventory.onHand, reserved: inventory.reserved })
+        .from(productVariants).leftJoin(inventory, eq(inventory.variantId, productVariants.id))
+        .where(inArray(productVariants.productId, productIds)),
+    ]) : [[], []];
+    const cover = new Map<string, { key: string; order: number }>();
+    for (const media of mediaRows) {
+      const current = cover.get(media.productId);
+      if (!current || media.sortOrder < current.order) cover.set(media.productId, { key: media.storageKey, order: media.sortOrder });
+    }
+
+    return NextResponse.json({
+      products: rows.map((row) => {
+        const variants = variantRows.filter((variant) => variant.productId === row.id);
+        return {
+          ...row,
+          coverImageUrl: cover.has(row.id) ? "/media/" + cover.get(row.id)!.key : null,
+          pricePaise: variants.length ? Math.min(...variants.map((variant) => variant.pricePaise)) : null,
+          available: variants.reduce((sum, variant) => sum + Math.max(0, (variant.onHand ?? 0) - (variant.reserved ?? 0)), 0),
+        };
+      }),
+    });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);
     return NextResponse.json(body, { status });
