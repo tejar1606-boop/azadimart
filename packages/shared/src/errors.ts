@@ -1,3 +1,6 @@
+import { ZodError } from "zod";
+import { logger } from "./logger";
+
 export type ErrorCode =
   | "VALIDATION_ERROR"
   | "UNAUTHORIZED"
@@ -48,7 +51,34 @@ export type ApiErrorBody = {
   };
 };
 
-export function toApiError(error: unknown, requestId: string): { status: number; body: ApiErrorBody } {
+function normalizeError(error: unknown): unknown {
+  if (error instanceof ZodError) {
+    return new AppError(
+      "VALIDATION_ERROR",
+      "Request validation failed",
+      error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })),
+    );
+  }
+  // request.json() rejects malformed bodies with a SyntaxError.
+  if (error instanceof SyntaxError) {
+    return new AppError("VALIDATION_ERROR", "Request body must be valid JSON");
+  }
+  return error;
+}
+
+export function toApiError(rawError: unknown, requestId: string): { status: number; body: ApiErrorBody } {
+  const error = normalizeError(rawError);
+  // Log anything that surfaces as a 5xx so the requestId shown to the client
+  // can be traced in server logs; expected 4xx AppErrors stay quiet.
+  if (!(error instanceof AppError) || error.status >= 500) {
+    const scrub = (text: string | undefined) => text?.replace(/\/\/[^\s/@:]+:[^\s/@]+@/g, "//[REDACTED]@").replace(/\b(password|secret|token|apikey|api_key)=\S+/gi, "$1=[REDACTED]");
+    logger.error("Unhandled API error", {
+      requestId,
+      errorName: error instanceof Error ? error.name : typeof error,
+      errorMessage: scrub(error instanceof Error ? error.message : String(error)),
+      stack: scrub(error instanceof Error ? error.stack : undefined),
+    });
+  }
   if (error instanceof AppError) {
     return {
       status: error.status,
