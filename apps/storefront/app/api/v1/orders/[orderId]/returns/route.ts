@@ -6,13 +6,13 @@ import { NextResponse } from "next/server";
 
 export async function POST(
   request: Request,
-  context: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ orderId: string }> },
 ) {
   const requestId = crypto.randomUUID();
   try {
     const principal = await requireApiAccess(request, "storefront", ["CUSTOMER"]);
     if (!principal.customerId) throw new AppError("UNAUTHORIZED", "Customer profile required");
-    const { id: orderId } = await context.params;
+    const { orderId } = await context.params;
     if (!/^[0-9a-f-]{36}$/i.test(orderId)) throw new AppError("VALIDATION_ERROR", "A valid order ID is required");
 
     const body = (await request.json().catch(() => ({}))) as {
@@ -105,13 +105,13 @@ export async function POST(
 
 export async function GET(
   request: Request,
-  context: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ orderId: string }> },
 ) {
   const requestId = crypto.randomUUID();
   try {
     const principal = await requireApiAccess(request, "storefront", ["CUSTOMER"]);
     if (!principal.customerId) throw new AppError("UNAUTHORIZED", "Customer profile required");
-    const { id: orderId } = await context.params;
+    const { orderId } = await context.params;
     const db = createDatabase();
     const rows = await db.select({
       id: returns.id,

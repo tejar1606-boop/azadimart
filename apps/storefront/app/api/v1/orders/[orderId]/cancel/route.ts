@@ -16,7 +16,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(
   request: Request,
-  context: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ orderId: string }> },
 ) {
   const requestId = crypto.randomUUID();
 
@@ -26,7 +26,7 @@ export async function POST(
       throw new AppError("UNAUTHORIZED", "Customer profile required");
     }
 
-    const { id: orderId } = await context.params;
+    const { orderId } = await context.params;
     if (!/^[0-9a-f-]{36}$/i.test(orderId)) {
       throw new AppError("VALIDATION_ERROR", "A valid order ID is required");
     }
