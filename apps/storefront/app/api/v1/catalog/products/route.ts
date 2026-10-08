@@ -1,5 +1,5 @@
 import { createDatabase, inventory, productMedia, productVariants, products, categories, mediaAssets, sellers } from "@azadimart/database";
-import { and, asc, desc, eq, gte, ilike, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, lte, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +17,7 @@ export async function GET(request: Request) {
     const categoryId = searchParams.get("categoryId");
     const sort = searchParams.get("sort") ?? "newest";
     const minPrice = Number(searchParams.get("minPrice"));
+    const maxPrice = Number(searchParams.get("maxPrice"));
     const limit = toPositiveInt(searchParams.get("limit"), 24, 60);
 
     const db = createDatabase();
@@ -24,6 +25,7 @@ export async function GET(request: Request) {
     if (categoryId) filters.push(eq(products.categoryId, categoryId));
     if (query) filters.push(or(ilike(products.title, "%" + query + "%"), ilike(products.description, "%" + query + "%"))!);
     if (Number.isFinite(minPrice) && minPrice >= 0) filters.push(gte(productVariants.pricePaise, minPrice));
+    if (Number.isFinite(maxPrice) && maxPrice > 0) filters.push(lte(productVariants.pricePaise, maxPrice));
 
     const rows = await db.select({
       id: products.id,
