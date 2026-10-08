@@ -147,20 +147,20 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen bg-[#f8f7f3] text-slate-950">
       <div className="bg-slate-950 px-4 py-2 text-center text-[11px] font-medium tracking-wide text-white/80">{announcement}</div>
-      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6 lg:gap-8">
+      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6 lg:gap-6">
           <Link href="/" className="shrink-0 text-xl font-black tracking-[-0.04em]">Azadi<span className="text-amber-500">Mart</span></Link>
-          <nav className="hidden min-w-0 flex-1 items-center gap-6 lg:flex">
+          <nav className="hidden min-w-0 flex-1 items-center gap-5 lg:flex">
             {data.navigationItems.map((item) => (
               <Link key={item.id} href={item.href ?? "/"} className="text-sm font-medium text-slate-600 transition hover:text-slate-950">{item.label}</Link>
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
-            <Link href="/products" className="hidden min-w-36 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-left text-xs text-slate-400 transition hover:border-slate-300 sm:block">Search products</Link>
+            <Link href="/products" className="hidden min-w-56 rounded-md border border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-xs text-slate-400 transition hover:border-slate-300 sm:block">Search for products, categories and brands</Link>
             <Link href="/products" className="rounded-full bg-slate-950 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-slate-800 sm:px-5">Shop</Link>
           </div>
         </div>
-        <div className="border-t border-slate-100 px-4 py-2.5 lg:hidden">
+        <div className="border-t border-slate-100 bg-white px-4 py-2.5 lg:hidden">
           <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto">
             {data.navigationItems.map((item) => (
               <Link key={"mobile-" + item.id} href={item.href ?? "/"} className="shrink-0 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600">{item.label}</Link>
@@ -214,7 +214,7 @@ function FooterColumn({ title }: { title: string }) {
 
 function DefaultHero() {
   return (
-    <section className="relative isolate mx-auto my-6 aspect-[2/1] w-full overflow-hidden rounded-[2rem] bg-slate-950 p-5 text-white shadow-[0_30px_80px_rgba(15,23,42,0.16)] sm:p-8 lg:my-8 lg:max-w-7xl lg:p-12">
+    <section className="relative isolate mx-auto my-4 aspect-[2/1] w-full overflow-hidden rounded-xl bg-slate-950 p-5 text-white shadow-[0_18px_45px_rgba(15,23,42,0.12)] sm:my-6 sm:p-8 lg:my-7 lg:max-w-7xl lg:p-12">
       <div className="absolute -right-28 -top-20 -z-10 h-80 w-80 rounded-full bg-amber-400/20 blur-3xl" />
       <div className="absolute -bottom-28 left-1/3 -z-10 h-96 w-96 rounded-full bg-sky-400/10 blur-3xl" />
       <div className="absolute right-8 top-10 hidden h-[420px] w-[300px] rotate-6 rounded-[2rem] border border-white/10 bg-white/[0.04] backdrop-blur lg:block" />
