@@ -14,6 +14,7 @@ import { SITE_NAME, absoluteUrl, clip, jsonLd } from "../../lib/seo";
 import { loadReviewPhotos, loadReviewSummary, loadReviews } from "../../lib/reviews";
 import { RatingPill } from "../../components/stars";
 import ReviewsSection from "./reviews-section";
+import ShareButton from "./share-button";
 import { loadCardBadges, loadProductOffers } from "../../lib/offers";
 import { OfferBadge } from "../../components/offer-badge";
 
@@ -223,7 +224,10 @@ export default async function ProductDetailPage({ params, searchParams }: { para
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">{first.categoryName}</p>
             <h1 className="mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-5xl">{first.title}</h1>
             <p className="mt-3 text-sm text-slate-500">Sold by <span className="font-semibold text-slate-800">{first.sellerName}</span></p>
-            {reviewSummary.count ? <a href="#reviews" className="mt-2 inline-flex hover:opacity-80"><RatingPill average={reviewSummary.average} count={reviewSummary.count} /></a> : null}
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              {reviewSummary.count ? <a href="#reviews" className="inline-flex hover:opacity-80"><RatingPill average={reviewSummary.average} count={reviewSummary.count} /></a> : <span />}
+              <ShareButton path={"/products/" + first.slug} title={first.title} pricePaise={selectedVariant.pricePaise} />
+            </div>
 
             <div className="mt-6 flex flex-wrap items-end gap-3">
               <span className="text-3xl font-bold">{money(selectedVariant.pricePaise)}</span>
