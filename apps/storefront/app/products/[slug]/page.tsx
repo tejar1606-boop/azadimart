@@ -8,6 +8,7 @@ import ProductCard from "../../components/product-card";
 import { type AplusBlock, aplusComparedProductIds } from "@azadimart/shared";
 import { AplusContent } from "@azadimart/ui";
 import WishlistButton from "../../components/wishlist-button";
+import { BadgeIcon, LockIcon, ShieldIcon, SupportIcon } from "../../components/icons";
 import type { Metadata } from "next";
 import { SITE_NAME, absoluteUrl, clip, jsonLd } from "../../lib/seo";
 import { loadReviewPhotos, loadReviewSummary, loadReviews } from "../../lib/reviews";
@@ -240,12 +241,20 @@ export default async function ProductDetailPage({ params, searchParams }: { para
               <p className="mt-1 text-xs text-slate-400">SKU {selectedVariant.sku}</p>
             </div>
 
-            <div className="mt-5 rounded-2xl border border-slate-200 p-4">
-              <p className="text-sm font-semibold">Seller trust</p>
-              <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
-                <span>✓ Verified seller</span><span>✓ Catalog quality review</span><span>✓ Secure checkout</span><span>✓ Customer support</span>
-              </div>
-            </div>
+            {/* Trust markers: icon badges in the tricolour palette (saffron, green, navy). */}
+            <ul aria-label="Why shop with confidence" className="mt-5 grid grid-cols-4 gap-2 rounded-2xl border border-slate-200 bg-slate-50/60 p-3 sm:gap-3 sm:p-4">
+              {[
+                { Icon: BadgeIcon, label: "Verified seller", tint: "bg-brand-50 text-brand-600 ring-brand-100" },
+                { Icon: ShieldIcon, label: "Quality checked", tint: "bg-india-light text-india ring-india/15" },
+                { Icon: LockIcon, label: "Secure checkout", tint: "bg-navy/5 text-navy ring-navy/10" },
+                { Icon: SupportIcon, label: "Customer support", tint: "bg-brand-50 text-brand-600 ring-brand-100" },
+              ].map(({ Icon, label, tint }) => (
+                <li key={label} className="flex flex-col items-center gap-1.5 text-center">
+                  <span className={"grid h-11 w-11 place-items-center rounded-full ring-1 sm:h-12 sm:w-12 " + tint}><Icon size={22} /></span>
+                  <span className="text-[11px] font-semibold leading-tight text-slate-700 sm:text-xs">{label}</span>
+                </li>
+              ))}
+            </ul>
 
             {first.description ? <div className="mt-6"><p className="text-sm font-semibold">About this product</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-500">{first.description}</p></div> : null}
 

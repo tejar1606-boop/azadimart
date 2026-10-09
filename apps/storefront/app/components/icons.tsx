@@ -27,3 +27,5 @@ export const ReturnIcon = (p: IconProps) => <Icon {...p}><path d="M4 9h11a5 5 0 
 export const BadgeIcon = (p: IconProps) => <Icon {...p}><circle cx="12" cy="9" r="5.5" /><path d="m8.5 13.5-1.5 7 5-2.5 5 2.5-1.5-7" /></Icon>;
 export const CashIcon = (p: IconProps) => <Icon {...p}><rect x="3" y="6.5" width="18" height="11" rx="1.5" /><circle cx="12" cy="12" r="2.5" /><path d="M6.5 9.5v5M17.5 9.5v5" /></Icon>;
 export const TagIcon = (p: IconProps) => <Icon {...p}><path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1 1 0 0 1 0 1.4l-7.4 7.4a1 1 0 0 1-1.4 0l-8.2-8.4Z" /><circle cx="8" cy="8" r="1.4" /></Icon>;
+export const LockIcon = (p: IconProps) => <Icon {...p}><rect x="5" y="10.5" width="14" height="10" rx="2" /><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" /><path d="M12 14.5v2.5" /></Icon>;
+export const SupportIcon = (p: IconProps) => <Icon {...p}><path d="M4 13a8 8 0 0 1 16 0" /><rect x="3" y="13" width="4" height="6" rx="1.5" /><rect x="17" y="13" width="4" height="6" rx="1.5" /><path d="M19 19c0 1.5-2 2.5-5 2.5" /></Icon>;
