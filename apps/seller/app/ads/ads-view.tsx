@@ -88,7 +88,7 @@ function AdForm({ slot, existing, products, onSaved }: { slot: Slot; existing: C
 }
 
 /** 60-day calendar: pick days, then bid or book instantly. */
-function Calendar({ slot, campaign, onDone }: { slot: Slot; campaign: Campaign; onDone: () => void }) {
+function Calendar({ slot, campaign, onDone }: { slot: Slot; campaign: Campaign | null; onDone: () => void }) {
   const [days, setDays] = useState<Day[] | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [amount, setAmount] = useState("");
@@ -101,15 +101,17 @@ function Calendar({ slot, campaign, onDone }: { slot: Slot; campaign: Campaign; 
   }, [slot.id]);
   useEffect(() => { void load(); }, [load]);
 
-  const selectable = (d: Day) => (d.status === "OPEN" || d.status === "BIDDING") && d.mine?.status !== "WON";
+  const selectable = (d: Day) => Boolean(campaign) && (d.status === "OPEN" || d.status === "BIDDING") && d.mine?.status !== "WON";
   const chosen = (days ?? []).filter((d) => picked.includes(d.day));
   const minBid = chosen.reduce((m, d) => Math.max(m, d.mine?.status === "ACTIVE" ? d.topBidPaise! + 100 : d.minimumBidPaise), 0);
+  // Start the bid at the minimum (seller can raise it), so the button is ready to use.
+  useEffect(() => { if (minBid && Number(amount) * 100 < minBid) setAmount(String(Math.ceil(minBid / 100))); }, [minBid]); // eslint-disable-line react-hooks/exhaustive-deps
   const buyNow = chosen.length && chosen.every((d) => d.buyNowPaise != null) ? chosen.reduce((s, d) => s + d.buyNowPaise!, 0) : null;
 
   async function submit(mode: "BID" | "BUY_NOW") {
     setBusy(true); setError(""); setResults([]);
     try {
-      const response = await fetch("/api/v1/ads/bids", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campaignId: campaign.id, days: picked, mode, amountPaise: mode === "BID" ? Math.round(Number(amount) * 100) : undefined }) });
+      const response = await fetch("/api/v1/ads/bids", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campaignId: campaign?.id, days: picked, mode, amountPaise: mode === "BID" ? Math.round(Number(amount) * 100) : undefined }) });
       const body = await response.json().catch(() => null);
       if (!body?.results) throw new Error(body?.error?.message ?? "Couldn't place the bid");
       setResults(body.results); setPicked([]); setAmount("");
@@ -128,6 +130,7 @@ function Calendar({ slot, campaign, onDone }: { slot: Slot; campaign: Campaign; 
   };
   return (
     <div>
+      {!campaign ? <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><b>Step 1 first:</b> save your ad above, then tap days here to bid or book.</p> : null}
       <div className="flex flex-wrap gap-3 text-[11px] font-semibold text-slate-600">
         <span className="flex items-center gap-1.5"><i className="h-3 w-3 rounded bg-green-100 ring-1 ring-green-300" />Open</span>
         <span className="flex items-center gap-1.5"><i className="h-3 w-3 rounded bg-amber-100 ring-1 ring-amber-300" />Bidding (top bid shown)</span>
@@ -155,16 +158,19 @@ function Calendar({ slot, campaign, onDone }: { slot: Slot; campaign: Campaign; 
       </div>
 
       <div className="mt-4 rounded-2xl bg-slate-50 p-4">
-        {picked.length === 0 ? <p className="text-sm text-slate-600">Tap the days you want, e.g. 3 days in a row. Each day is its own auction.</p> : (
+        {!campaign ? (
+          <p className="text-sm text-amber-900"><b>First create your ad in step 1 above</b> (product, headline{adNeedsBanner(slot.placement) ? " and banner" : ""}). Then pick days here and bid or book. You can look at the open days and prices now.</p>
+        ) : picked.length === 0 ? <p className="text-sm text-slate-600">Tap the days you want, e.g. 3 days in a row. Each day is its own auction.</p> : (
           <>
             <p className="text-sm font-semibold">{picked.length} day{picked.length === 1 ? "" : "s"}: {[...picked].sort().map((d) => dayLabel(d, { day: "numeric", month: "short" })).join(", ")}</p>
             <div className="mt-3 flex flex-wrap items-end gap-3">
               <label className="text-xs font-semibold text-slate-600">Your bid per day (₹)
                 <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder={String(minBid / 100)} className="mt-1 block h-11 w-40 rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-slate-900" />
               </label>
-              <button type="button" disabled={busy || Number(amount) * 100 < minBid} onClick={() => void submit("BID")} className="h-11 rounded-full bg-chrome px-5 text-sm font-semibold text-white disabled:opacity-40">{busy ? "Placing…" : `Place bid${amount ? ` · ${money(withGst(Number(amount) * 100 * picked.length))} incl. GST` : ""}`}</button>
+              <button type="button" disabled={busy || Number(amount) * 100 < minBid} title={Number(amount) * 100 < minBid ? `Enter at least ${money(minBid)}` : undefined} onClick={() => void submit("BID")} className="h-11 rounded-full bg-chrome px-5 text-sm font-semibold text-white disabled:opacity-40">{busy ? "Placing…" : `Place bid${amount ? ` · ${money(withGst(Number(amount) * 100 * picked.length))} incl. GST` : ""}`}</button>
               {buyNow != null ? <button type="button" disabled={busy} onClick={() => void submit("BUY_NOW")} className="h-11 rounded-full bg-brand px-5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-40">Book now · {money(buyNow)} + GST</button> : null}
             </div>
+            {Number(amount) * 100 < minBid ? <p className="mt-2 text-xs font-semibold text-red-700">Your bid must be at least {money(minBid)} per day.</p> : null}
             <p className="mt-2 text-[11px] text-slate-500">Minimum bid {money(minBid)} per day, plus 18% GST. Highest bid when bidding closes ({slot.closeHoursBefore} h before the day starts) wins. You pay only for days you win and your ad runs, taken from your next payment.</p>
           </>
         )}
@@ -252,11 +258,11 @@ export default function AdsView() {
         </section>
       ) : null}
 
-      {slot && campaign && campaign.status !== "REJECTED" ? (
+      {slot && campaign?.status !== "REJECTED" ? (
         <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card">
           <h2 className="flex items-center gap-2 font-semibold"><span className="grid h-7 w-7 place-items-center rounded-full bg-brand text-xs font-bold text-white">2</span>Pick your days</h2>
           <p className="mb-3 mt-1 text-xs text-slate-500">Booked days are blocked for everyone else. Other sellers&apos; names are never shown.</p>
-          <Calendar key={slot.id} slot={slot} campaign={campaign} onDone={() => void load()} />
+          <Calendar key={slot.id + (campaign?.id ?? "")} slot={slot} campaign={campaign} onDone={() => void load()} />
         </section>
       ) : null}
 
