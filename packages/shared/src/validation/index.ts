@@ -287,7 +287,7 @@ export const sellerCancelSchema = z.object({
   reason: z.enum(SELLER_CANCEL_REASONS),
   note: z.string().trim().max(300).optional(),
 });
-export const sellerAlertSettingsSchema = z.object({ newOrders: z.boolean(), reminders: z.boolean(), cancellations: z.boolean() });
+export const sellerAlertSettingsSchema = z.object({ newOrders: z.boolean(), reminders: z.boolean(), cancellations: z.boolean(), payouts: z.boolean().default(true) });
 export const pushSubscriptionSchema = z.object({
   endpoint: z.string().url().max(1000).refine((u) => u.startsWith("https://"), "Push endpoint must be https"),
   keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(8).max(100) }),
@@ -308,3 +308,11 @@ export const aadhaarOtpRequestSchema = z.object({
   consent: z.literal(true, { errorMap: () => ({ message: "Please give consent to verify your Aadhaar" }) }),
 });
 export const aadhaarOtpVerifySchema = z.object({ otp: z.string().regex(/^\d{6}$/, "Enter the 6-digit OTP") });
+
+// Seller bank account for payouts. Indian account numbers are 9–18 digits; IFSC is 4 letters, 0, then 6 letters/digits.
+export const sellerBankAccountSchema = z.object({
+  accountHolderName: z.string().trim().min(2, "Enter the account holder's name").max(100),
+  accountNumber: z.string().transform((v) => v.replace(/\s/g, "")).refine((v) => /^\d{9,18}$/.test(v), "Account number must be 9 to 18 digits"),
+  confirmAccountNumber: z.string().transform((v) => v.replace(/\s/g, "")),
+  ifsc: z.string().trim().toUpperCase().refine((v) => /^[A-Z]{4}0[A-Z0-9]{6}$/.test(v), "Enter a valid 11-character IFSC, e.g. HDFC0001234"),
+}).refine((v) => v.accountNumber === v.confirmAccountNumber, { message: "Account numbers don't match", path: ["confirmAccountNumber"] });

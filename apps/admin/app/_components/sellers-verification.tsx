@@ -28,7 +28,8 @@ const words = (v: string) => v.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s
 const nameMatches = (aadhaarName: string, legalName: string) => words(aadhaarName).some((w) => words(legalName).includes(w));
 
 type Detail = {
-  seller: Seller & { pan: string | null };
+  seller: Seller & { pan: string | null; payoutHoldReason?: string | null };
+  bankAccount: { accountHolderName: string; last4: string; ifsc: string; status: "PENDING" | "VERIFIED" | "REJECTED"; rejectionReason: string | null; addedAt: string } | null;
   verification: {
     status: string;
     notes: string | null;
@@ -94,6 +95,27 @@ export default function SellersPage() {
     } finally {
       setDetailLoading(false);
     }
+  }
+
+  /** Bank account verification and payout hold: small actions that reload the panel afterwards. */
+  async function sellerAction(path: string, body: object) {
+    if (!selectedId) return;
+    setActionLoading(true); setError("");
+    try {
+      const response = await fetch(`/api/v1/sellers/${selectedId}/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const json = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(json?.error?.message ?? "Action failed.");
+      await loadDetail(selectedId);
+    } catch (err) { setError(err instanceof Error ? err.message : "Action failed."); } finally { setActionLoading(false); }
+  }
+  function rejectBank() {
+    const reason = window.prompt("Why is this bank account rejected? The seller will see this.", "Name doesn't match the bank proof");
+    if (reason && reason.trim().length >= 3) void sellerAction("bank-account", { decision: "REJECTED", reason });
+  }
+  function toggleHold(hold: boolean) {
+    if (!hold) { void sellerAction("payout-hold", { hold: false }); return; }
+    const reason = window.prompt("Why are this seller's payouts on hold? The seller will see this.", "Account under review");
+    if (reason && reason.trim().length >= 3) void sellerAction("payout-hold", { hold: true, reason });
   }
 
   async function decide(decision: "APPROVED" | "REJECTED") {
@@ -227,7 +249,7 @@ export default function SellersPage() {
 
               <div className={"mt-6 rounded-xl border p-4 " + (detail.aadhaar?.status === "VERIFIED" ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50")}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="font-semibold">Owner Aadhaar (OTP verified)</h3>
+                  <h3 className="font-semibold">{detail.aadhaar?.status === "VERIFIED" ? "Owner Aadhaar (OTP verified)" : "Owner Aadhaar"}</h3>
                   {detail.aadhaar?.testMode ? <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-bold text-purple-800">TEST MODE</span> : null}
                 </div>
                 {detail.aadhaar?.status === "VERIFIED" ? (
@@ -241,6 +263,31 @@ export default function SellersPage() {
                 ) : (
                   <p className="mt-2 text-sm text-amber-900">{detail.aadhaar ? `OTP sent to the mobile linked to ${detail.aadhaar.masked}; not verified yet.` : "The seller has not verified their Aadhaar yet."} The seller can&apos;t be approved until they do.</p>
                 )}
+              </div>
+
+              <div className="mt-4 rounded-xl border border-slate-200 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold">Payouts</h3>
+                  {detail.seller.payoutHoldReason ? (
+                    <button type="button" disabled={actionLoading} onClick={() => toggleHold(false)} className="rounded-full bg-green-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40">Resume payouts</button>
+                  ) : (
+                    <button type="button" disabled={actionLoading} onClick={() => toggleHold(true)} className="rounded-full px-3 py-1.5 text-xs font-bold text-red-700 ring-1 ring-red-200 disabled:opacity-40">Hold payouts</button>
+                  )}
+                </div>
+                {detail.seller.payoutHoldReason ? <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-800">On hold: {detail.seller.payoutHoldReason}</p> : null}
+                {detail.bankAccount ? (
+                  <div className="mt-3 text-sm">
+                    <p><span className="font-mono">XXXX XXXX {detail.bankAccount.last4}</span> · {detail.bankAccount.ifsc}</p>
+                    <p className="mt-0.5 text-ink-muted">{detail.bankAccount.accountHolderName} · added {new Date(detail.bankAccount.addedAt).toLocaleDateString("en-IN")}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className={"rounded-full px-2.5 py-1 text-[11px] font-bold " + (detail.bankAccount.status === "VERIFIED" ? "bg-green-50 text-green-700" : detail.bankAccount.status === "REJECTED" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-800")}>{detail.bankAccount.status === "PENDING" ? "Needs verification" : detail.bankAccount.status}</span>
+                      {detail.bankAccount.status !== "VERIFIED" ? <button type="button" disabled={actionLoading} onClick={() => void sellerAction("bank-account", { decision: "VERIFIED" })} className="rounded-full bg-green-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40">Verify account</button> : null}
+                      {detail.bankAccount.status !== "REJECTED" ? <button type="button" disabled={actionLoading} onClick={rejectBank} className="rounded-full px-3 py-1.5 text-xs font-bold ring-1 ring-slate-300 disabled:opacity-40">Reject</button> : null}
+                    </div>
+                    {detail.bankAccount.rejectionReason ? <p className="mt-2 text-xs text-red-700">Rejected: {detail.bankAccount.rejectionReason}</p> : null}
+                    {detail.bankAccount.status === "PENDING" ? <p className="mt-2 text-xs text-ink-muted">Check the name, last 4 digits and IFSC against the BANK PROOF document below before verifying.</p> : null}
+                  </div>
+                ) : <p className="mt-2 text-sm text-ink-muted">No bank account added yet. Payouts wait until the seller adds one in Payments.</p>}
               </div>
 
               <div className="mt-7">

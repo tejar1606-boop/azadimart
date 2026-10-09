@@ -1,4 +1,4 @@
-import { orderItems, orders, shipments, type Database } from "@azadimart/database";
+import { orderItems, orders, payments, shipments, type Database } from "@azadimart/database";
 import { and, eq, inArray } from "drizzle-orm";
 
 type Executor = Pick<Database, "select" | "update">;
@@ -29,8 +29,14 @@ export async function syncOrderFulfillmentStatus(db: Executor, orderId: string):
 
   const now = new Date();
   if (allSellersIn(["DELIVERED"])) {
-    await db.update(orders).set({ status: "DELIVERED", deliveredAt: now, updatedAt: now })
-      .where(and(eq(orders.id, orderId), inArray(orders.status, ["CONFIRMED", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY"])));
+    const delivered = await db.update(orders).set({ status: "DELIVERED", deliveredAt: now, updatedAt: now })
+      .where(and(eq(orders.id, orderId), inArray(orders.status, ["CONFIRMED", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY"])))
+      .returning({ id: orders.id });
+    // The courier collects Cash on Delivery at the door, so the order now counts as paid (and can be paid out to sellers).
+    if (delivered.length) {
+      await db.update(payments).set({ status: "CAPTURED", updatedAt: now })
+        .where(and(eq(payments.orderId, orderId), eq(payments.provider, "COD"), eq(payments.status, "PENDING")));
+    }
   } else if (allSellersIn(["OUT_FOR_DELIVERY", "DELIVERED"])) {
     await db.update(orders).set({ status: "OUT_FOR_DELIVERY", updatedAt: now })
       .where(and(eq(orders.id, orderId), inArray(orders.status, ["CONFIRMED", "PACKED", "SHIPPED"])));

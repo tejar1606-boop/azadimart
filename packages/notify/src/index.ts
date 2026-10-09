@@ -4,9 +4,9 @@ import webpush from "web-push";
 
 type Db = ReturnType<typeof createDatabase>;
 
-export type SellerAlertKind = "NEW_ORDER" | "SHIP_BY_REMINDER" | "ORDER_LATE" | "ORDER_AUTO_CANCELLED" | "ORDER_CANCELLED_BY_CUSTOMER" | "ORDER_CANCELLED_BY_ADMIN";
-export type SellerAlertPreferences = { newOrders: boolean; reminders: boolean; cancellations: boolean };
-export const DEFAULT_ALERT_PREFERENCES: SellerAlertPreferences = { newOrders: true, reminders: true, cancellations: true };
+export type SellerAlertKind = "NEW_ORDER" | "SHIP_BY_REMINDER" | "ORDER_LATE" | "ORDER_AUTO_CANCELLED" | "ORDER_CANCELLED_BY_CUSTOMER" | "ORDER_CANCELLED_BY_ADMIN" | "PAYOUT_PAID" | "PAYOUT_ON_HOLD";
+export type SellerAlertPreferences = { newOrders: boolean; reminders: boolean; cancellations: boolean; payouts: boolean };
+export const DEFAULT_ALERT_PREFERENCES: SellerAlertPreferences = { newOrders: true, reminders: true, cancellations: true, payouts: true };
 
 const CATEGORY: Record<SellerAlertKind, keyof SellerAlertPreferences> = {
   NEW_ORDER: "newOrders",
@@ -15,6 +15,8 @@ const CATEGORY: Record<SellerAlertKind, keyof SellerAlertPreferences> = {
   ORDER_AUTO_CANCELLED: "cancellations",
   ORDER_CANCELLED_BY_CUSTOMER: "cancellations",
   ORDER_CANCELLED_BY_ADMIN: "cancellations",
+  PAYOUT_PAID: "payouts",
+  PAYOUT_ON_HOLD: "payouts",
 };
 
 /** Whether the seller wants a browser push for this kind of alert (it's always kept in Notices). */

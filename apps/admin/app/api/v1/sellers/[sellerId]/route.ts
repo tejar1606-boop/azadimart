@@ -2,6 +2,7 @@ import { requireApiAccess } from "@azadimart/auth";
 import {
   createDatabase,
   sellerAadhaar,
+  sellerBankAccounts,
   sellerDocuments,
   sellerVerifications,
   sellers,
@@ -9,7 +10,7 @@ import {
   mediaAssets,
 } from "@azadimart/database";
 import { AppError, maskAadhaar, toApiError, uuidSchema } from "@azadimart/shared";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -40,6 +41,7 @@ export async function GET(
         pan: sellers.pan,
         status: sellers.status,
         approvedAt: sellers.approvedAt,
+        payoutHoldReason: sellers.payoutHoldReason,
         createdAt: sellers.createdAt,
         email: users.email,
         phone: users.phone,
@@ -83,8 +85,12 @@ export async function GET(
     // Only the masked number and the provider's details are kept, never the Aadhaar number.
     const aadhaar = (await db.select().from(sellerAadhaar).where(eq(sellerAadhaar.sellerId, sellerId)).limit(1))[0];
 
+    const bank = (await db.select({ accountHolderName: sellerBankAccounts.accountHolderName, last4: sellerBankAccounts.accountNumberLast4, ifsc: sellerBankAccounts.ifsc, status: sellerBankAccounts.verificationStatus, rejectionReason: sellerBankAccounts.rejectionReason, addedAt: sellerBankAccounts.createdAt })
+      .from(sellerBankAccounts).where(and(eq(sellerBankAccounts.sellerId, sellerId), eq(sellerBankAccounts.isPrimary, true))).limit(1))[0] ?? null;
+
     return NextResponse.json({
       seller,
+      bankAccount: bank,
       verification: verificationRows[0] ?? null,
       documents,
       aadhaar: aadhaar ? {

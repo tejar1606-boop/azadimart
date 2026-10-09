@@ -22,6 +22,8 @@ export const sellers = pgTable(
     status: sellerStatusEnum("status").notNull().default("REGISTERED"),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     approvedByUserId: uuid("approved_by_user_id").references(() => users.id),
+    // Set by an admin to stop automatic payouts to this seller (e.g. a dispute).
+    payoutHoldReason: text("payout_hold_reason"),
     ...timestamps,
   },
   (table) => [
@@ -59,6 +61,11 @@ export const sellerBankAccounts = pgTable(
     accountNumberEncrypted: text("account_number_encrypted").notNull(),
     ifsc: text("ifsc").notNull(),
     isPrimary: boolean("is_primary").notNull().default(true),
+    // Payouts go only to a verified primary account; a new account pauses payouts until verified.
+    verificationStatus: text("verification_status").$type<"PENDING" | "VERIFIED" | "REJECTED">().notNull().default("PENDING"),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    verifiedByUserId: uuid("verified_by_user_id").references(() => users.id),
+    rejectionReason: text("rejection_reason"),
     ...timestamps,
   },
   (table) => [index("seller_bank_accounts_seller_id_idx").on(table.sellerId)],

@@ -8,9 +8,10 @@ export type SellerAttention = {
   lowStock: number;
   newReviews: number;
   aadhaarVerified: boolean;
+  bankStatus: "NONE" | "PENDING" | "VERIFIED" | "REJECTED";
 };
 
 /** How many notices need action (each kind counts once). */
 export function noticeCount(a: SellerAttention): number {
-  return [a.toShip > 0, a.needsWork > 0, a.lowStock > 0, a.newReviews > 0, a.status !== "ACTIVE" || !a.aadhaarVerified].filter(Boolean).length;
+  return [a.toShip > 0, a.needsWork > 0, a.lowStock > 0, a.newReviews > 0, a.status !== "ACTIVE" || !a.aadhaarVerified, a.status === "ACTIVE" && (a.bankStatus === "NONE" || a.bankStatus === "REJECTED")].filter(Boolean).length;
 }

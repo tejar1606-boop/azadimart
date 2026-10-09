@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 
-type Prefs = { newOrders: boolean; reminders: boolean; cancellations: boolean };
+type Prefs = { newOrders: boolean; reminders: boolean; cancellations: boolean; payouts: boolean };
 type DeviceState = "checking" | "unsupported" | "blocked" | "on" | "off";
 
 const OPTIONS: Array<[keyof Prefs, string, string]> = [
   ["newOrders", "New orders", "The moment a customer orders your product."],
   ["reminders", "Ship-by reminders", "When an order must ship today, and if it's late."],
   ["cancellations", "Cancellations", "When a customer or AzadiMart cancels an order, so you don't ship it."],
+  ["payouts", "Payments to your bank", "When money is sent to your bank account, or a payment is on hold."],
 ];
 
 /** Converts the VAPID public key (base64url) for pushManager.subscribe. */

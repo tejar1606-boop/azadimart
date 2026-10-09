@@ -1,4 +1,4 @@
-import { createDatabase, inventory, orderItems, orders, productReviews, productVariants, products, sellerAadhaar, sellers, shipments } from "@azadimart/database";
+import { createDatabase, inventory, orderItems, orders, productReviews, productVariants, products, sellerAadhaar, sellerBankAccounts, sellers, shipments } from "@azadimart/database";
 import { and, count, eq, gt, inArray, isNull, lte, notInArray, sql } from "drizzle-orm";
 
 import type { SellerAttention } from "./notices";
@@ -18,7 +18,7 @@ export async function loadSellerAttention(db: Db, sellerId: string): Promise<Sel
   const seller = (await db.select({ storeName: sellers.storeName, status: sellers.status }).from(sellers).where(eq(sellers.id, sellerId)).limit(1))[0];
   if (!seller) return null;
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [open, needsWork, inReview, lowStock, newReviews, aadhaar] = await Promise.all([
+  const [open, needsWork, inReview, lowStock, newReviews, aadhaar, bank] = await Promise.all([
     db.selectDistinct({ id: orders.id }).from(orderItems).innerJoin(orders, eq(orders.id, orderItems.orderId))
       .where(and(eq(orderItems.sellerId, sellerId), inArray(orders.status, ["CONFIRMED", "PACKED"]))),
     db.select({ n: count() }).from(products).where(and(eq(products.sellerId, sellerId), eq(products.status, "QC_REJECTED"))),
@@ -28,6 +28,7 @@ export async function loadSellerAttention(db: Db, sellerId: string): Promise<Sel
     db.select({ n: count() }).from(productReviews).innerJoin(products, eq(products.id, productReviews.productId))
       .where(and(eq(products.sellerId, sellerId), eq(productReviews.status, "PUBLISHED"), isNull(productReviews.sellerReply), gt(productReviews.createdAt, weekAgo))),
     db.select({ status: sellerAadhaar.status }).from(sellerAadhaar).where(eq(sellerAadhaar.sellerId, sellerId)).limit(1),
+    db.select({ status: sellerBankAccounts.verificationStatus }).from(sellerBankAccounts).where(and(eq(sellerBankAccounts.sellerId, sellerId), eq(sellerBankAccounts.isPrimary, true))).limit(1),
   ]);
   const shipped = open.length ? await db.select({ orderId: shipments.orderId }).from(shipments)
     .where(and(eq(shipments.sellerId, sellerId), inArray(shipments.orderId, open.map((o) => o.id)), notInArray(shipments.status, ["FAILED", "CANCELLED"]))) : [];
@@ -40,6 +41,7 @@ export async function loadSellerAttention(db: Db, sellerId: string): Promise<Sel
     lowStock: Number(lowStock[0]?.n ?? 0),
     newReviews: Number(newReviews[0]?.n ?? 0),
     aadhaarVerified: aadhaar[0]?.status === "VERIFIED",
+    bankStatus: bank[0]?.status ?? "NONE",
   };
 }
 

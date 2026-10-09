@@ -85,7 +85,7 @@ export default function LiveAlerts() {
     <div aria-live="polite" className="fixed right-4 top-4 z-[60] flex w-[min(380px,calc(100vw-2rem))] flex-col gap-2">
       {toasts.map((a) => (
         <div key={a.id} role="status" className="flex gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-lift">
-          <span className={"grid h-10 w-10 shrink-0 place-items-center rounded-xl text-lg " + (a.kind === "NEW_ORDER" ? "bg-orange-50" : a.kind.includes("CANCEL") ? "bg-red-50" : "bg-amber-50")} aria-hidden="true">{a.kind === "NEW_ORDER" ? "🛒" : a.kind.includes("CANCEL") ? "✖️" : "⏰"}</span>
+          <span className={"grid h-10 w-10 shrink-0 place-items-center rounded-xl text-lg " + (a.kind === "NEW_ORDER" ? "bg-orange-50" : a.kind === "PAYOUT_PAID" ? "bg-green-50" : a.kind.includes("CANCEL") ? "bg-red-50" : "bg-amber-50")} aria-hidden="true">{a.kind === "NEW_ORDER" ? "🛒" : a.kind === "PAYOUT_PAID" ? "💰" : a.kind.includes("CANCEL") || a.kind === "PAYOUT_ON_HOLD" ? "✖️" : "⏰"}</span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">{a.title}</p>
             {a.body ? <p className="mt-0.5 text-xs text-slate-500">{a.body}</p> : null}

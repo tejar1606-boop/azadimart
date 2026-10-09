@@ -30,6 +30,7 @@ export default async function NoticesPage() {
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   const notices: Notice[] = [];
   if (a.toShip) notices.push({ icon: "orders", tone: "bg-orange-50 text-orange-600", title: `${plural(a.toShip, "order is", "orders are")} waiting to be shipped`, text: "Pack them and create the shipment so customers get their orders on time.", href: "/orders", action: "Ship now", urgent: true });
+  if (a.status === "ACTIVE" && (a.bankStatus === "NONE" || a.bankStatus === "REJECTED")) notices.push({ icon: "payouts", tone: "bg-green-50 text-green-700", title: a.bankStatus === "REJECTED" ? "Your bank account was rejected" : "Add your bank account to get paid", text: "AzadiMart sends your money automatically 7 days after delivery. Add the account it should go to.", href: "/payouts", action: a.bankStatus === "REJECTED" ? "Fix bank account" : "Add bank account", urgent: true });
   if (a.status === "ACTIVE" && !a.aadhaarVerified) notices.push({ icon: "kyc", tone: "bg-amber-50 text-amber-700", title: "Verify your Aadhaar", text: "Aadhaar verification is now required for every seller. It takes a minute with an OTP to your Aadhaar-linked mobile.", href: "/kyc", action: "Verify now", urgent: true });
   if (a.status !== "ACTIVE") notices.push({ icon: "kyc", tone: "bg-amber-50 text-amber-700", title: a.status === "REJECTED" ? "Your KYC needs changes" : a.status === "KYC_SUBMITTED" || a.status === "PENDING_APPROVAL" ? "Your KYC is under review" : "Complete your KYC to start selling", text: a.status === "KYC_SUBMITTED" || a.status === "PENDING_APPROVAL" ? "We'll let you know once it's approved, usually within 1–2 working days." : "Upload your documents so AzadiMart can verify your business.", href: "/kyc", action: "Open KYC", urgent: a.status !== "KYC_SUBMITTED" && a.status !== "PENDING_APPROVAL" });
   if (a.needsWork) notices.push({ icon: "products", tone: "bg-rose-50 text-rose-600", title: `${plural(a.needsWork, "product needs", "products need")} changes after QC`, text: "Read the reviewer's notes, fix the listing and submit it again.", href: "/products", action: "Fix products", urgent: true });
@@ -71,7 +72,7 @@ export default async function NoticesPage() {
           <ul className="mt-3 divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-card">
             {feed.map((n) => (
               <li key={n.id} className={"flex gap-3 px-5 py-3.5 " + (n.readAt ? "" : "bg-brand-50/40")}>
-                <span className="mt-0.5 text-lg" aria-hidden="true">{n.kind === "NEW_ORDER" ? "🛒" : n.kind.includes("CANCEL") ? "✖️" : "⏰"}</span>
+                <span className="mt-0.5 text-lg" aria-hidden="true">{n.kind === "NEW_ORDER" ? "🛒" : n.kind === "PAYOUT_PAID" ? "💰" : n.kind.includes("CANCEL") || n.kind === "PAYOUT_ON_HOLD" ? "✖️" : "⏰"}</span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{n.href ? <Link href={n.href} className="hover:underline">{n.title}</Link> : n.title}{n.readAt ? null : <span className="ml-2 rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-bold text-white">NEW</span>}</p>
                   {n.body ? <p className="mt-0.5 text-xs text-slate-500">{n.body}</p> : null}

@@ -1,8 +1,9 @@
-import { boolean, index, integer, jsonb, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { id, timestamps } from "./columns";
 import { payoutStatusEnum, returnStatusEnum, shipmentStatusEnum } from "./enums";
 import { orders, orderItems, payments } from "./commerce";
-import { sellers } from "./sellers";
+import { sellerBankAccounts, sellers } from "./sellers";
+import { users } from "./identity";
 
 export const deliveryProviders = pgTable(
   "delivery_providers",
@@ -87,11 +88,19 @@ export const payoutItems = pgTable(
     grossAmountPaise: integer("gross_amount_paise").notNull(),
     deductionsPaise: integer("deductions_paise").notNull().default(0),
     netAmountPaise: integer("net_amount_paise").notNull(),
+    // Breakdown of the deductions, fixed when the item is paid out.
+    quantity: integer("quantity").notNull().default(0),
+    commissionRateBps: integer("commission_rate_bps").notNull().default(0),
+    commissionPaise: integer("commission_paise").notNull().default(0),
+    gstOnCommissionPaise: integer("gst_on_commission_paise").notNull().default(0),
+    tcsPaise: integer("tcs_paise").notNull().default(0),
+    tdsPaise: integer("tds_paise").notNull().default(0),
     ...timestamps,
   },
   (table) => [
     index("payout_items_payout_id_idx").on(table.payoutId),
-    index("payout_items_order_item_id_idx").on(table.orderItemId),
+    // An order item is paid out at most once.
+    uniqueIndex("payout_items_order_item_id_unique").on(table.orderItemId),
   ],
 );
 
@@ -146,7 +155,25 @@ export const payouts = pgTable(
     amountPaise: integer("amount_paise").notNull(),
     status: payoutStatusEnum("status").notNull().default("PENDING"),
     paymentId: uuid("payment_id").references(() => payments.id),
+    grossPaise: integer("gross_paise").notNull().default(0),
+    deductionsPaise: integer("deductions_paise").notNull().default(0),
+    itemCount: integer("item_count").notNull().default(0),
+    bankAccountId: uuid("bank_account_id").references(() => sellerBankAccounts.id),
+    // Idempotency key sent to the bank/payout service, so a retry never pays twice.
+    reference: text("reference"),
+    mode: text("mode").$type<"TEST" | "LIVE">().notNull().default("TEST"),
+    utr: text("utr"),
+    providerRef: text("provider_ref"),
+    attempts: integer("attempts").notNull().default(0),
+    failureReason: text("failure_reason"),
+    approvedByUserId: uuid("approved_by_user_id").references(() => users.id),
+    initiatedAt: timestamp("initiated_at", { withTimezone: true }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
     ...timestamps,
   },
-  (table) => [index("payouts_seller_id_idx").on(table.sellerId)],
+  (table) => [
+    index("payouts_seller_id_idx").on(table.sellerId),
+    index("payouts_status_idx").on(table.status),
+    uniqueIndex("payouts_reference_unique").on(table.reference),
+  ],
 );

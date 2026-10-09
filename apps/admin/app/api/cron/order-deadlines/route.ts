@@ -1,28 +1,15 @@
-import { getSessionPrincipal } from "@azadimart/auth";
 import { auditLogs, cancelOrderInTransaction, createDatabase, orderItems, orders, shipments, users } from "@azadimart/database";
 import { notifySeller, notifySellersOfCancellation } from "@azadimart/notify";
 import { AUTO_CANCEL_DAYS, toApiError } from "@azadimart/shared";
 import { and, inArray, notInArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { timingSafeEqual } from "node:crypto";
+import { cronCaller } from "../../../lib/cron-auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const HOUR = 60 * 60 * 1000;
 const day = (d: Date) => d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
-
-/** Vercel Cron sends "Authorization: Bearer <CRON_SECRET>"; admins can also run it from the Orders page. */
-async function authorised(request: Request): Promise<boolean> {
-  const secret = process.env.CRON_SECRET;
-  const header = request.headers.get("authorization") ?? "";
-  if (secret && header.startsWith("Bearer ")) {
-    const given = Buffer.from(header.slice(7)), expected = Buffer.from(secret);
-    if (given.length === expected.length && timingSafeEqual(given, expected)) return true;
-  }
-  const principal = await getSessionPrincipal(request, createDatabase()).catch(() => null);
-  return Boolean(principal && (principal.role === "ADMIN" || principal.role === "SUPER_ADMIN"));
-}
 
 /**
  * Order deadlines, Amazon/Flipkart style. For every confirmed or packed
@@ -34,7 +21,7 @@ async function authorised(request: Request): Promise<boolean> {
 async function run(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    if (!(await authorised(request))) return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Not allowed" } }, { status: 401 });
+    if (!(await cronCaller(request))) return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Not allowed" } }, { status: 401 });
     const db = createDatabase();
     const now = new Date();
     const open = await db.select({ id: orders.id, orderNumber: orders.orderNumber, status: orders.status, createdAt: orders.createdAt, shipByAt: orders.shipByAt })
