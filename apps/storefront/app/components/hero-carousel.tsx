@@ -95,6 +95,8 @@ export default function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
         go(index + (end < start ? 1 : -1));
       }}
     >
+      {/* Banner art is 2880 × 1080: beyond 1920px wide it stays that size, centred, instead of growing taller. */}
+      <div className="relative mx-auto max-w-[1920px]">
       <div className="relative overflow-hidden">
         <div className={"flex " + (reducedMotion ? "" : "transition-transform duration-500 ease-out")} style={{ transform: `translateX(-${index * 100}%)` }}>
           {slides.map((slide, i) => {
@@ -137,6 +139,7 @@ export default function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
           </div>
         </>
       ) : null}
+      </div>
     </section>
   );
 }

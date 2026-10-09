@@ -157,7 +157,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
 
   return (
     <main className="min-h-[60vh] bg-canvas px-4 py-8 sm:px-6 sm:py-12">
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-[1440px]">
         <nav aria-label="Breadcrumb" className="text-xs text-slate-500">
           <Link href="/" className="hover:text-slate-900">Home</Link><span className="mx-1.5">/</span>
           <Link href={"/c/" + first.categorySlug} className="hover:text-slate-900">{first.categoryName}</Link><span className="mx-1.5">/</span>

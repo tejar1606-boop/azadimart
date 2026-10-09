@@ -142,7 +142,7 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
 
   return (
     <main className="min-h-[60vh] bg-canvas px-3 py-5 sm:px-6 sm:py-10">
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-[1440px]">
         <nav aria-label="Breadcrumb" className="text-xs text-slate-500">
           <Link href="/" className="hover:text-slate-900">Home</Link><span className="mx-1.5">/</span>
           {category ? <><Link href="/products" className="hover:text-slate-900">Shop</Link><span className="mx-1.5">/</span></> : null}

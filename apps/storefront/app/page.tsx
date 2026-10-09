@@ -224,7 +224,7 @@ const FALLBACK_SECTIONS: HomeSection[] = [
 ];
 
 function Container({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={"mx-auto max-w-7xl px-4 sm:px-6 " + className}>{children}</div>;
+  return <div className={"mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10 " + className}>{children}</div>;
 }
 
 function SectionHeading({ eyebrow, heading, subtitle, actionLabel, actionHref, center = false }: { eyebrow?: string; heading: string; subtitle?: string; actionLabel?: string; actionHref?: string; center?: boolean }) {
@@ -326,7 +326,7 @@ function Hero({ s, sponsored }: { s: Settings; sponsored: HeroSlide[] }) {
         <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_85%_15%,rgba(255,153,51,0.55),transparent_55%),radial-gradient(ellipse_at_10%_95%,rgba(19,136,8,0.5),transparent_55%)]" />
         <div aria-hidden className="absolute -right-24 top-1/2 -z-10 hidden h-[140%] w-1/2 -translate-y-1/2 rounded-full border border-white/10 sm:block" />
         <div aria-hidden className="absolute -right-4 top-1/2 -z-10 hidden h-[95%] w-1/3 -translate-y-1/2 rounded-full border border-white/10 sm:block" />
-        <div className="mx-auto flex aspect-[4/5] max-w-7xl flex-col justify-end px-5 pb-10 sm:aspect-[8/3] sm:justify-center sm:px-6 sm:pb-0">
+        <div className="mx-auto flex aspect-[4/5] max-w-[1440px] flex-col justify-end px-5 pb-10 sm:aspect-[8/3] sm:justify-center sm:px-6 sm:pb-0">
           <span className="inline-flex w-fit items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200 backdrop-blur">
             <span className="h-1.5 w-1.5 rounded-full bg-brand" />{str(s, "eyebrow", "Made for India")}
           </span>
@@ -340,7 +340,7 @@ function Hero({ s, sponsored }: { s: Settings; sponsored: HeroSlide[] }) {
       </div>
       <TricolourRibbon />
       <div className="border-b border-slate-200 bg-white">
-        <ul className="mx-auto grid max-w-7xl grid-cols-3 gap-3 px-4 py-4 sm:px-6">
+        <ul className="mx-auto grid max-w-[1440px] grid-cols-3 gap-3 px-4 py-4 sm:px-6">
           {[["KYC-verified", "sellers"], ["Quality", "checked"], ["Cash on", "Delivery"]].map(([a, b]) => (
             <li key={a} className="flex items-center justify-center gap-2 text-xs leading-4 text-slate-600 sm:text-[13px]">
               <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-india-light text-india"><CheckIcon size={15} /></span>

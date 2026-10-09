@@ -18,7 +18,7 @@ export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
   return (
     <footer className="mt-12 pb-20 lg:pb-0">
       <section aria-label="Our promise" className="border-y border-slate-200 bg-white">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-y-6 px-4 py-8 sm:px-6 lg:grid-cols-4">
+        <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-y-6 px-4 py-8 sm:px-6 lg:grid-cols-4">
           {PROMISES.map(({ icon: Icon, title, text, tint }) => (
             <div key={title} className="flex items-start gap-3 pr-2">
               <span className={"grid h-11 w-11 shrink-0 place-items-center rounded-full " + tint}><Icon size={22} /></span>
@@ -36,7 +36,7 @@ export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
         {/* Soft saffron and green glows echo the tricolour without using the flag. */}
         <div aria-hidden="true" className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-tiranga-saffron/10 blur-3xl" />
         <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 -right-24 h-96 w-96 rounded-full bg-tiranga-green/15 blur-3xl" />
-        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+        <div className="relative mx-auto grid max-w-[1440px] gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
             <Link href="/" className="text-2xl" aria-label="AzadiMart home"><Wordmark /></Link>
             <p className="mt-3 max-w-xs text-sm leading-6 text-white/65">India&apos;s marketplace for verified sellers. Quality-checked products, delivered to your door.</p>
@@ -50,7 +50,7 @@ export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
           <FooterColumn title="Sell with us" links={[{ label: "Become a seller", href: SELLER_URL + "/register" }, { label: "Seller login", href: SELLER_URL + "/login" }]} />
         </div>
         <div className="relative border-t border-white/10">
-          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="mx-auto flex max-w-[1440px] flex-col gap-3 px-4 py-5 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <span>© {new Date().getFullYear()} AzadiMart. All rights reserved.</span>
             <span className="flex items-center gap-2">
               <span className="rounded border border-white/15 px-2 py-1 font-semibold text-white/75">Cash on Delivery</span>

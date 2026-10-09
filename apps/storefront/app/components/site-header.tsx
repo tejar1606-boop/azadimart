@@ -86,7 +86,7 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
       <AnnouncementBar messages={chrome.announcements} />
       <header className="sticky top-0 z-40 bg-white shadow-header">
         {/* Full-width bar like Meesho and Flipkart: logo pinned left, search right after it, account and cart at the far right. */}
-        <div className="flex h-16 items-center gap-2 px-4 sm:gap-4 sm:px-6 lg:h-[72px] lg:gap-8 lg:px-10 2xl:px-14">
+        <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center gap-2 px-4 sm:gap-4 sm:px-6 lg:h-[72px] lg:gap-8 lg:px-10">
           <div className="flex shrink-0 items-center">
             <button type="button" onClick={() => setMenuOpen(true)} className={iconButton + " -ml-2 mr-1 lg:hidden"} aria-label="Open menu">
               <MenuIcon />
@@ -108,7 +108,7 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
         <div className="border-t border-slate-100 px-4 pb-3 pt-2 md:hidden"><SearchForm autoFocus /></div>
         {chrome.navigation.length ? (
           <nav aria-label="Categories" className="hidden border-t border-slate-100 lg:block">
-            <div className="flex items-center gap-1 overflow-x-auto px-4 sm:px-6 lg:px-7 2xl:px-11">
+            <div className="mx-auto flex w-full max-w-[1440px] items-center gap-1 overflow-x-auto px-4 sm:px-6 lg:px-7">
               <Link href="/products" className={"relative shrink-0 px-3 py-3 text-[13px] font-semibold uppercase tracking-[0.06em] transition " + (pathname === "/products" ? "text-brand-600 after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand" : "text-navy hover:text-brand-600")}>All products</Link>
               {chrome.navigation.map((item) => (
                 <Link key={item.href + item.label} href={item.href} className={"relative shrink-0 px-3 py-3 text-[13px] font-medium uppercase tracking-[0.06em] transition " + (pathname === item.href ? "text-brand-600 after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand" : "text-slate-700 hover:text-brand-600")}>{item.label}</Link>
