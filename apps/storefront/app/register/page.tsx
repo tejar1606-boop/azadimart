@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useRef, useEffect, useState } from "react";
 import { Turnstile, type TurnstileHandle } from "@azadimart/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,6 +8,9 @@ import { useRouter } from "next/navigation";
 export default function CustomerRegisterPage() {
   const router = useRouter();
   const [form,setForm]=useState({fullName:"",email:"",phone:"",password:""});
+  // Keep "where to go after signing in" when switching between sign in and create account.
+  const [carry, setCarry] = useState("");
+  useEffect(() => { const next = new URLSearchParams(window.location.search).get("next"); if (next) setCarry("?next=" + encodeURIComponent(next)); }, []);
   const [error,setError]=useState("");
   const [captchaToken, setCaptchaToken] = useState<string>();
   const captchaRef = useRef<TurnstileHandle>(null);
@@ -21,7 +24,9 @@ export default function CustomerRegisterPage() {
       const response=await fetch("/api/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...form,captchaToken})});
       const body=await response.json();
       if(!response.ok) throw new Error(body?.error?.message ?? "Unable to create your account.");
-      router.replace("/login");
+      // Straight on to sign in, keeping where the shopper was going.
+      const next = new URLSearchParams(window.location.search).get("next") ?? "";
+      router.replace("/login?registered=1" + (/^\/(?![/\\])/.test(next) ? "&next=" + encodeURIComponent(next) : ""));
     }catch(err){setError(err instanceof Error ? err.message : "Unable to create your account.");}
     finally{setBusy(false);captchaRef.current?.reset();}
   }
@@ -42,7 +47,7 @@ export default function CustomerRegisterPage() {
           {error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
           <button disabled={busy || Boolean(siteKey && !captchaToken)} className="w-full rounded-full bg-brand px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50">{busy ? "Creating account…" : "Create account"}</button>
         </form>
-        <p className="mt-6 text-center text-sm text-slate-500">Already registered? <Link href="/login" className="font-semibold text-slate-950 underline">Sign in</Link></p>
+        <p className="mt-6 text-center text-sm text-slate-500">Already registered? <Link href={"/login" + carry} className="font-semibold text-slate-950 underline">Sign in</Link></p>
       </div>
     </main>
   );

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import SignInPrompt from "../components/sign-in-prompt";
 
 type CartItem = {
   id: string;
@@ -32,12 +33,14 @@ export default function CartView() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [signedOut, setSignedOut] = useState(false);
 
   async function load() {
     setLoading(true);
     setError("");
     try {
       const response = await fetch("/api/v1/cart", { cache: "no-store" });
+      if (response.status === 401) { setSignedOut(true); return; }
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error?.message ?? "Unable to load your cart.");
       setCart(body);
@@ -81,6 +84,7 @@ export default function CartView() {
   }
 
   if (error && !cart) {
+  if (signedOut) return <main className="min-h-[60vh] bg-canvas px-4 py-16 sm:px-6"><div className="mx-auto max-w-md"><SignInPrompt title="Sign in to see your cart" text="Your cart is saved to your account, so it follows you on every device." next="/cart" /></div></main>;
     return <main className="min-h-[60vh] bg-canvas px-4 py-16 sm:px-6"><div className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-8 text-center"><p className="text-sm font-semibold text-red-600">{error}</p><Link href="/products" className="mt-5 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white">Continue shopping</Link></div></main>;
   }
 

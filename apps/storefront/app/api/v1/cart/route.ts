@@ -17,7 +17,7 @@ async function getCustomer(request: Request) {
   const db = createDatabase();
   const principal = await getSessionPrincipal(request, db);
   if (!principal || principal.role !== "CUSTOMER" || !principal.customerId) {
-    throw new AppError("UNAUTHORIZED", "Customer session required");
+    throw new AppError("UNAUTHORIZED", "Please sign in to use your cart");
   }
   return { db, customerId: principal.customerId };
 }

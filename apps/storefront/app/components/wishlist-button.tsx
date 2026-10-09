@@ -32,7 +32,7 @@ export default function WishlistButton({ productId }: { productId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ productId }),
       });
-      if (response.status === 401) { window.location.href = "/login"; return; }
+      if (response.status === 401) { window.location.href = "/login?next=" + encodeURIComponent(window.location.pathname + window.location.search); return; }
       if (!response.ok) return;
       const body = await response.json();
       const ids = new Set<string>((body.items ?? []).map((item: { id: string }) => item.id));

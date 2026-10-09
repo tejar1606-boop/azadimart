@@ -85,7 +85,7 @@ export default function CheckoutView(){
   return <main className="min-h-[60vh] bg-canvas px-4 py-8 sm:px-6 sm:py-12">
     <div className="mx-auto max-w-6xl">
       <div className="flex items-end justify-between gap-3"><div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Secure checkout</p><h1 className="mt-2 text-3xl font-bold tracking-[-0.04em] sm:text-5xl">Finish your order.</h1></div><Link href="/cart" className="text-sm font-semibold text-slate-500">← Cart</Link></div>
-      {error?<div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error} {error.includes("sign in")?<Link href="/login" className="font-bold underline">Sign in</Link>:null}</div>:null}
+      {error?<div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error} {error.includes("sign in")?<Link href="/login?next=%2Fcheckout" className="font-bold underline">Sign in</Link>:null}</div>:null}
       {(!cart||cart.items.length===0)?<div className="mt-8 rounded-[2rem] border border-dashed border-slate-300 bg-white p-12 text-center"><p className="text-xl font-bold">Your cart is empty.</p><Link href="/products" className="mt-5 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white">Continue shopping</Link></div>:
       <div className="mt-7 grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
         <div className="space-y-5">

@@ -31,7 +31,7 @@ export default function WishlistPage() {
 
   useEffect(() => { void load(); }, []);
 
-  if (signedOut) return <main className="min-h-[60vh] bg-canvas px-4 py-12"><div className="mx-auto max-w-md rounded-[2rem] border border-slate-200 bg-white p-8 text-center"><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-amber-600">Wishlist</p><h1 className="mt-2 text-3xl font-bold">Sign in to save products.</h1><Link href="/login" className="mt-6 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white">Sign in</Link></div></main>;
+  if (signedOut) return <main className="min-h-[60vh] bg-canvas px-4 py-12"><div className="mx-auto max-w-md rounded-[2rem] border border-slate-200 bg-white p-8 text-center"><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-amber-600">Wishlist</p><h1 className="mt-2 text-3xl font-bold">Sign in to save products.</h1><Link href="/login?next=%2Fwishlist" className="mt-6 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white">Sign in</Link></div></main>;
 
   return <main className="min-h-[60vh] bg-canvas px-4 py-8 sm:px-6 sm:py-12"><div className="mx-auto max-w-[1440px]">
     <div className="flex items-end justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-amber-600">Saved for later</p><h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-5xl">Your wishlist.</h1><p className="mt-2 text-sm text-slate-500">{items.length} saved {items.length === 1 ? "product" : "products"}</p></div><Link href="/products" className="text-sm font-bold text-slate-500">Continue shopping →</Link></div>

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 async function customer(request: Request) {
   const db = createDatabase();
   const principal = await getSessionPrincipal(request, db);
-  if (!principal?.customerId) throw new AppError("UNAUTHORIZED", "Customer session required");
+  if (!principal?.customerId) throw new AppError("UNAUTHORIZED", "Please sign in to save products");
   return { db, customerId: principal.customerId };
 }
 
