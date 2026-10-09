@@ -72,6 +72,7 @@ export default function PayoutsView() {
   const [editingBank, setEditingBank] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const [items, setItems] = useState<Record<string, Item[]>>({});
+  const [charges, setCharges] = useState<Record<string, Array<{ description: string; amountPaise: number }>>>({});
 
   const load = useCallback(async () => {
     try {
@@ -88,6 +89,7 @@ export default function PayoutsView() {
     if (!items[id]) {
       const body = await fetch(`/api/v1/payouts/${id}`).then((r) => r.json()).catch(() => null);
       setItems((all) => ({ ...all, [id]: body?.items ?? [] }));
+      setCharges((all) => ({ ...all, [id]: body?.charges ?? [] }));
     }
   }
 
@@ -177,7 +179,8 @@ export default function PayoutsView() {
                         {!items[p.id] ? <p className="text-xs text-slate-500">Loading…</p> : (
                           <ul className="space-y-2">{items[p.id]!.map((it) => (
                             <li key={it.orderNumber + it.title} className="flex justify-between gap-3 text-xs"><span><b>{it.title} × {it.quantity}</b> · {it.orderNumber}<BreakdownRows b={it} /></span><span className="shrink-0 text-right">{money(it.grossPaise)} − {money(deductions(it))} = <b>{money(it.netPaise)}</b></span></li>
-                          ))}</ul>
+                          ))}
+                          {(charges[p.id] ?? []).map((c) => <li key={c.description} className="flex justify-between gap-3 text-xs text-slate-600"><span>{c.description}</span><span className="shrink-0">−{money(c.amountPaise)}</span></li>)}</ul>
                         )}
                       </td></tr>
                     ) : null}

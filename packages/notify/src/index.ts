@@ -1,12 +1,12 @@
-import { createDatabase, orderItems, orders, pushSubscriptions, sellerNotifications, sellerSettings } from "@azadimart/database";
+import { createDatabase, orderItems, orders, pushSubscriptions, sellerNotifications, sellerSettings, settleClosedAuctions } from "@azadimart/database";
 import { eq } from "drizzle-orm";
 import webpush from "web-push";
 
 type Db = ReturnType<typeof createDatabase>;
 
-export type SellerAlertKind = "NEW_ORDER" | "SHIP_BY_REMINDER" | "ORDER_LATE" | "ORDER_AUTO_CANCELLED" | "ORDER_CANCELLED_BY_CUSTOMER" | "ORDER_CANCELLED_BY_ADMIN" | "PAYOUT_PAID" | "PAYOUT_ON_HOLD";
-export type SellerAlertPreferences = { newOrders: boolean; reminders: boolean; cancellations: boolean; payouts: boolean };
-export const DEFAULT_ALERT_PREFERENCES: SellerAlertPreferences = { newOrders: true, reminders: true, cancellations: true, payouts: true };
+export type SellerAlertKind = "NEW_ORDER" | "SHIP_BY_REMINDER" | "ORDER_LATE" | "ORDER_AUTO_CANCELLED" | "ORDER_CANCELLED_BY_CUSTOMER" | "ORDER_CANCELLED_BY_ADMIN" | "PAYOUT_PAID" | "PAYOUT_ON_HOLD" | "AD_OUTBID" | "AD_WON" | "AD_LOST" | "AD_CHARGED" | "AD_REVIEWED";
+export type SellerAlertPreferences = { newOrders: boolean; reminders: boolean; cancellations: boolean; payouts: boolean; ads: boolean };
+export const DEFAULT_ALERT_PREFERENCES: SellerAlertPreferences = { newOrders: true, reminders: true, cancellations: true, payouts: true, ads: true };
 
 const CATEGORY: Record<SellerAlertKind, keyof SellerAlertPreferences> = {
   NEW_ORDER: "newOrders",
@@ -17,6 +17,11 @@ const CATEGORY: Record<SellerAlertKind, keyof SellerAlertPreferences> = {
   ORDER_CANCELLED_BY_ADMIN: "cancellations",
   PAYOUT_PAID: "payouts",
   PAYOUT_ON_HOLD: "payouts",
+  AD_OUTBID: "ads",
+  AD_WON: "ads",
+  AD_LOST: "ads",
+  AD_CHARGED: "ads",
+  AD_REVIEWED: "ads",
 };
 
 /** Whether the seller wants a browser push for this kind of alert (it's always kept in Notices). */
@@ -121,3 +126,22 @@ export async function notifySellersOfCancellation(db: Db, orderId: string, by: "
   } catch { /* never block cancellation */ }
 }
 
+
+/** Tells sellers what happened in ad auctions (from @azadimart/database ad functions). */
+export async function notifyAdEvents(db: Db, events: Array<{ kind: "OUTBID" | "WON" | "LOST" | "CHARGED"; sellerId: string; slotName: string; day: string; amountPaise: number; bidId: string }>): Promise<void> {
+  const when = (day: string) => new Date(day + "T00:00:00Z").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+  for (const e of events) {
+    const text = {
+      OUTBID: { kind: "AD_OUTBID" as const, title: `You've been outbid for ${when(e.day)}`, body: `Another seller bid more than your ${money(e.amountPaise)} for ${e.slotName}. Bid again before bidding closes.` },
+      WON: { kind: "AD_WON" as const, title: `${e.slotName} is yours on ${when(e.day)}`, body: `Booked for ${money(e.amountPaise)}. Make sure your ad is approved before the day starts; you're charged only if it runs.` },
+      LOST: { kind: "AD_LOST" as const, title: `${when(e.day)} went to another seller`, body: `Your bid for ${e.slotName} didn't win. Other days are still open.` },
+      CHARGED: { kind: "AD_CHARGED" as const, title: `Ad charge ${money(e.amountPaise)} for ${when(e.day)}`, body: `${e.slotName}. It will be taken from your next payment.` },
+    }[e.kind];
+    await notifySeller(db, { sellerId: e.sellerId, kind: text.kind, dedupeKey: `AD_${e.kind}:${e.bidId}`, href: "/ads", title: text.title, body: text.body });
+  }
+}
+
+/** Closes ad auctions whose bidding has ended and tells the sellers. Call before showing calendars or ads. */
+export async function settleAdAuctions(db: Db, now = new Date()): Promise<void> {
+  try { await notifyAdEvents(db, await settleClosedAuctions(db, now)); } catch { /* never block a page on this */ }
+}

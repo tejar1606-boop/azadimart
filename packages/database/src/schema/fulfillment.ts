@@ -157,6 +157,8 @@ export const payouts = pgTable(
     paymentId: uuid("payment_id").references(() => payments.id),
     grossPaise: integer("gross_paise").notNull().default(0),
     deductionsPaise: integer("deductions_paise").notNull().default(0),
+    // Ad charges taken from this payout (included in deductions_paise).
+    chargesPaise: integer("charges_paise").notNull().default(0),
     itemCount: integer("item_count").notNull().default(0),
     bankAccountId: uuid("bank_account_id").references(() => sellerBankAccounts.id),
     // Idempotency key sent to the bank/payout service, so a retry never pays twice.

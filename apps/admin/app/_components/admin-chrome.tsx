@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { PortalShell, type PortalNavSection } from "@azadimart/ui";
 
-export type AdminCounts = { sellers: number; qc: number; approvals: number; aplus: number };
+export type AdminCounts = { sellers: number; qc: number; approvals: number; aplus: number; ads: number };
 
 const badge = (n: number) => (n > 0 ? String(n > 99 ? "99+" : n) : undefined);
 
@@ -36,6 +36,7 @@ export default function AdminChrome({ counts, children }: { counts: AdminCounts 
       { href: "/online-store", label: "Online Store", icon: "store" },
       { href: "/marketing/coupons", label: "Coupons", icon: "coupons" },
       { href: "/marketing/offer-tags", label: "Offer tags", icon: "sparkle" },
+      { href: "/marketing/ads", label: "Seller ads", icon: "marketing", badge: badge(counts.ads) },
       { href: "/marketing", label: "Marketing", icon: "marketing" },
     ] },
     { title: "Operations", items: [

@@ -162,6 +162,13 @@
       "when": 1791573323261,
       "tag": "20261009191523_seller_payouts",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791574657855,
+      "tag": "20261009193737_seller_ads",
+      "breakpoints": true
     }
   ]
 }

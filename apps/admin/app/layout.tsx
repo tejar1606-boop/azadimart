@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import { headers } from "next/headers";
 import { getSessionPrincipal } from "@azadimart/auth";
-import { createDatabase, productAplusContent, products, qcSubmissions, sellerVerifications } from "@azadimart/database";
+import { createDatabase, adCampaigns, productAplusContent, products, qcSubmissions, sellerVerifications } from "@azadimart/database";
 import { count, eq } from "drizzle-orm";
 import "@azadimart/ui/globals.css";
 import AdminChrome, { type AdminCounts } from "./_components/admin-chrome";
@@ -23,13 +23,14 @@ async function adminCounts(): Promise<AdminCounts | null> {
     const db = createDatabase();
     const principal = await getSessionPrincipal(new Request("http://azadimart.internal", { headers: { cookie } }), db);
     if (!principal || (principal.role !== "ADMIN" && principal.role !== "SUPER_ADMIN")) return null;
-    const [sellersPending, qcPending, approvals, aplusPending] = await Promise.all([
+    const [sellersPending, qcPending, approvals, aplusPending, adsPending] = await Promise.all([
       db.select({ n: count() }).from(sellerVerifications).where(eq(sellerVerifications.status, "IN_REVIEW")),
       db.select({ n: count() }).from(qcSubmissions).where(eq(qcSubmissions.status, "PENDING")),
       db.select({ n: count() }).from(products).where(eq(products.status, "PENDING_ADMIN_APPROVAL")),
       db.select({ n: count() }).from(productAplusContent).where(eq(productAplusContent.status, "PENDING_REVIEW")),
+      db.select({ n: count() }).from(adCampaigns).where(eq(adCampaigns.status, "PENDING_REVIEW")),
     ]);
-    return { sellers: Number(sellersPending[0]?.n ?? 0), qc: Number(qcPending[0]?.n ?? 0), approvals: Number(approvals[0]?.n ?? 0), aplus: Number(aplusPending[0]?.n ?? 0) };
+    return { sellers: Number(sellersPending[0]?.n ?? 0), qc: Number(qcPending[0]?.n ?? 0), approvals: Number(approvals[0]?.n ?? 0), aplus: Number(aplusPending[0]?.n ?? 0), ads: Number(adsPending[0]?.n ?? 0) };
   } catch {
     return null;
   }

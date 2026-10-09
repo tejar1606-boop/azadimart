@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const upload = await finalizeUpload(getObjectStore(), {
       token: input.token,
       userId: seller.userId,
-      allowedPurposes: ["PRODUCT_IMAGE", "PRODUCT_VIDEO", "APLUS_IMAGE"],
+      allowedPurposes: ["PRODUCT_IMAGE", "PRODUCT_VIDEO", "APLUS_IMAGE", "AD_IMAGE"],
       keyPrefix: seller.keyPrefix,
     });
     const db = createDatabase();

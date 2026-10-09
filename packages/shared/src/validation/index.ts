@@ -179,7 +179,7 @@ export const customerRegistrationSchema = z.object({
   captchaToken: z.string().max(2048).optional(),
 });
 export const roleSchema = z.enum(ROLES);export const mediaUploadRequestSchema = z.object({
-  purpose: z.enum(["SITE_IMAGE", "SITE_VIDEO", "PRODUCT_IMAGE", "PRODUCT_VIDEO", "APLUS_IMAGE", "REVIEW_IMAGE"]),
+  purpose: z.enum(["SITE_IMAGE", "SITE_VIDEO", "PRODUCT_IMAGE", "PRODUCT_VIDEO", "APLUS_IMAGE", "REVIEW_IMAGE", "AD_IMAGE"]),
   contentType: z.string().max(100),
   byteSize: z.number().int().positive(),
   /** Admin product uploads: the product whose seller folder receives the file. */
@@ -287,7 +287,7 @@ export const sellerCancelSchema = z.object({
   reason: z.enum(SELLER_CANCEL_REASONS),
   note: z.string().trim().max(300).optional(),
 });
-export const sellerAlertSettingsSchema = z.object({ newOrders: z.boolean(), reminders: z.boolean(), cancellations: z.boolean(), payouts: z.boolean().default(true) });
+export const sellerAlertSettingsSchema = z.object({ newOrders: z.boolean(), reminders: z.boolean(), cancellations: z.boolean(), payouts: z.boolean().default(true), ads: z.boolean().default(true) });
 export const pushSubscriptionSchema = z.object({
   endpoint: z.string().url().max(1000).refine((u) => u.startsWith("https://"), "Push endpoint must be https"),
   keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(8).max(100) }),

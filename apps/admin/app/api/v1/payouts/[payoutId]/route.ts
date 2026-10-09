@@ -1,5 +1,5 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { auditLogs, createDatabase, orderItems, orders, payoutItems, payouts } from "@azadimart/database";
+import { auditLogs, createDatabase, orderItems, orders, payoutItems, payouts, sellerCharges } from "@azadimart/database";
 import { AppError, toApiError, uuidSchema } from "@azadimart/shared";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -21,7 +21,8 @@ export async function GET(request: Request, { params }: Params) {
       tcsPaise: payoutItems.tcsPaise, tdsPaise: payoutItems.tdsPaise, netPaise: payoutItems.netAmountPaise,
     }).from(payoutItems).innerJoin(orderItems, eq(orderItems.id, payoutItems.orderItemId)).innerJoin(orders, eq(orders.id, orderItems.orderId))
       .where(eq(payoutItems.payoutId, payoutId));
-    return NextResponse.json({ items });
+    const charges = await db.select({ description: sellerCharges.description, amountPaise: sellerCharges.amountPaise }).from(sellerCharges).where(eq(sellerCharges.payoutId, payoutId));
+    return NextResponse.json({ items, charges });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);
     return NextResponse.json(body, { status });

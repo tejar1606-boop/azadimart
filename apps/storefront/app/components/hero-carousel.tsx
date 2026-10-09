@@ -11,7 +11,19 @@ export type HeroSlide = {
   mobileVideoUrl?: string;
   href?: string;
   alt: string;
+  /** Set for a seller's paid ad: labelled "Sponsored", views and clicks are counted. */
+  sponsoredId?: string;
 };
+
+/** Counts one view per ad per browser session. */
+function countView(id: string) {
+  try {
+    const key = "azm-ad-" + id;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+  } catch { /* storage blocked: still count */ }
+  void fetch("/api/v1/ads/impression", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bidId: id }), keepalive: true }).catch(() => undefined);
+}
 
 const INTERVAL_MS = 4000;
 
@@ -71,6 +83,11 @@ export default function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
     return () => window.clearTimeout(timer);
   }, [count, go, index, paused, tabHidden]);
 
+  const shownId = slides[index]?.sponsoredId;
+  useEffect(() => {
+    if (shownId && !tabHidden) countView(shownId);
+  }, [shownId, tabHidden]);
+
   if (!count) return null;
 
   return (
@@ -100,8 +117,12 @@ export default function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
             );
             const href = slide.href ?? "";
             return (
-              <div key={i} className="w-full shrink-0" role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${count}`} aria-hidden={!active}>
-                {href ? <Link href={href} tabIndex={active ? 0 : -1} className="block" aria-label={slide.alt}>{art}</Link> : art}
+              <div key={i} className="relative w-full shrink-0" role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${count}`} aria-hidden={!active}>
+                {slide.sponsoredId ? (
+                  // Plain link (no prefetch) so only real clicks are counted.
+                  <a href={href} tabIndex={active ? 0 : -1} className="block" aria-label={`Sponsored: ${slide.alt}`} rel="sponsored">{art}</a>
+                ) : href ? <Link href={href} tabIndex={active ? 0 : -1} className="block" aria-label={slide.alt}>{art}</Link> : art}
+                {slide.sponsoredId ? <span className="pointer-events-none absolute left-3 top-3 rounded-md bg-black/55 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur sm:left-5 sm:top-5 sm:text-[11px]">Sponsored</span> : null}
               </div>
             );
           })}

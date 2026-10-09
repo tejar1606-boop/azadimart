@@ -4,6 +4,7 @@ import {
   categories,
   coupons,
   createDatabase,
+  liveAds,
   mediaAssets,
   pageSections,
   pages,
@@ -13,7 +14,8 @@ import {
   sellers,
   themes,
 } from "@azadimart/database";
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { settleAdAuctions } from "@azadimart/notify";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import CouponCard from "./components/coupon-card";
 import HeroCarousel, { type HeroSlide } from "./components/hero-carousel";
 import { ArrowRightIcon, BadgeIcon, CashIcon, CheckIcon, ReturnIcon, ShieldIcon } from "./components/icons";
@@ -139,7 +141,23 @@ async function getHome() {
     }
   }
 
-  return { sections, coupons: activeCoupons, products: liveProducts as ProductCardData[], categories: homeCategories, rail, showcaseProducts };
+  return { sections, coupons: activeCoupons, products: liveProducts as ProductCardData[], categories: homeCategories, rail, showcaseProducts, sponsored: await sponsoredSlides(db) };
+}
+
+/** Today's winning seller ads for the main banner, shown first and labelled "Sponsored". */
+async function sponsoredSlides(db: ReturnType<typeof createDatabase>): Promise<HeroSlide[]> {
+  try {
+    await settleAdAuctions(db);
+    const ads = await liveAds(db, "HOME_HERO");
+    if (!ads.length) return [];
+    const keys = await db.select({ id: mediaAssets.id, key: mediaAssets.storageKey }).from(mediaAssets)
+      .where(inArray(mediaAssets.id, ads.flatMap((a) => [a.desktopImageAssetId, ...(a.mobileImageAssetId ? [a.mobileImageAssetId] : [])])));
+    const url = (id: string | null) => { const key = id ? keys.find((k) => k.id === id)?.key : undefined; return key ? "/media/" + key : undefined; };
+    return ads.map((ad) => ({ desktopImageUrl: url(ad.desktopImageAssetId), mobileImageUrl: url(ad.mobileImageAssetId), href: `/api/v1/ads/click/${ad.bidId}`, alt: ad.headline, sponsoredId: ad.bidId }))
+      .filter((slide) => slide.desktopImageUrl);
+  } catch {
+    return []; // ads must never break the home page
+  }
 }
 
 type HomeData = Awaited<ReturnType<typeof getHome>>;
@@ -247,7 +265,7 @@ function PillLink({ href, children, variant = "primary" }: { href: string; child
 function StoreSection({ section, data }: { section: HomeSection; data: HomeData }) {
   const s = section.settings;
   switch (section.type) {
-    case "hero": return <Hero s={s} />;
+    case "hero": return <Hero s={s} sponsored={data.sponsored} />;
     case "marquee": return <Marquee s={s} />;
     case "promo_banner": return <PromoBanner s={s} />;
     case "banner_row": return <BannerRow s={s} />;
@@ -292,12 +310,12 @@ function heroSlides(s: Settings): HeroSlide[] {
     .filter((slide) => slide.desktopImageUrl || slide.desktopVideoUrl);
 }
 
-function Hero({ s }: { s: Settings }) {
+function Hero({ s, sponsored }: { s: Settings; sponsored: HeroSlide[] }) {
   const heading = str(s, "heading", "Everything India loves, from sellers you can trust.");
   const description = str(s, "description", "Shop quality-checked products from KYC-verified Indian sellers. Cash on Delivery and easy returns on every order.");
   const primaryLabel = str(s, "primaryLabel", "Shop now");
   const primaryHref = str(s, "primaryHref", "/products");
-  const slides = heroSlides(s);
+  const slides = [...sponsored, ...heroSlides(s)];
   if (slides.length) return <><HeroCarousel slides={slides} /><TricolourRibbon /></>;
 
   // No banner uploaded yet: a designed banner in the same frame (8:3 desktop,

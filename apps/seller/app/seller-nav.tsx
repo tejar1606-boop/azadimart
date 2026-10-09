@@ -56,6 +56,7 @@ export default function SellerChrome({ counts, children }: { counts: SellerCount
     ] },
     { title: "Grow sales", items: [
       { href: "/reviews", label: "Customer reviews", icon: "star", tone: "amber", badge: badge(counts?.newReviews ?? 0) },
+      { href: "/ads", label: "Advertise", icon: "marketing", tone: "saffron" },
       { href: "/products/new", label: "Add a product", icon: "sparkle", tone: "rose" },
     ] },
     { title: "Account", items: [

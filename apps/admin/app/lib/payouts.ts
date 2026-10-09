@@ -1,7 +1,7 @@
 import { decryptSecret } from "@azadimart/auth";
-import { auditLogs, payoutItems, payouts, sellerBankAccounts, sellers, unpaidSettlementLines, type Database, type SettlementLine } from "@azadimart/database";
-import { notifySeller } from "@azadimart/notify";
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { auditLogs, chargeFinishedAdDays, payoutItems, payouts, sellerBankAccounts, sellerCharges, sellers, unpaidSettlementLines, type Database, type SettlementLine } from "@azadimart/database";
+import { notifyAdEvents, notifySeller, settleAdAuctions } from "@azadimart/notify";
+import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 
 /**
  * Automatic seller payouts, from AzadiMart's own current account.
@@ -62,10 +62,16 @@ export async function createDuePayouts(db: Database, now = new Date()) {
     if (net <= 0) continue;
     try {
       await db.transaction(async (tx) => {
+        // Ad charges come out of this payout, oldest first, as far as the money covers them; the rest waits for the next one.
+        const pending = await tx.select({ id: sellerCharges.id, amountPaise: sellerCharges.amountPaise }).from(sellerCharges)
+          .where(and(eq(sellerCharges.sellerId, sellerId), eq(sellerCharges.status, "PENDING"))).orderBy(asc(sellerCharges.createdAt)).for("update");
+        const taken: string[] = [];
+        let charges = 0;
+        for (const c of pending) if (charges + c.amountPaise <= net) { charges += c.amountPaise; taken.push(c.id); }
         const [payout] = await tx.insert(payouts).values({
-          sellerId, status: "PENDING", amountPaise: net,
+          sellerId, status: "PENDING", amountPaise: net - charges, chargesPaise: charges,
           grossPaise: lines.reduce((sum, l) => sum + l.breakdown.grossPaise, 0),
-          deductionsPaise: lines.reduce((sum, l) => sum + l.breakdown.grossPaise - l.breakdown.netPaise, 0),
+          deductionsPaise: lines.reduce((sum, l) => sum + l.breakdown.grossPaise - l.breakdown.netPaise, 0) + charges,
           itemCount: lines.length, mode: payoutRail()?.mode ?? "LIVE",
           reference: "AZMPO" + now.getTime().toString(36).toUpperCase() + crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase(),
         }).returning({ id: payouts.id });
@@ -75,6 +81,7 @@ export async function createDuePayouts(db: Database, now = new Date()) {
           commissionRateBps: l.breakdown.commissionRateBps, commissionPaise: l.breakdown.commissionPaise,
           gstOnCommissionPaise: l.breakdown.gstOnCommissionPaise, tcsPaise: l.breakdown.tcsPaise, tdsPaise: l.breakdown.tdsPaise,
         })));
+        if (taken.length) await tx.update(sellerCharges).set({ status: "SETTLED", payoutId: payout!.id, updatedAt: now }).where(inArray(sellerCharges.id, taken));
       });
       created++;
     } catch {
@@ -91,6 +98,11 @@ export async function processPayout(db: Database, payoutId: string, options: { a
   const now = options.now ?? new Date();
   const payout = (await db.select().from(payouts).where(eq(payouts.id, payoutId)).limit(1))[0];
   if (!payout || payout.status === "PAID" || payout.status === "PROCESSING") return "SKIPPED";
+  if (payout.amountPaise <= 0) {
+    // Everything went to ad charges: nothing to transfer.
+    await db.update(payouts).set({ status: "PAID", utr: null, paidAt: now, failureReason: null, updatedAt: now }).where(eq(payouts.id, payoutId));
+    return "PAID";
+  }
   if (payout.status === "FAILED" && payout.attempts >= MAX_ATTEMPTS && !options.approvedByUserId) return "SKIPPED";
 
   const seller = (await db.select({ status: sellers.status, holdReason: sellers.payoutHoldReason, storeName: sellers.storeName }).from(sellers).where(eq(sellers.id, payout.sellerId)).limit(1))[0];
@@ -159,8 +171,10 @@ export async function processPayout(db: Database, payoutId: string, options: { a
   return "FAILED";
 }
 
-/** The daily job: create due payouts, then send everything that's waiting. */
+/** The daily job: close ad auctions and charge finished ad days, create due payouts, then send everything that's waiting. */
 export async function runPayouts(db: Database, now = new Date()) {
+  await settleAdAuctions(db, now);
+  await notifyAdEvents(db, await chargeFinishedAdDays(db, now));
   const created = await createDuePayouts(db, now);
   const waiting = await db.select({ id: payouts.id }).from(payouts).where(inArray(payouts.status, ["PENDING", "FAILED", "ON_HOLD"])).orderBy(payouts.createdAt);
   const summary: Record<Outcome, number> & { created: number } = { created, PAID: 0, PROCESSING: 0, ON_HOLD: 0, WAITING_APPROVAL: 0, FAILED: 0, NOT_SET_UP: 0, SKIPPED: 0 };
