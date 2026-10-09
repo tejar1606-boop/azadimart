@@ -62,6 +62,8 @@ function SearchForm({ className = "", autoFocus = false }: { className?: string;
 export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
   const pathname = usePathname();
   const [cartCount, setCartCount] = useState(0);
+  // undefined = still checking, null = signed out
+  const [me, setMe] = useState<{ name: string | null; email: string | null } | null | undefined>(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -70,7 +72,16 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
       const body = await response.json();
       setCartCount(Number(body.itemCount) || 0);
     }).catch(() => undefined);
+    fetch("/api/auth/session", { cache: "no-store" }).then(async (response) => {
+      const body = response.ok ? await response.json() : null;
+      setMe(body ? { name: body.name ?? null, email: body.email ?? null } : null);
+    }).catch(() => setMe(null));
   }, [pathname]);
+
+  async function signOut() {
+    try { await fetch("/api/auth/logout", { method: "POST" }); } finally { window.location.href = "/"; }
+  }
+  const firstName = me?.name?.trim().split(/\s+/)[0] || me?.email?.split("@")[0] || "";
 
   useEffect(() => setMenuOpen(false), [pathname]);
   useEffect(() => {
@@ -95,8 +106,9 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
           </div>
           <SearchForm className="hidden w-full max-w-2xl md:block" />
           <nav aria-label="Account" className="ml-auto flex items-center justify-end gap-0.5 sm:gap-1">
-            <Link href="/account" className="relative flex h-10 min-w-10 items-center justify-center gap-2 rounded-full text-slate-900 transition hover:bg-slate-100 lg:px-3" aria-label="Account">
-              <UserIcon /><span className="hidden text-sm font-medium lg:inline">Account</span>
+            <Link href={me === null ? "/login" : "/account"} className="relative flex h-10 min-w-10 items-center justify-center gap-2 rounded-full text-slate-900 transition hover:bg-slate-100 lg:px-3" aria-label={me ? `Account (signed in as ${me.email ?? firstName})` : "Sign in"}>
+              <UserIcon /><span className="hidden max-w-[140px] truncate text-sm font-medium lg:inline">{me ? `Hi, ${firstName}` : me === null ? "Sign in" : "Account"}</span>
+              {me ? <span aria-hidden="true" className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-india ring-2 ring-white lg:hidden" /> : null}
             </Link>
             <Link href="/wishlist" className={iconButton} aria-label="Wishlist"><HeartIcon /></Link>
             <Link href="/cart" className={iconButton} aria-label={cartCount ? `Cart, ${cartCount} items` : "Cart"}>
@@ -133,9 +145,15 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
                 <Link key={item.href + item.label} href={item.href} className="block rounded-lg px-3 py-3 text-[15px] font-medium hover:bg-slate-50">{item.label}</Link>
               ))}
               <p className="mt-4 px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Your account</p>
-              {([["My orders", "/account"], ["Wishlist", "/wishlist"], ["Cart", "/cart"], ["Sign in", "/login"]] as const).map(([label, href]) => (
+              {me ? <p className="mx-3 mb-1 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">Signed in as <b className="break-all text-slate-900">{me.email}</b></p> : null}
+              {([["My orders", "/account"], ["Wishlist", "/wishlist"], ["Cart", "/cart"]] as const).map(([label, href]) => (
                 <Link key={href} href={href} className="block rounded-lg px-3 py-3 text-[15px] font-medium hover:bg-slate-50">{label}</Link>
               ))}
+              {me ? (
+                <button type="button" onClick={() => void signOut()} className="block w-full rounded-lg px-3 py-3 text-left text-[15px] font-medium text-red-700 hover:bg-red-50">Sign out</button>
+              ) : me === null ? (
+                <Link href="/login" className="block rounded-lg px-3 py-3 text-[15px] font-medium text-brand-600 hover:bg-slate-50">Sign in</Link>
+              ) : null}
             </div>
           </div>
         </div>
