@@ -5,3 +5,4 @@ export { directUpload, readImageSize, type DirectUploadPurpose, type DirectUploa
 export { AplusContent, type AplusProductSummary } from "./aplus-content";
 export { PortalIcons, type PortalIconName } from "./portal-icons";
 export { ComingSoon, PortalAuthLayout, PortalPageHeader, PortalShell, StatCard, type PortalNavItem, type PortalNavSection } from "./portal-shell";
+export { DescriptionStyleToggle, SpecTableEditor, parseSpecPaste, type SpecRow } from "./spec-table-editor";

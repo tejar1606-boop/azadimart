@@ -39,7 +39,8 @@ export async function POST(request: Request) {
         categoryId: input.categoryId,
         title: input.title,
         slug: slugify(input.title),
-        description: input.description ?? null,
+        description: input.description || null,
+        specifications: input.specifications ?? [],
         status: "DRAFT",
       }).returning({ id: products.id, title: products.title, slug: products.slug, status: products.status }))[0];
 

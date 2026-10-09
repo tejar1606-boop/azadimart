@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   try {
     const db = createDatabase();
     const row = (await db.select({
-      title: products.title, description: products.description, metaTitle: products.metaTitle, metaDescription: products.metaDescription,
+      title: products.title, description: products.description, specifications: products.specifications, metaTitle: products.metaTitle, metaDescription: products.metaDescription,
       categoryName: categories.name, sellerName: sellers.storeName, pricePaise: productVariants.pricePaise, imageKey: mediaAssets.storageKey,
     }).from(products)
       .innerJoin(categories, eq(categories.id, products.categoryId))
@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     if (!row) return { title: "Product not found", robots: { index: false } };
     const price = "₹" + (row.pricePaise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
     const title = row.metaTitle?.trim() || `${row.title} – Buy online at ${price}`;
-    const description = clip(row.metaDescription?.trim() || `Buy ${row.title} for ${price} from ${row.sellerName}, a verified seller on AzadiMart. ${clip(row.description, 90)} Cash on Delivery and easy returns.`);
+    const description = clip(row.metaDescription?.trim() || `Buy ${row.title} for ${price} from ${row.sellerName}, a verified seller on AzadiMart. ${clip(row.description || (row.specifications ?? []).slice(0, 4).map((r) => `${r.label}: ${r.value}`).join(", "), 90)} Cash on Delivery and easy returns.`);
     const image = row.imageKey ? absoluteUrl("/media/" + row.imageKey) : undefined;
     return {
       title,
@@ -76,6 +76,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
     title: products.title,
     slug: products.slug,
     description: products.description,
+    specifications: products.specifications,
     categoryId: products.categoryId,
     categoryName: categories.name,
     categorySlug: categories.slug,
@@ -167,9 +168,10 @@ export default async function ProductDetailPage({ params, searchParams }: { para
             "@context": "https://schema.org",
             "@type": "Product",
             name: first.title,
-            description: clip(first.description || first.title, 500),
+            description: clip(first.description || (first.specifications ?? []).map((r) => `${r.label}: ${r.value}`).join("; ") || first.title, 500),
             sku: selectedVariant.sku,
             category: first.categoryName,
+            ...(first.specifications?.length ? { additionalProperty: first.specifications.slice(0, 20).map((row) => ({ "@type": "PropertyValue", name: row.label, value: row.value })) } : {}),
             image: media.filter((m) => m.mediaKind === "IMAGE" && m.mediaStorageKey).slice(0, 8).map((m) => absoluteUrl("/media/" + m.mediaStorageKey)),
             offers: {
               "@type": "Offer",
@@ -296,6 +298,22 @@ export default async function ProductDetailPage({ params, searchParams }: { para
             </ul>
 
             {first.description ? <div className="mt-6"><p className="text-sm font-semibold">About this product</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-500">{first.description}</p></div> : null}
+            {first.specifications?.length ? (
+              <div className="mt-6">
+                <p className="text-sm font-semibold">Specifications</p>
+                {/* Seller rows are plain text rendered by React (escaped), never seller HTML. */}
+                <table className="mt-2 w-full overflow-hidden rounded-xl text-sm ring-1 ring-slate-200">
+                  <tbody>
+                    {first.specifications.map((row, i) => (
+                      <tr key={i} className={i % 2 ? "bg-white" : "bg-slate-50"}>
+                        <th scope="row" className="w-[38%] border-b border-slate-100 px-3 py-2.5 text-left align-top font-semibold text-slate-700">{row.label}</th>
+                        <td className="whitespace-pre-line border-b border-slate-100 px-3 py-2.5 align-top text-slate-600">{row.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
 
             <div className="mt-7">
               <AddToCart key={selectedVariant.variantId} variantId={selectedVariant.variantId} availableQuantity={availableQuantity} />

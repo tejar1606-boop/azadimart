@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { directUpload, readImageSize } from "@azadimart/ui";
+import { DescriptionStyleToggle, SpecTableEditor, directUpload, readImageSize, type SpecRow } from "@azadimart/ui";
 
 type Upload = { id: string; fileName: string; kind: "IMAGE" | "VIDEO"; url: string };
 const RECOMMENDED_PX = 1000;
@@ -11,6 +11,9 @@ export default function ProductBuilder() {
   const router = useRouter();
   const [step,setStep] = useState(0);
   const [form,setForm] = useState({title:"",description:"",categoryId:"",sku:"",variantTitle:"Default",price:"",compareAt:"",weightGrams:"",onHand:"0"});
+  // Product details: a normal text description or a specification table; only the chosen style is saved.
+  const [detailStyle,setDetailStyle] = useState<"text"|"table">("text");
+  const [specs,setSpecs] = useState<SpecRow[]>([]);
   const [images,setImages] = useState<Upload[]>([]);
   const [video,setVideo] = useState<Upload|null>(null);
   const [busy,setBusy] = useState(false);
@@ -43,7 +46,15 @@ export default function ProductBuilder() {
   }
 
   function validate(){
-    if(step===0&&(!form.title.trim()||!form.description.trim()||!form.categoryId.trim()))return "Complete title, description and category.";
+    if(step===0){
+      if(!form.title.trim()||!form.categoryId.trim())return "Complete the title and category.";
+      if(detailStyle==="text"&&!form.description.trim())return "Write a product description, or switch to a specification table.";
+      if(detailStyle==="table"){
+        const filled=specs.filter(r=>r.label.trim()||r.value.trim());
+        if(!filled.length)return "Add at least one row to the specification table (or paste a table).";
+        if(filled.some(r=>!r.label.trim()||!r.value.trim()))return "Every table row needs both a label and a value.";
+      }
+    }
     if(step===1&&images.length===0)return "Add at least one product image.";
     if(step===2&&(!form.sku.trim()||!form.price||Number(form.price)<0))return "Enter SKU and a valid selling price.";
     return "";
@@ -54,7 +65,9 @@ export default function ProductBuilder() {
     setBusy(true);setError("");setMessage("");
     try{
       const response=await fetch("/api/v1/products",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        title:form.title.trim(),description:form.description.trim(),categoryId:form.categoryId.trim(),
+        title:form.title.trim(),categoryId:form.categoryId.trim(),
+        description:detailStyle==="text"?form.description.trim():"",
+        specifications:detailStyle==="table"?specs.filter(r=>r.label.trim()&&r.value.trim()).map(r=>({label:r.label.trim(),value:r.value.trim()})):[],
         imageAssetIds:images.map(v=>v.id),videoAssetId:video?.id,
         variant:{sku:form.sku.trim(),title:form.variantTitle.trim()||"Default",pricePaise:Math.round(Number(form.price)*100),compareAtPaise:form.compareAt?Math.round(Number(form.compareAt)*100):undefined,weightGrams:Math.max(0,Math.floor(Number(form.weightGrams)||0)),onHand:Math.max(0,Math.floor(Number(form.onHand)||0))}
       })});
@@ -76,7 +89,13 @@ export default function ProductBuilder() {
         <Field label="Product title" value={form.title} onChange={v=>set("title",v)} wide/>
         <label className="text-sm font-semibold">Category<select className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm" value={form.categoryId} onChange={e=>set("categoryId",e.target.value)} disabled={categoryLoading} required><option value="">{categoryLoading?"Loading categories…":"Select category"}</option>{categories.map(category=><option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
         <Field label="SKU" value={form.sku} onChange={v=>set("sku",v)}/>
-        <label className="text-sm font-semibold sm:col-span-2">Description<textarea className="mt-2 min-h-36 w-full rounded-xl border border-slate-200 p-3" value={form.description} onChange={e=>set("description",e.target.value)} required/></label>
+        <div className="sm:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">Product details</p><DescriptionStyleToggle value={detailStyle} onChange={setDetailStyle}/></div>
+          <p className="mt-1 text-xs text-slate-500">{detailStyle==="text"?"Describe the product in your own words.":"Best for specifications like size, material and warranty. Paste a table or add rows."} Only the selected style is saved.</p>
+          <div className="mt-3">{detailStyle==="text"
+            ?<textarea className="min-h-36 w-full rounded-xl border border-slate-200 p-3" aria-label="Description" value={form.description} onChange={e=>set("description",e.target.value)}/>
+            :<SpecTableEditor rows={specs} onChange={setSpecs}/>}</div>
+        </div>
       </div>:null}
       {step===1?<div>
         <div className="flex items-end justify-between"><div><h2 className="text-xl font-black">Product media</h2><p className="mt-1 text-sm text-slate-500">Up to 8 square (1:1) images — {RECOMMENDED_PX} × {RECOMMENDED_PX} px or larger, JPG, PNG or high-quality WebP — and 1 video (MP4, WebM or MOV, any quality).</p></div><span className="text-xs text-slate-400">{images.length}/8 images</span></div>
@@ -94,7 +113,7 @@ export default function ProductBuilder() {
         <Field label="Package weight (grams)" value={form.weightGrams} onChange={v=>set("weightGrams",v)} inputMode="numeric"/>
         <Field label="Opening inventory" value={form.onHand} onChange={v=>set("onHand",v)} inputMode="numeric"/>
       </div>:null}
-      {step===3?<div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Ready for QC</p><h2 className="mt-2 text-2xl font-black">Review before creating your draft.</h2><div className="mt-5 grid gap-3 sm:grid-cols-2"><Summary label="Product" value={form.title||"—"}/><Summary label="Category" value={categories.find(category=>category.id===form.categoryId)?.name||"—"}/><Summary label="Images" value={String(images.length)}/><Summary label="Price" value={form.price?"₹"+form.price:"—"}/><Summary label="Package weight" value={form.weightGrams+" g"}/><Summary label="Opening stock" value={form.onHand}/></div><p className="mt-5 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">Draft products remain hidden from customers until they pass QC and are published by AzadiMart.</p></div>:null}
+      {step===3?<div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Ready for QC</p><h2 className="mt-2 text-2xl font-black">Review before creating your draft.</h2><div className="mt-5 grid gap-3 sm:grid-cols-2"><Summary label="Product" value={form.title||"—"}/><Summary label="Category" value={categories.find(category=>category.id===form.categoryId)?.name||"—"}/><Summary label="Product details" value={detailStyle==="table"?`Specification table · ${specs.filter(r=>r.label.trim()&&r.value.trim()).length} rows`:"Text description"}/><Summary label="Images" value={String(images.length)}/><Summary label="Price" value={form.price?"₹"+form.price:"—"}/><Summary label="Package weight" value={form.weightGrams+" g"}/><Summary label="Opening stock" value={form.onHand}/></div><p className="mt-5 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">Draft products remain hidden from customers until they pass QC and are published by AzadiMart.</p></div>:null}
       {busy&&step===1?<div className="mt-5"><p className="text-xs font-semibold text-slate-500">Uploading… {progress}%</p><div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-slate-950 transition-[width]" style={{width:progress+"%"}}/></div></div>:null}
       {error?<p className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>:null}{message?<p className="mt-5 rounded-xl bg-green-50 p-3 text-sm text-green-700">{message}</p>:null}
       <div className="mt-7 flex justify-between border-t border-slate-100 pt-5"><button type="button" disabled={step===0||busy} onClick={()=>setStep(v=>Math.max(0,v-1))} className="rounded-full border px-5 py-3 text-sm font-bold disabled:opacity-40">Back</button>{step<3?<button type="button" disabled={busy} onClick={()=>{const p=validate();if(p)setError(p);else setStep(v=>v+1)}} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:opacity-50">Continue</button>:<button type="button" disabled={busy} onClick={()=>void create()} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:opacity-50">{busy?"Creating…":"Create draft product"}</button>}</div>

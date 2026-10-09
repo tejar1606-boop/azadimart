@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { directUpload, PortalPageHeader, readImageSize } from "@azadimart/ui";
+import { DescriptionStyleToggle, directUpload, PortalPageHeader, readImageSize, SpecTableEditor, type SpecRow } from "@azadimart/ui";
 import SeoFields from "../../_components/seo-fields";
 
 type Variant = { id: string; title: string; sku: string; pricePaise: number; compareAtPaise: number | null; weightGrams: number; isActive: boolean; onHand: number; reserved: number };
 type Media = { mediaAssetId: string; kind: "IMAGE" | "VIDEO"; url: string };
 type Detail = {
-  product: { id: string; title: string; slug: string; description: string | null; metaTitle: string | null; metaDescription: string | null; status: string; categoryId: string; sellerName: string };
+  product: { id: string; title: string; slug: string; description: string | null; specifications: SpecRow[]; metaTitle: string | null; metaDescription: string | null; status: string; categoryId: string; sellerName: string };
   variants: Variant[];
   media: Media[];
   categories: Array<{ id: string; name: string; isActive: boolean }>;
@@ -27,6 +27,8 @@ export default function ProductEditor({ productId, storefrontUrl }: { productId:
   const [data, setData] = useState<Detail | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [detailStyle, setDetailStyle] = useState<"text" | "table">("text");
+  const [specs, setSpecs] = useState<SpecRow[]>([]);
   const [metaTitle, setMetaTitle] = useState("");
   const [metaDescription, setMetaDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -48,6 +50,8 @@ export default function ProductEditor({ productId, storefrontUrl }: { productId:
     setData(body);
     setTitle(body.product.title);
     setDescription(body.product.description ?? "");
+    setSpecs(body.product.specifications ?? []);
+    setDetailStyle(body.product.specifications?.length ? "table" : "text");
     setMetaTitle(body.product.metaTitle ?? "");
     setMetaDescription(body.product.metaDescription ?? "");
     setCategoryId(body.product.categoryId);
@@ -79,7 +83,10 @@ export default function ProductEditor({ productId, storefrontUrl }: { productId:
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title, description, categoryId, metaTitle, metaDescription,
+          title, categoryId, metaTitle, metaDescription,
+          // Only the selected details style is saved.
+          description: detailStyle === "text" ? description : "",
+          specifications: detailStyle === "table" ? specs.filter((r) => r.label.trim() && r.value.trim()) : [],
           variants: variants.map((v) => ({ id: v.id, title: v.title, sku: v.sku, pricePaise: toPaise(v.price), compareAtPaise: v.mrp ? toPaise(v.mrp) : null, weightGrams: Number(v.weightGrams) || 0, onHand: Number(v.onHand) || 0, isActive: v.isActive })),
           imageAssetIds: images.map((m) => m.mediaAssetId),
           videoAssetId: video?.mediaAssetId ?? null,
@@ -156,7 +163,13 @@ export default function ProductEditor({ productId, storefrontUrl }: { productId:
                   {data.categories.filter((c) => c.isActive || c.id === categoryId).map((c) => <option key={c.id} value={c.id}>{c.name}{c.isActive ? "" : " (inactive)"}</option>)}
                 </select>
               </label>
-              <label className="text-sm font-medium">Description<textarea className={field + " min-h-36"} value={description} maxLength={20000} onChange={(e) => setDescription(e.target.value)} /></label>
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-medium">Product details</p><DescriptionStyleToggle value={detailStyle} onChange={setDetailStyle} /></div>
+                <p className="mt-1 text-xs text-slate-500">Only the selected style is saved{detailStyle === "table" && description ? " (the text description will be removed)" : detailStyle === "text" && specs.length ? " (the specification table will be removed)" : ""}.</p>
+                <div className="mt-2">{detailStyle === "text"
+                  ? <textarea className={field + " min-h-36"} aria-label="Description" value={description} maxLength={20000} onChange={(e) => setDescription(e.target.value)} />
+                  : <SpecTableEditor rows={specs} onChange={setSpecs} />}</div>
+              </div>
             </div>
           </section>
 

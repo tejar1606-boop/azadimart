@@ -127,6 +127,13 @@
       "when": 1791529060035,
       "tag": "20261009065740_offer_tags",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791535332196,
+      "tag": "20261009084212_product_specifications",
+      "breakpoints": true
     }
   ]
 }

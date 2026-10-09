@@ -44,9 +44,15 @@ export const sellerShippingSettingsSchema = z.object({
   }),
 });
 
+/** Specification table rows (label/value, plain text). Up to 40 rows. */
+export const specRowsSchema = z.array(z.object({
+  label: z.string().trim().min(1, "Every row needs a label").max(60, "Keep labels under 60 characters"),
+  value: z.string().trim().min(1, "Every row needs a value").max(500, "Keep each value under 500 characters"),
+})).max(40, "Add up to 40 specification rows").default([]);
 export const productDraftSchema = z.object({
   title:z.string().trim().min(3).max(200),
   description:z.string().trim().max(20000).optional(),
+  specifications:specRowsSchema.optional(),
   categoryId:uuidSchema,
   imageAssetIds:z.array(uuidSchema).min(1).max(PRODUCT_MEDIA_LIMITS.maxImages).refine((ids)=>new Set(ids).size===ids.length,"Duplicate image assets are not allowed"),
   videoAssetId:uuidSchema.optional(),
@@ -184,6 +190,7 @@ export const mediaUploadCompleteSchema = z.object({ token: z.string().min(10).ma
 export const adminProductUpdateSchema = z.object({
   title: z.string().trim().min(3).max(200),
   description: z.string().trim().max(20000).optional().default(""),
+  specifications: specRowsSchema.optional(),
   categoryId: uuidSchema,
   variants: z.array(z.object({
     id: uuidSchema,

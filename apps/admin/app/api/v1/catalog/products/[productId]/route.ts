@@ -22,7 +22,7 @@ export async function GET(request: Request, { params }: Params) {
   try {
     const { db, productId } = await admin(request, params);
     const product = (await db.select({
-      id: products.id, title: products.title, slug: products.slug, description: products.description, metaTitle: products.metaTitle, metaDescription: products.metaDescription, status: products.status,
+      id: products.id, title: products.title, slug: products.slug, description: products.description, specifications: products.specifications, metaTitle: products.metaTitle, metaDescription: products.metaDescription, status: products.status,
       categoryId: products.categoryId, sellerId: products.sellerId, sellerName: sellers.storeName, updatedAt: products.updatedAt,
     }).from(products).innerJoin(sellers, eq(sellers.id, products.sellerId)).where(eq(products.id, productId)).limit(1))[0];
     if (!product) throw new AppError("NOT_FOUND", "Product not found");
@@ -70,7 +70,7 @@ export async function PATCH(request: Request, { params }: Params) {
       if (input.imageAssetIds.some((id) => kinds.get(id) !== "IMAGE")) throw new AppError("VALIDATION_ERROR", "Every image must be an uploaded image");
       if (input.videoAssetId && kinds.get(input.videoAssetId) !== "VIDEO") throw new AppError("VALIDATION_ERROR", "The video must be an uploaded video");
 
-      await tx.update(products).set({ title: input.title, description: input.description || null, metaTitle: input.metaTitle || null, metaDescription: input.metaDescription || null, categoryId: input.categoryId, updatedAt: new Date() }).where(eq(products.id, productId));
+      await tx.update(products).set({ title: input.title, description: input.description || null, specifications: input.specifications ?? [], metaTitle: input.metaTitle || null, metaDescription: input.metaDescription || null, categoryId: input.categoryId, updatedAt: new Date() }).where(eq(products.id, productId));
 
       const existing = await tx.select({ id: productVariants.id, pricePaise: productVariants.pricePaise, compareAtPaise: productVariants.compareAtPaise, isActive: productVariants.isActive }).from(productVariants).where(eq(productVariants.productId, productId));
       const owned = new Map(existing.map((v) => [v.id, v]));
