@@ -1,4 +1,4 @@
-import { adBids, adBudget, adCampaigns, adSlots, categories, mediaAssets, products, sellerCharges } from "@azadimart/database";
+import { adBids, adBudget, adCampaigns, adSlots, categories, mediaAssets, payouts, products, sellerCharges } from "@azadimart/database";
 import { settleAdAuctions } from "@azadimart/notify";
 import { AD_PLACEMENT_LABELS, istDayKey, toApiError, type AdPlacement } from "@azadimart/shared";
 import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
@@ -25,8 +25,11 @@ export async function GET(request: Request) {
       db.select({ id: adBids.id, slotId: adBids.slotId, slotName: adSlots.name, campaignId: adBids.campaignId, day: adBids.day, amountPaise: adBids.amountPaise, kind: adBids.kind, status: adBids.status, impressions: adBids.impressions, clicks: adBids.clicks })
         .from(adBids).innerJoin(adSlots, eq(adSlots.id, adBids.slotId)).where(and(eq(adBids.sellerId, sellerId), gte(adBids.day, istDayKey(new Date(Date.now() - 60 * 864e5))), inArray(adBids.status, ["ACTIVE", "OUTBID", "WON", "LOST", "CANCELLED"])))
         .orderBy(desc(adBids.day)).limit(300),
-      db.select({ id: sellerCharges.id, description: sellerCharges.description, amountPaise: sellerCharges.amountPaise, status: sellerCharges.status, createdAt: sellerCharges.createdAt })
-        .from(sellerCharges).where(eq(sellerCharges.sellerId, sellerId)).orderBy(desc(sellerCharges.createdAt)).limit(100),
+      // Each charge with the ad day it was for, its results, and the payment it was taken from.
+      db.select({ id: sellerCharges.id, description: sellerCharges.description, basePaise: sellerCharges.basePaise, gstPaise: sellerCharges.gstPaise, amountPaise: sellerCharges.amountPaise, status: sellerCharges.status, createdAt: sellerCharges.createdAt,
+        day: adBids.day, slotName: adSlots.name, impressions: adBids.impressions, clicks: adBids.clicks, paidAt: payouts.paidAt })
+        .from(sellerCharges).leftJoin(adBids, eq(adBids.id, sellerCharges.referenceId)).leftJoin(adSlots, eq(adSlots.id, adBids.slotId)).leftJoin(payouts, eq(payouts.id, sellerCharges.payoutId))
+        .where(eq(sellerCharges.sellerId, sellerId)).orderBy(desc(sellerCharges.createdAt)).limit(100),
       adBudget(db, sellerId),
     ]);
     // A seller may have bid several times on a day; show their best/latest state per day.

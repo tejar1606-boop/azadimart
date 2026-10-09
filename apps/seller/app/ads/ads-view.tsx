@@ -7,7 +7,7 @@ import { adNeedsBanner } from "@azadimart/shared";
 type Slot = { id: string; name: string; placement: string; categoryName: string | null; placementLabel: string; description: string; basePricePaise: number; buyNowPricePaise: number | null; bidIncrementPaise: number; closeHoursBefore: number };
 type Campaign = { id: string; slotId: string; productId: string; productTitle: string; headline: string; status: "PENDING_REVIEW" | "APPROVED" | "REJECTED"; reviewNote: string | null; desktopImageAssetId: string | null; mobileImageAssetId: string | null; desktopImageUrl: string | null; mobileImageUrl: string | null };
 type Bid = { id: string; slotId: string; slotName: string; campaignId: string; day: string; amountPaise: number; kind: string; status: "ACTIVE" | "OUTBID" | "WON" | "LOST" | "CANCELLED"; impressions: number; clicks: number };
-type Charge = { id: string; description: string; amountPaise: number; status: string; createdAt: string };
+type Charge = { id: string; description: string; basePaise: number; gstPaise: number; amountPaise: number; status: string; createdAt: string; day: string | null; slotName: string | null; impressions: number | null; clicks: number | null; paidAt: string | null };
 type Data = { today: string; slots: Slot[]; campaigns: Campaign[]; bids: Bid[]; charges: Charge[]; budget: { creditLimitPaise: number; earningsPaise: number; usedPaise: number; availablePaise: number }; totals: { impressions: number; clicks: number; pendingChargesPaise: number } };
 type Day = { day: string; status: "OPEN" | "BIDDING" | "BOOKED" | "CLOSED" | "UNAVAILABLE"; closesAt: string; topBidPaise: number | null; bidCount: number; minimumBidPaise: number; buyNowPaise: number | null; mine: { status: string; amountPaise: number } | null };
 type Product = { id: string; title: string; status: string };
@@ -292,8 +292,28 @@ export default function AdsView() {
       {data.charges.length ? (
         <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card">
           <h2 className="font-semibold">Ad charges</h2>
-          <ul className="mt-2 divide-y divide-slate-100 text-sm">
-            {data.charges.map((c) => <li key={c.id} className="flex justify-between gap-3 py-2"><span className="text-slate-600">{c.description}</span><span className="shrink-0 font-semibold">{money(c.amountPaise)} <span className="text-[11px] font-medium text-slate-400">{c.status === "PENDING" ? "next payment" : c.status === "SETTLED" ? "paid" : "waived"}</span></span></li>)}
+          <p className="mt-1 text-xs leading-5 text-slate-500">After each day your ad runs, its price plus 18% GST is charged. You don&apos;t pay separately: it&apos;s taken from your next payment for orders. Days your ad didn&apos;t run aren&apos;t charged.</p>
+          <ul className="mt-3 space-y-2">
+            {data.charges.map((c) => {
+              const base = c.basePaise || c.amountPaise;
+              const status = c.status === "PENDING" ? { label: "Will be taken from your next payment", tone: "bg-amber-50 text-amber-800" }
+                : c.status === "SETTLED" ? { label: c.paidAt ? `Taken from your payment of ${new Date(c.paidAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : "Taken from your payment", tone: "bg-green-50 text-green-700" }
+                : { label: "Waived by AzadiMart", tone: "bg-slate-100 text-slate-600" };
+              return (
+                <li key={c.id} className="flex flex-col gap-2 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">{c.slotName ?? "Ad"}{c.day ? ` · ${dayLabel(c.day)}` : ""}</p>
+                    <p className="text-xs text-slate-500">{c.impressions != null ? `${c.impressions.toLocaleString("en-IN")} views · ${(c.clicks ?? 0).toLocaleString("en-IN")} clicks` : c.description}</p>
+                    <span className={"mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold " + status.tone}>{status.label}</span>
+                  </div>
+                  <div className="shrink-0 text-left text-xs text-slate-500 sm:text-right">
+                    <p>Ad price {money(base)}</p>
+                    <p>GST (18%) {money(c.gstPaise)}</p>
+                    <p className="mt-0.5 text-sm font-semibold text-slate-900">Total {money(c.amountPaise)}</p>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </section>
       ) : null}

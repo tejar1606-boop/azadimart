@@ -54,6 +54,14 @@ const extraSlots = [];
 const giveBack = async () => {
   await sql`update products set seller_id = ${me.id} where id = ${lent.product_id}`;
   // Remove this run's ad space with its ads and bids (charges keep their history).
+  // Test ad charges come off again (and back into the payout they were taken from), so demo sellers only see real ones.
+  for (const id of [slotId, ...extraSlots].filter(Boolean)) {
+    const charges = await sql`select c.id, c.amount_paise, c.payout_id, c.status from seller_charges c join ad_bids b on b.id = c.reference_id where c.kind = 'AD' and b.slot_id = ${id}`;
+    for (const c of charges) {
+      if (c.payout_id && c.status === "SETTLED") await sql`update payouts set amount_paise = amount_paise + ${c.amount_paise}, charges_paise = greatest(0, charges_paise - ${c.amount_paise}), deductions_paise = greatest(0, deductions_paise - ${c.amount_paise}) where id = ${c.payout_id}`;
+      await sql`delete from seller_charges where id = ${c.id}`;
+    }
+  }
   for (const id of [slotId, ...extraSlots].filter(Boolean)) {
     await sql`delete from ad_bids where slot_id = ${id}`;
     await sql`delete from ad_campaigns where slot_id = ${id}`;
