@@ -140,7 +140,8 @@ export function PortalShell({
         </div>
       ) : null}
 
-      <div className="min-w-0 flex-1">{children}</div>
+      {/* On very wide screens content stops at 1600px and stays centred beside the sidebar. */}
+      <div className="min-w-0 flex-1"><div className="mx-auto w-full max-w-[1600px]">{children}</div></div>
     </div>
   );
 }

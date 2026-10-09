@@ -147,7 +147,7 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+    <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Seller dashboard</p>
