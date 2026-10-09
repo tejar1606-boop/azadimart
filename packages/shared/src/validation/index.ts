@@ -270,3 +270,5 @@ export const offerTagSchema = z.object({
   priority: z.number().int().min(0).max(100).optional().default(0),
   isActive: z.boolean().optional().default(true),
 }).refine((v) => !v.endsAt || !v.startsAt || new Date(v.endsAt) > new Date(v.startsAt), { message: "The end date must be after the start", path: ["endsAt"] });
+/** Admin records a manual abandoned-cart reminder. */
+export const cartReminderSchema = z.object({ channel: z.enum(["WHATSAPP", "EMAIL"]), couponCode: z.string().trim().max(32).optional() });

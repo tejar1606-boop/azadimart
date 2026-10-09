@@ -32,6 +32,9 @@ export const carts = pgTable(
   {
     id,
     customerId: uuid("customer_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
+    // Abandoned-cart recovery: when the last reminder was sent and how many in total.
+    lastReminderAt: timestamp("last_reminder_at", { withTimezone: true }),
+    reminderCount: integer("reminder_count").notNull().default(0),
     ...timestamps,
   },
   (table) => [uniqueIndex("carts_customer_id_unique").on(table.customerId)],

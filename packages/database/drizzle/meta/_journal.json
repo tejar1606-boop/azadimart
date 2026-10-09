@@ -134,6 +134,13 @@
       "when": 1791535332196,
       "tag": "20261009084212_product_specifications",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791562672152,
+      "tag": "20261009161752_cart_reminders",
+      "breakpoints": true
     }
   ]
 }
