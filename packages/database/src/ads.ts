@@ -1,7 +1,9 @@
-import { AD_BOOKING_DAYS_AHEAD, addDays, biddingClosesAt, istDayKey, minimumNextBid } from "@azadimart/shared";
+import { AD_BOOKING_DAYS_AHEAD, AD_DEFAULT_CREDIT_LIMIT_PAISE, adChargeFor, addDays, biddingClosesAt, istDayKey, minimumNextBid } from "@azadimart/shared";
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import type { Database } from "./client";
 import { adBids, adCampaigns, adSlotClosedDays, adSlots, sellerCharges } from "./schema/ads";
+import { sellers } from "./schema/sellers";
+import { unpaidSettlementLines } from "./settlements";
 
 /**
  * Ad auctions. Each slot-day is its own auction (see @azadimart/shared ads).
@@ -80,6 +82,28 @@ export async function adCalendar(db: Database, slotId: string, options: { seller
   return { slot, days };
 }
 
+/**
+ * What a seller can still commit to ads: their upcoming earnings (delivered
+ * orders not yet paid out) plus their ad credit, minus what they already owe
+ * or have committed (charges not yet taken, booked days not yet charged and
+ * live top bids), all including GST. Ad charges are taken from payouts, so
+ * this keeps a seller from running up charges they can't cover.
+ */
+export async function adBudget(db: Database, sellerId: string, now = new Date()) {
+  const [seller, lines, pending, committed] = await Promise.all([
+    db.select({ limit: sellers.adCreditLimitPaise }).from(sellers).where(eq(sellers.id, sellerId)).limit(1).then((r) => r[0]),
+    unpaidSettlementLines(db, { sellerId }),
+    db.select({ total: sql<number>`coalesce(sum(${sellerCharges.amountPaise}), 0)::int` }).from(sellerCharges).where(and(eq(sellerCharges.sellerId, sellerId), eq(sellerCharges.status, "PENDING"))),
+    db.select({ total: sql<number>`coalesce(sum(${adBids.amountPaise}), 0)::int` }).from(adBids)
+      .where(and(eq(adBids.sellerId, sellerId), inArray(adBids.status, ["ACTIVE", "WON"]), gte(adBids.day, addDays(istDayKey(now), -3)),
+        sql`not exists (select 1 from seller_charges c where c.kind = 'AD' and c.reference_id = ${adBids.id})`)),
+  ]);
+  const creditLimitPaise = seller?.limit ?? AD_DEFAULT_CREDIT_LIMIT_PAISE;
+  const earningsPaise = lines.filter((l) => !l.openReturn).reduce((s, l) => s + l.breakdown.netPaise, 0);
+  const usedPaise = (pending[0]?.total ?? 0) + adChargeFor(committed[0]?.total ?? 0).totalPaise;
+  return { creditLimitPaise, earningsPaise, usedPaise, availablePaise: Math.max(0, earningsPaise + creditLimitPaise - usedPaise) };
+}
+
 export type BidResult = { day: string; ok: boolean; status?: "ACTIVE" | "WON"; amountPaise?: number; reason?: string };
 
 /** Places a bid (or books instantly) on each requested day. Each day succeeds or fails on its own. */
@@ -92,12 +116,19 @@ export async function placeAdBids(db: Database, input: { sellerId: string; campa
   const slot = (await db.select().from(adSlots).where(eq(adSlots.id, campaign.slotId)).limit(1))[0]!;
   const today = istDayKey(now), lastDay = addDays(today, AD_BOOKING_DAYS_AHEAD - 1);
   const results: BidResult[] = [];
+  let available = (await adBudget(db, input.sellerId, now)).availablePaise;
 
   for (const day of [...input.days].sort()) {
     const fail = (reason: string) => results.push({ day, ok: false, reason });
     if (!slot.isActive) { fail("This ad space isn't on sale right now"); continue; }
     if (day < today || day > lastDay) { fail(`Pick a day within the next ${AD_BOOKING_DAYS_AHEAD} days`); continue; }
     if (biddingClosesAt(day, slot.closeHoursBefore) <= now) { fail("Bidding for this day has closed"); continue; }
+    let extra = 0;
+    // Budget check (with GST), once the day is known to be available: raising your own top bid only needs the difference.
+    const overBudget = (price: number, own: number) => {
+      extra = adChargeFor(Math.max(0, price - own)).totalPaise;
+      return extra > available ? { ok: false as const, reason: `This is more than your ad budget (₹${Math.floor(available / 100).toLocaleString("en-IN")} left, including GST). It grows with your sales; AzadiMart can also raise your limit.` } : null;
+    };
     try {
       const result = await db.transaction(async (tx) => {
         await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${slot.id + ":" + day}, 0))`);
@@ -116,6 +147,8 @@ export async function placeAdBids(db: Database, input: { sellerId: string; campa
         if (input.mode === "BUY_NOW") {
           if (slot.buyNowPricePaise == null) return { ok: false as const, reason: "Book now isn't offered for this ad space; place a bid" };
           if (top && top.amountPaise >= slot.buyNowPricePaise) return { ok: false as const, reason: "Bids are already above the book-now price; place a higher bid" };
+          const budget = overBudget(slot.buyNowPricePaise, top?.sellerId === input.sellerId ? top.amountPaise : 0);
+          if (budget) return budget;
           await beat("LOST");
           const others = await tx.update(adBids).set({ status: "LOST", updatedAt: now })
             .where(and(eq(adBids.slotId, slot.id), eq(adBids.day, day), eq(adBids.status, "OUTBID"))).returning();
@@ -128,16 +161,20 @@ export async function placeAdBids(db: Database, input: { sellerId: string; campa
         const amount = input.amountPaise ?? 0;
         if (top?.sellerId === input.sellerId) {
           if (amount <= top.amountPaise) return { ok: false as const, reason: "You're already the top bidder; enter a higher amount to raise it" };
+          const budget = overBudget(amount, top.amountPaise);
+          if (budget) return budget;
           await tx.update(adBids).set({ amountPaise: amount, campaignId: campaign.id, updatedAt: now }).where(eq(adBids.id, top.id));
           return { ok: true as const, status: "ACTIVE" as const, amountPaise: amount, events: dayEvents };
         }
         const minimum = minimumNextBid(slot, top?.amountPaise ?? null);
         if (amount < minimum) return { ok: false as const, reason: `Bid at least ₹${(minimum / 100).toLocaleString("en-IN")}` };
+        const budget = overBudget(amount, 0);
+        if (budget) return budget;
         await beat("OUTBID");
         await tx.insert(adBids).values({ slotId: slot.id, campaignId: campaign.id, sellerId: input.sellerId, day, amountPaise: amount, kind: "BID", status: "ACTIVE" });
         return { ok: true as const, status: "ACTIVE" as const, amountPaise: amount, events: dayEvents };
       });
-      if (result.ok) { results.push({ day, ok: true, status: result.status, amountPaise: result.amountPaise }); events.push(...result.events); }
+      if (result.ok) { results.push({ day, ok: true, status: result.status, amountPaise: result.amountPaise }); events.push(...result.events); available -= extra; }
       else fail(result.reason);
     } catch {
       fail("Someone else just took this day; refresh and try again");
@@ -158,18 +195,19 @@ export async function chargeFinishedAdDays(db: Database, now = new Date()): Prom
       sql`not exists (select 1 from seller_charges c where c.kind = 'AD' and c.reference_id = ${adBids.id})`));
   const events: AdEvent[] = [];
   for (const { bid, slotName } of finished) {
+    const charge = adChargeFor(bid.amountPaise);
     const inserted = await db.insert(sellerCharges).values({
-      sellerId: bid.sellerId, kind: "AD", referenceId: bid.id, amountPaise: bid.amountPaise,
-      description: `Ad: ${slotName} on ${bid.day} (${bid.impressions.toLocaleString("en-IN")} views, ${bid.clicks.toLocaleString("en-IN")} clicks)`,
+      sellerId: bid.sellerId, kind: "AD", referenceId: bid.id, basePaise: charge.basePaise, gstPaise: charge.gstPaise, amountPaise: charge.totalPaise,
+      description: `Ad: ${slotName} on ${bid.day} (${bid.impressions.toLocaleString("en-IN")} views, ${bid.clicks.toLocaleString("en-IN")} clicks) · ₹${(charge.basePaise / 100).toLocaleString("en-IN")} + ₹${(charge.gstPaise / 100).toLocaleString("en-IN")} GST`,
     }).onConflictDoNothing().returning({ id: sellerCharges.id });
-    if (inserted.length) events.push({ kind: "CHARGED", sellerId: bid.sellerId, slotName, day: bid.day, amountPaise: bid.amountPaise, bidId: bid.id });
+    if (inserted.length) events.push({ kind: "CHARGED", sellerId: bid.sellerId, slotName, day: bid.day, amountPaise: charge.totalPaise, bidId: bid.id });
   }
   return events;
 }
 
 /** Ads to show today in a placement: approved, won, active slots. */
 export async function liveAds(db: Database, placement: string, now = new Date()) {
-  return db.select({ bidId: adBids.id, slotId: adSlots.id, slotName: adSlots.name, campaignId: adCampaigns.id, productId: adCampaigns.productId, headline: adCampaigns.headline, desktopImageAssetId: adCampaigns.desktopImageAssetId, mobileImageAssetId: adCampaigns.mobileImageAssetId })
+  return db.select({ bidId: adBids.id, slotId: adSlots.id, slotName: adSlots.name, categoryId: adSlots.categoryId, campaignId: adCampaigns.id, productId: adCampaigns.productId, headline: adCampaigns.headline, desktopImageAssetId: adCampaigns.desktopImageAssetId, mobileImageAssetId: adCampaigns.mobileImageAssetId })
     .from(adBids).innerJoin(adSlots, eq(adSlots.id, adBids.slotId)).innerJoin(adCampaigns, eq(adCampaigns.id, adBids.campaignId))
     .where(and(eq(adSlots.placement, placement), eq(adSlots.isActive, true), eq(adBids.status, "WON"), eq(adBids.day, istDayKey(now)), eq(adCampaigns.status, "APPROVED")))
     .orderBy(adSlots.createdAt);

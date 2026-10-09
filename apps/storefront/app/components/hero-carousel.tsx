@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { countAdView } from "../lib/ad-tracking";
 
 export type HeroSlide = {
   desktopImageUrl?: string;
@@ -15,15 +16,6 @@ export type HeroSlide = {
   sponsoredId?: string;
 };
 
-/** Counts one view per ad per browser session. */
-function countView(id: string) {
-  try {
-    const key = "azm-ad-" + id;
-    if (sessionStorage.getItem(key)) return;
-    sessionStorage.setItem(key, "1");
-  } catch { /* storage blocked: still count */ }
-  void fetch("/api/v1/ads/impression", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bidId: id }), keepalive: true }).catch(() => undefined);
-}
 
 const INTERVAL_MS = 4000;
 
@@ -85,7 +77,7 @@ export default function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
 
   const shownId = slides[index]?.sponsoredId;
   useEffect(() => {
-    if (shownId && !tabHidden) countView(shownId);
+    if (shownId && !tabHidden) countAdView(shownId);
   }, [shownId, tabHidden]);
 
   if (!count) return null;

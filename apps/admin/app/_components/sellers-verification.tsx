@@ -28,7 +28,8 @@ const words = (v: string) => v.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s
 const nameMatches = (aadhaarName: string, legalName: string) => words(aadhaarName).some((w) => words(legalName).includes(w));
 
 type Detail = {
-  seller: Seller & { pan: string | null; payoutHoldReason?: string | null };
+  seller: Seller & { pan: string | null; payoutHoldReason?: string | null; adCreditLimitPaise?: number | null };
+  adBudget?: { creditLimitPaise: number; earningsPaise: number; usedPaise: number; availablePaise: number };
   bankAccount: { accountHolderName: string; last4: string; ifsc: string; status: "PENDING" | "VERIFIED" | "REJECTED"; rejectionReason: string | null; addedAt: string } | null;
   verification: {
     status: string;
@@ -107,6 +108,19 @@ export default function SellersPage() {
       if (!response.ok) throw new Error(json?.error?.message ?? "Action failed.");
       await loadDetail(selectedId);
     } catch (err) { setError(err instanceof Error ? err.message : "Action failed."); } finally { setActionLoading(false); }
+  }
+  function setAdCredit() {
+    const current = detail?.seller.adCreditLimitPaise;
+    const value = window.prompt("Ad credit for this seller in ₹ (leave empty for AzadiMart's default of ₹5,000). Ads they can book = upcoming earnings + this credit.", current != null ? String(current / 100) : "");
+    if (value === null) return;
+    const rupees = value.trim() === "" ? null : Number(value.replace(/[^\d]/g, ""));
+    if (rupees !== null && !Number.isFinite(rupees)) return;
+    if (!selectedId) return;
+    setActionLoading(true); setError("");
+    fetch(`/api/v1/sellers/${selectedId}/ad-credit`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ limitPaise: rupees === null ? null : rupees * 100 }) })
+      .then(async (response) => { if (!response.ok) throw new Error((await response.json().catch(() => null))?.error?.message ?? "Couldn't save"); await loadDetail(selectedId); })
+      .catch((err) => setError(err instanceof Error ? err.message : "Couldn't save"))
+      .finally(() => setActionLoading(false));
   }
   function rejectBank() {
     const reason = window.prompt("Why is this bank account rejected? The seller will see this.", "Name doesn't match the bank proof");
@@ -288,6 +302,12 @@ export default function SellersPage() {
                     {detail.bankAccount.status === "PENDING" ? <p className="mt-2 text-xs text-ink-muted">Check the name, last 4 digits and IFSC against the BANK PROOF document below before verifying.</p> : null}
                   </div>
                 ) : <p className="mt-2 text-sm text-ink-muted">No bank account added yet. Payouts wait until the seller adds one in Payments.</p>}
+                {detail.adBudget ? (
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-sm">
+                    <span><b>Ad budget</b> {"₹" + (detail.adBudget.availablePaise / 100).toLocaleString("en-IN")} available<span className="block text-xs text-ink-muted">Earnings {"₹" + (detail.adBudget.earningsPaise / 100).toLocaleString("en-IN")} + credit {"₹" + (detail.adBudget.creditLimitPaise / 100).toLocaleString("en-IN")}{detail.seller.adCreditLimitPaise == null ? " (default)" : ""} − {"₹" + (detail.adBudget.usedPaise / 100).toLocaleString("en-IN")} committed</span></span>
+                    <button type="button" disabled={actionLoading} onClick={setAdCredit} className="rounded-full px-3 py-1.5 text-xs font-bold ring-1 ring-slate-300 disabled:opacity-40">Change ad credit</button>
+                  </div>
+                ) : null}
               </div>
 
               <div className="mt-7">

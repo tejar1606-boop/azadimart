@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adBidSchema, adSlotSchema, addDays, biddingClosesAt, istDayKey, istDayStart, minimumNextBid } from "./ads";
+import { adBidSchema, adChargeFor, adSlotSchema, addDays, biddingClosesAt, istDayKey, istDayStart, minimumNextBid } from "./ads";
 
 describe("ad calendar (India time)", () => {
   it("uses the IST calendar day", () => {
@@ -29,5 +29,18 @@ describe("ad inputs", () => {
     expect(adBidSchema.safeParse({ campaignId: id, days: ["2026-10-14"], mode: "BID" }).success).toBe(false);
     expect(adBidSchema.safeParse({ campaignId: id, days: ["2026-10-14", "2026-10-14"], mode: "BID", amountPaise: 60_000 }).success).toBe(false);
     expect(adBidSchema.safeParse({ campaignId: id, days: ["2026-10-14", "2026-10-15", "2026-10-16"], mode: "BUY_NOW" }).success).toBe(true);
+  });
+});
+
+describe("ad placements and charges", () => {
+  const base = { name: "Category top", basePricePaise: 20_000, bidIncrementPaise: 5_000, closeHoursBefore: 12 };
+  it("category placements need a category; others mustn't have one", () => {
+    const cat = "6f1c8f2e-3b8a-4c5d-9e7f-1a2b3c4d5e6f";
+    expect(adSlotSchema.safeParse({ ...base, placement: "CATEGORY_TOP" }).success).toBe(false);
+    expect(adSlotSchema.safeParse({ ...base, placement: "CATEGORY_TOP", categoryId: cat }).success).toBe(true);
+    expect(adSlotSchema.safeParse({ ...base, placement: "SEARCH_TOP", categoryId: cat }).success).toBe(false);
+  });
+  it("adds 18% GST to the ad fee", () => {
+    expect(adChargeFor(50_000)).toEqual({ basePaise: 50_000, gstPaise: 9_000, totalPaise: 59_000 });
   });
 });

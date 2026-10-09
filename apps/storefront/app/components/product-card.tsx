@@ -18,6 +18,8 @@ export type ProductCardData = {
   ratingTotal?: number | null;
   /** Highlighted offer badge (admin offer tag or "Price drop"). */
   badge?: { label: string; tone: string; kind: "tag" | "price_drop" } | null;
+  /** A seller's paid placement: labelled "Sponsored"; the link counts the click. */
+  sponsoredHref?: string;
 };
 
 export const formatPrice = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -29,8 +31,9 @@ export function discountPercent(pricePaise: number, compareAtPaise?: number | nu
 
 export default function ProductCard({ product, priority = false, sizes = "(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 22vw" }: { product: ProductCardData; priority?: boolean; sizes?: string }) {
   const off = discountPercent(product.pricePaise, product.compareAtPaise);
-  return (
-    <Link href={"/products/" + product.slug} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition duration-300 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
+  const cardClass = "group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition duration-300 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand";
+  const body = (
+    <>
       <div className="relative aspect-square overflow-hidden bg-slate-100">
         {product.mediaStorageKey ? (
           <Image
@@ -49,6 +52,7 @@ export default function ProductCard({ product, priority = false, sizes = "(max-w
       </div>
       {/* Details: the name always reserves two lines so every card has the same shape and the price lines up. */}
       <div className="flex flex-1 flex-col px-3 pb-3 pt-2.5 sm:px-3.5">
+        {product.sponsoredHref ? <p className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-slate-500">Sponsored</p> : null}
         {product.sellerName ? <p className="truncate text-[10.5px] font-medium uppercase tracking-[0.06em] text-slate-400">{product.sellerName}</p> : null}
         <p className="mt-0.5 line-clamp-2 min-h-10 text-[13px] leading-5 text-slate-800 sm:text-sm">{product.title}</p>
         {product.reviewCount ? <span className="mt-1.5"><RatingPill average={(product.ratingTotal ?? 0) / product.reviewCount} count={product.reviewCount} compact /></span> : null}
@@ -62,6 +66,10 @@ export default function ProductCard({ product, priority = false, sizes = "(max-w
           ) : null}
         </div>
       </div>
-    </Link>
+    </>
   );
+  // Plain link (no prefetch) for sponsored cards so only real clicks are counted.
+  return product.sponsoredHref
+    ? <a href={product.sponsoredHref} rel="sponsored" className={cardClass}>{body}</a>
+    : <Link href={"/products/" + product.slug} className={cardClass}>{body}</Link>;
 }

@@ -45,19 +45,21 @@ await sellerA("/api/auth/login", { method: "POST", body: { email: "demo.seller@a
 const loginB = await sellerB("/api/auth/login", { method: "POST", body: { email: rival.email, password: PW } });
 if (loginB.status !== 200) throw new Error("Rival seller login failed: " + loginB.status);
 
-const stocked = await sql`select v.id variant_id, p.id product_id, p.slug from product_variants v join products p on p.id = v.product_id join inventory i on i.variant_id = v.id where p.seller_id = ${me.id} and p.status = 'LIVE' and v.is_active and i.on_hand - i.reserved > 8 order by p.created_at limit 2`;
+const stocked = await sql`select v.id variant_id, p.id product_id, p.slug, p.title, p.category_id from product_variants v join products p on p.id = v.product_id join inventory i on i.variant_id = v.id where p.seller_id = ${me.id} and p.status = 'LIVE' and v.is_active and i.on_hand - i.reserved > 8 order by p.created_at limit 2`;
 const [mine, lent] = stocked;
 // The rival needs a live product of their own: lend one, given back at the end.
 await sql`update products set seller_id = ${rival.id} where id = ${lent.product_id}`;
 let slotId = null;
+const extraSlots = [];
 const giveBack = async () => {
   await sql`update products set seller_id = ${me.id} where id = ${lent.product_id}`;
   // Remove this run's ad space with its ads and bids (charges keep their history).
-  if (slotId) {
-    await sql`delete from ad_bids where slot_id = ${slotId}`;
-    await sql`delete from ad_campaigns where slot_id = ${slotId}`;
-    await sql`delete from ad_slots where id = ${slotId}`;
+  for (const id of [slotId, ...extraSlots].filter(Boolean)) {
+    await sql`delete from ad_bids where slot_id = ${id}`;
+    await sql`delete from ad_campaigns where slot_id = ${id}`;
+    await sql`delete from ad_slots where id = ${id}`;
   }
+  await sql`update sellers set ad_credit_limit_paise = null where id = ${rival.id}`;
 };
 for (const event of ["uncaughtException", "unhandledRejection"]) process.on(event, (error) => { console.error(error); giveBack().finally(() => process.exit(1)); });
 
@@ -119,6 +121,13 @@ r = await bid(sellerA, campA, [d1], "BID", 400);
 check("bid below the starting price refused", r.status === 409 && /at least ₹500/.test(r.json?.results?.[0]?.reason ?? ""), JSON.stringify(r.json?.results));
 r = await bid(sellerA, campA, [d1, d2, d3], "BID", 600);
 check("seller bids on 3 days at once", r.status === 200 && r.json.results.every((x) => x.ok && x.status === "ACTIVE"), JSON.stringify(r.json?.results));
+// --- ad budget: upcoming earnings + credit (default ₹5,000), including GST
+await sql`update sellers set ad_credit_limit_paise = 0 where id = ${rival.id}`;
+r = await bid(sellerB, campB, [d1], "BID", 700);
+check("a seller with no earnings and no credit can't bid", /ad budget/.test(r.json?.results?.[0]?.reason ?? ""), JSON.stringify(r.json?.results));
+r = await admin(`/api/v1/sellers/${rival.id}/ad-credit`, { method: "PUT", body: { limitPaise: 2_000_000 } });
+check("admin raises a seller's ad credit", r.status === 200 && r.json?.budget?.creditLimitPaise === 2_000_000, JSON.stringify(r.json?.budget));
+check("seller sees their ad budget", (await sellerB("/api/v1/ads")).json?.budget?.availablePaise === 2_000_000);
 r = await bid(sellerB, campB, [d1], "BID", 650);
 check("rival must beat the top bid by the step", r.status === 409 && /at least ₹700/.test(r.json?.results?.[0]?.reason ?? ""), JSON.stringify(r.json?.results));
 r = await bid(sellerB, campB, [d1], "BID", 700);
@@ -194,14 +203,14 @@ await sellerA(`/api/v1/shipments/${shipment.id}`, { method: "PATCH", body: { sta
 await sql`update orders set delivered_at = now() - interval '8 days' where id = ${order.orderId}`;
 r = await admin("/api/cron/payouts", { method: "POST" });
 const charges = await sql`select seller_id, amount_paise, status, payout_id from seller_charges where reference_id in (${winA.id}, ${winB.id})`;
-check("finished ad day charged to the winner", charges.length === 1 && charges[0].seller_id === me.id && charges[0].amount_paise === 250000, JSON.stringify(charges));
+check("finished ad day charged to the winner, plus 18% GST", charges.length === 1 && charges[0].seller_id === me.id && charges[0].amount_paise === 295000, JSON.stringify(charges));
 check("no charge when the ad wasn't approved (didn't run)", !charges.some((c) => c.seller_id === rival.id));
 const [payout] = await sql`select p.* from payouts p join payout_items pi on pi.payout_id = p.id join order_items oi on oi.id = pi.order_item_id where oi.order_id = ${order.orderId} limit 1`;
-check("ad charge taken from the next payout", charges[0]?.status === "SETTLED" && charges[0].payout_id === payout?.id && payout.charges_paise === 250000, JSON.stringify({ charge: charges[0], payout: payout && { amount: payout.amount_paise, charges: payout.charges_paise } }));
+check("ad charge taken from the next payout", charges[0]?.status === "SETTLED" && charges[0].payout_id === payout?.id && payout.charges_paise === 295000, JSON.stringify({ charge: charges[0], payout: payout && { amount: payout.amount_paise, charges: payout.charges_paise } }));
 check("seller alerted about the charge", (await alerts(sellerA, "AD_CHARGED")).length >= 1);
 await admin("/api/cron/payouts", { method: "POST" });
 check("never charged twice", (await sql`select count(*)::int n from seller_charges where reference_id = ${winA.id}`)[0].n === 1);
-check("payout breakdown lists the ad charge", (await sellerA(`/api/v1/payouts/${payout.id}`)).json?.charges?.[0]?.amountPaise === 250000);
+check("payout breakdown lists the ad charge", (await sellerA(`/api/v1/payouts/${payout.id}`)).json?.charges?.[0]?.amountPaise === 295000);
 
 // --- admin withdraws a booking
 await bid(sellerA, campA, [d6], "BUY_NOW");
@@ -209,6 +218,37 @@ const [b6] = await sql`select id from ad_bids where slot_id = ${slotId} and day 
 check("withdrawing needs a reason", (await admin(`/api/v1/ads/bids/${b6.id}`, { method: "DELETE", body: {} })).status === 400);
 r = await admin(`/api/v1/ads/bids/${b6.id}`, { method: "DELETE", body: { reason: "Product listing under review" } });
 check("admin withdraws a booking; the day opens again", r.status === 200 && (await dayOf(sellerA, d6)).status === "OPEN");
+
+// --- sponsored products: search and category placements
+const productSlot = async (body) => { const res = await admin("/api/v1/ads/slots", { method: "POST", body: { basePricePaise: 10000, buyNowPricePaise: 20000, bidIncrementPaise: 1000, closeHoursBefore: 1, isActive: true, ...body } }); if (res.json?.slot?.id) extraSlots.push(res.json.slot.id); return res; };
+r = await productSlot({ name: `Category top ${RUN}`, placement: "CATEGORY_TOP" });
+check("category placement needs a category", r.status === 400);
+const catSlot = (await productSlot({ name: `Category top ${RUN}`, placement: "CATEGORY_TOP", categoryId: mine.category_id })).json?.slot?.id;
+const searchSlot = (await productSlot({ name: `Search top ${RUN}`, placement: "SEARCH_TOP" })).json?.slot?.id;
+check("admin creates search and category placements", Boolean(catSlot && searchSlot));
+r = await sellerA("/api/v1/ads/campaigns", { method: "POST", body: { slotId: searchSlot, productId: mine.product_id, headline: `Search ad ${RUN}` } });
+const campSearch = r.json?.campaign?.id;
+check("product ads need no banner", r.status === 201 && r.json.campaign.desktopImageAssetId === null, r.status + " " + JSON.stringify(r.json?.error ?? ""));
+const campCat = (await sellerA("/api/v1/ads/campaigns", { method: "POST", body: { slotId: catSlot, productId: mine.product_id, headline: `Category ad ${RUN}` } })).json?.campaign?.id;
+check("home banner ads still need a banner", (await sellerB("/api/v1/ads/campaigns", { method: "POST", body: { slotId, productId: lent.product_id, headline: "No banner" } })).status === 400);
+await bid(sellerA, campSearch, [d4], "BUY_NOW");
+await bid(sellerA, campCat, [d4], "BUY_NOW");
+await sql`update ad_bids set day = ${istDay(0)} where slot_id in (${searchSlot}, ${catSlot}) and status = 'WON'`;
+check("not shown before the ad is approved", !((await shop("/api/v1/ads/sponsored")).json?.items ?? []).some((i) => i.product.id === mine.product_id));
+await admin(`/api/v1/ads/campaigns/${campSearch}`, { method: "POST", body: { decision: "APPROVED" } });
+await admin(`/api/v1/ads/campaigns/${campCat}`, { method: "POST", body: { decision: "APPROVED" } });
+const [searchBid] = await sql`select id from ad_bids where slot_id = ${searchSlot} and status = 'WON'`;
+let sp = (await shop("/api/v1/ads/sponsored")).json?.items ?? [];
+check("sponsored product first on All products", sp.some((i) => i.bidId === searchBid.id && i.product.id === mine.product_id && i.product.variants?.length), JSON.stringify(sp.map((i) => i.bidId)));
+const word = mine.title.split(/\s+/).find((w) => w.length >= 4) ?? mine.title;
+check("shown for a matching search", ((await shop(`/api/v1/ads/sponsored?q=${encodeURIComponent(word)}`)).json?.items ?? []).some((i) => i.bidId === searchBid.id), word);
+check("not shown for an unrelated search", !((await shop("/api/v1/ads/sponsored?q=zzqqxx")).json?.items ?? []).some((i) => i.bidId === searchBid.id));
+const [catBid] = await sql`select id from ad_bids where slot_id = ${catSlot} and status = 'WON'`;
+check("category ad shows on that category's page", ((await shop(`/api/v1/ads/sponsored?categoryId=${mine.category_id}`)).json?.items ?? []).some((i) => i.bidId === catBid.id));
+const [otherCat] = await sql`select id from categories where id <> ${mine.category_id} and (parent_id is null or parent_id <> ${mine.category_id}) and id <> coalesce((select parent_id from categories where id = ${mine.category_id}), '00000000-0000-0000-0000-000000000000') limit 1`;
+check("and not on other categories", !((await shop(`/api/v1/ads/sponsored?categoryId=${otherCat.id}`)).json?.items ?? []).some((i) => i.bidId === catBid.id));
+r = await shop(`/api/v1/ads/click/${searchBid.id}`, { redirect: "manual" });
+check("sponsored card click counted and opens the product", r.location?.endsWith(`/products/${mine.slug}`) && (await sql`select clicks from ad_bids where id = ${searchBid.id}`)[0].clicks === 1);
 
 // --- reports and access
 const adminView = (await admin("/api/v1/ads/slots")).json;

@@ -1,5 +1,5 @@
 import { adCampaigns, adSlots, auditLogs } from "@azadimart/database";
-import { AppError, adCampaignSchema, toApiError } from "@azadimart/shared";
+import { AppError, adCampaignSchema, adNeedsBanner, toApiError } from "@azadimart/shared";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { requireAdSeller } from "../seller";
@@ -11,10 +11,11 @@ export async function POST(request: Request) {
   try {
     const { db, sellerId, userId } = await requireAdSeller(request);
     const input = adCampaignSchema.parse(await request.json());
-    const slot = (await db.select({ id: adSlots.id }).from(adSlots).where(and(eq(adSlots.id, input.slotId), eq(adSlots.isActive, true))).limit(1))[0];
+    const slot = (await db.select({ id: adSlots.id, placement: adSlots.placement }).from(adSlots).where(and(eq(adSlots.id, input.slotId), eq(adSlots.isActive, true))).limit(1))[0];
     if (!slot) throw new AppError("NOT_FOUND", "Ad space not found");
-    await checkAdContent(db, sellerId, userId, input);
-    const [campaign] = await db.insert(adCampaigns).values({ ...input, sellerId, status: "PENDING_REVIEW" }).returning();
+    await checkAdContent(db, sellerId, userId, input, slot.placement);
+    const banners = adNeedsBanner(slot.placement) ? { desktopImageAssetId: input.desktopImageAssetId, mobileImageAssetId: input.mobileImageAssetId } : { desktopImageAssetId: null, mobileImageAssetId: null };
+    const [campaign] = await db.insert(adCampaigns).values({ ...input, ...banners, sellerId, status: "PENDING_REVIEW" }).returning();
     await db.insert(auditLogs).values({ actorUserId: userId, action: "AD_CREATED", entityType: "ad_campaign", entityId: campaign!.id, metadata: { slotId: input.slotId, productId: input.productId } });
     return NextResponse.json({ campaign }, { status: 201 });
   } catch (error) {

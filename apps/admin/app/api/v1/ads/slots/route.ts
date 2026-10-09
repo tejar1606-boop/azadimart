@@ -1,5 +1,5 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { adBids, adCampaigns, adSlots, auditLogs, createDatabase, sellers } from "@azadimart/database";
+import { adBids, adCampaigns, adSlots, auditLogs, categories, createDatabase, sellers } from "@azadimart/database";
 import { settleAdAuctions } from "@azadimart/notify";
 import { adSlotSchema, istDayKey, toApiError } from "@azadimart/shared";
 import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
@@ -15,7 +15,8 @@ export async function GET(request: Request) {
     const db = createDatabase();
     await settleAdAuctions(db);
     const [slots, bookings, pending] = await Promise.all([
-      db.select().from(adSlots).orderBy(asc(adSlots.createdAt)),
+      db.select({ slot: adSlots, categoryName: categories.name }).from(adSlots).leftJoin(categories, eq(categories.id, adSlots.categoryId)).orderBy(asc(adSlots.createdAt))
+        .then((rows) => rows.map((r) => ({ ...r.slot, categoryName: r.categoryName }))),
       db.select({ id: adBids.id, slotId: adBids.slotId, day: adBids.day, amountPaise: adBids.amountPaise, kind: adBids.kind, status: adBids.status, impressions: adBids.impressions, clicks: adBids.clicks, storeName: sellers.storeName, headline: adCampaigns.headline, campaignStatus: adCampaigns.status })
         .from(adBids).innerJoin(sellers, eq(sellers.id, adBids.sellerId)).innerJoin(adCampaigns, eq(adCampaigns.id, adBids.campaignId))
         .where(and(inArray(adBids.status, ["WON", "ACTIVE"]), gte(adBids.day, istDayKey(new Date(Date.now() - 30 * 864e5))))).orderBy(desc(adBids.day)).limit(300),

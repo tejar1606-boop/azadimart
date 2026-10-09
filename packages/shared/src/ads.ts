@@ -8,9 +8,25 @@ import { z } from "zod";
  * for everyone else; "Book now" takes the day instantly. Days are calendar
  * days in India time (IST).
  */
-export const AD_PLACEMENTS = ["HOME_HERO"] as const;
+export const AD_PLACEMENTS = ["HOME_HERO", "SEARCH_TOP", "CATEGORY_TOP"] as const;
 export type AdPlacement = (typeof AD_PLACEMENTS)[number];
-export const AD_PLACEMENT_LABELS: Record<AdPlacement, string> = { HOME_HERO: "Home page main banner" };
+export const AD_PLACEMENT_LABELS: Record<AdPlacement, string> = {
+  HOME_HERO: "Home page main banner",
+  SEARCH_TOP: "First product in search results and All products",
+  CATEGORY_TOP: "First product on a category page",
+};
+/** Only the home page banner needs a banner image; product placements show the product card. */
+export const adNeedsBanner = (placement: string) => placement === "HOME_HERO";
+
+/** AzadiMart's ad fee carries 18% GST (confirm with the CA). */
+export const AD_GST_BPS = 1800;
+export function adChargeFor(basePaise: number) {
+  const gstPaise = Math.round((basePaise * AD_GST_BPS) / 10_000);
+  return { basePaise, gstPaise, totalPaise: basePaise + gstPaise };
+}
+/** A seller may owe this much in ads beyond their upcoming earnings, unless an admin sets their own limit. */
+export const AD_DEFAULT_CREDIT_LIMIT_PAISE = 5_000_00;
+export const adCreditLimitSchema = z.object({ limitPaise: z.number().int().min(0).max(1_00_00_000_00).nullable() });
 export const AD_BOOKING_DAYS_AHEAD = 60;
 export const AD_MAX_DAYS_PER_REQUEST = 14;
 
@@ -43,13 +59,15 @@ const rupees = (min: number, label: string) => z.number().int().min(min, `${labe
 export const adSlotSchema = z.object({
   name: z.string().trim().min(3).max(60),
   placement: z.enum(AD_PLACEMENTS),
+  categoryId: z.string().uuid().nullable().optional().default(null),
   description: z.string().trim().max(300).optional().default(""),
   basePricePaise: rupees(100, "Starting price"),
   buyNowPricePaise: rupees(100, "Book-now price").nullable().optional().default(null),
   bidIncrementPaise: rupees(100, "Bid step"),
   closeHoursBefore: z.number().int().min(1).max(168),
   isActive: z.boolean().default(true),
-}).refine((s) => s.buyNowPricePaise == null || s.buyNowPricePaise >= s.basePricePaise, { message: "Book-now price must be at least the starting price", path: ["buyNowPricePaise"] });
+}).refine((s) => s.buyNowPricePaise == null || s.buyNowPricePaise >= s.basePricePaise, { message: "Book-now price must be at least the starting price", path: ["buyNowPricePaise"] })
+  .refine((s) => (s.placement === "CATEGORY_TOP") === Boolean(s.categoryId), { message: "Choose the category for a category placement (and only then)", path: ["categoryId"] });
 
 export const adSlotClosedDaysSchema = z.object({ days: z.array(dayKeySchema).min(1).max(60), closed: z.boolean() });
 
@@ -57,7 +75,7 @@ export const adCampaignSchema = z.object({
   slotId: z.string().uuid(),
   productId: z.string().uuid(),
   headline: z.string().trim().min(3, "Add a short headline").max(60),
-  desktopImageAssetId: z.string().uuid(),
+  desktopImageAssetId: z.string().uuid().nullable().optional().default(null),
   mobileImageAssetId: z.string().uuid().nullable().optional().default(null),
 });
 

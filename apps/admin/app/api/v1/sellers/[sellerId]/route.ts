@@ -1,5 +1,6 @@
 import { requireApiAccess } from "@azadimart/auth";
 import {
+  adBudget,
   createDatabase,
   sellerAadhaar,
   sellerBankAccounts,
@@ -42,6 +43,7 @@ export async function GET(
         status: sellers.status,
         approvedAt: sellers.approvedAt,
         payoutHoldReason: sellers.payoutHoldReason,
+        adCreditLimitPaise: sellers.adCreditLimitPaise,
         createdAt: sellers.createdAt,
         email: users.email,
         phone: users.phone,
@@ -91,6 +93,7 @@ export async function GET(
     return NextResponse.json({
       seller,
       bankAccount: bank,
+      adBudget: await adBudget(db, sellerId),
       verification: verificationRows[0] ?? null,
       documents,
       aadhaar: aadhaar ? {

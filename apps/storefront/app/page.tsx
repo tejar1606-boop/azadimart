@@ -151,7 +151,7 @@ async function sponsoredSlides(db: ReturnType<typeof createDatabase>): Promise<H
     const ads = await liveAds(db, "HOME_HERO");
     if (!ads.length) return [];
     const keys = await db.select({ id: mediaAssets.id, key: mediaAssets.storageKey }).from(mediaAssets)
-      .where(inArray(mediaAssets.id, ads.flatMap((a) => [a.desktopImageAssetId, ...(a.mobileImageAssetId ? [a.mobileImageAssetId] : [])])));
+      .where(inArray(mediaAssets.id, ads.flatMap((a) => [a.desktopImageAssetId, a.mobileImageAssetId]).filter((id): id is string => Boolean(id))));
     const url = (id: string | null) => { const key = id ? keys.find((k) => k.id === id)?.key : undefined; return key ? "/media/" + key : undefined; };
     return ads.map((ad) => ({ desktopImageUrl: url(ad.desktopImageAssetId), mobileImageUrl: url(ad.mobileImageAssetId), href: `/api/v1/ads/click/${ad.bidId}`, alt: ad.headline, sponsoredId: ad.bidId }))
       .filter((slide) => slide.desktopImageUrl);

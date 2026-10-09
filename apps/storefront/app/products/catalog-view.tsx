@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import ProductCard from "../components/product-card";
 import type { RailCategory } from "../lib/category-rail";
+import { countAdView } from "../lib/ad-tracking";
 
 type Variant = { id: string; title: string; pricePaise: number; compareAtPaise: number | null; availableQuantity: number };
 /** Set on a category page (/c/<slug>): the category is fixed and shown as the page title. */
@@ -89,12 +90,19 @@ function CategoryRail({ rail, activeId }: { rail: RailCategory[]; activeId: stri
   );
 }
 
+/** Counts a sponsored card's view once it's on screen. */
+function SponsoredView({ bidId, children }: { bidId: string; children: React.ReactNode }) {
+  useEffect(() => { if (bidId) countAdView(bidId); }, [bidId]);
+  return <>{children}</>;
+}
+
 export default function CatalogView({ category, rail = [] }: { category?: FixedCategory; rail?: RailCategory[] }) {
   // Header search and old category links arrive as ?q= / ?categoryId=.
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get("q") ?? "";
   const categoryId = category?.id ?? searchParams.get("categoryId") ?? "";
   const [items, setItems] = useState<Product[]>([]);
+  const [sponsored, setSponsored] = useState<Array<{ bidId: string; product: Product }>>([]);
   const [sort, setSort] = useState("featured");
   const [query, setQuery] = useState(urlQuery);
   useEffect(() => { setQuery(urlQuery); }, [urlQuery]);
@@ -112,6 +120,10 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
       if (search.trim()) params.set("q", search.trim());
       if (minPrice) params.set("minPrice", String(Number(minPrice) * 100));
       if (maxPrice) params.set("maxPrice", String(Number(maxPrice) * 100));
+      const adParams = new URLSearchParams();
+      if (categoryId) adParams.set("categoryId", categoryId);
+      if (params.get("q")) adParams.set("q", params.get("q")!);
+      void fetch("/api/v1/ads/sponsored?" + adParams.toString(), { cache: "no-store" }).then((r) => r.json()).then((b) => setSponsored(b.items ?? [])).catch(() => setSponsored([]));
       const response = await fetch("/api/v1/catalog/products?" + params.toString(), { cache: "no-store" });
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error ?? "Unable to load products.");
@@ -164,14 +176,15 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
               <div className="mt-6 rounded-[2rem] border border-dashed border-slate-300 bg-white p-8 text-center sm:p-12"><p className="text-lg font-bold sm:text-xl">No matching products yet.</p><p className="mt-2 text-sm text-slate-500">Try another category, a different search, or clear the price filter.</p><Link href="/products" className="mt-5 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white">See all products</Link></div>
             ) : (
               <div className="mt-5 grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
-                {items.map((product) => {
+                {[...sponsored.map((s) => ({ product: s.product, bidId: s.bidId })), ...items.filter((p) => !sponsored.some((s) => s.product.id === p.id)).map((product) => ({ product, bidId: "" }))].map(({ product, bidId }) => {
                   const variant = [...product.variants].sort((a, b) => a.pricePaise - b.pricePaise)[0];
                   const image = product.media?.find((media) => media.kind === "IMAGE" && media.storageKey);
                   return (
-                    <ProductCard
-                      key={product.id}
-                      product={{ id: product.id, slug: product.slug, title: product.title, pricePaise: variant?.pricePaise ?? 0, compareAtPaise: variant?.compareAtPaise, mediaStorageKey: image?.storageKey, mediaAltText: image?.altText, sellerName: product.sellerName, reviewCount: product.reviewCount, ratingTotal: product.ratingTotal, badge: product.badge }}
-                    />
+                    <SponsoredView key={(bidId ? "ad-" : "") + product.id} bidId={bidId}>
+                      <ProductCard
+                        product={{ id: product.id, slug: product.slug, title: product.title, pricePaise: variant?.pricePaise ?? 0, compareAtPaise: variant?.compareAtPaise, mediaStorageKey: image?.storageKey, mediaAltText: image?.altText, sellerName: product.sellerName, reviewCount: product.reviewCount, ratingTotal: product.ratingTotal, badge: product.badge, sponsoredHref: bidId ? `/api/v1/ads/click/${bidId}` : undefined }}
+                      />
+                    </SponsoredView>
                   );
                 })}
               </div>

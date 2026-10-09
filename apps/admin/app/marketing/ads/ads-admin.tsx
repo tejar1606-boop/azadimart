@@ -3,18 +3,20 @@
 import { useCallback, useEffect, useState } from "react";
 import { PortalPageHeader, StatCard } from "@azadimart/ui";
 
-type Slot = { id: string; name: string; placement: string; description: string; basePricePaise: number; buyNowPricePaise: number | null; bidIncrementPaise: number; closeHoursBefore: number; isActive: boolean };
+type Slot = { id: string; name: string; placement: string; categoryId: string | null; categoryName: string | null; description: string; basePricePaise: number; buyNowPricePaise: number | null; bidIncrementPaise: number; closeHoursBefore: number; isActive: boolean };
 type Booking = { id: string; slotId: string; day: string; amountPaise: number; kind: string; status: "WON" | "ACTIVE"; impressions: number; clicks: number; storeName: string; headline: string; campaignStatus: string };
-type Ad = { id: string; status: "PENDING_REVIEW" | "APPROVED" | "REJECTED"; headline: string; reviewNote: string | null; storeName: string; slotName: string; productTitle: string; productSlug: string; desktopImageUrl: string; mobileImageUrl: string | null; bookedDays: number; updatedAt: string };
+type Ad = { id: string; status: "PENDING_REVIEW" | "APPROVED" | "REJECTED"; headline: string; reviewNote: string | null; storeName: string; slotName: string; placement: string; productTitle: string; productSlug: string; desktopImageUrl: string | null; mobileImageUrl: string | null; bookedDays: number; updatedAt: string };
 type Day = { day: string; status: string; topBidPaise: number | null; bidCount: number; holder: string | null };
 
 const money = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
 const dayLabel = (d: string, opts: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "short" }) => new Date(d + "T00:00:00Z").toLocaleDateString("en-IN", { ...opts, timeZone: "UTC" });
 const todayKey = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
-const EMPTY = { name: "", placement: "HOME_HERO", description: "", base: "", buyNow: "", step: "100", closeHoursBefore: "12", isActive: true };
+type Category = { id: string; name: string; parentId: string | null };
+const PLACEMENTS: Array<[string, string]> = [["HOME_HERO", "Home page main banner (first slide, “Sponsored”)"], ["SEARCH_TOP", "First product in search results and All products"], ["CATEGORY_TOP", "First product on a category page"]];
+const EMPTY = { name: "", placement: "HOME_HERO", categoryId: "", description: "", base: "", buyNow: "", step: "100", closeHoursBefore: "12", isActive: true };
 
-function SlotForm({ slot, onSaved, onCancel }: { slot: Slot | null; onSaved: () => void; onCancel: () => void }) {
-  const [f, setF] = useState(slot ? { name: slot.name, placement: slot.placement, description: slot.description, base: String(slot.basePricePaise / 100), buyNow: slot.buyNowPricePaise ? String(slot.buyNowPricePaise / 100) : "", step: String(slot.bidIncrementPaise / 100), closeHoursBefore: String(slot.closeHoursBefore), isActive: slot.isActive } : EMPTY);
+function SlotForm({ slot, categories, onSaved, onCancel }: { slot: Slot | null; categories: Category[]; onSaved: () => void; onCancel: () => void }) {
+  const [f, setF] = useState(slot ? { name: slot.name, placement: slot.placement, categoryId: slot.categoryId ?? "", description: slot.description, base: String(slot.basePricePaise / 100), buyNow: slot.buyNowPricePaise ? String(slot.buyNowPricePaise / 100) : "", step: String(slot.bidIncrementPaise / 100), closeHoursBefore: String(slot.closeHoursBefore), isActive: slot.isActive } : EMPTY);
   const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
   const field = "mt-1 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-slate-900";
   const num = (k: "base" | "buyNow" | "step" | "closeHoursBefore") => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value.replace(/\D/g, "") });
@@ -23,7 +25,7 @@ function SlotForm({ slot, onSaved, onCancel }: { slot: Slot | null; onSaved: () 
     try {
       const response = await fetch(slot ? `/api/v1/ads/slots/${slot.id}` : "/api/v1/ads/slots", {
         method: slot ? "PATCH" : "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: f.name, placement: f.placement, description: f.description, basePricePaise: Number(f.base) * 100, buyNowPricePaise: f.buyNow ? Number(f.buyNow) * 100 : null, bidIncrementPaise: Number(f.step) * 100, closeHoursBefore: Number(f.closeHoursBefore), isActive: f.isActive }),
+        body: JSON.stringify({ name: f.name, placement: f.placement, categoryId: f.placement === "CATEGORY_TOP" ? f.categoryId || null : null, description: f.description, basePricePaise: Number(f.base) * 100, buyNowPricePaise: f.buyNow ? Number(f.buyNow) * 100 : null, bidIncrementPaise: Number(f.step) * 100, closeHoursBefore: Number(f.closeHoursBefore), isActive: f.isActive }),
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(body?.error?.message ?? "Couldn't save");
@@ -33,7 +35,8 @@ function SlotForm({ slot, onSaved, onCancel }: { slot: Slot | null; onSaved: () 
   return (
     <div className="grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
       <label className="text-xs font-semibold text-slate-600 sm:col-span-2">Name<input className={field} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Home banner – slot 1" /></label>
-      <label className="text-xs font-semibold text-slate-600 sm:col-span-2">Where it shows<select className={field} value={f.placement} onChange={(e) => setF({ ...f, placement: e.target.value })}><option value="HOME_HERO">Home page main banner (first slide, “Sponsored”)</option></select></label>
+      <label className="text-xs font-semibold text-slate-600 sm:col-span-2">Where it shows<select className={field} value={f.placement} onChange={(e) => setF({ ...f, placement: e.target.value })}>{PLACEMENTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+      {f.placement === "CATEGORY_TOP" ? <label className="text-xs font-semibold text-slate-600 sm:col-span-2">Category (its sub-categories too)<select className={field} value={f.categoryId} onChange={(e) => setF({ ...f, categoryId: e.target.value })}><option value="">Choose a category</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.parentId ? "— " : ""}{c.name}</option>)}</select></label> : null}
       <label className="text-xs font-semibold text-slate-600">Starting bid per day (₹)<input className={field} inputMode="numeric" value={f.base} onChange={num("base")} placeholder="500" /></label>
       <label className="text-xs font-semibold text-slate-600">Book-now price per day (₹, optional)<input className={field} inputMode="numeric" value={f.buyNow} onChange={num("buyNow")} placeholder="2000" /></label>
       <label className="text-xs font-semibold text-slate-600">Each new bid beats the last by (₹)<input className={field} inputMode="numeric" value={f.step} onChange={num("step")} /></label>
@@ -41,7 +44,7 @@ function SlotForm({ slot, onSaved, onCancel }: { slot: Slot | null; onSaved: () 
       <label className="text-xs font-semibold text-slate-600 sm:col-span-2 lg:col-span-3">Note for sellers (optional)<input className={field} value={f.description} maxLength={300} onChange={(e) => setF({ ...f, description: e.target.value })} placeholder="Shown to every shopper on the home page; about 1 lakh views a day" /></label>
       <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold"><input type="checkbox" checked={f.isActive} onChange={(e) => setF({ ...f, isActive: e.target.checked })} className="h-4 w-4 accent-[#ff9933]" />On sale</label>
       <div className="flex flex-wrap items-center gap-2 sm:col-span-2 lg:col-span-4">
-        <button type="button" disabled={busy || f.name.trim().length < 3 || !f.base || !f.step} onClick={() => void save()} className="rounded-full bg-chrome px-5 py-2 text-sm font-semibold text-white disabled:opacity-40">{busy ? "Saving…" : slot ? "Save changes" : "Create ad space"}</button>
+        <button type="button" disabled={busy || f.name.trim().length < 3 || !f.base || !f.step || (f.placement === "CATEGORY_TOP" && !f.categoryId)} onClick={() => void save()} className="rounded-full bg-chrome px-5 py-2 text-sm font-semibold text-white disabled:opacity-40">{busy ? "Saving…" : slot ? "Save changes" : "Create ad space"}</button>
         <button type="button" onClick={onCancel} className="rounded-full px-4 py-2 text-sm font-semibold ring-1 ring-slate-300">Cancel</button>
         {error ? <p role="alert" className="text-sm text-red-700">{error}</p> : null}
       </div>
@@ -102,6 +105,14 @@ export default function AdsAdmin({ storefrontUrl }: { storefrontUrl: string }) {
   const [calendarFor, setCalendarFor] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  useEffect(() => {
+    fetch("/api/v1/catalog/categories", { cache: "no-store" }).then((r) => r.json()).then((b) => {
+      const all: Category[] = b.items ?? [];
+      // Parents followed by their sub-categories.
+      setCategories(all.filter((c) => !c.parentId).flatMap((c) => [c, ...all.filter((x) => x.parentId === c.id)]));
+    }).catch(() => undefined);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -151,16 +162,17 @@ export default function AdsAdmin({ storefrontUrl }: { storefrontUrl: string }) {
           <h2 className="font-semibold">Ad spaces and prices</h2>
           {editing ? null : <button type="button" onClick={() => setEditing("new")} className="rounded-full bg-chrome px-4 py-2 text-xs font-semibold text-white">+ New ad space</button>}
         </div>
-        {editing === "new" ? <div className="mt-3"><SlotForm slot={null} onSaved={() => { setEditing(null); void load(); }} onCancel={() => setEditing(null)} /></div> : null}
+        {editing === "new" ? <div className="mt-3"><SlotForm slot={null} categories={categories} onSaved={() => { setEditing(null); void load(); }} onCancel={() => setEditing(null)} /></div> : null}
         {slots.length === 0 && editing !== "new" ? <p className="mt-3 text-sm text-slate-500">No ad spaces yet. Create one, e.g. “Home banner – slot 1” at ₹500/day.</p> : null}
         <ul className="mt-3 divide-y divide-slate-100">
           {slots.map((s) => (
             <li key={s.id} className="py-3">
-              {editing !== "new" && editing?.id === s.id ? <SlotForm slot={s} onSaved={() => { setEditing(null); void load(); }} onCancel={() => setEditing(null)} /> : (
+              {editing !== "new" && editing?.id === s.id ? <SlotForm slot={s} categories={categories} onSaved={() => { setEditing(null); void load(); }} onCancel={() => setEditing(null)} /> : (
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold">{s.name} {s.isActive ? null : <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">OFF SALE</span>}</p>
-                    <p className="text-xs text-slate-500">Bids from {money(s.basePricePaise)}/day · step {money(s.bidIncrementPaise)}{s.buyNowPricePaise ? ` · book now ${money(s.buyNowPricePaise)}/day` : " · no book-now"} · bidding closes {s.closeHoursBefore} h before the day</p>
+                    <p className="text-xs text-slate-500">{PLACEMENTS.find(([v]) => v === s.placement)?.[1] ?? s.placement}{s.categoryName ? `: ${s.categoryName}` : ""}</p>
+                    <p className="text-xs text-slate-500">Bids from {money(s.basePricePaise)}/day (+ GST) · step {money(s.bidIncrementPaise)}{s.buyNowPricePaise ? ` · book now ${money(s.buyNowPricePaise)}/day` : " · no book-now"} · bidding closes {s.closeHoursBefore} h before the day</p>
                   </div>
                   <div className="flex gap-2">
                     <button type="button" onClick={() => setCalendarFor(s.id)} className={"rounded-full px-3.5 py-1.5 text-xs font-semibold ring-1 " + (calendarFor === s.id ? "bg-orange-50 ring-brand" : "ring-slate-300")}>Calendar</button>
@@ -187,7 +199,7 @@ export default function AdsAdmin({ storefrontUrl }: { storefrontUrl: string }) {
             {ads.map((ad) => (
               <li key={ad.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3 lg:flex-row lg:items-center">
                 <div className="flex shrink-0 gap-2">
-                  <a href={ad.desktopImageUrl} target="_blank" rel="noreferrer" className="aspect-[8/3] w-56 rounded-lg bg-slate-100 bg-cover bg-center" style={{ backgroundImage: `url("${ad.desktopImageUrl}")` }} aria-label="Desktop banner" />
+                  {ad.desktopImageUrl ? <a href={ad.desktopImageUrl} target="_blank" rel="noreferrer" className="aspect-[8/3] w-56 rounded-lg bg-slate-100 bg-cover bg-center" style={{ backgroundImage: `url("${ad.desktopImageUrl}")` }} aria-label="Desktop banner" /> : <span className="grid aspect-[8/3] w-56 place-items-center rounded-lg bg-slate-50 text-center text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200">Product card ad<br />(check the product page)</span>}
                   {ad.mobileImageUrl ? <a href={ad.mobileImageUrl} target="_blank" rel="noreferrer" className="aspect-[4/5] w-16 rounded-lg bg-slate-100 bg-cover bg-center" style={{ backgroundImage: `url("${ad.mobileImageUrl}")` }} aria-label="Mobile banner" /> : null}
                 </div>
                 <div className="min-w-0 flex-1 text-sm">

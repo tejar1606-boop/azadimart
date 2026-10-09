@@ -2,16 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { directUpload, StatCard } from "@azadimart/ui";
+import { adNeedsBanner } from "@azadimart/shared";
 
-type Slot = { id: string; name: string; placementLabel: string; description: string; basePricePaise: number; buyNowPricePaise: number | null; bidIncrementPaise: number; closeHoursBefore: number };
-type Campaign = { id: string; slotId: string; productId: string; productTitle: string; headline: string; status: "PENDING_REVIEW" | "APPROVED" | "REJECTED"; reviewNote: string | null; desktopImageAssetId: string; mobileImageAssetId: string | null; desktopImageUrl: string; mobileImageUrl: string | null };
+type Slot = { id: string; name: string; placement: string; categoryName: string | null; placementLabel: string; description: string; basePricePaise: number; buyNowPricePaise: number | null; bidIncrementPaise: number; closeHoursBefore: number };
+type Campaign = { id: string; slotId: string; productId: string; productTitle: string; headline: string; status: "PENDING_REVIEW" | "APPROVED" | "REJECTED"; reviewNote: string | null; desktopImageAssetId: string | null; mobileImageAssetId: string | null; desktopImageUrl: string | null; mobileImageUrl: string | null };
 type Bid = { id: string; slotId: string; slotName: string; campaignId: string; day: string; amountPaise: number; kind: string; status: "ACTIVE" | "OUTBID" | "WON" | "LOST" | "CANCELLED"; impressions: number; clicks: number };
 type Charge = { id: string; description: string; amountPaise: number; status: string; createdAt: string };
-type Data = { today: string; slots: Slot[]; campaigns: Campaign[]; bids: Bid[]; charges: Charge[]; totals: { impressions: number; clicks: number; pendingChargesPaise: number } };
+type Data = { today: string; slots: Slot[]; campaigns: Campaign[]; bids: Bid[]; charges: Charge[]; budget: { creditLimitPaise: number; earningsPaise: number; usedPaise: number; availablePaise: number }; totals: { impressions: number; clicks: number; pendingChargesPaise: number } };
 type Day = { day: string; status: "OPEN" | "BIDDING" | "BOOKED" | "CLOSED" | "UNAVAILABLE"; closesAt: string; topBidPaise: number | null; bidCount: number; minimumBidPaise: number; buyNowPaise: number | null; mine: { status: string; amountPaise: number } | null };
 type Product = { id: string; title: string; status: string };
 
 const money = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+const withGst = (p: number) => Math.round(p * 1.18);
 const dayLabel = (d: string, opts: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "short" }) => new Date(d + "T00:00:00Z").toLocaleDateString("en-IN", { ...opts, timeZone: "UTC" });
 const BID_STATUS: Record<Bid["status"], { label: string; tone: string }> = {
   ACTIVE: { label: "Top bid", tone: "bg-sky-50 text-sky-700" },
@@ -26,7 +28,8 @@ const AD_STATUS = { PENDING_REVIEW: { label: "In review", tone: "bg-amber-50 tex
 function AdForm({ slot, existing, products, onSaved }: { slot: Slot; existing: Campaign | null; products: Product[]; onSaved: () => void }) {
   const [productId, setProductId] = useState(existing?.productId ?? "");
   const [headline, setHeadline] = useState(existing?.headline ?? "");
-  const [desktop, setDesktop] = useState<{ id: string; url: string } | null>(existing ? { id: existing.desktopImageAssetId, url: existing.desktopImageUrl } : null);
+  const banner = adNeedsBanner(slot.placement);
+  const [desktop, setDesktop] = useState<{ id: string; url: string } | null>(existing?.desktopImageAssetId ? { id: existing.desktopImageAssetId, url: existing.desktopImageUrl! } : null);
   const [mobile, setMobile] = useState<{ id: string; url: string } | null>(existing?.mobileImageAssetId ? { id: existing.mobileImageAssetId, url: existing.mobileImageUrl! } : null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -43,7 +46,7 @@ function AdForm({ slot, existing, products, onSaved }: { slot: Slot; existing: C
     try {
       const response = await fetch(existing ? `/api/v1/ads/campaigns/${existing.id}` : "/api/v1/ads/campaigns", {
         method: existing ? "PUT" : "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slotId: slot.id, productId, headline, desktopImageAssetId: desktop?.id, mobileImageAssetId: mobile?.id ?? null }),
+        body: JSON.stringify({ slotId: slot.id, productId, headline, desktopImageAssetId: banner ? desktop?.id ?? null : null, mobileImageAssetId: banner ? mobile?.id ?? null : null }),
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(body?.error?.message ?? "Couldn't save the ad");
@@ -61,7 +64,7 @@ function AdForm({ slot, existing, products, onSaved }: { slot: Slot; existing: C
     </label>
   );
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_260px]">
+    <div className={"grid gap-4 " + (banner ? "lg:grid-cols-[1fr_260px]" : "")}>
       <div className="space-y-3">
         <label className="block text-xs font-semibold text-slate-600">Product to advertise
           <select className={field + " mt-1"} value={productId} onChange={(e) => setProductId(e.target.value)}>
@@ -72,11 +75,11 @@ function AdForm({ slot, existing, products, onSaved }: { slot: Slot; existing: C
         <label className="block text-xs font-semibold text-slate-600">Headline (for screen readers and review)
           <input className={field + " mt-1"} value={headline} maxLength={60} onChange={(e) => setHeadline(e.target.value)} placeholder="e.g. Festive kitchen sale – up to 40% off" />
         </label>
-        {picker("desktop", desktop, "2880 × 1080", "aspect-[8/3]")}
+        {banner ? picker("desktop", desktop, "2880 × 1080", "aspect-[8/3]") : <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">Shoppers see your product&apos;s own card (photo, price, rating) marked “Sponsored”. No banner needed.</p>}
       </div>
-      {picker("mobile", mobile, "1200 × 1500", "aspect-[4/5]")}
+      {banner ? picker("mobile", mobile, "1200 × 1500", "aspect-[4/5]") : null}
       <div className="flex flex-wrap items-center gap-3 lg:col-span-2">
-        <button type="button" disabled={!productId || headline.trim().length < 3 || !desktop || Boolean(busy)} onClick={() => void save()} className="h-11 rounded-full bg-brand px-6 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-40">{busy === "save" ? "Saving…" : existing ? "Save changes (re-review)" : "Send ad for review"}</button>
+        <button type="button" disabled={!productId || headline.trim().length < 3 || (banner && !desktop) || Boolean(busy)} onClick={() => void save()} className="h-11 rounded-full bg-brand px-6 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-40">{busy === "save" ? "Saving…" : existing ? "Save changes (re-review)" : "Send ad for review"}</button>
         <p className="text-xs text-slate-500">AzadiMart checks every ad before it runs. Show your own product, no misleading claims or other brands&apos; logos.</p>
       </div>
       {error ? <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 lg:col-span-2">{error}</p> : null}
@@ -159,10 +162,10 @@ function Calendar({ slot, campaign, onDone }: { slot: Slot; campaign: Campaign; 
               <label className="text-xs font-semibold text-slate-600">Your bid per day (₹)
                 <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder={String(minBid / 100)} className="mt-1 block h-11 w-40 rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-slate-900" />
               </label>
-              <button type="button" disabled={busy || Number(amount) * 100 < minBid} onClick={() => void submit("BID")} className="h-11 rounded-full bg-chrome px-5 text-sm font-semibold text-white disabled:opacity-40">{busy ? "Placing…" : `Place bid${amount ? ` · ${money(Number(amount) * 100 * picked.length)} total` : ""}`}</button>
-              {buyNow != null ? <button type="button" disabled={busy} onClick={() => void submit("BUY_NOW")} className="h-11 rounded-full bg-brand px-5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-40">Book now · {money(buyNow)}</button> : null}
+              <button type="button" disabled={busy || Number(amount) * 100 < minBid} onClick={() => void submit("BID")} className="h-11 rounded-full bg-chrome px-5 text-sm font-semibold text-white disabled:opacity-40">{busy ? "Placing…" : `Place bid${amount ? ` · ${money(withGst(Number(amount) * 100 * picked.length))} incl. GST` : ""}`}</button>
+              {buyNow != null ? <button type="button" disabled={busy} onClick={() => void submit("BUY_NOW")} className="h-11 rounded-full bg-brand px-5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-40">Book now · {money(buyNow)} + GST</button> : null}
             </div>
-            <p className="mt-2 text-[11px] text-slate-500">Minimum bid {money(minBid)} per day. Highest bid when bidding closes ({slot.closeHoursBefore} h before the day starts) wins. You pay only for days you win and your ad runs, taken from your next payment.</p>
+            <p className="mt-2 text-[11px] text-slate-500">Minimum bid {money(minBid)} per day, plus 18% GST. Highest bid when bidding closes ({slot.closeHoursBefore} h before the day starts) wins. You pay only for days you win and your ad runs, taken from your next payment.</p>
           </>
         )}
         {results.length ? (
@@ -208,8 +211,9 @@ export default function AdsView() {
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard label="Ad views (last 60 days)" value={data.totals.impressions.toLocaleString("en-IN")} icon="marketing" tone="brand" />
         <StatCard label="Clicks to your products" value={data.totals.clicks.toLocaleString("en-IN")} hint={data.totals.impressions ? `${((data.totals.clicks / data.totals.impressions) * 100).toFixed(1)}% click rate` : undefined} icon="sparkle" tone="good" />
-        <StatCard label="Ad charges to be taken" value={money(data.totals.pendingChargesPaise)} hint="From your next payment" icon="payments" />
+        <StatCard label="Ad budget available" value={money(data.budget.availablePaise)} hint={`Upcoming earnings ${money(data.budget.earningsPaise)} + ad credit ${money(data.budget.creditLimitPaise)} − ${money(data.budget.usedPaise)} committed (incl. GST)`} icon="payments" />
       </div>
+      {data.totals.pendingChargesPaise ? <p className="rounded-xl bg-slate-50 px-4 py-2.5 text-sm text-slate-600">{money(data.totals.pendingChargesPaise)} of ad charges will be taken from your next payment.</p> : null}
 
       {data.slots.length === 0 ? <p className="rounded-2xl bg-white p-8 text-center text-sm text-slate-500 shadow-card">No ad spaces are on sale right now. Check back soon.</p> : (
         <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card">
@@ -218,8 +222,8 @@ export default function AdsView() {
             {data.slots.map((s) => (
               <button key={s.id} type="button" onClick={() => { setSlotId(s.id); setEditing(false); }} className={"rounded-2xl p-4 text-left ring-1 transition " + (s.id === slotId ? "bg-orange-50 ring-2 ring-brand" : "ring-slate-200 hover:ring-slate-400")}>
                 <p className="font-semibold">{s.name}</p>
-                <p className="text-xs text-slate-500">{s.placementLabel}</p>
-                <p className="mt-2 text-sm">Bids from <b>{money(s.basePricePaise)}</b>/day{s.buyNowPricePaise ? <> · Book now <b>{money(s.buyNowPricePaise)}</b>/day</> : null}</p>
+                <p className="text-xs text-slate-500">{s.placementLabel}{s.categoryName ? `: ${s.categoryName}` : ""}</p>
+                <p className="mt-2 text-sm">Bids from <b>{money(s.basePricePaise)}</b>/day{s.buyNowPricePaise ? <> · Book now <b>{money(s.buyNowPricePaise)}</b>/day</> : null} <span className="text-xs text-slate-500">+ GST</span></p>
                 {s.description ? <p className="mt-1 text-xs text-slate-500">{s.description}</p> : null}
               </button>
             ))}
@@ -235,7 +239,7 @@ export default function AdsView() {
           </div>
           {campaign && !editing ? (
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <span className="aspect-[8/3] w-full shrink-0 rounded-xl bg-slate-100 bg-cover bg-center sm:w-72" style={{ backgroundImage: `url("${campaign.desktopImageUrl}")` }} />
+              {campaign.desktopImageUrl ? <span className="aspect-[8/3] w-full shrink-0 rounded-xl bg-slate-100 bg-cover bg-center sm:w-72" style={{ backgroundImage: `url("${campaign.desktopImageUrl}")` }} /> : <span className="grid aspect-[8/3] w-full shrink-0 place-items-center rounded-xl bg-slate-50 text-xs font-semibold text-slate-500 ring-1 ring-slate-200 sm:w-72">Your product card, marked “Sponsored”</span>}
               <div className="min-w-0">
                 <p className="font-semibold">{campaign.headline}</p>
                 <p className="text-xs text-slate-500">Links to: {campaign.productTitle}</p>

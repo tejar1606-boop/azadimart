@@ -24,6 +24,8 @@ export const sellers = pgTable(
     approvedByUserId: uuid("approved_by_user_id").references(() => users.id),
     // Set by an admin to stop automatic payouts to this seller (e.g. a dispute).
     payoutHoldReason: text("payout_hold_reason"),
+    // Most a seller may owe in ads beyond their upcoming earnings (null = AzadiMart's default).
+    adCreditLimitPaise: integer("ad_credit_limit_paise"),
     ...timestamps,
   },
   (table) => [

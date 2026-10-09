@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { id, timestamps } from "./columns";
 import { users } from "./identity";
 import { sellers } from "./sellers";
-import { products } from "./catalog";
+import { categories, products } from "./catalog";
 import { mediaAssets } from "./cms";
 import { payouts } from "./fulfillment";
 
@@ -12,6 +12,8 @@ export const adSlots = pgTable("ad_slots", {
   id,
   name: text("name").notNull(),
   placement: text("placement").notNull(),
+  // For category placements: the category (and its subcategories) the ad shows in.
+  categoryId: uuid("category_id").references(() => categories.id),
   description: text("description").notNull().default(""),
   basePricePaise: integer("base_price_paise").notNull(),
   buyNowPricePaise: integer("buy_now_price_paise"),
@@ -36,7 +38,8 @@ export const adCampaigns = pgTable("ad_campaigns", {
   slotId: uuid("slot_id").notNull().references(() => adSlots.id),
   productId: uuid("product_id").notNull().references(() => products.id),
   headline: text("headline").notNull(),
-  desktopImageAssetId: uuid("desktop_image_asset_id").notNull().references(() => mediaAssets.id),
+  // Banners are only needed for the home page banner; product placements use the product's own card.
+  desktopImageAssetId: uuid("desktop_image_asset_id").references(() => mediaAssets.id),
   mobileImageAssetId: uuid("mobile_image_asset_id").references(() => mediaAssets.id),
   status: text("status").$type<"PENDING_REVIEW" | "APPROVED" | "REJECTED">().notNull().default("PENDING_REVIEW"),
   reviewNote: text("review_note"),
@@ -77,6 +80,9 @@ export const sellerCharges = pgTable("seller_charges", {
   kind: text("kind").$type<"AD">().notNull(),
   referenceId: uuid("reference_id").notNull(),
   description: text("description").notNull(),
+  // amount = base + GST (18% on AzadiMart's ad fee).
+  basePaise: integer("base_paise").notNull().default(0),
+  gstPaise: integer("gst_paise").notNull().default(0),
   amountPaise: integer("amount_paise").notNull(),
   status: text("status").$type<"PENDING" | "SETTLED" | "WAIVED">().notNull().default("PENDING"),
   payoutId: uuid("payout_id").references(() => payouts.id),

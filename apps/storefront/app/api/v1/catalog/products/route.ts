@@ -25,6 +25,9 @@ export async function GET(request: Request) {
 
     const db = createDatabase();
     const filters = [eq(products.status, "LIVE"), eq(productVariants.isActive, true)];
+    // Specific products (used for sponsored cards); other filters still apply.
+    const ids = (searchParams.get("ids") ?? "").split(",").filter((id) => UUID.test(id)).slice(0, 10);
+    if (ids.length) filters.push(inArray(products.id, ids));
     // A main category also shows its sub-categories' products.
     if (categoryId && UUID.test(categoryId)) {
       filters.push(or(eq(products.categoryId, categoryId), inArray(products.categoryId, db.select({ id: categories.id }).from(categories).where(eq(categories.parentId, categoryId))))!);
