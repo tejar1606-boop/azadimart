@@ -11,6 +11,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Gives this app its own login cookie name (see SESSION_COOKIE_NAME in @azadimart/auth).
+  env: { AZADIMART_APP: "storefront" },
   transpilePackages: [
     "@azadimart/ui",
     "@azadimart/shared",

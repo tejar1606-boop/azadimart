@@ -10,7 +10,14 @@ const COST = 16384;
 const BLOCK_SIZE = 8;
 const PARALLELIZATION = 1;
 
-export const SESSION_COOKIE_NAME = "azadimart_session";
+/**
+ * Each app has its own login cookie (AZADIMART_APP is set in each app's
+ * next.config), so signing in to one app never replaces another app's
+ * session. This matters on localhost, where browsers share cookies across
+ * ports. The storefront keeps the original name so customers stay signed in.
+ */
+const APP = process.env.AZADIMART_APP;
+export const SESSION_COOKIE_NAME = APP === "admin" || APP === "seller" ? `azadimart_${APP}_session` : "azadimart_session";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 function hashToken(token: string): string {
