@@ -3,7 +3,14 @@
 import { type ComponentType, type ReactNode, useEffect, useRef, useState } from "react";
 import { PortalIcons, type PortalIconName } from "./portal-icons";
 
-export type PortalNavItem = { href: string; label: string; icon: PortalIconName; badge?: string };
+/** tone: optional colourful icon tile (seller portal); isNew: small "NEW" tag. */
+export type PortalNavItem = { href: string; label: string; icon: PortalIconName; badge?: string; tone?: PortalTone; isNew?: boolean };
+export type PortalTone = "saffron" | "green" | "sky" | "violet" | "rose" | "amber" | "teal" | "indigo" | "slate";
+const TONE_TILE: Record<PortalTone, string> = {
+  saffron: "bg-orange-400/15 text-orange-300", green: "bg-emerald-400/15 text-emerald-300", sky: "bg-sky-400/15 text-sky-300",
+  violet: "bg-violet-400/15 text-violet-300", rose: "bg-rose-400/15 text-rose-300", amber: "bg-amber-400/15 text-amber-300",
+  teal: "bg-teal-400/15 text-teal-300", indigo: "bg-indigo-400/15 text-indigo-300", slate: "bg-white/10 text-white/70",
+};
 export type PortalNavSection = { title?: string; items: PortalNavItem[] };
 
 type LinkProps = { href: string; className?: string; children: ReactNode; onClick?: () => void; "aria-current"?: "page" };
@@ -20,6 +27,9 @@ export function PortalShell({
   Link,
   onSignOut,
   footer,
+  header,
+  quickActions,
+  brandFooter = false,
   children,
 }: {
   /** e.g. "Seller Centre" or "Admin" */
@@ -29,6 +39,12 @@ export function PortalShell({
   Link: ComponentType<LinkProps>;
   onSignOut: () => void;
   footer?: ReactNode;
+  /** Replaces the AzadiMart mark at the top of the sidebar (e.g. the seller's store card). */
+  header?: ReactNode;
+  /** Small buttons under the header (e.g. Notices, Help). */
+  quickActions?: ReactNode;
+  /** Show the AzadiMart wordmark above Sign out (used when `header` replaces it). */
+  brandFooter?: boolean;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -62,8 +78,13 @@ export function PortalShell({
                     aria-current={active ? "page" : undefined}
                     className={"group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition " + (active ? "bg-white text-chrome shadow-sm" : "text-white/70 hover:bg-white/[0.07] hover:text-white")}
                   >
-                    <Icon size={19} className={active ? "text-brand-600" : "text-white/45 group-hover:text-white/80"} />
+                    {item.tone ? (
+                      <span className={"grid h-7 w-7 shrink-0 place-items-center rounded-lg " + (active ? "bg-brand-50 text-brand-600" : TONE_TILE[item.tone])}><Icon size={16} /></span>
+                    ) : (
+                      <Icon size={19} className={active ? "text-brand-600" : "text-white/45 group-hover:text-white/80"} />
+                    )}
                     <span className="flex-1 truncate">{item.label}</span>
+                    {item.isNew ? <span className="rounded bg-rose-500 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">New</span> : null}
                     {item.badge ? <span className={"rounded-full px-2 py-0.5 text-[10px] font-semibold " + (active ? "bg-brand text-white" : "bg-brand/90 text-white")}>{item.badge}</span> : null}
                   </Link>
                 </li>
@@ -95,9 +116,10 @@ export function PortalShell({
     <div className="min-h-screen bg-panel lg:flex">
       {/* Desktop sidebar */}
       <aside ref={sidebar} className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-chrome lg:flex">
-        <div className="px-6 py-5">{brandMark}</div>
+        <div className={header ? "px-3 pb-3 pt-4" : "px-6 py-5"}>{header ?? brandMark}</div>
+        {quickActions ? <div className="px-3 pb-4">{quickActions}</div> : null}
         {nav}
-        <div className="border-t border-chrome-line px-3 py-3">{footer}{signOut}</div>
+        <div className="border-t border-chrome-line px-3 py-3">{footer}{brandFooter ? <div className="px-3 pb-2 pt-1 opacity-70">{brandMark}</div> : null}{signOut}</div>
       </aside>
 
       {/* Mobile top bar */}
@@ -110,9 +132,10 @@ export function PortalShell({
         <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
           <button type="button" aria-label="Close menu" className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
           <aside className="absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col bg-chrome">
-            <div className="flex items-center justify-between px-5 py-5">{brandMark}<button type="button" onClick={() => setOpen(false)} aria-label="Close menu" className="grid h-9 w-9 place-items-center rounded-lg text-white hover:bg-white/10"><PortalIcons.close /></button></div>
+            <div className="flex items-start justify-between gap-2 px-3 py-4"><div className="min-w-0 flex-1">{header ?? <div className="px-2">{brandMark}</div>}</div><button type="button" onClick={() => setOpen(false)} aria-label="Close menu" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white hover:bg-white/10"><PortalIcons.close /></button></div>
+            {quickActions ? <div className="px-3 pb-4">{quickActions}</div> : null}
             {nav}
-            <div className="border-t border-chrome-line px-3 py-3">{footer}{signOut}</div>
+            <div className="border-t border-chrome-line px-3 py-3">{footer}{brandFooter ? <div className="px-3 pb-2 pt-1 opacity-70">{brandMark}</div> : null}{signOut}</div>
           </aside>
         </div>
       ) : null}

@@ -30,6 +30,8 @@ export const PortalIcons = {
   categories: (p: P) => <I {...p}><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" /><circle cx="17" cy="17" r="3.5" /></I>,
   arrange: (p: P) => <I {...p}><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" /><path d="M14 7h6m-2.5-2.5L20 7l-2.5 2.5M10 17H4m2.5-2.5L4 17l2.5 2.5" /></I>,
   star: (p: P) => <I {...p}><path d="m12 3.5 2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.9l-5.3 2.7 1-5.8-4.2-4.1 5.9-.9L12 3.5Z" /></I>,
+  bell: (p: P) => <I {...p}><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16Z" /><path d="M10 20a2 2 0 0 0 4 0" /></I>,
+  help: (p: P) => <I {...p}><circle cx="12" cy="12" r="8.5" /><path d="M9.6 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.7M12 16.8v.2" /></I>,
   menu: (p: P) => <I {...p}><path d="M4 7h16M4 12h16M4 17h16" /></I>,
   close: (p: P) => <I {...p}><path d="M6 6l12 12M18 6 6 18" /></I>,
   logout: (p: P) => <I {...p}><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" /><path d="M10 16l-4-4 4-4M6 12h10" /></I>,

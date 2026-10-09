@@ -2,6 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSessionPrincipal } from "@azadimart/auth";
+import { loadSellerAttention } from "../lib/seller-attention";
 import {
   createDatabase,
   inventory,
@@ -44,6 +45,8 @@ export default async function DashboardPage() {
   const { db, seller } = await requireActiveSeller();
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
+  // Same low-stock rule as the sidebar and Notices (the list below shows only the first 5).
+  const lowStockCount = (await loadSellerAttention(db, seller.id))?.lowStock ?? 0;
   const [productCounts, openOrderRows, sales, lowStock, recentRows, settingsRow] = await Promise.all([
     db.select({ status: products.status, total: count() })
       .from(products).where(eq(products.sellerId, seller.id)).groupBy(products.status),
@@ -133,7 +136,7 @@ export default async function DashboardPage() {
     { label: "Sales · last 30 days", value: money(Number(sale.revenuePaise)), note: `${Number(sale.orderCount)} orders · ${Number(sale.units)} units` },
     { label: "To ship", value: String(toShip.length), note: "Confirmed orders without a shipment", href: "/orders" },
     { label: "Live products", value: String(liveCount), note: inReview ? `${inReview} in review` : "Visible to customers", href: "/products" },
-    { label: "Needs attention", value: String(needsWork + lowStock.length), note: `${needsWork} drafts/rejected · ${lowStock.length} low stock` },
+    { label: "Needs attention", value: String(needsWork + lowStockCount), note: `${needsWork} drafts/rejected · ${lowStockCount} low stock` },
   ];
 
   return (

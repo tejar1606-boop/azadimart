@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import { headers } from "next/headers";
 import { getSessionPrincipal } from "@azadimart/auth";
-import { createDatabase, orderItems, orders, products, shipments } from "@azadimart/database";
-import { and, count, eq, inArray, notInArray } from "drizzle-orm";
+import { createDatabase } from "@azadimart/database";
+import { loadSellerAttention } from "./lib/seller-attention";
 import "@azadimart/ui/globals.css";
 import SellerChrome, { type SellerCounts } from "./seller-nav";
 
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   description: "Sell on AzadiMart",
 };
 
-/** Sidebar counts for a signed-in seller (orders to ship, products needing work). */
+/** Store name, status and attention counts for the signed-in seller's sidebar. */
 async function sellerCounts(): Promise<SellerCounts> {
   try {
     const cookie = (await headers()).get("cookie");
@@ -22,12 +22,7 @@ async function sellerCounts(): Promise<SellerCounts> {
     const db = createDatabase();
     const principal = await getSessionPrincipal(new Request("http://azadimart.internal", { headers: { cookie } }), db);
     if (!principal?.sellerId) return null;
-    const open = await db.selectDistinct({ id: orders.id }).from(orderItems).innerJoin(orders, eq(orders.id, orderItems.orderId))
-      .where(and(eq(orderItems.sellerId, principal.sellerId), inArray(orders.status, ["CONFIRMED", "PACKED"])));
-    const shipped = open.length ? await db.select({ orderId: shipments.orderId }).from(shipments)
-      .where(and(eq(shipments.sellerId, principal.sellerId), inArray(shipments.orderId, open.map((o) => o.id)), notInArray(shipments.status, ["FAILED", "CANCELLED"]))) : [];
-    const needsWork = await db.select({ n: count() }).from(products).where(and(eq(products.sellerId, principal.sellerId), eq(products.status, "QC_REJECTED")));
-    return { toShip: open.length - new Set(shipped.map((s) => s.orderId)).size, needsWork: Number(needsWork[0]?.n ?? 0) };
+    return await loadSellerAttention(db, principal.sellerId);
   } catch {
     return null;
   }

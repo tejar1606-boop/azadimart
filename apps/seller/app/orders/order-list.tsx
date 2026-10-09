@@ -27,6 +27,32 @@ type Shipment = {
 const money = (paise: number) =>
   "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
 
+type Tab = "hold" | "toShip" | "shipped" | "delivered" | "closed" | "all";
+const TABS: Array<[Tab, string]> = [["toShip", "To ship"], ["hold", "On hold"], ["shipped", "Shipped"], ["delivered", "Delivered"], ["closed", "Cancelled & returned"], ["all", "All"]];
+
+/** Which tab an order line belongs to (like Meesho: On hold, Pending, Ready to ship, Shipped, Cancelled). */
+function bucketOf(item: Order, shipment: Shipment | undefined): Exclude<Tab, "all"> {
+  if (item.status === "CANCELLED" || item.status === "RETURNED") return "closed";
+  if (item.status === "DELIVERED" || shipment?.status === "DELIVERED") return "delivered";
+  if (shipment && !["FAILED", "CANCELLED"].includes(shipment.status)) return "shipped";
+  if (["CONFIRMED", "PACKED"].includes(item.status)) return "toShip";
+  if (["SHIPPED", "OUT_FOR_DELIVERY"].includes(item.status)) return "shipped";
+  return "hold";
+}
+
+/** Download the visible orders as a CSV file for Excel or Google Sheets. */
+function downloadCsv(rows: Order[]) {
+  const head = ["Order number", "Order date", "Product", "SKU", "Quantity", "Unit price (₹)", "Status", "Payment"];
+  const cell = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+  const lines = rows.map((r) => [r.orderNumber, new Date(r.createdAt).toLocaleString("en-IN"), r.productTitle, r.sku, r.quantity, (r.unitPricePaise / 100).toFixed(2), r.status.replaceAll("_", " "), r.paymentStatus ?? ""].map(cell).join(","));
+  const blob = new Blob(["\uFEFF" + [head.map(cell).join(","), ...lines].join("\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `azadimart-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 const NEXT_SHIPMENT_STATUS: Record<string, string> = {
   CREATED: "PICKED_UP",
   PICKED_UP: "IN_TRANSIT",
@@ -40,6 +66,8 @@ export default function OrderList() {
   const [error, setError] = useState("");
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [working, setWorking] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("toShip");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     void (async () => {
@@ -141,10 +169,35 @@ export default function OrderList() {
     );
   }
 
+  const withBucket = items.map((item) => ({ item, bucket: bucketOf(item, shipments.find((entry) => entry.orderId === item.id)) }));
+  const counts = Object.fromEntries(TABS.map(([key]) => [key, key === "all" ? items.length : withBucket.filter((x) => x.bucket === key).length])) as Record<Tab, number>;
+  const q = query.trim().toLowerCase();
+  const shown = withBucket.filter((x) => (tab === "all" || x.bucket === tab) && (!q || x.item.orderNumber.toLowerCase().includes(q) || x.item.sku.toLowerCase().includes(q) || x.item.productTitle.toLowerCase().includes(q))).map((x) => x.item);
+
   return (
-    <div className="mt-7 overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+    <div className="mt-6">
+      <div className="flex flex-col gap-3 border-b border-slate-200 2xl:flex-row 2xl:items-end 2xl:justify-between">
+        <div role="tablist" aria-label="Order status" className="-mb-px flex gap-1 overflow-x-auto">
+          {TABS.map(([key, label]) => (
+            <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)} className={"shrink-0 border-b-2 px-3.5 py-2.5 text-sm font-semibold transition " + (tab === key ? "border-brand text-brand-700" : "border-transparent text-slate-500 hover:text-slate-900")}>
+              {label} <span className={"ml-1 rounded-full px-1.5 py-0.5 text-[11px] " + (tab === key ? "bg-brand text-white" : "bg-slate-100 text-slate-500")}>{counts[key]}</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2 pb-2">
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search order no., SKU or product" className="h-10 w-full min-w-0 rounded-full border border-slate-300 bg-white px-4 text-sm outline-none focus:border-slate-900 lg:w-64" aria-label="Search orders" />
+          <button type="button" onClick={() => downloadCsv(shown)} disabled={!shown.length} className="shrink-0 rounded-full bg-chrome px-4 text-xs font-semibold text-white disabled:opacity-40">Download</button>
+        </div>
+      </div>
+      {shown.length === 0 ? (
+        <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
+          <p className="font-semibold">{q ? "No orders match your search." : tab === "toShip" ? "Nothing to ship right now 🎉" : "No orders here."}</p>
+          <p className="mt-1 text-sm text-slate-500">{tab === "toShip" && !q ? "New orders appear here as soon as customers buy your products." : "Try another tab."}</p>
+        </div>
+      ) : (
+    <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card">
       <div className="divide-y divide-slate-100">
-        {items.map((item) => {
+        {shown.map((item) => {
           const shipment = shipments.find((entry) => entry.orderId === item.id);
           const nextStatus = shipment
             ? NEXT_SHIPMENT_STATUS[shipment.status] ?? null
@@ -235,6 +288,8 @@ export default function OrderList() {
           );
         })}
       </div>
+    </div>
+      )}
     </div>
   );
 }
