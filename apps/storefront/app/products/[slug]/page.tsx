@@ -14,6 +14,8 @@ import { SITE_NAME, absoluteUrl, clip, jsonLd } from "../../lib/seo";
 import { loadReviewPhotos, loadReviewSummary, loadReviews } from "../../lib/reviews";
 import { RatingPill } from "../../components/stars";
 import ReviewsSection from "./reviews-section";
+import { loadCardBadges, loadProductOffers } from "../../lib/offers";
+import { OfferBadge } from "../../components/offer-badge";
 
 /** Search title/description: the product's own SEO text if set, else built from name, price and seller. */
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -77,7 +79,10 @@ export default async function ProductDetailPage({ params, searchParams }: { para
     categoryId: products.categoryId,
     categoryName: categories.name,
     categorySlug: categories.slug,
+    sellerId: products.sellerId,
     sellerName: sellers.storeName,
+    priceDroppedAt: products.priceDroppedAt,
+    priceBeforeDropPaise: products.priceBeforeDropPaise,
     variantId: productVariants.id,
     variantTitle: productVariants.title,
     sku: productVariants.sku,
@@ -124,6 +129,9 @@ export default async function ProductDetailPage({ params, searchParams }: { para
     mediaAltText: mediaAssets.altText,
     reviewCount: products.reviewCount,
     ratingTotal: products.ratingTotal,
+    categoryId: products.categoryId,
+    priceDroppedAt: products.priceDroppedAt,
+    priceBeforeDropPaise: products.priceBeforeDropPaise,
   }).from(products)
     .innerJoin(productVariants, eq(productVariants.productId, products.id))
     .leftJoin(productMedia, and(eq(productMedia.productId, products.id), eq(productMedia.kind, "IMAGE")))
@@ -132,7 +140,12 @@ export default async function ProductDetailPage({ params, searchParams }: { para
     .orderBy(asc(productMedia.sortOrder))
     .limit(160), 8);
 
-  const [reviewSummary, reviewPage, reviewPhotos] = await Promise.all([loadReviewSummary(db, first.id), loadReviews(db, first.id), loadReviewPhotos(db, first.id)]);
+  const lowestPrice = Math.min(...variants.map((v) => v.pricePaise));
+  const [reviewSummary, reviewPage, reviewPhotos, offers, relatedBadges] = await Promise.all([
+    loadReviewSummary(db, first.id), loadReviews(db, first.id), loadReviewPhotos(db, first.id),
+    loadProductOffers(db, { id: first.id, categoryId: first.categoryId, sellerId: first.sellerId, pricePaise: lowestPrice, priceDroppedAt: first.priceDroppedAt, priceBeforeDropPaise: first.priceBeforeDropPaise }),
+    loadCardBadges(db, relatedRows),
+  ]);
 
   // Approved A+ content only; comparison columns show LIVE products.
   const aplusRow = (await db.select({ blocks: productAplusContent.blocks }).from(productAplusContent).where(eq(productAplusContent.productId, first.id)).limit(1))[0];
@@ -199,6 +212,12 @@ export default async function ProductDetailPage({ params, searchParams }: { para
           </div>
 
           <section className="h-fit rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.05)] sm:p-8 lg:sticky lg:top-28">
+            {offers.tags.length || offers.priceDrop ? (
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {offers.tags.map((tag) => <OfferBadge key={tag.label} badge={tag} size="md" />)}
+                {offers.priceDrop ? <OfferBadge badge={{ label: "Price drop", tone: "GREEN", kind: "price_drop" }} size="md" /> : null}
+              </div>
+            ) : null}
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">{first.categoryName}</p>
             <h1 className="mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-5xl">{first.title}</h1>
             <p className="mt-3 text-sm text-slate-500">Sold by <span className="font-semibold text-slate-800">{first.sellerName}</span></p>
@@ -209,7 +228,27 @@ export default async function ProductDetailPage({ params, searchParams }: { para
               {hasDiscount ? <span className="text-base text-slate-500">MRP <span className="line-through">{money(selectedVariant.compareAtPaise!)}</span></span> : null}
               {hasDiscount ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{discountPercent}% off</span> : null}
             </div>
+            {offers.priceDrop && selectedVariant.pricePaise === lowestPrice ? (
+              <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-india-light px-2.5 py-1 text-sm font-semibold text-india">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7" /></svg>
+                Price dropped by {money(offers.priceDrop.savedPaise)} <span className="font-normal text-india/80">(was {money(offers.priceDrop.beforePaise)})</span>
+              </p>
+            ) : null}
             <p className="mt-2 text-xs text-slate-400">Inclusive of applicable taxes • Final price shown at checkout</p>
+            {offers.coupons.length ? (
+              <div className="mt-4 rounded-2xl border border-dashed border-brand/40 bg-brand-50/50 p-3.5">
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">Available offers</p>
+                <ul className="mt-2 space-y-1.5">
+                  {offers.coupons.map((c) => (
+                    <li key={c.code} className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-brand-600" aria-hidden="true"><path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1 1 0 0 1 0 1.4l-7.4 7.4a1 1 0 0 1-1.4 0l-8.2-8.4ZM8 9.4a1.4 1.4 0 1 0 0-2.8 1.4 1.4 0 0 0 0 2.8Z" /></svg>
+                      <span>{c.text} with code</span>
+                      <code className="rounded-md border border-dashed border-brand-300 bg-white px-1.5 py-0.5 text-xs font-bold text-brand-700">{c.code}</code>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
 
             <div className="mt-6 rounded-2xl bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Availability</p>
@@ -281,7 +320,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
               <Link href="/products" className="text-sm font-bold text-slate-500 hover:text-slate-950">View all →</Link>
             </div>
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {relatedRows.map((item) => <ProductCard key={item.id} product={item} />)}
+              {relatedRows.map((item) => <ProductCard key={item.id} product={{ ...item, badge: relatedBadges[item.id] ?? null }} />)}
             </div>
           </section>
         ) : null}

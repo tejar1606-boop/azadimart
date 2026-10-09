@@ -20,6 +20,7 @@ import { ArrowRightIcon, BadgeIcon, CashIcon, CheckIcon, ReturnIcon, ShieldIcon 
 import ProductCard, { type ProductCardData } from "./components/product-card";
 import { TricolourRibbon } from "./components/site-header";
 import { getCategoryRail, type RailCategory } from "./lib/category-rail";
+import { loadCardBadges } from "./lib/offers";
 import { SITE_NAME, SITE_URL, absoluteUrl, clip, jsonLd } from "./lib/seo";
 import type { Metadata } from "next";
 
@@ -81,6 +82,8 @@ async function getHome() {
       mediaAltText: mediaAssets.altText,
       reviewCount: products.reviewCount,
       ratingTotal: products.ratingTotal,
+      priceDroppedAt: products.priceDroppedAt,
+      priceBeforeDropPaise: products.priceBeforeDropPaise,
     }).from(products)
       .innerJoin(productVariants, eq(productVariants.productId, products.id))
       .innerJoin(sellers, eq(sellers.id, products.sellerId))
@@ -95,7 +98,11 @@ async function getHome() {
       .orderBy(asc(categories.sortOrder), asc(categories.name)).limit(24),
   ]);
 
-  const liveProducts = onePerProduct(productRows, 24);
+  // Offer badges (admin tags, price drops) for every product a homepage section may show.
+  const allLive = onePerProduct(productRows, 400);
+  const badges = await loadCardBadges(db, allLive);
+  const withBadge = <T extends { id: string }>(p: T) => ({ ...p, badge: badges[p.id] ?? null });
+  const liveProducts = allLive.slice(0, 24).map(withBadge);
 
   // Each category tile uses a real product photo from that category when available.
   const homeCategories: HomeCategory[] = categoryRows.map((category) => {
@@ -125,7 +132,7 @@ async function getHome() {
   if (showcaseIds.length) {
     const familyOf = (id: string) => [id, ...rail.filter((c) => c.parentId === id).map((c) => c.id)];
     const wanted = new Set(showcaseIds.flatMap(familyOf));
-    const rows = onePerProduct(productRows.filter((r) => wanted.has(r.categoryId)), 400);
+    const rows = onePerProduct(productRows.filter((r) => wanted.has(r.categoryId)), 400).map(withBadge);
     for (const id of showcaseIds) {
       const family = new Set(familyOf(id));
       showcaseProducts[id] = rows.filter((r) => family.has(r.categoryId) && r.mediaStorageKey).slice(0, 6) as ProductCardData[];

@@ -58,6 +58,7 @@ import {
   rateLimitBuckets,
   productReviews,
   productReviewMedia,
+  offerTags,
 } from "./schema/index";
 import { TENANT_SCOPED_TABLES } from "./ownership";
 
@@ -118,6 +119,7 @@ const tables = {
   rate_limit_buckets: rateLimitBuckets,
   product_reviews: productReviews,
   product_review_media: productReviewMedia,
+  offer_tags: offerTags,
 };
 
 describe("marketplace schema", () => {

@@ -34,6 +34,7 @@ export default function AdminChrome({ counts, children }: { counts: AdminCounts 
     { title: "Storefront", items: [
       { href: "/online-store", label: "Online Store", icon: "store" },
       { href: "/marketing/coupons", label: "Coupons", icon: "coupons" },
+      { href: "/marketing/offer-tags", label: "Offer tags", icon: "sparkle" },
       { href: "/marketing", label: "Marketing", icon: "marketing" },
     ] },
     { title: "Operations", items: [

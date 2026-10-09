@@ -1,3 +1,4 @@
+import { loadCardBadges } from "../../../../lib/offers";
 import { createDatabase, inventory, productMedia, productVariants, products, categories, mediaAssets, sellers } from "@azadimart/database";
 import { and, asc, desc, eq, gte, ilike, inArray, lte, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -54,6 +55,8 @@ export async function GET(request: Request) {
       mediaAltText: mediaAssets.altText,
       reviewCount: products.reviewCount,
       ratingTotal: products.ratingTotal,
+      priceDroppedAt: products.priceDroppedAt,
+      priceBeforeDropPaise: products.priceBeforeDropPaise,
     })
       .from(products)
       .innerJoin(productVariants, eq(productVariants.productId, products.id))
@@ -87,6 +90,9 @@ export async function GET(request: Request) {
       sellerName: string;
       reviewCount: number;
       ratingTotal: number;
+      priceDroppedAt: Date | null;
+      priceBeforeDropPaise: number | null;
+      badge?: unknown;
       variants: Array<{ id: string; title: string; sku: string; pricePaise: number; compareAtPaise: number | null; availableQuantity: number }>;
       media: Array<{ assetId: string; kind: string; altText: string | null; storageKey: string }>;
     }>();
@@ -103,6 +109,8 @@ export async function GET(request: Request) {
         sellerName: row.sellerName,
         reviewCount: row.reviewCount,
         ratingTotal: row.ratingTotal,
+        priceDroppedAt: row.priceDroppedAt,
+        priceBeforeDropPaise: row.priceBeforeDropPaise,
         variants: [],
         media: [],
       };
@@ -129,6 +137,8 @@ export async function GET(request: Request) {
     }
 
     const items = [...productMap.values()].filter((product) => product.variants.length > 0).slice(0, limit);
+    const badges = await loadCardBadges(db, items.map((p) => ({ id: p.id, categoryId: p.categoryId, pricePaise: Math.min(...p.variants.map((v) => v.pricePaise)), priceDroppedAt: p.priceDroppedAt, priceBeforeDropPaise: p.priceBeforeDropPaise })));
+    for (const item of items) item.badge = badges[item.id] ?? null;
     const categoryRows = await db
       .select({ id: categories.id, name: categories.name, slug: categories.slug, parentId: categories.parentId })
       .from(categories)

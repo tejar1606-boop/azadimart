@@ -1,4 +1,5 @@
 import { RatingPill } from "./stars";
+import { OfferBadge } from "./offer-badge";
 import Image from "next/image";
 import Link from "next/link";
 import WishlistButton from "./wishlist-button";
@@ -15,6 +16,8 @@ export type ProductCardData = {
   /** Published review totals (average = ratingTotal / reviewCount). */
   reviewCount?: number | null;
   ratingTotal?: number | null;
+  /** Highlighted offer badge (admin offer tag or "Price drop"). */
+  badge?: { label: string; tone: string; kind: "tag" | "price_drop" } | null;
 };
 
 export const formatPrice = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -41,6 +44,7 @@ export default function ProductCard({ product, priority = false, sizes = "(max-w
         ) : (
           <span className="grid h-full place-items-center bg-gradient-to-br from-slate-100 to-brand-50 text-4xl font-semibold text-slate-300">{product.title.slice(0, 1).toUpperCase()}</span>
         )}
+        {product.badge ? <span className="absolute bottom-2 left-2 z-[1] max-w-[calc(100%-1rem)] sm:bottom-2.5 sm:left-2.5"><OfferBadge badge={product.badge as Parameters<typeof OfferBadge>[0]["badge"]} /></span> : null}
         <WishlistButton productId={product.id} />
       </div>
       {/* Details: the name always reserves two lines so every card has the same shape and the price lines up. */}

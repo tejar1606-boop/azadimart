@@ -1,7 +1,7 @@
 import { requireApiAccess } from "@azadimart/auth";
 import {
   auditLogs, cartItems, categories, createDatabase, inventory, inventoryMovements, mediaAssets, orderItems,
-  productMedia, productVariants, products, sellers,
+  productMedia, productVariants, products, recordLowestPriceChange, sellers,
 } from "@azadimart/database";
 import { AppError, adminProductUpdateSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { and, asc, eq, inArray } from "drizzle-orm";
@@ -72,10 +72,14 @@ export async function PATCH(request: Request, { params }: Params) {
 
       await tx.update(products).set({ title: input.title, description: input.description || null, metaTitle: input.metaTitle || null, metaDescription: input.metaDescription || null, categoryId: input.categoryId, updatedAt: new Date() }).where(eq(products.id, productId));
 
-      const existing = await tx.select({ id: productVariants.id, pricePaise: productVariants.pricePaise, compareAtPaise: productVariants.compareAtPaise }).from(productVariants).where(eq(productVariants.productId, productId));
+      const existing = await tx.select({ id: productVariants.id, pricePaise: productVariants.pricePaise, compareAtPaise: productVariants.compareAtPaise, isActive: productVariants.isActive }).from(productVariants).where(eq(productVariants.productId, productId));
       const owned = new Map(existing.map((v) => [v.id, v]));
       const changes: Array<Record<string, unknown>> = [];
       const priceChanges: Array<Record<string, unknown>> = [];
+      // Lowest active price before and after the edit drives the "Price drop" tag.
+      const lowest = (prices: number[]) => (prices.length ? Math.min(...prices) : null);
+      const lowestBefore = lowest(existing.filter((v) => v.isActive).map((v) => v.pricePaise));
+      const lowestAfter = lowest(input.variants.filter((v) => v.isActive).map((v) => v.pricePaise));
       for (const variant of input.variants) {
         const before = owned.get(variant.id);
         if (!before) throw new AppError("VALIDATION_ERROR", "Unknown variant");
@@ -97,6 +101,8 @@ export async function PATCH(request: Request, { params }: Params) {
           changes.push({ sku: variant.sku, onHand: [stock.onHand, variant.onHand] });
         }
       }
+
+      await recordLowestPriceChange(tx, productId, lowestBefore, lowestAfter);
 
       await tx.delete(productMedia).where(eq(productMedia.productId, productId));
       await tx.insert(productMedia).values([

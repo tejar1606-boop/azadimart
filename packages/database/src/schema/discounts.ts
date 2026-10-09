@@ -3,6 +3,7 @@ import { id, timestamps } from "./columns";
 import { customers } from "./identity";
 import { orders } from "./commerce";
 import { sellers } from "./sellers";
+import { offerTagToneEnum } from "./enums";
 
 export const couponDiscountTypeEnum = pgEnum("coupon_discount_type", [
   "PERCENTAGE",
@@ -65,4 +66,26 @@ export const couponRedemptions = pgTable(
     uniqueIndex("coupon_redemptions_coupon_order_unique").on(table.couponId, table.orderId),
     index("coupon_redemptions_customer_idx").on(table.customerId),
   ],
+);
+/**
+ * Admin-made offer tags ("Deal of the day", "Festive offer", ...) shown as a
+ * highlighted badge on product cards and pages. Scope: all products, chosen
+ * categories (sub-categories included) and/or chosen products. A tag shows
+ * only while active and within its dates; the highest priority wins on cards.
+ */
+export const offerTags = pgTable(
+  "offer_tags",
+  {
+    id,
+    label: text("label").notNull(),
+    tone: offerTagToneEnum("tone").notNull().default("SAFFRON"),
+    scope: jsonb("scope").$type<{ allProducts?: boolean; categoryIds?: string[]; productIds?: string[] }>().notNull().default({}),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull().defaultNow(),
+    endsAt: timestamp("ends_at", { withTimezone: true }),
+    priority: integer("priority").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    createdByUserId: uuid("created_by_user_id"),
+    ...timestamps,
+  },
+  (table) => [index("offer_tags_active_idx").on(table.isActive, table.startsAt)],
 );

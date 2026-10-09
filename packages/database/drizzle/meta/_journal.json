@@ -120,6 +120,13 @@
       "when": 1791486437644,
       "tag": "20261008190717_product_reviews",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791529060035,
+      "tag": "20261009065740_offer_tags",
+      "breakpoints": true
     }
   ]
 }

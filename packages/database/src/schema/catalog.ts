@@ -74,6 +74,9 @@ export const products = pgTable(
     // Published review totals, kept in step with product_reviews (average = ratingTotal / reviewCount).
     reviewCount: integer("review_count").notNull().default(0),
     ratingTotal: integer("rating_total").notNull().default(0),
+    // Set when the lowest price is lowered: shoppers see a "Price drop" tag for a few days.
+    priceDroppedAt: timestamp("price_dropped_at", { withTimezone: true }),
+    priceBeforeDropPaise: integer("price_before_drop_paise"),
     ...timestamps,
   },
   (table) => [

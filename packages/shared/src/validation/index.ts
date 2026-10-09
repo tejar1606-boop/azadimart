@@ -245,3 +245,21 @@ export const adminReviewModerationSchema = z.object({
 export const sellerReviewReplySchema = z.object({
   reply: z.string().trim().max(1000).refine((v) => !NO_LINKS.test(v), "Please remove web links from your reply"),
 });
+
+/** Offer tags (admin): short label, colour, who it applies to and when. */
+export const OFFER_TAG_TONES = ["SAFFRON", "GREEN", "RED", "NAVY", "PINK", "PURPLE"] as const;
+/** How long a "Price drop" tag stays on a product after its price is lowered. */
+export const PRICE_DROP_TAG_DAYS = 7;
+export const offerTagSchema = z.object({
+  label: z.string().trim().min(2, "Tag text needs at least 2 characters").max(24, "Keep the tag under 24 characters"),
+  tone: z.enum(OFFER_TAG_TONES).default("SAFFRON"),
+  scope: z.object({
+    allProducts: z.boolean().optional().default(false),
+    categoryIds: z.array(uuidSchema).max(100).optional().default([]),
+    productIds: z.array(uuidSchema).max(500).optional().default([]),
+  }).refine((s) => s.allProducts || s.categoryIds.length > 0 || s.productIds.length > 0, "Choose which products get this tag"),
+  startsAt: z.string().datetime({ offset: true }).optional(),
+  endsAt: z.string().datetime({ offset: true }).nullable().optional(),
+  priority: z.number().int().min(0).max(100).optional().default(0),
+  isActive: z.boolean().optional().default(true),
+}).refine((v) => !v.endsAt || !v.startsAt || new Date(v.endsAt) > new Date(v.startsAt), { message: "The end date must be after the start", path: ["endsAt"] });
