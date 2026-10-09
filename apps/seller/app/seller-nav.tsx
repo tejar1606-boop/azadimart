@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { PortalIcons, PortalShell, type PortalNavSection } from "@azadimart/ui";
 import { noticeCount, type SellerAttention } from "./lib/notices";
+import LiveAlerts from "./live-alerts";
 
 // Public pages render without the portal chrome.
 const PUBLIC_PATHS = new Set(["/", "/login", "/register"]);
@@ -59,6 +60,7 @@ export default function SellerChrome({ counts, children }: { counts: SellerCount
     ] },
     { title: "Account", items: [
       { href: "/kyc", label: "KYC & business", icon: "kyc", tone: "teal" },
+      { href: "/settings/alerts", label: "Alerts & notifications", icon: "bell", tone: "rose" },
       { href: "/help", label: "Help & support", icon: "help", tone: "slate" },
     ] },
   ];
@@ -79,6 +81,7 @@ export default function SellerChrome({ counts, children }: { counts: SellerCount
 
   return (
     <PortalShell product="Seller Hub" sections={sections} pathname={pathname} Link={Link} onSignOut={() => void signOut()} header={<StoreCard counts={counts} />} quickActions={quickActions} brandFooter>
+      <LiveAlerts />
       {children}
     </PortalShell>
   );

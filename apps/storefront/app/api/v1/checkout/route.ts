@@ -3,7 +3,8 @@ import {
   cartItems, carts, couponRedemptions, coupons, createDatabase, customerAddresses,
   customers, inventory, orderItems, orders, payments, productVariants, products, sellers, users,
 } from "@azadimart/database";
-import { AppError, checkoutSchema, checkSellerSupplyToState, toApiError } from "@azadimart/shared";
+import { AppError, SHIP_BY_DAYS, checkoutSchema, checkSellerSupplyToState, toApiError } from "@azadimart/shared";
+import { notifySellersOfNewOrder } from "@azadimart/notify";
 import { getPaymentProvider } from "@azadimart/payments";
 import { and, asc, count, eq, gte, ne, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -119,7 +120,7 @@ export async function POST(request:Request){
       const shipping=0;
       const grandTotal=Math.max(0,subtotal-discount+shipping);
       const order=(await tx.insert(orders).values({
-        orderNumber:orderNumber(),customerId:session.customerId!,shippingAddressId:address.id,status:"CONFIRMED",
+        orderNumber:orderNumber(),customerId:session.customerId!,shippingAddressId:address.id,status:"CONFIRMED",shipByAt:new Date(Date.now()+SHIP_BY_DAYS*24*60*60*1000),
         subtotalPaise:subtotal,discountPaise:discount,shippingPaise:shipping,grandTotalPaise:grandTotal,couponCode:couponCode??null,
         shippingAddressSnapshot:{name:address.customerName,phone:address.customerPhone,line1:address.line1,line2:address.line2,city:address.city,state:address.state,postalCode:address.postalCode,country:address.country},
       }).returning()).at(0);
@@ -153,6 +154,8 @@ export async function POST(request:Request){
       await tx.delete(cartItems).where(eq(cartItems.cartId,cart.id));
       return {orderId:order.id,orderNumber:order.orderNumber,subtotalPaise:subtotal,discountPaise:discount,shippingPaise:shipping,grandTotalPaise:grandTotal,paymentStatus:"PENDING"};
     });
+    // Alert each seller in the order (after commit; never blocks the customer's checkout).
+    if(result.orderId)await notifySellersOfNewOrder(db,result.orderId);
     return NextResponse.json({ok:true,...result},{status:201});
   }catch(error){
     const {status,body}=toApiError(error,requestId);

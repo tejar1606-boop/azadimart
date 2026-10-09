@@ -25,7 +25,7 @@ const ACTIVE_SHIPMENT_STATUSES = ["PENDING", "CREATED", "PICKED_UP", "IN_TRANSIT
  */
 export async function cancelOrderInTransaction(
   tx: Tx,
-  input: { orderId: string; fromStatus: string; actorUserId: string; reason: string; referenceType: string },
+  input: { orderId: string; fromStatus: string; actorUserId: string; reason: string; referenceType: string; by: "CUSTOMER" | "SELLER" | "ADMIN" | "SYSTEM" },
 ): Promise<{ paymentStatus: string | null }> {
   const activeShipment = (await tx
     .select({ id: shipments.id })
@@ -89,7 +89,12 @@ export async function cancelOrderInTransaction(
 
   const updated = (await tx
     .update(orders)
-    .set({ status: "CANCELLED", updatedAt: new Date() })
+    .set({
+      status: "CANCELLED", updatedAt: new Date(),
+      // Who cancelled and why: shown to the customer and used for seller performance.
+      cancelledAt: new Date(), cancelledBy: input.by, cancellationReason: input.reason,
+      cancelRequestedAt: null, cancelRequestedBySellerId: null, cancelRequestReason: null,
+    })
     .where(and(eq(orders.id, input.orderId), sql`${orders.status} = ${input.fromStatus}`))
     .returning({ id: orders.id }))[0];
   if (!updated) throw new AppError("CONFLICT", "Order status changed; please try again");

@@ -17,7 +17,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
       subtotalPaise: orders.subtotalPaise, discountPaise: orders.discountPaise,
       shippingPaise: orders.shippingPaise, grandTotalPaise: orders.grandTotalPaise,
       couponCode: orders.couponCode, shippingAddressSnapshot: orders.shippingAddressSnapshot,
-      currency: orders.currency, createdAt: orders.createdAt, paymentStatus: payments.status,
+      currency: orders.currency, createdAt: orders.createdAt, cancelledBy: orders.cancelledBy, cancellationReason: orders.cancellationReason, paymentStatus: payments.status,
     }).from(orders).leftJoin(payments, eq(payments.orderId, orders.id))
       .where(eq(orders.id, orderId)).limit(1))[0];
 

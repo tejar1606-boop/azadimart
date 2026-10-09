@@ -115,3 +115,4 @@ export const aplusStatusEnum = pgEnum("aplus_status", ["DRAFT", "PENDING_REVIEW"
 
 export const reviewStatusEnum = pgEnum("review_status", ["PUBLISHED", "HIDDEN"]);
 export const offerTagToneEnum = pgEnum("offer_tag_tone", ["SAFFRON", "GREEN", "RED", "NAVY", "PINK", "PURPLE"]);
+export const cancelActorEnum = pgEnum("cancel_actor", ["CUSTOMER", "SELLER", "ADMIN", "SYSTEM"]);

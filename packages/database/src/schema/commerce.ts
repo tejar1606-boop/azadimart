@@ -1,6 +1,6 @@
 import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { id, timestamps } from "./columns";
-import { orderStatusEnum, paymentMethodEnum, paymentStatusEnum, refundStatusEnum } from "./enums";
+import { orderStatusEnum, paymentMethodEnum, paymentStatusEnum, refundStatusEnum, cancelActorEnum } from "./enums";
 import { customers, customerAddresses } from "./identity";
 import { productVariants, products } from "./catalog";
 import { sellers } from "./sellers";
@@ -81,10 +81,22 @@ export const orders = pgTable(
     currency: text("currency").notNull().default("INR"),
     /** Set when every seller's shipment is delivered; starts the return window. */
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    // Fulfilment deadline (Amazon/Flipkart "ship by"): set at checkout; late orders are reminded, then auto-cancelled.
+    shipByAt: timestamp("ship_by_at", { withTimezone: true }),
+    packedAt: timestamp("packed_at", { withTimezone: true }),
+    // Who cancelled, why and when (customer, seller, admin, or SYSTEM for auto-cancel).
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    cancelledBy: cancelActorEnum("cancelled_by"),
+    cancellationReason: text("cancellation_reason"),
+    // A seller's request to cancel an order shared with other sellers (admin decides).
+    cancelRequestedAt: timestamp("cancel_requested_at", { withTimezone: true }),
+    cancelRequestedBySellerId: uuid("cancel_requested_by_seller_id"),
+    cancelRequestReason: text("cancel_request_reason"),
     ...timestamps,
   },
   (table) => [
     uniqueIndex("orders_order_number_unique").on(table.orderNumber),
+    index("orders_ship_by_idx").on(table.shipByAt),
     index("orders_customer_id_idx").on(table.customerId),
     index("orders_status_idx").on(table.status),
   ],

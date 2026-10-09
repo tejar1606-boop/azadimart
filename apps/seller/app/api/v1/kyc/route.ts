@@ -2,6 +2,7 @@ import { requireApiAccess, enforceRateLimit } from "@azadimart/auth";
 import {
   createDatabase,
   mediaAssets,
+  sellerAadhaar,
   sellerDocuments,
   sellerVerifications,
   sellers,
@@ -40,6 +41,12 @@ export async function POST(request: Request) {
 
     if (["ACTIVE", "SUSPENDED"].includes(seller.status)) {
       throw new AppError("FORBIDDEN", "KYC cannot be changed for the current seller status");
+    }
+
+    // The owner's Aadhaar must be verified by OTP before KYC can be submitted.
+    const aadhaar = (await db.select({ status: sellerAadhaar.status }).from(sellerAadhaar).where(eq(sellerAadhaar.sellerId, seller.id)).limit(1))[0];
+    if (aadhaar?.status !== "VERIFIED") {
+      throw new AppError("VALIDATION_ERROR", "Verify the owner's Aadhaar with OTP before submitting KYC");
     }
 
     const requiredTypes: Array<"PAN" | "BANK_PROOF" | "ADDRESS_PROOF" | "GST" | "GST_ENROLMENT"> = ["PAN", "BANK_PROOF", "ADDRESS_PROOF", seller.taxIdentityType === "ENROLMENT_ID" ? "GST_ENROLMENT" : "GST"];

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSessionPrincipal } from "@azadimart/auth";
-import { loadSellerAttention } from "../lib/seller-attention";
+import { loadSellerAttention, loadSellerPerformance } from "../lib/seller-attention";
+import { CANCELLATION_RATE_WARNING, LATE_DISPATCH_RATE_WARNING, SHIP_BY_DAYS } from "@azadimart/shared";
 import {
   createDatabase,
   inventory,
@@ -46,7 +47,13 @@ export default async function DashboardPage() {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   // Same low-stock rule as the sidebar and Notices (the list below shows only the first 5).
-  const lowStockCount = (await loadSellerAttention(db, seller.id))?.lowStock ?? 0;
+  const [attention, performance] = await Promise.all([loadSellerAttention(db, seller.id), loadSellerPerformance(db, seller.id)]);
+  const lowStockCount = attention?.lowStock ?? 0;
+  const pct = (x: number) => (Math.round(x * 1000) / 10).toFixed(1) + "%";
+  const metrics = [
+    { label: "Cancellation rate", value: performance.cancellationRate, limit: CANCELLATION_RATE_WARNING, detail: `${performance.cancelled} of ${performance.orders} orders cancelled by you or for not shipping`, tip: "Keep stock up to date so you never have to cancel." },
+    { label: "Late dispatch rate", value: performance.lateDispatchRate, limit: LATE_DISPATCH_RATE_WARNING, detail: `${performance.late} of ${performance.shipped} shipped after the ship-by date`, tip: `Ship within ${SHIP_BY_DAYS} days of the order.` },
+  ];
   const [productCounts, openOrderRows, sales, lowStock, recentRows, settingsRow] = await Promise.all([
     db.select({ status: products.status, total: count() })
       .from(products).where(eq(products.sellerId, seller.id)).groupBy(products.status),
@@ -163,6 +170,26 @@ export default async function DashboardPage() {
             <Link key={stat.label} href={stat.href} className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-400 sm:p-5">{body}</Link>
           ) : (
             <div key={stat.label} className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">{body}</div>
+          );
+        })}
+      </section>
+
+      {/* Seller performance (last 90 days), like Amazon/Flipkart account health. */}
+      <section className="mt-5 grid gap-3 sm:grid-cols-2" aria-label="Performance">
+        {metrics.map((m) => {
+          const bad = m.value > m.limit;
+          return (
+            <div key={m.label} className={"rounded-[1.5rem] border bg-white p-4 shadow-sm sm:p-5 " + (bad ? "border-red-200" : "border-slate-200")}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{m.label} · last 90 days</p>
+                  <p className={"mt-1 text-2xl font-semibold " + (bad ? "text-red-600" : "text-green-700")}>{pct(m.value)}</p>
+                </div>
+                <span className={"rounded-full px-2.5 py-1 text-[11px] font-bold " + (bad ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700")}>{bad ? "Needs attention" : "Good"} · target under {pct(m.limit)}</span>
+              </div>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className={"h-full rounded-full " + (bad ? "bg-red-500" : "bg-green-500")} style={{ width: `${Math.min(100, (m.value / (m.limit * 2)) * 100)}%` }} /></div>
+              <p className="mt-2 text-xs text-slate-500">{m.detail}. {m.tip}</p>
+            </div>
           );
         })}
       </section>

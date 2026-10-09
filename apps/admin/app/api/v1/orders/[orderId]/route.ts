@@ -1,5 +1,6 @@
 import { requireApiAccess } from "@azadimart/auth";
 import { auditLogs, cancelOrderInTransaction, createDatabase, orders } from "@azadimart/database";
+import { notifySellersOfCancellation } from "@azadimart/notify";
 import { AppError, orderStatusUpdateSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { and, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -43,6 +44,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ or
           actorUserId: principal.userId,
           reason: input.notes ?? "Cancelled by AzadiMart",
           referenceType: "ADMIN_ORDER_CANCELLATION",
+          by: "ADMIN",
         });
         updated = { id: order.id, status: "CANCELLED", orderNumber: order.orderNumber };
       } else {
@@ -60,6 +62,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ or
       return updated;
     });
 
+    if (input.status === "CANCELLED") await notifySellersOfCancellation(db, result.id, "ADMIN", input.notes ?? null);
     return NextResponse.json({ ok: true, order: result });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);

@@ -272,3 +272,39 @@ export const offerTagSchema = z.object({
 }).refine((v) => !v.endsAt || !v.startsAt || new Date(v.endsAt) > new Date(v.startsAt), { message: "The end date must be after the start", path: ["endsAt"] });
 /** Admin records a manual abandoned-cart reminder. */
 export const cartReminderSchema = z.object({ channel: z.enum(["WHATSAPP", "EMAIL"]), couponCode: z.string().trim().max(32).optional() });
+
+// ── Order fulfilment rules (Amazon/Flipkart-style) ───────────────────────────
+/** Days a seller has to ship (create the shipment) after an order is placed. */
+export const SHIP_BY_DAYS = 2;
+/** Unshipped orders are cancelled automatically this many days after ordering. */
+export const AUTO_CANCEL_DAYS = 5;
+/** Sellers are warned above this cancellation rate (share of their orders, last 90 days). */
+export const CANCELLATION_RATE_WARNING = 0.05;
+/** Sellers are warned above this late-dispatch rate. */
+export const LATE_DISPATCH_RATE_WARNING = 0.04;
+export const SELLER_CANCEL_REASONS = ["Out of stock", "Product damaged or defective", "Can't ship to this address", "Price or listing error", "Other"] as const;
+export const sellerCancelSchema = z.object({
+  reason: z.enum(SELLER_CANCEL_REASONS),
+  note: z.string().trim().max(300).optional(),
+});
+export const sellerAlertSettingsSchema = z.object({ newOrders: z.boolean(), reminders: z.boolean(), cancellations: z.boolean() });
+export const pushSubscriptionSchema = z.object({
+  endpoint: z.string().url().max(1000).refine((u) => u.startsWith("https://"), "Push endpoint must be https"),
+  keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(8).max(100) }),
+});
+
+// Aadhaar: 12 digits, never starting with 0 or 1, ending in a Verhoeff check digit (UIDAI's scheme).
+const VERHOEFF_D = [[0,1,2,3,4,5,6,7,8,9],[1,2,3,4,0,6,7,8,9,5],[2,3,4,0,1,7,8,9,5,6],[3,4,0,1,2,8,9,5,6,7],[4,0,1,2,3,9,5,6,7,8],[5,9,8,7,6,0,4,3,2,1],[6,5,9,8,7,1,0,4,3,2],[7,6,5,9,8,2,1,0,4,3],[8,7,6,5,9,3,2,1,0,4],[9,8,7,6,5,4,3,2,1,0]];
+const VERHOEFF_P = [[0,1,2,3,4,5,6,7,8,9],[1,5,7,6,2,8,3,0,9,4],[5,8,0,3,7,9,6,1,4,2],[8,9,1,6,0,4,3,5,2,7],[9,4,5,3,1,2,6,8,7,0],[4,2,8,6,5,7,3,9,0,1],[2,7,9,3,8,0,6,4,1,5],[7,0,4,6,9,1,3,2,5,8]];
+export function isValidAadhaar(value: string): boolean {
+  if (!/^[2-9]\d{11}$/.test(value)) return false;
+  let c = 0;
+  [...value].reverse().forEach((digit, i) => { c = VERHOEFF_D[c]![VERHOEFF_P[i % 8]![Number(digit)]!]!; });
+  return c === 0;
+}
+export const maskAadhaar = (last4: string) => `XXXX XXXX ${last4}`;
+export const aadhaarOtpRequestSchema = z.object({
+  aadhaarNumber: z.string().transform((v) => v.replace(/[\s-]/g, "")).refine(isValidAadhaar, "Enter a valid 12-digit Aadhaar number"),
+  consent: z.literal(true, { errorMap: () => ({ message: "Please give consent to verify your Aadhaar" }) }),
+});
+export const aadhaarOtpVerifySchema = z.object({ otp: z.string().regex(/^\d{6}$/, "Enter the 6-digit OTP") });

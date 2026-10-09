@@ -18,7 +18,14 @@ type Seller = {
   documentCount: number;
   approvedAt: string | null;
   createdAt: string;
+  aadhaarStatus?: "OTP_SENT" | "VERIFIED" | null;
 };
+
+type Aadhaar = { status: "OTP_SENT" | "VERIFIED"; masked: string; nameOnAadhaar: string | null; yearOfBirth: string | null; state: string | null; verifiedAt: string | null; consentAt: string; testMode: boolean };
+
+// Loose check: does any word of the Aadhaar name appear in the legal name? (Companies differ; that's fine.)
+const words = (v: string) => v.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter((w) => w.length > 2);
+const nameMatches = (aadhaarName: string, legalName: string) => words(aadhaarName).some((w) => words(legalName).includes(w));
 
 type Detail = {
   seller: Seller & { pan: string | null };
@@ -27,6 +34,7 @@ type Detail = {
     notes: string | null;
     reviewedAt: string | null;
   } | null;
+  aadhaar: Aadhaar | null;
   documents: Array<{
     id: string;
     type: string;
@@ -177,6 +185,7 @@ export default function SellersPage() {
                   <div className="mt-3 flex flex-wrap gap-3 text-xs text-ink-muted">
                     <span>Seller: {seller.status}</span><span>Tax: {seller.taxIdentityType === "ENROLMENT_ID" ? "Enrolment ID" : "GSTIN"}</span>
                     <span>Documents: {seller.documentCount}</span>
+                    <span className={seller.aadhaarStatus === "VERIFIED" ? "font-semibold text-green-700" : "font-semibold text-amber-700"}>{seller.aadhaarStatus === "VERIFIED" ? "Aadhaar ✓" : "Aadhaar not verified"}</span>
                     <span>Created: {new Date(seller.createdAt).toLocaleDateString("en-IN")}</span>
                   </div>
                 </button>
@@ -206,7 +215,7 @@ export default function SellersPage() {
 
               <dl className="mt-6 grid gap-4 text-sm sm:grid-cols-2">
                 <div><dt className="text-ink-muted">Legal name</dt><dd className="mt-1 font-medium">{detail.seller.legalName}</dd></div>
-                <div><dt className="text-ink-muted">Email</dt><dd className="mt-1 font-medium">{detail.seller.email}</dd></div>
+                <div className="min-w-0"><dt className="text-ink-muted">Email</dt><dd className="mt-1 break-all font-medium">{detail.seller.email}</dd></div>
                 <div><dt className="text-ink-muted">Phone</dt><dd className="mt-1 font-medium">{detail.seller.phone ?? "—"}</dd></div>
                 <div><dt className="text-ink-muted">Tax identity</dt><dd className="mt-1 font-medium">{detail.seller.taxIdentityType === "ENROLMENT_ID" ? "GST Enrolment ID" : "GSTIN"}</dd></div>
                 <div><dt className="text-ink-muted">{detail.seller.taxIdentityType === "ENROLMENT_ID" ? "Enrolment ID" : "GSTIN"}</dt><dd className="mt-1 font-mono text-sm font-medium">{detail.seller.taxIdentityType === "ENROLMENT_ID" ? (detail.seller.gstEnrolmentId ?? "—") : (detail.seller.gstin ?? "—")}</dd></div>
@@ -215,6 +224,24 @@ export default function SellersPage() {
                 <div><dt className="text-ink-muted">Tax declaration</dt><dd className="mt-1 font-medium">{detail.seller.taxDeclarationAcceptedAt ? "Accepted" : "Missing"}</dd></div>
                 <div><dt className="text-ink-muted">KYC status</dt><dd className="mt-1 font-medium">{detail.verification?.status ?? "—"}</dd></div>
               </dl>
+
+              <div className={"mt-6 rounded-xl border p-4 " + (detail.aadhaar?.status === "VERIFIED" ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50")}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold">Owner Aadhaar (OTP verified)</h3>
+                  {detail.aadhaar?.testMode ? <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-bold text-purple-800">TEST MODE</span> : null}
+                </div>
+                {detail.aadhaar?.status === "VERIFIED" ? (
+                  <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+                    <div><dt className="text-ink-muted">Aadhaar</dt><dd className="mt-1 font-mono font-medium">{detail.aadhaar.masked}</dd></div>
+                    <div><dt className="text-ink-muted">Name on Aadhaar</dt><dd className="mt-1 font-medium">{detail.aadhaar.nameOnAadhaar ?? "—"}{detail.aadhaar.nameOnAadhaar ? (nameMatches(detail.aadhaar.nameOnAadhaar, detail.seller.legalName) ? <span className="ml-2 text-xs font-semibold text-green-700">matches legal name</span> : <span className="ml-2 text-xs font-semibold text-amber-700">differs from legal name: check it&apos;s the owner or authorised signatory</span>) : null}</dd></div>
+                    {detail.aadhaar.yearOfBirth ? <div><dt className="text-ink-muted">Year of birth</dt><dd className="mt-1 font-medium">{detail.aadhaar.yearOfBirth}</dd></div> : null}
+                    {detail.aadhaar.state ? <div><dt className="text-ink-muted">State on Aadhaar</dt><dd className="mt-1 font-medium">{detail.aadhaar.state}</dd></div> : null}
+                    <div><dt className="text-ink-muted">Verified</dt><dd className="mt-1 font-medium">{detail.aadhaar.verifiedAt ? new Date(detail.aadhaar.verifiedAt).toLocaleString("en-IN") : "—"}</dd></div>
+                  </dl>
+                ) : (
+                  <p className="mt-2 text-sm text-amber-900">{detail.aadhaar ? `OTP sent to the mobile linked to ${detail.aadhaar.masked}; not verified yet.` : "The seller has not verified their Aadhaar yet."} The seller can&apos;t be approved until they do.</p>
+                )}
+              </div>
 
               <div className="mt-7">
                 <h3 className="font-semibold">Submitted documents</h3>
@@ -258,7 +285,8 @@ export default function SellersPage() {
                 <div className="mt-4 flex flex-wrap gap-3">
                   <button
                     type="button"
-                    disabled={actionLoading || detail.verification?.status !== "IN_REVIEW"}
+                    disabled={actionLoading || detail.verification?.status !== "IN_REVIEW" || detail.aadhaar?.status !== "VERIFIED"}
+                    title={detail.aadhaar?.status !== "VERIFIED" ? "The owner's Aadhaar must be verified first" : undefined}
                     onClick={() => void decide("APPROVED")}
                     className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                   >

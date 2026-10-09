@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import AadhaarStep, { type AadhaarState } from "./aadhaar-step";
 
 type TaxIdentityType = "GSTIN" | "ENROLMENT_ID";
 export type DocType = "GST" | "GST_ENROLMENT" | "PAN" | "BANK_PROOF" | "ADDRESS_PROOF" | "IDENTITY";
@@ -21,7 +22,7 @@ function slotsFor(taxIdentityType: TaxIdentityType): Slot[] {
     { type: "PAN", title: "PAN card", accepted: "PAN of the business, or of the owner for a sole proprietor", required: true },
     { type: "BANK_PROOF", title: "Bank proof", accepted: "Cancelled cheque, passbook first page or a bank statement showing account name, number and IFSC", required: true },
     { type: "ADDRESS_PROOF", title: "Business address proof", accepted: "Electricity bill, rent agreement, property tax receipt or Udyam certificate for your pickup address", required: true },
-    { type: "IDENTITY", title: "Owner identity proof", accepted: "Aadhaar, passport, voter ID or driving licence of the owner or authorised signatory", required: false },
+    { type: "IDENTITY", title: "Owner identity proof", accepted: "Passport, voter ID, driving licence or masked Aadhaar (first 8 digits hidden) of the owner or authorised signatory", required: false },
   ];
 }
 
@@ -44,12 +45,13 @@ const BANNERS: Record<Exclude<KycStage, "TODO">, { tone: string; title: string; 
   SUSPENDED: { tone: "border-red-200 bg-red-50 text-red-900", title: "Your seller account is suspended", body: "Documents can't be changed while the account is suspended. Please contact AzadiMart seller support." },
 };
 
-export default function KycForm({ stage, reviewNotes, taxIdentityType, taxNumber, businessState, existing }: {
+export default function KycForm({ stage, reviewNotes, taxIdentityType, taxNumber, businessState, aadhaar, existing }: {
   stage: KycStage;
   reviewNotes: string | null;
   taxIdentityType: TaxIdentityType;
   taxNumber: string | null;
   businessState: string | null;
+  aadhaar: AadhaarState;
   existing: Uploaded[];
 }) {
   const router = useRouter();
@@ -65,7 +67,8 @@ export default function KycForm({ stage, reviewNotes, taxIdentityType, taxNumber
 
   const required = slots.filter((s) => s.required);
   const doneCount = required.filter((s) => documents.some((d) => d.type === s.type)).length;
-  const ready = doneCount === required.length;
+  const aadhaarDone = aadhaar.status === "VERIFIED";
+  const ready = doneCount === required.length && aadhaarDone;
 
   async function upload(slot: Slot, file: File) {
     setErrors((e) => ({ ...e, [slot.type]: undefined })); setError(""); setMessage("");
@@ -85,6 +88,7 @@ export default function KycForm({ stage, reviewNotes, taxIdentityType, taxNumber
 
   async function submit() {
     setError(""); setMessage("");
+    if (!aadhaarDone) { setError("Verify the owner's Aadhaar first (step 1)."); return; }
     if (!ready) { setError("Please upload all required documents first."); return; }
     setSubmitting(true);
     try {
@@ -115,10 +119,18 @@ export default function KycForm({ stage, reviewNotes, taxIdentityType, taxNumber
           </div>
         ) : null}
 
+        {stage === "VERIFIED" && !aadhaarDone ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900" role="status">
+            <p className="font-semibold">Action needed: verify your Aadhaar</p>
+            <p className="mt-1 text-sm opacity-90">Aadhaar verification is now required for every AzadiMart seller. It takes a minute with an OTP.</p>
+          </div>
+        ) : null}
+        <AadhaarStep initial={aadhaar} locked={stage === "SUSPENDED"} />
+
         <div className="rounded-2xl border border-slate-200/80 bg-white shadow-card">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
             <div>
-              <h2 className="font-semibold">Documents</h2>
+              <h2 className="flex items-center gap-2 font-semibold">{editable ? <span className="grid h-7 w-7 place-items-center rounded-full bg-brand text-xs font-bold text-white">2</span> : null}Documents</h2>
               <p className="text-xs text-slate-500">PDF, JPG, PNG or WebP · up to {MAX_MB} MB each · clear and fully visible</p>
             </div>
             {editable ? <span className={"rounded-full px-3 py-1 text-xs font-semibold " + (ready ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-600")}>{doneCount} of {required.length} required uploaded</span> : null}
@@ -156,7 +168,7 @@ export default function KycForm({ stage, reviewNotes, taxIdentityType, taxNumber
           </ul>
           {editable ? (
             <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-slate-500">Your documents are stored privately and only used to verify your business.</p>
+              <p className="text-xs text-slate-500">{aadhaarDone ? "Your documents are stored privately and only used to verify your business." : "Verify your Aadhaar in step 1 to submit."}</p>
               <button type="button" onClick={() => void submit()} disabled={!ready || submitting || Boolean(uploading)} className="rounded-full bg-brand px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-40">
                 {submitting ? "Submitting…" : stage === "REJECTED" ? "Submit again" : "Submit for verification"}
               </button>

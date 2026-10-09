@@ -56,7 +56,29 @@ r = await seller("/api/v1/media/documents", { method: "POST", form: fake });
 check("non-PDF disguised as PDF rejected", r.status === 400, String(r.status));
 r = await seller("/api/v1/kyc", { method: "POST", body: { documents: [{ type: "PAN", mediaAssetId: docs.PAN }] } });
 check("KYC with missing documents rejected", r.status === 400, String(r.status));
-r = await seller("/api/v1/kyc", { method: "POST", body: { documents: Object.entries(docs).map(([type, mediaAssetId]) => ({ type, mediaAssetId })) } });
+const allDocs = { documents: Object.entries(docs).map(([type, mediaAssetId]) => ({ type, mediaAssetId })) };
+r = await seller("/api/v1/kyc", { method: "POST", body: allDocs });
+check("KYC without Aadhaar rejected", r.status === 400 && /Aadhaar/.test(r.json?.error?.message ?? ""), r.status + " " + JSON.stringify(r.json?.error?.message ?? ""));
+
+// --- mandatory Aadhaar OTP (test mode: OTP 123456)
+const AADHAAR = "234123412346";
+r = await seller("/api/v1/kyc/aadhaar/otp", { method: "POST", body: { aadhaarNumber: "234123412347", consent: true } });
+check("invalid Aadhaar number (bad check digit) rejected", r.status === 400, String(r.status));
+r = await seller("/api/v1/kyc/aadhaar/otp", { method: "POST", body: { aadhaarNumber: AADHAAR, consent: false } });
+check("Aadhaar OTP needs consent", r.status === 400, String(r.status));
+r = await seller("/api/v1/kyc/aadhaar/verify", { method: "POST", body: { otp: "123456" } });
+check("can't verify before an OTP is sent", r.status === 422, String(r.status));
+r = await seller("/api/v1/kyc/aadhaar/otp", { method: "POST", body: { aadhaarNumber: "2341 2341 2346", consent: true } });
+check("Aadhaar OTP sent", r.status === 200 && r.json?.aadhaar?.status === "OTP_SENT" && r.json.aadhaar.masked === "XXXX XXXX 2346", r.status + " " + JSON.stringify(r.json?.aadhaar ?? r.json?.error));
+r = await seller("/api/v1/kyc/aadhaar/verify", { method: "POST", body: { otp: "000000" } });
+check("wrong OTP rejected with attempts left", r.status === 400 && /2 attempts left/.test(r.json?.error?.message ?? ""), r.status + " " + JSON.stringify(r.json?.error?.message));
+r = await seller("/api/v1/kyc/aadhaar/verify", { method: "POST", body: { otp: "123456" } });
+check("correct OTP verifies Aadhaar", r.status === 200 && r.json?.aadhaar?.status === "VERIFIED" && r.json.aadhaar.nameOnAadhaar === "E2E Store Pvt Ltd", r.status + " " + JSON.stringify(r.json?.aadhaar ?? r.json?.error));
+check("verified Aadhaar can't be replaced by the seller", (await seller("/api/v1/kyc/aadhaar/otp", { method: "POST", body: { aadhaarNumber: "499999999993", consent: true } })).status === 409);
+const [stored] = await sql`select row_to_json(a)::text j from seller_aadhaar a join sellers s on s.id = a.seller_id join users u on u.id = s.user_id where u.email = ${email.toLowerCase()}`;
+const audit = await sql`select metadata::text m from audit_logs where action like 'AADHAAR_%' and created_at > now() - interval '5 minutes'`;
+check("full Aadhaar number never stored (only last 4)", stored && !stored.j.includes(AADHAAR) && stored.j.includes('"last4":"2346"') && audit.length >= 2 && audit.every((a) => !a.m.includes(AADHAAR)));
+r = await seller("/api/v1/kyc", { method: "POST", body: allDocs });
 check("KYC submitted", r.status === 200 || r.status === 201, r.status + " " + JSON.stringify(r.json?.error ?? r.json?.status));
 const [s] = await sql`select s.id, s.status from sellers s join users u on u.id=s.user_id where u.email=${email.toLowerCase()}`;
 check("seller status KYC_SUBMITTED", s?.status === "KYC_SUBMITTED", JSON.stringify(s));
@@ -70,6 +92,12 @@ check("document view audited", (await sql`select 1 from audit_logs where action=
 check("anonymous cannot download KYC document", (await fetch(`${AD}/api/v1/sellers/${s.id}/documents/${panDoc.id}`)).status === 401);
 check("KYC document never served by storefront /media", (await fetch(`${SF}/media/${panDoc.storage_key}`)).status === 404);
 
+r = await admin(`/api/v1/sellers/${s.id}`);
+check("admin sees verified, masked Aadhaar", r.json?.aadhaar?.status === "VERIFIED" && r.json.aadhaar.masked === "XXXX XXXX 2346" && !JSON.stringify(r.json).includes(AADHAAR), JSON.stringify(r.json?.aadhaar));
+await sql`update seller_aadhaar set status = 'OTP_SENT' where seller_id = ${s.id}`;
+r = await admin("/api/v1/sellers/approval", { method: "POST", body: { sellerId: s.id, decision: "APPROVED", notes: "E2E" } });
+check("admin can't approve without verified Aadhaar", r.status === 422, String(r.status));
+await sql`update seller_aadhaar set status = 'VERIFIED' where seller_id = ${s.id}`;
 r = await admin("/api/v1/sellers/approval", { method: "POST", body: { sellerId: s.id, decision: "APPROVED", notes: "E2E" } });
 check("admin approves seller", r.status === 200, r.status + " " + JSON.stringify(r.json?.error ?? ""));
 const [s2] = await sql`select status, approved_at from sellers where id=${s.id}`;

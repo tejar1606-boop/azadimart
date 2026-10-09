@@ -1,5 +1,6 @@
 import { requireApiAccess } from "@azadimart/auth";
 import { cancelOrderInTransaction, createDatabase, orders } from "@azadimart/database";
+import { notifySellersOfCancellation } from "@azadimart/notify";
 import { AppError, toApiError } from "@azadimart/shared";
 import { and, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -61,6 +62,7 @@ export async function POST(
         actorUserId: principal.userId,
         reason,
         referenceType: "ORDER_CANCELLATION",
+        by: "CUSTOMER",
       });
 
       return {
@@ -70,6 +72,8 @@ export async function POST(
       };
     });
 
+    // Tell the sellers not to ship (after the transaction has committed).
+    await notifySellersOfCancellation(db, result.orderId, "CUSTOMER", reason === "Cancelled by customer" ? null : reason);
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);

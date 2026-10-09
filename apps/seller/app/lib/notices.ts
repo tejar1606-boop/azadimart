@@ -7,9 +7,10 @@ export type SellerAttention = {
   inReview: number;
   lowStock: number;
   newReviews: number;
+  aadhaarVerified: boolean;
 };
 
 /** How many notices need action (each kind counts once). */
 export function noticeCount(a: SellerAttention): number {
-  return [a.toShip > 0, a.needsWork > 0, a.lowStock > 0, a.newReviews > 0, a.status !== "ACTIVE"].filter(Boolean).length;
+  return [a.toShip > 0, a.needsWork > 0, a.lowStock > 0, a.newReviews > 0, a.status !== "ACTIVE" || !a.aadhaarVerified].filter(Boolean).length;
 }

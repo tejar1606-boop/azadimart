@@ -59,6 +59,8 @@ import {
   productReviews,
   productReviewMedia,
   offerTags,
+  sellerNotifications,
+  pushSubscriptions,
 } from "./schema/index";
 import { TENANT_SCOPED_TABLES } from "./ownership";
 
@@ -120,6 +122,8 @@ const tables = {
   product_reviews: productReviews,
   product_review_media: productReviewMedia,
   offer_tags: offerTags,
+  seller_notifications: sellerNotifications,
+  push_subscriptions: pushSubscriptions,
 };
 
 describe("marketplace schema", () => {

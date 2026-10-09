@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
   env: { AZADIMART_APP: "storefront" },
   transpilePackages: [
     "@azadimart/ui",
+    "@azadimart/notify",
     "@azadimart/shared",
     "@azadimart/auth",
     "@azadimart/payments",

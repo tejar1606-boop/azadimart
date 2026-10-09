@@ -2,7 +2,8 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSessionPrincipal } from "@azadimart/auth";
-import { createDatabase } from "@azadimart/database";
+import { createDatabase, sellerNotifications } from "@azadimart/database";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { PortalIcons, PortalPageHeader, type PortalIconName } from "@azadimart/ui";
 import { LOW_STOCK_UNITS, loadSellerAttention } from "../lib/seller-attention";
 
@@ -17,12 +18,19 @@ export default async function NoticesPage() {
   const db = createDatabase();
   const principal = await getSessionPrincipal(new Request("http://azadimart.internal", { headers: cookie ? { cookie } : undefined }), db);
   if (!principal?.sellerId) redirect("/login");
-  const a = await loadSellerAttention(db, principal.sellerId);
+  const sellerId = principal.sellerId;
+  const [a, feed] = await Promise.all([
+    loadSellerAttention(db, sellerId),
+    db.select().from(sellerNotifications).where(eq(sellerNotifications.sellerId, sellerId)).orderBy(desc(sellerNotifications.createdAt)).limit(25),
+  ]);
   if (!a) redirect("/login");
+  // Opening Notices marks alerts as read (the tab-title count clears on the next check).
+  await db.update(sellerNotifications).set({ readAt: new Date() }).where(and(eq(sellerNotifications.sellerId, sellerId), isNull(sellerNotifications.readAt)));
 
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   const notices: Notice[] = [];
   if (a.toShip) notices.push({ icon: "orders", tone: "bg-orange-50 text-orange-600", title: `${plural(a.toShip, "order is", "orders are")} waiting to be shipped`, text: "Pack them and create the shipment so customers get their orders on time.", href: "/orders", action: "Ship now", urgent: true });
+  if (a.status === "ACTIVE" && !a.aadhaarVerified) notices.push({ icon: "kyc", tone: "bg-amber-50 text-amber-700", title: "Verify your Aadhaar", text: "Aadhaar verification is now required for every seller. It takes a minute with an OTP to your Aadhaar-linked mobile.", href: "/kyc", action: "Verify now", urgent: true });
   if (a.status !== "ACTIVE") notices.push({ icon: "kyc", tone: "bg-amber-50 text-amber-700", title: a.status === "REJECTED" ? "Your KYC needs changes" : a.status === "KYC_SUBMITTED" || a.status === "PENDING_APPROVAL" ? "Your KYC is under review" : "Complete your KYC to start selling", text: a.status === "KYC_SUBMITTED" || a.status === "PENDING_APPROVAL" ? "We'll let you know once it's approved, usually within 1–2 working days." : "Upload your documents so AzadiMart can verify your business.", href: "/kyc", action: "Open KYC", urgent: a.status !== "KYC_SUBMITTED" && a.status !== "PENDING_APPROVAL" });
   if (a.needsWork) notices.push({ icon: "products", tone: "bg-rose-50 text-rose-600", title: `${plural(a.needsWork, "product needs", "products need")} changes after QC`, text: "Read the reviewer's notes, fix the listing and submit it again.", href: "/products", action: "Fix products", urgent: true });
   if (a.lowStock) notices.push({ icon: "inventory", tone: "bg-violet-50 text-violet-600", title: `${plural(a.lowStock, "item is", "items are")} running low`, text: `${LOW_STOCK_UNITS} or fewer units left. Restock so you don't miss orders.`, href: "/inventory", action: "Update stock" });
@@ -53,6 +61,27 @@ export default async function NoticesPage() {
           );
         })}
       </div>
+
+      <section className="mt-10 max-w-3xl">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-lg font-semibold">Recent alerts</h2>
+          <Link href="/settings/alerts" className="text-sm font-semibold text-brand-600">Alert settings</Link>
+        </div>
+        {feed.length === 0 ? <p className="mt-3 text-sm text-slate-500">No alerts yet. New orders, ship-by reminders and cancellations will appear here.</p> : (
+          <ul className="mt-3 divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-card">
+            {feed.map((n) => (
+              <li key={n.id} className={"flex gap-3 px-5 py-3.5 " + (n.readAt ? "" : "bg-brand-50/40")}>
+                <span className="mt-0.5 text-lg" aria-hidden="true">{n.kind === "NEW_ORDER" ? "🛒" : n.kind.includes("CANCEL") ? "✖️" : "⏰"}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">{n.href ? <Link href={n.href} className="hover:underline">{n.title}</Link> : n.title}{n.readAt ? null : <span className="ml-2 rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-bold text-white">NEW</span>}</p>
+                  {n.body ? <p className="mt-0.5 text-xs text-slate-500">{n.body}</p> : null}
+                </div>
+                <time className="shrink-0 text-xs text-slate-400" dateTime={n.createdAt.toISOString()}>{n.createdAt.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}</time>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </main>
   );
 }

@@ -13,7 +13,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // Gives this app its own login cookie name (see SESSION_COOKIE_NAME in @azadimart/auth).
   env: { AZADIMART_APP: "admin" },
-  transpilePackages: ["@azadimart/ui", "@azadimart/shared", "@azadimart/auth", "@azadimart/storage"],
+  transpilePackages: ["@azadimart/ui", "@azadimart/shared", "@azadimart/auth", "@azadimart/storage", "@azadimart/notify"],
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },

@@ -20,5 +20,5 @@ export const MARKETPLACE_TABLES = [
   "qc_submissions","qc_issues","returns","return_items","payouts","payout_items","support_tickets",
   "support_messages","banners","pages","page_sections","themes","theme_revisions","navigation",
   "navigation_items","media_assets","coupons","coupon_redemptions","audit_logs","login_attempts","rate_limit_buckets",
-  "product_reviews","product_review_media","offer_tags",
+  "product_reviews","product_review_media","offer_tags","seller_notifications","push_subscriptions",
 ] as const;

@@ -2,6 +2,7 @@ import { requireApiAccess } from "@azadimart/auth";
 import {
   auditLogs,
   createDatabase,
+  sellerAadhaar,
   sellerDocuments,
   sellerVerifications,
   sellers,
@@ -48,6 +49,10 @@ export async function POST(request: Request) {
         const missing = required.filter((type) => !present.has(type as typeof sellerDocuments.$inferSelect.type));
         if (missing.length) {
           throw new AppError("UNPROCESSABLE", "Seller KYC documents are missing: " + missing.join(", "));
+        }
+        const aadhaar = (await tx.select({ status: sellerAadhaar.status }).from(sellerAadhaar).where(eq(sellerAadhaar.sellerId, seller.id)).limit(1))[0];
+        if (aadhaar?.status !== "VERIFIED") {
+          throw new AppError("UNPROCESSABLE", "The owner's Aadhaar isn't verified yet; it's required for every seller");
         }
       }
 

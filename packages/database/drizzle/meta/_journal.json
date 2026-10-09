@@ -141,6 +141,20 @@
       "when": 1791562672152,
       "tag": "20261009161752_cart_reminders",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791564401513,
+      "tag": "20261009164641_order_deadlines_and_alerts",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791565273668,
+      "tag": "20261009170113_seller_aadhaar",
+      "breakpoints": true
     }
   ]
 }

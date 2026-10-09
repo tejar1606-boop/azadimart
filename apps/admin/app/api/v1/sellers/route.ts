@@ -1,6 +1,7 @@
 import { requireApiAccess } from "@azadimart/auth";
 import {
   createDatabase,
+  sellerAadhaar,
   sellerDocuments,
   sellerVerifications,
   sellers,
@@ -36,6 +37,7 @@ export async function GET(request: Request) {
         taxDeclarationAcceptedAt: sellers.taxDeclarationAcceptedAt,
         status: sellers.status,
         verificationStatus: sellerVerifications.status,
+        aadhaarStatus: sellerAadhaar.status,
         approvedAt: sellers.approvedAt,
         createdAt: sellers.createdAt,
         updatedAt: sellers.updatedAt,
@@ -43,6 +45,7 @@ export async function GET(request: Request) {
       .from(sellers)
       .innerJoin(users, eq(users.id, sellers.userId))
       .leftJoin(sellerVerifications, eq(sellerVerifications.sellerId, sellers.id))
+      .leftJoin(sellerAadhaar, eq(sellerAadhaar.sellerId, sellers.id))
       .orderBy(desc(sellers.createdAt))
       .limit(pageSize)
       .offset((page - 1) * pageSize);

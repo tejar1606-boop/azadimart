@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 type Order = {
@@ -15,7 +16,28 @@ type Order = {
   unitPricePaise: number;
   paymentStatus: string | null;
   orderItemId: string;
+  shipByAt: string | null;
+  packedAt: string | null;
+  cancelledBy: "CUSTOMER" | "SELLER" | "ADMIN" | "SYSTEM" | null;
+  cancellationReason: string | null;
+  cancelRequestedAt: string | null;
+  cancelRequestReason: string | null;
+  cancelRequestedByMe: boolean;
+  sharedWithOtherSellers: boolean;
 };
+
+const CANCEL_REASONS = ["Out of stock", "Product damaged or defective", "Can't ship to this address", "Price or listing error", "Other"] as const;
+const CANCELLED_BY: Record<string, string> = { CUSTOMER: "the customer", SELLER: "you", ADMIN: "AzadiMart", SYSTEM: "AzadiMart (not shipped in time)" };
+const shortDate = (iso: string) => new Date(iso).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+
+/** "Ship by" chip: green with time left, amber on the last day, red when late. */
+function ShipBy({ iso }: { iso: string }) {
+  const left = new Date(iso).getTime() - Date.now();
+  const hours = Math.round(left / 3600000);
+  const tone = left < 0 ? "bg-red-50 text-red-700 ring-red-200" : hours <= 24 ? "bg-amber-50 text-amber-800 ring-amber-200" : "bg-green-50 text-green-700 ring-green-200";
+  const text = left < 0 ? `LATE · was due ${shortDate(iso)}` : `Ship by ${shortDate(iso)}${hours <= 24 ? ` · ${Math.max(1, hours)}h left` : ""}`;
+  return <span className={"rounded-full px-3 py-1 text-xs font-bold ring-1 " + tone}>{text}</span>;
+}
 
 type Shipment = {
   id: string;
@@ -61,12 +83,50 @@ const NEXT_SHIPMENT_STATUS: Record<string, string> = {
 };
 
 export default function OrderList() {
+  const router = useRouter();
   const [items, setItems] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [working, setWorking] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("toShip");
+  const [cancelling, setCancelling] = useState<Order | null>(null);
+  const [cancelReason, setCancelReason] = useState<(typeof CANCEL_REASONS)[number]>("Out of stock");
+  const [cancelNote, setCancelNote] = useState("");
+  const [notice, setNotice] = useState("");
+  const [actionError, setActionError] = useState("");
+
+  async function reload() {
+    const body = await fetch("/api/v1/orders", { cache: "no-store" }).then((r) => r.json()).catch(() => null);
+    if (body?.items) setItems(body.items);
+  }
+
+  async function markPacked(item: Order) {
+    setWorking(item.id); setActionError(""); setNotice("");
+    try {
+      const response = await fetch(`/api/v1/orders/${item.id}/packed`, { method: "POST" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body?.error?.message ?? "Could not update the order.");
+      setNotice(`${item.orderNumber} marked as packed.`);
+      await reload();
+    } catch (err) { setActionError(err instanceof Error ? err.message : "Could not update the order."); }
+    finally { setWorking(null); }
+  }
+
+  async function cancelOrder() {
+    if (!cancelling) return;
+    setWorking(cancelling.id); setActionError(""); setNotice("");
+    try {
+      const response = await fetch(`/api/v1/orders/${cancelling.id}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: cancelReason, note: cancelNote.trim() || undefined }) });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body?.error?.message ?? "Could not cancel the order.");
+      setNotice(body.outcome === "REQUESTED" ? `Cancellation requested for ${cancelling.orderNumber}. AzadiMart will review it because the order includes other sellers' items.` : `${cancelling.orderNumber} was cancelled and the stock released.`);
+      setCancelling(null); setCancelNote("");
+      await reload();
+      router.refresh();
+    } catch (err) { setActionError(err instanceof Error ? err.message : "Could not cancel the order."); }
+    finally { setWorking(null); }
+  }
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -189,6 +249,27 @@ export default function OrderList() {
           <button type="button" onClick={() => downloadCsv(shown)} disabled={!shown.length} className="shrink-0 rounded-full bg-chrome px-4 text-xs font-semibold text-white disabled:opacity-40">Download</button>
         </div>
       </div>
+      {notice ? <p className="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">{notice}</p> : null}
+      {actionError ? <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</p> : null}
+      {cancelling ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="cancel-title">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-lift">
+            <h2 id="cancel-title" className="text-lg font-semibold">{cancelling.sharedWithOtherSellers ? "Request cancellation" : "Cancel order"} {cancelling.orderNumber}?</h2>
+            <p className="mt-1 text-sm text-slate-500">{cancelling.sharedWithOtherSellers ? "This order also has other sellers' items, so AzadiMart will review your request." : "The customer is told the reason and the stock is released. Cancellations lower your seller rating, so use this only when you really can't ship."}</p>
+            <fieldset className="mt-4 space-y-2">
+              <legend className="text-sm font-medium">Reason</legend>
+              {CANCEL_REASONS.map((r) => <label key={r} className="flex items-center gap-2 text-sm"><input type="radio" name="cancel-reason" checked={cancelReason === r} onChange={() => setCancelReason(r)} />{r}</label>)}
+            </fieldset>
+            <label className="mt-3 block text-sm font-medium">Note (optional)
+              <input value={cancelNote} maxLength={300} onChange={(e) => setCancelNote(e.target.value)} placeholder="e.g. new stock arrives next week" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900" />
+            </label>
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" onClick={() => setCancelling(null)} className="rounded-full px-4 py-2 text-sm font-semibold ring-1 ring-slate-300">Keep order</button>
+              <button type="button" disabled={working === cancelling.id} onClick={() => void cancelOrder()} className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{working === cancelling.id ? "Working…" : cancelling.sharedWithOtherSellers ? "Send request" : "Cancel order"}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {shown.length === 0 ? (
         <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
           <p className="font-semibold">{q ? "No orders match your search." : tab === "toShip" ? "Nothing to ship right now 🎉" : "No orders here."}</p>
@@ -213,6 +294,7 @@ export default function OrderList() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  {["CONFIRMED", "PACKED"].includes(item.status) && !shipment && item.shipByAt ? <ShipBy iso={item.shipByAt} /> : null}
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">
                     {item.status.replaceAll("_", " ")}
                   </span>
@@ -274,16 +356,31 @@ export default function OrderList() {
                     ) : null}
                   </>
                 ) : ["CONFIRMED", "PACKED"].includes(item.status) ? (
-                  <button
-                    type="button"
-                    disabled={working === item.id}
-                    onClick={() => void createShipment(item.id)}
-                    className="rounded-full bg-slate-950 px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
-                  >
-                    {working === item.id ? "Creating…" : "Create shipment"}
-                  </button>
+                  <>
+                    {item.status === "CONFIRMED" && !item.sharedWithOtherSellers ? (
+                      <button type="button" disabled={working === item.id} onClick={() => void markPacked(item)} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:border-slate-900 disabled:opacity-50">Mark as packed</button>
+                    ) : null}
+                    <button
+                      type="button"
+                      disabled={working === item.id}
+                      onClick={() => void createShipment(item.id)}
+                      className="rounded-full bg-slate-950 px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
+                    >
+                      {working === item.id ? "Creating…" : "Create shipment"}
+                    </button>
+                    {item.cancelRequestedByMe ? (
+                      <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">Cancellation requested · awaiting AzadiMart</span>
+                    ) : (
+                      <button type="button" disabled={working === item.id} onClick={() => { setCancelling(item); setCancelReason("Out of stock"); setCancelNote(""); }} className="rounded-full px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50">
+                        {item.sharedWithOtherSellers ? "Request cancellation" : "Cancel order"}
+                      </button>
+                    )}
+                  </>
                 ) : null}
               </div>
+              {item.status === "CANCELLED" && item.cancelledBy ? (
+                <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">Cancelled by <b>{CANCELLED_BY[item.cancelledBy]}</b>{item.cancellationReason ? ` · ${item.cancellationReason}` : ""}</p>
+              ) : null}
             </article>
           );
         })}

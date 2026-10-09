@@ -1,13 +1,14 @@
 import { requireApiAccess } from "@azadimart/auth";
 import {
   createDatabase,
+  sellerAadhaar,
   sellerDocuments,
   sellerVerifications,
   sellers,
   users,
   mediaAssets,
 } from "@azadimart/database";
-import { AppError, toApiError, uuidSchema } from "@azadimart/shared";
+import { AppError, maskAadhaar, toApiError, uuidSchema } from "@azadimart/shared";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -79,10 +80,23 @@ export async function GET(
       .innerJoin(mediaAssets, eq(mediaAssets.id, sellerDocuments.mediaAssetId))
       .where(eq(sellerDocuments.sellerId, sellerId));
 
+    // Only the masked number and the provider's details are kept, never the Aadhaar number.
+    const aadhaar = (await db.select().from(sellerAadhaar).where(eq(sellerAadhaar.sellerId, sellerId)).limit(1))[0];
+
     return NextResponse.json({
       seller,
       verification: verificationRows[0] ?? null,
       documents,
+      aadhaar: aadhaar ? {
+        status: aadhaar.status,
+        masked: maskAadhaar(aadhaar.last4),
+        nameOnAadhaar: aadhaar.nameOnAadhaar,
+        yearOfBirth: aadhaar.yearOfBirth,
+        state: aadhaar.stateOnAadhaar,
+        verifiedAt: aadhaar.verifiedAt,
+        consentAt: aadhaar.consentAt,
+        testMode: aadhaar.provider === "sandbox",
+      } : null,
     });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);
