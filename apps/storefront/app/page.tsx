@@ -642,11 +642,22 @@ function TrustStrip({ s }: { s: Settings }) {
 }
 
 function SellerCta({ s }: { s: Settings }) {
+  const image = str(s, "imageUrl");
   return (
     <Container className="py-10 sm:py-14">
       <div className="relative overflow-hidden bg-navy p-8 text-white sm:p-12">
-        <div aria-hidden className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-tiranga-saffron/25 blur-3xl" />
-        <div aria-hidden className="absolute -bottom-28 -left-16 h-72 w-72 rounded-full bg-tiranga-green/25 blur-3xl" />
+        {image ? (
+          <>
+            {/* Optional photo on the right, fading into navy behind the text (darker on phones). */}
+            <Image src={image} alt="" fill sizes="100vw" className="object-cover object-right" unoptimized />
+            <span aria-hidden="true" className="absolute inset-0 bg-navy/85 lg:bg-transparent lg:bg-gradient-to-r lg:from-navy lg:via-navy/70 lg:to-navy/35" />
+          </>
+        ) : (
+          <>
+            <div aria-hidden className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-tiranga-saffron/25 blur-3xl" />
+            <div aria-hidden className="absolute -bottom-28 -left-16 h-72 w-72 rounded-full bg-tiranga-green/25 blur-3xl" />
+          </>
+        )}
         <TricolourRibbon className="absolute inset-x-0 top-0 h-1" />
         <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
