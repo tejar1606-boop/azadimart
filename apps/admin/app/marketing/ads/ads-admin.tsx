@@ -12,7 +12,7 @@ const money = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { maximum
 const dayLabel = (d: string, opts: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "short" }) => new Date(d + "T00:00:00Z").toLocaleDateString("en-IN", { ...opts, timeZone: "UTC" });
 const todayKey = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
 type Category = { id: string; name: string; parentId: string | null };
-const PLACEMENTS: Array<[string, string]> = [["HOME_HERO", "Home page main banner (first slide, “Sponsored”)"], ["SEARCH_TOP", "First product in search results and All products"], ["CATEGORY_TOP", "First product on a category page"]];
+const PLACEMENTS: Array<[string, string]> = [["HOME_HERO", "Home page main banner (first slide, “Sponsored”)"], ["HOME_PRODUCTS", "Sponsored products row on the home page (one product per slot)"], ["SEARCH_TOP", "First product in search results and All products"], ["CATEGORY_TOP", "First product on a category page"]];
 const EMPTY = { name: "", placement: "HOME_HERO", categoryId: "", description: "", base: "", buyNow: "", step: "100", closeHoursBefore: "12", isActive: true };
 
 function SlotForm({ slot, categories, onSaved, onCancel }: { slot: Slot | null; categories: Category[]; onSaved: () => void; onCancel: () => void }) {

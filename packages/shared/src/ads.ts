@@ -8,10 +8,11 @@ import { z } from "zod";
  * for everyone else; "Book now" takes the day instantly. Days are calendar
  * days in India time (IST).
  */
-export const AD_PLACEMENTS = ["HOME_HERO", "SEARCH_TOP", "CATEGORY_TOP"] as const;
+export const AD_PLACEMENTS = ["HOME_HERO", "HOME_PRODUCTS", "SEARCH_TOP", "CATEGORY_TOP"] as const;
 export type AdPlacement = (typeof AD_PLACEMENTS)[number];
 export const AD_PLACEMENT_LABELS: Record<AdPlacement, string> = {
   HOME_HERO: "Home page main banner",
+  HOME_PRODUCTS: "Sponsored products row on the home page",
   SEARCH_TOP: "First product in search results and All products",
   CATEGORY_TOP: "First product on a category page",
 };

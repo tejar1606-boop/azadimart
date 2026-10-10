@@ -18,6 +18,7 @@ import { settleAdAuctions } from "@azadimart/notify";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import CouponCard from "./components/coupon-card";
 import HeroCarousel, { type HeroSlide } from "./components/hero-carousel";
+import SponsoredRow from "./components/sponsored-row";
 import { ArrowRightIcon, BadgeIcon, CashIcon, CheckIcon, ReturnIcon, ShieldIcon } from "./components/icons";
 import ProductCard, { type ProductCardData } from "./components/product-card";
 import { TricolourRibbon } from "./components/site-header";
@@ -141,7 +142,21 @@ async function getHome() {
     }
   }
 
-  return { sections, coupons: activeCoupons, products: liveProducts as ProductCardData[], categories: homeCategories, rail, showcaseProducts, sponsored: await sponsoredSlides(db) };
+  // Today's winning "Sponsored products row" ads (one product per slot), only for products that are live.
+  let sponsoredProducts: Array<{ bidId: string; product: ProductCardData }> = [];
+  if (sections.some((x) => x.type === "sponsored_products")) {
+    try {
+      const seen = new Set<string>();
+      sponsoredProducts = (await liveAds(db, "HOME_PRODUCTS")).flatMap((ad) => {
+        const product = allLive.find((p) => p.id === ad.productId);
+        if (!product || seen.has(product.id)) return [];
+        seen.add(product.id);
+        return [{ bidId: ad.bidId, product: withBadge(product) as ProductCardData }];
+      });
+    } catch { /* ads must never break the home page */ }
+  }
+
+  return { sections, coupons: activeCoupons, products: liveProducts as ProductCardData[], categories: homeCategories, rail, showcaseProducts, sponsored: await sponsoredSlides(db), sponsoredProducts };
 }
 
 /** Today's winning seller ads for the main banner, shown first and labelled "Sponsored". */
@@ -265,13 +280,18 @@ function PillLink({ href, children, variant = "primary" }: { href: string; child
 function StoreSection({ section, data }: { section: HomeSection; data: HomeData }) {
   const s = section.settings;
   switch (section.type) {
-    case "hero": return <Hero s={s} sponsored={data.sponsored} />;
+    case "hero": {
+      // Paid banner ads go in the top banner only, not in later hero sections too.
+      const firstHero = (data.sections.length ? data.sections : FALLBACK_SECTIONS).find((x) => x.type === "hero");
+      return <Hero s={s} sponsored={firstHero?.id === section.id ? data.sponsored : []} />;
+    }
     case "marquee": return <Marquee s={s} />;
     case "promo_banner": return <PromoBanner s={s} />;
     case "banner_row": return <BannerRow s={s} />;
     case "category_showcase": return <CategoryShowcase s={s} rail={data.rail} products={data.showcaseProducts} />;
     case "category_grid": return <CategoryGrid s={s} categories={data.categories} />;
     case "featured_products": return <FeaturedProducts s={s} products={data.products} />;
+    case "sponsored_products": return <SponsoredProducts s={s} items={data.sponsoredProducts} />;
     case "sales_coupons": return <Coupons s={s} coupons={data.coupons} />;
     case "image_banner": return <WhyBanner s={s} />;
     case "trust_strip": return <TrustStrip s={s} />;
@@ -573,6 +593,18 @@ function FeaturedProducts({ s, products }: { s: Settings; products: ProductCardD
       ) : (
         <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">New products are on their way. Check back soon.</div>
       )}
+    </Container>
+  );
+}
+
+// Seller ads: hidden on days nobody has won a slot.
+function SponsoredProducts({ s, items }: { s: Settings; items: HomeData["sponsoredProducts"] }) {
+  if (!items.length) return null;
+  const limit = Math.max(1, Math.min(20, Math.floor(num(s, "limit", 10))));
+  return (
+    <Container className="py-10 sm:py-14">
+      <SectionHeading eyebrow="Sponsored" heading={str(s, "heading", "Sponsored picks")} subtitle={str(s, "subtitle", "Featured by AzadiMart sellers")} />
+      <SponsoredRow items={items.slice(0, limit)} />
     </Container>
   );
 }

@@ -5,6 +5,7 @@ export const SECTION_TYPES = [
   "banner_row",
   "category_showcase",
   "featured_products",
+  "sponsored_products",
   "category_grid",
   "trust_strip",
   "rich_text",

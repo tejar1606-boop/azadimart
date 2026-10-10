@@ -258,6 +258,22 @@ check("and not on other categories", !((await shop(`/api/v1/ads/sponsored?catego
 r = await shop(`/api/v1/ads/click/${searchBid.id}`, { redirect: "manual" });
 check("sponsored card click counted and opens the product", r.location?.endsWith(`/products/${mine.slug}`) && (await sql`select clicks from ad_bids where id = ${searchBid.id}`)[0].clicks === 1);
 
+// --- sponsored products row on the home page
+const homeSlot = (await productSlot({ name: `Home products ${RUN}`, placement: "HOME_PRODUCTS" })).json?.slot?.id;
+check("admin creates a home products placement", Boolean(homeSlot));
+r = await sellerA("/api/v1/ads/campaigns", { method: "POST", body: { slotId: homeSlot, productId: mine.product_id, headline: `Home product ad ${RUN}` } });
+const campHome = r.json?.campaign?.id;
+check("home product ad needs no banner", r.status === 201 && r.json.campaign.desktopImageAssetId === null, r.status + " " + JSON.stringify(r.json?.error ?? ""));
+await bid(sellerA, campHome, [d4], "BUY_NOW");
+await sql`update ad_bids set day = ${istDay(0)} where slot_id = ${homeSlot} and status = 'WON'`;
+const [homeBid] = await sql`select id from ad_bids where slot_id = ${homeSlot} and status = 'WON'`;
+check("home product ad hidden until approved", !(await shop("/")).text.includes(`/api/v1/ads/click/${homeBid.id}`));
+await admin(`/api/v1/ads/campaigns/${campHome}`, { method: "POST", body: { decision: "APPROVED" } });
+const homePage = await shop("/");
+check("approved product shows in the home Sponsored picks row", homePage.text.includes(`/api/v1/ads/click/${homeBid.id}`) && homePage.text.includes("Sponsored picks"));
+r = await shop(`/api/v1/ads/click/${homeBid.id}`, { redirect: "manual" });
+check("home sponsored card click opens the product", r.location?.endsWith(`/products/${mine.slug}`));
+
 // --- reports and access
 const adminView = (await admin("/api/v1/ads/slots")).json;
 check("admin sees bookings with seller names", adminView?.bookings?.some((b) => b.storeName === me.store_name));

@@ -14,7 +14,7 @@ type Row = ThemeSectionDraft & { id:string };
 type HomepageSectionResponse = { id:string; type:string; position:number; isVisible:boolean; settings:Record<string,unknown> };
 
 const LABELS: Record<string,string> = {
-  hero:"Hero banner", marquee:"Scrolling highlights strip", promo_banner:"Promo banner", banner_row:"Banner row (1–3 banners)", category_showcase:"Top category banner", category_grid:"Category grid", featured_products:"Featured products",
+  hero:"Hero banner", marquee:"Scrolling highlights strip", promo_banner:"Promo banner", banner_row:"Banner row (1–3 banners)", category_showcase:"Top category banner", category_grid:"Category grid", featured_products:"Featured products", sponsored_products:"Sponsored products (seller ads)",
   sales_coupons:"Sales coupons", image_banner:"Image + text banner", trust_strip:"Trust & value strip", rich_text:"Rich text",
   video:"Video", seller_cta:"Seller callout", newsletter:"Newsletter",
 };
@@ -23,6 +23,7 @@ function defaults(type:string){
   // Mid-page banner rows are usually a desktop feature (like Meesho); start them desktop-only with two empty banners.
   if(type==="banner_row") return {heading:"",showOn:"desktop",banners:[{},{}]};
   if(type==="category_showcase") return {theme:"saffron",buttonLabel:"View all",showOn:"all"};
+  if(type==="sponsored_products") return {heading:"Sponsored picks",subtitle:"Featured by AzadiMart sellers",limit:10};
   return DEFAULT_HOME_SECTIONS.find((s)=>s.type===type)?.settings ?? {heading:LABELS[type] ?? "New section"};
 }
 const SHOW_ON_LABEL: Record<string,string> = { all:"All devices", desktop:"Desktop only", mobile:"Mobile only" };
@@ -125,7 +126,7 @@ export default function OnlineStoreEditor(){
 
 function SectionFields({section,onChange}:{section:Row;onChange:(key:string,value:SettingValue)=>void}){
   const t=section.type;
-  const common=["hero","marquee","promo_banner","banner_row","category_showcase","image_banner","category_grid","trust_strip","featured_products","sales_coupons","seller_cta","newsletter","rich_text","video"].includes(t);
+  const common=["hero","marquee","promo_banner","banner_row","category_showcase","image_banner","category_grid","trust_strip","featured_products","sponsored_products","sales_coupons","seller_cta","newsletter","rich_text","video"].includes(t);
   if(!common) return null;
   return <div className="mt-4 grid gap-3 md:grid-cols-2">
     {t==="category_showcase" && <ShowcaseField settings={section.settings} onChange={onChange}/>}
@@ -154,7 +155,7 @@ function SectionFields({section,onChange}:{section:Row;onChange:(key:string,valu
     {(t==="trust_strip"||t==="marquee") && <Field label={t==="trust_strip"?"Items (one per line: Title | short line)":"Items (one per line)"} wide><textarea className="min-h-28 w-full rounded-lg border p-2.5" value={Array.isArray(section.settings.items)?section.settings.items.filter((v): v is string=>typeof v==="string").join("\n"):""} onChange={e=>onChange("items",e.target.value.split("\n").map(v=>v.trim()).filter(Boolean))}/></Field>}
     {t==="seller_cta" && <><Field label="Eyebrow"><input className="w-full rounded-lg border p-2.5" value={val(section,"eyebrow")} onChange={e=>onChange("eyebrow",e.target.value)}/></Field><Field label="Description"><textarea className="min-h-20 w-full rounded-lg border p-2.5" value={val(section,"description")} onChange={e=>onChange("description",e.target.value)}/></Field><Field label="Primary label"><input className="w-full rounded-lg border p-2.5" value={val(section,"primaryLabel")} onChange={e=>onChange("primaryLabel",e.target.value)}/></Field><Field label="Primary link"><input className="w-full rounded-lg border p-2.5" value={val(section,"primaryHref")} onChange={e=>onChange("primaryHref",e.target.value)}/></Field><Field label="Secondary label"><input className="w-full rounded-lg border p-2.5" value={val(section,"secondaryLabel")} onChange={e=>onChange("secondaryLabel",e.target.value)}/></Field><Field label="Secondary link"><input className="w-full rounded-lg border p-2.5" value={val(section,"secondaryHref")} onChange={e=>onChange("secondaryHref",e.target.value)}/></Field><MediaField kind="image" label="Background image (optional)" hint="2400 × 800 px · subject on the right" value={val(section,"imageUrl")} onChange={v=>onChange("imageUrl",v)}/></>}
     {t==="category_grid" && <Field label="Categories (one per line)" wide><textarea className="min-h-28 w-full rounded-lg border p-2.5" value={Array.isArray(section.settings.categories)?section.settings.categories.join("\n"):""} onChange={e=>onChange("categories",e.target.value.split("\n").map(v=>v.trim()).filter(Boolean))}/></Field>}
-    {(t==="featured_products"||t==="sales_coupons") && <Field label="Items to show"><input type="number" min="1" max="24" className="w-full rounded-lg border p-2.5" value={String(section.settings.limit ?? 8)} onChange={e=>onChange("limit",Number(e.target.value))}/></Field>}
+    {(t==="featured_products"||t==="sponsored_products"||t==="sales_coupons") && <Field label="Items to show"><input type="number" min="1" max="24" className="w-full rounded-lg border p-2.5" value={String(section.settings.limit ?? 8)} onChange={e=>onChange("limit",Number(e.target.value))}/></Field>}
     {t==="newsletter" && <Field label="Button label"><input className="w-full rounded-lg border p-2.5" value={val(section,"buttonLabel")} onChange={e=>onChange("buttonLabel",e.target.value)}/></Field>}
     {t==="promo_banner" && <>
       <MediaField kind="image" label="Desktop banner" hint="1800 × 320 px" size={{width:1800,height:320}} value={val(section,"desktopImageUrl")} onChange={v=>onChange("desktopImageUrl",v)}/>
@@ -195,6 +196,7 @@ function HeroPreview({s,device}:{s:Record<string,unknown>;device:"desktop"|"phon
 function Preview({section,device,categoryName}:{section:Row;device:"desktop"|"phone";categoryName?:string}){
   const s=section.settings; const heading=String(s.heading ?? LABELS[section.type] ?? section.type); const phone=device==="phone";
   if(section.type==="hero") return s.size==="compact" ? <div className="bg-slate-50 px-[8%] py-4"><div className="overflow-hidden rounded-xl"><HeroPreview s={s} device={device}/></div></div> : <HeroPreview s={s} device={device}/>;
+  if(section.type==="sponsored_products") return <div className="border-b bg-white p-4"><h3 className="text-sm font-bold">{String(s.heading??"Sponsored picks")}</h3><p className="mt-1 text-[11px] text-slate-500">Shows today&apos;s winning seller ads (Marketing → Ads → “Sponsored products row on the home page”). Hidden when no ad is running.</p><div className={"mt-3 grid gap-2 "+(phone?"grid-cols-2":"grid-cols-5")}>{Array.from({length:phone?2:5}).map((_,k)=><div key={k} className="aspect-square rounded-lg bg-slate-100"/>)}</div></div>;
   if(section.type==="category_grid") return <div className="bg-white p-4"><h3 className="text-sm font-bold">{String(s.heading??"Shop by category")}</h3><p className="text-[11px] text-slate-500">{String(s.subtitle??"")}</p><div className="mt-3 grid grid-cols-2 gap-2">{(Array.isArray(s.categories)?s.categories:[]).slice(0,4).map((c:unknown)=><div key={String(c)} className="rounded-lg bg-slate-100 p-3 text-[11px] font-semibold">{String(c)}</div>)}</div></div>;
   if(section.type==="promo_banner"){ const img=phone?(str2(s.mobileImageUrl)||str2(s.desktopImageUrl)):str2(s.desktopImageUrl); return img ? <div className="bg-white p-2"><div className={"w-full rounded bg-cover bg-center "+(phone&&s.mobileImageUrl?"aspect-[800/329]":"aspect-[1800/320]")} style={bg(img)}/></div> : <div className="grid aspect-[1800/320] place-items-center bg-slate-100 text-[11px] font-semibold text-slate-400">Promo banner · upload 1800 × 320</div>; }
   if(section.type==="banner_row"){
