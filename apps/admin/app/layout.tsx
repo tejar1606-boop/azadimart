@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
-import { headers } from "next/headers";
-import { getSessionPrincipal } from "@azadimart/auth";
 import { createDatabase, adCampaigns, productAplusContent, products, qcSubmissions, sellerVerifications, supportTickets } from "@azadimart/database";
 import { and, count, eq, inArray } from "drizzle-orm";
 import "@azadimart/ui/globals.css";
 import AdminChrome, { type AdminCounts } from "./_components/admin-chrome";
+import { currentStaff } from "./lib/staff-page";
 
 const poppins = Poppins({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-sans" });
 
@@ -15,25 +14,25 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-/** Work-queue counts for the sidebar; only computed for a signed-in admin. */
+/** Work-queue counts for the sidebar, only for the areas the signed-in team member may use. */
 async function adminCounts(): Promise<AdminCounts | null> {
   try {
-    const cookie = (await headers()).get("cookie");
-    if (!cookie) return null;
     const db = createDatabase();
-    const principal = await getSessionPrincipal(new Request("http://azadimart.internal", { headers: { cookie } }), db);
-    if (!principal || !["ADMIN", "SUPER_ADMIN", "SUPPORT"].includes(principal.role)) return null;
-    // Tickets where the requester is waiting on the team.
-    const supportWaiting = db.select({ n: count() }).from(supportTickets).where(and(inArray(supportTickets.status, ["OPEN", "IN_PROGRESS"]), eq(supportTickets.lastReplyBy, "REQUESTER"))).then((r) => Number(r[0]?.n ?? 0));
-    if (principal.role === "SUPPORT") return { role: "SUPPORT", support: await supportWaiting, sellers: 0, qc: 0, approvals: 0, aplus: 0, ads: 0 };
-    const [sellersPending, qcPending, approvals, aplusPending, adsPending] = await Promise.all([
-      db.select({ n: count() }).from(sellerVerifications).where(eq(sellerVerifications.status, "IN_REVIEW")),
-      db.select({ n: count() }).from(qcSubmissions).where(eq(qcSubmissions.status, "PENDING")),
-      db.select({ n: count() }).from(products).where(eq(products.status, "PENDING_ADMIN_APPROVAL")),
-      db.select({ n: count() }).from(productAplusContent).where(eq(productAplusContent.status, "PENDING_REVIEW")),
-      db.select({ n: count() }).from(adCampaigns).where(eq(adCampaigns.status, "PENDING_REVIEW")),
+    const access = await currentStaff(db);
+    if (!access) return null;
+    const can = (p: string) => access.permissions.includes(p as never);
+    const n = (q: Promise<Array<{ n: number }>>) => q.then((r) => Number(r[0]?.n ?? 0));
+    const skip = Promise.resolve(0);
+    const [support, sellersPending, qc, approvals, aplus, ads] = await Promise.all([
+      // Tickets where the requester is waiting on the team.
+      can("support") ? n(db.select({ n: count() }).from(supportTickets).where(and(inArray(supportTickets.status, ["OPEN", "IN_PROGRESS"]), eq(supportTickets.lastReplyBy, "REQUESTER")))) : skip,
+      can("sellers") ? n(db.select({ n: count() }).from(sellerVerifications).where(eq(sellerVerifications.status, "IN_REVIEW"))) : skip,
+      can("catalog") ? n(db.select({ n: count() }).from(qcSubmissions).where(eq(qcSubmissions.status, "PENDING"))) : skip,
+      can("catalog") ? n(db.select({ n: count() }).from(products).where(eq(products.status, "PENDING_ADMIN_APPROVAL"))) : skip,
+      can("catalog") ? n(db.select({ n: count() }).from(productAplusContent).where(eq(productAplusContent.status, "PENDING_REVIEW"))) : skip,
+      can("marketing") ? n(db.select({ n: count() }).from(adCampaigns).where(eq(adCampaigns.status, "PENDING_REVIEW"))) : skip,
     ]);
-    return { role: principal.role, support: await supportWaiting, sellers: Number(sellersPending[0]?.n ?? 0), qc: Number(qcPending[0]?.n ?? 0), approvals: Number(approvals[0]?.n ?? 0), aplus: Number(aplusPending[0]?.n ?? 0), ads: Number(adsPending[0]?.n ?? 0) };
+    return { role: access.role, roleName: access.roleName, displayName: access.displayName, permissions: access.permissions, support, sellers: sellersPending, qc, approvals, aplus, ads };
   } catch {
     return null;
   }

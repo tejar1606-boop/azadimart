@@ -94,3 +94,11 @@ describe("logger", () => {
     expect(lines[0]).not.toContain("nopenopenope");
   });
 });
+
+describe("wrapped database errors", () => {
+  it("maps a unique violation wrapped by the ORM to 409", async () => {
+    const { toApiError } = await import("./errors");
+    const wrapped = Object.assign(new Error("Failed query"), { cause: Object.assign(new Error("duplicate key"), { code: "23505" }) });
+    expect(toApiError(wrapped, "req-x").status).toBe(409);
+  });
+});

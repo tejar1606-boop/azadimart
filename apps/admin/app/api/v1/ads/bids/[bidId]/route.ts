@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { adBids, auditLogs, createDatabase } from "@azadimart/database";
 import { notifySeller } from "@azadimart/notify";
 import { AppError, istDayKey, toApiError, uuidSchema } from "@azadimart/shared";
@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
 export async function DELETE(request: Request, { params }: { params: Promise<{ bidId: string }> }) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "marketing");
     const { bidId } = await params;
     if (!uuidSchema.safeParse(bidId).success) throw new AppError("NOT_FOUND", "Booking not found");
     const { reason } = (await request.json().catch(() => ({}))) as { reason?: string };

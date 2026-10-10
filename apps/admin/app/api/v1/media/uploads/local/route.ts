@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { AppError, toApiError } from "@azadimart/shared";
 import { getObjectStore, receiveLocalUpload, UploadError } from "@azadimart/storage";
 import { NextResponse } from "next/server";
@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 export async function PUT(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, ["catalog", "storefront", "marketing"]);
     const token = new URL(request.url).searchParams.get("token") ?? "";
     await receiveLocalUpload(getObjectStore(), token, principal.userId, request.body);
     return new NextResponse(null, { status: 200 });

@@ -166,13 +166,14 @@ check("seller unread count", (await seller("/api/v1/support/unread")).json?.coun
 
 // --- support agents and saved replies
 const agentEmail = `e2e.agent.${RUN.toLowerCase()}@azadimart.test`;
-r = await admin("/api/v1/support/agents", { method: "POST", body: { displayName: `Agent ${RUN}`, email: agentEmail, password: "AgentPass2026!" } });
-agentUserId = r.json?.agent?.userId ?? null;
+const supportRole = ((await admin("/api/v1/team")).json?.roles ?? []).find((x) => x.name === "Support agent");
+r = await admin("/api/v1/team/members", { method: "POST", body: { displayName: `Agent ${RUN}`, email: agentEmail, password: "AgentPass2026!", roleId: supportRole?.id } });
+agentUserId = r.json?.member?.userId ?? null;
 check("admin adds a support agent", r.status === 201 && agentUserId);
 check("agent signs in to the admin portal", (await agent("/api/auth/login", { method: "POST", body: { email: agentEmail, password: "AgentPass2026!" } })).status === 200);
 check("agent works the desk", (await agent("/api/v1/support/tickets")).status === 200);
 check("agent can't use other admin tools", (await agent("/api/v1/ads/slots")).status === 403 && (await agent("/api/v1/orders")).status === 403);
-check("agent can't add agents", (await agent("/api/v1/support/agents", { method: "POST", body: { displayName: "Nope", email: "nope@azadimart.test", password: "AgentPass2026!" } })).status === 403);
+check("agent can't add agents", (await agent("/api/v1/team/members", { method: "POST", body: { displayName: "Nope", email: "nope@azadimart.test", password: "AgentPass2026!", roleId: supportRole?.id } })).status === 403);
 r = await agent(`/api/v1/support/tickets/${sTicket.id}`, { method: "PATCH", body: { assignedToUserId: agentUserId } });
 check("ticket assigned to the agent", r.json?.ticket?.assignedToUserId === agentUserId);
 r = await agent(`/api/v1/support/tickets/${sTicket.id}`, { method: "POST", body: { message: "Agent here, looking now" } });
@@ -180,11 +181,12 @@ check("agent's reply shows their name", r.json?.messages?.some((m) => m.authorTy
 r = await agent("/api/v1/support/canned", { method: "POST", body: { title: `E2E reply ${RUN}`, body: "Hi {name}, thanks!" } });
 if (r.json?.reply?.id) canned.push(r.json.reply.id);
 check("saved replies can be added", r.status === 201 && ((await admin(`/api/v1/support/tickets/${sTicket.id}`)).json?.canned ?? []).some((c) => c.id === r.json.reply.id));
-await admin(`/api/v1/support/agents/${agentUserId}`, { method: "PATCH", body: { isActive: false } });
+await admin(`/api/v1/team/members/${agentUserId}`, { method: "PATCH", body: { isActive: false } });
 check("switching an agent off signs them out and frees their tickets", [401, 403].includes((await agent("/api/v1/support/tickets")).status) && !(await sql`select assigned_to_user_id from support_tickets where id = ${sTicket.id}`)[0].assigned_to_user_id);
 check("customers and sellers can't reach the desk", [401, 403].includes((await shop(`${AD}/api/v1/support/tickets`)).status) && [401, 403].includes((await seller(`${AD}/api/v1/support/tickets`)).status));
 const audits = await sql`select action from audit_logs where created_at > now() - interval '15 minutes' and action like 'SUPPORT_%'`;
-check("support actions audited", ["SUPPORT_REPLY", "SUPPORT_NOTE", "SUPPORT_TICKET_UPDATED", "SUPPORT_AGENT_CREATED", "SUPPORT_AGENT_UPDATED"].every((a) => audits.some((x) => x.action === a)));
+check("adding and switching off agents is audited", (await sql`select count(*)::int n from audit_logs where entity_id = ${agentUserId} and action in ('TEAM_MEMBER_ADDED', 'TEAM_MEMBER_UPDATED')`)[0].n === 2);
+check("support actions audited", ["SUPPORT_REPLY", "SUPPORT_NOTE", "SUPPORT_TICKET_UPDATED"].every((a) => audits.some((x) => x.action === a)));
 desk = (await admin("/api/v1/support/tickets?view=all")).json;
 check("desk counts assistant chats", desk?.stats?.botChats7d >= 2 && desk.stats.botEscalated7d >= 2);
 

@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import {
   createDatabase,
   sellerAadhaar,
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
 
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, ["sellers", "marketing", "payments"]);
     const { searchParams } = new URL(request.url);
     const { page, pageSize } = paginationSchema.parse({
       page: searchParams.get("page") ?? undefined,

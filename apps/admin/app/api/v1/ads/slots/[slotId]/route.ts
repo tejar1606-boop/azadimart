@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { adSlots, auditLogs, createDatabase } from "@azadimart/database";
 import { AppError, adSlotSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { eq } from "drizzle-orm";
@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 export async function PATCH(request: Request, { params }: { params: Promise<{ slotId: string }> }) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "marketing");
     const { slotId } = await params;
     if (!uuidSchema.safeParse(slotId).success) throw new AppError("NOT_FOUND", "Ad space not found");
     const input = adSlotSchema.parse(await request.json());

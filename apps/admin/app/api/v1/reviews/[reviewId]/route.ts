@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, createDatabase, productReviews, refreshProductRating } from "@azadimart/database";
 import { AppError, adminReviewModerationSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { eq } from "drizzle-orm";
@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 export async function PATCH(request: Request, { params }: { params: Promise<{ reviewId: string }> }) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "catalog");
     const { reviewId } = await params;
     if (!uuidSchema.safeParse(reviewId).success) throw new AppError("NOT_FOUND", "Review not found");
     const input = adminReviewModerationSchema.parse(await request.json());

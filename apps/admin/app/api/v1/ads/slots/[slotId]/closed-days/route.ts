@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { adBids, adSlotClosedDays, auditLogs, createDatabase } from "@azadimart/database";
 import { AppError, adSlotClosedDaysSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { and, eq, inArray } from "drizzle-orm";
@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request, { params }: { params: Promise<{ slotId: string }> }) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "marketing");
     const { slotId } = await params;
     if (!uuidSchema.safeParse(slotId).success) throw new AppError("NOT_FOUND", "Ad space not found");
     const { days, closed } = adSlotClosedDaysSchema.parse(await request.json());

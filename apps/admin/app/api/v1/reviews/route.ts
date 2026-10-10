@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { createDatabase, customers, mediaAssets, productReviewMedia, productReviews, products, sellers, users } from "@azadimart/database";
 import { toApiError } from "@azadimart/shared";
 import { and, asc, desc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, "catalog");
     const url = new URL(request.url);
     const status = url.searchParams.get("status");
     const rating = Number(url.searchParams.get("rating"));

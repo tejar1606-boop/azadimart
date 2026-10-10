@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, carts, createDatabase } from "@azadimart/database";
 import { AppError, cartReminderSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { eq, sql } from "drizzle-orm";
@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request, { params }: { params: Promise<{ cartId: string }> }) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "orders");
     const { cartId } = await params;
     if (!uuidSchema.safeParse(cartId).success) throw new AppError("NOT_FOUND", "Cart not found");
     const input = cartReminderSchema.parse(await request.json());

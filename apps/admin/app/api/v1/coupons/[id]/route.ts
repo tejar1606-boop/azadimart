@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, createDatabase, coupons } from "@azadimart/database";
 import { AppError, couponUpdateSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { eq } from "drizzle-orm";
@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 export async function PATCH(request: Request, { params }: { params: Promise<{ id:string }> }) {
   const requestId=crypto.randomUUID();
   try{
-    const principal=await requireApiAccess(request,"admin",["ADMIN","SUPER_ADMIN"]);
+    const principal=await requireStaff(request, "marketing");
     const { id } = await params;
     if(!uuidSchema.safeParse(id).success) throw new AppError("NOT_FOUND","Coupon not found");
     const input=couponUpdateSchema.parse(await request.json());
@@ -61,7 +61,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 export async function DELETE(request:Request,{params}:{params:Promise<{id:string}>}){
   const requestId=crypto.randomUUID();
   try{
-    const principal=await requireApiAccess(request,"admin",["ADMIN","SUPER_ADMIN"]);
+    const principal=await requireStaff(request, "marketing");
     const { id } = await params;
     if(!uuidSchema.safeParse(id).success) throw new AppError("NOT_FOUND","Coupon not found");
     const db=createDatabase();

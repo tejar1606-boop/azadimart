@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, categories, createDatabase } from "@azadimart/database";
 import { AppError, adminCategoryOrderSchema, toApiError } from "@azadimart/shared";
 import { inArray, sql } from "drizzle-orm";
@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 export async function PUT(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "catalog");
     const { ids } = adminCategoryOrderSchema.parse(await request.json());
     const db = createDatabase();
     await db.transaction(async (tx) => {

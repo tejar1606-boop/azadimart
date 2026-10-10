@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, createDatabase, products, qcSubmissions } from "@azadimart/database";
 import { AppError, adminProductStatusSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { and, eq } from "drizzle-orm";
@@ -16,7 +16,7 @@ const RULES: Record<"hide" | "show" | "archive" | "restore", { from: Status[]; t
 export async function POST(request: Request, { params }: { params: Promise<{ productId: string }> }) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "catalog");
     const { productId } = await params;
     if (!uuidSchema.safeParse(productId).success) throw new AppError("NOT_FOUND", "Product not found");
     const input = adminProductStatusSchema.parse(await request.json());

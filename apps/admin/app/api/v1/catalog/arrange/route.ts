@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, categories, createDatabase, inventory, mediaAssets, productMedia, productVariants, products, sellers } from "@azadimart/database";
 import { AppError, adminProductArrangeSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
@@ -17,7 +17,7 @@ function liveInStoreOrder(db: Pick<Db, "select">) {
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, "catalog");
     const categoryId = new URL(request.url).searchParams.get("categoryId");
     if (categoryId && !uuidSchema.safeParse(categoryId).success) throw new AppError("VALIDATION_ERROR", "Invalid category");
     const db = createDatabase();
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "catalog");
     const input = adminProductArrangeSchema.parse(await request.json());
     const db = createDatabase();
     const saved = await db.transaction(async (tx) => {

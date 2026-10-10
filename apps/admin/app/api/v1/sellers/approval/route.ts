@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import {
   auditLogs,
   createDatabase,
@@ -15,11 +15,7 @@ export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
 
   try {
-    const principal = await requireApiAccess(
-      request,
-      "admin",
-      ["ADMIN", "SUPER_ADMIN"],
-    );
+    const principal = await requireStaff(request, "sellers");
     const input = sellerApprovalSchema.parse(await request.json());
     const db = createDatabase();
 

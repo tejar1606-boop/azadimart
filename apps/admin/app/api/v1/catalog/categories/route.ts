@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, categories, createDatabase, products } from "@azadimart/database";
 import { AppError, adminCategoryCreateSchema, toApiError } from "@azadimart/shared";
 import { and, asc, count, eq, isNull, like, max, or } from "drizzle-orm";
@@ -12,7 +12,7 @@ function slugifyCategory(name: string): string {
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, "any");
     const db = createDatabase();
     const [rows, counts] = await Promise.all([
       db.select({ id: categories.id, name: categories.name, slug: categories.slug, parentId: categories.parentId, isActive: categories.isActive, sortOrder: categories.sortOrder, metaTitle: categories.metaTitle, metaDescription: categories.metaDescription, description: categories.description })
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "catalog");
     const input = adminCategoryCreateSchema.parse(await request.json());
     const db = createDatabase();
     const created = await db.transaction(async (tx) => {

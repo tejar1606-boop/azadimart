@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { createDatabase, orderItems, orders, payments, sellers } from "@azadimart/database";
 import { toApiError } from "@azadimart/shared";
 import { desc, eq, inArray } from "drizzle-orm";
@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, "orders");
     const db = createDatabase();
 
     const rows = await db

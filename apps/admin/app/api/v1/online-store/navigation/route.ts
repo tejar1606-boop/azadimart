@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, createDatabase, navigation, navigationItems, themes } from "@azadimart/database";
 import { AppError, navigationSchema, toApiError } from "@azadimart/shared";
 import { and, asc, eq } from "drizzle-orm";
@@ -54,7 +54,7 @@ async function getPrimaryNavigation(){
 export async function GET(request:Request){
   const requestId=crypto.randomUUID();
   try{
-    await requireApiAccess(request,"admin",["ADMIN","SUPER_ADMIN"]);
+    await requireStaff(request, "storefront");
     const {items}=await getPrimaryNavigation();
     return NextResponse.json({navigation:items.map(({label,href,isActive})=>({label,href:href??"/",isActive}))});
   }catch(error){const {status,body}=toApiError(error,requestId);return NextResponse.json(body,{status});}
@@ -63,7 +63,7 @@ export async function GET(request:Request){
 export async function PUT(request:Request){
   const requestId=crypto.randomUUID();
   try{
-    const principal=await requireApiAccess(request,"admin",["ADMIN","SUPER_ADMIN"]);
+    const principal=await requireStaff(request, "storefront");
     const input=navigationSchema.parse(await request.json());
     const {db,nav}=await getPrimaryNavigation();
     await db.transaction(async(tx)=>{

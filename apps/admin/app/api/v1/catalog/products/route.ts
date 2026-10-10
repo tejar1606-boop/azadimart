@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { createDatabase, inventory, mediaAssets, productMedia, productVariants, products, sellers } from "@azadimart/database";
 import { toApiError } from "@azadimart/shared";
 import { and, desc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
@@ -10,7 +10,7 @@ const STATUSES = ["DRAFT", "PENDING_QC", "QC_REJECTED", "PENDING_ADMIN_APPROVAL"
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, ["catalog", "marketing"]);
     const url = new URL(request.url);
     const q = url.searchParams.get("q")?.trim().slice(0, 100) ?? "";
     const status = url.searchParams.get("status") ?? "";

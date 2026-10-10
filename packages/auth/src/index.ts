@@ -6,3 +6,4 @@ export * from "./login-guard";
 export * from "./captcha";
 export * from "./rate-limit";
 export * from "./secrets";
+export * from "./staff";

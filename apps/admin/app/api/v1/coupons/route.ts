@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, createDatabase, coupons } from "@azadimart/database";
 import { AppError, couponSchema, toApiError } from "@azadimart/shared";
 import { desc, eq } from "drizzle-orm";
@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, ["marketing", "orders"]);
     const db = createDatabase();
     const rows = await db.select().from(coupons).orderBy(desc(coupons.createdAt));
     return NextResponse.json({ coupons: rows });
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "marketing");
     const input = couponSchema.parse(await request.json());
     const db = createDatabase();
     const existing = (await db.select({ id: coupons.id }).from(coupons).where(eq(coupons.code, input.code)).limit(1))[0];

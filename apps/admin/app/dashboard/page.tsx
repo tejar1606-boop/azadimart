@@ -1,9 +1,6 @@
 import Link from "next/link";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { getSessionPrincipal } from "@azadimart/auth";
+import { requireStaffPage } from "../lib/staff-page";
 import {
-  createDatabase,
   customers,
   inventory,
   orders,
@@ -14,6 +11,7 @@ import {
   qcSubmissions,
   sellers,
   sellerVerifications,
+  supportTickets,
 } from "@azadimart/database";
 import { PortalIcons, PortalPageHeader, StatCard } from "@azadimart/ui";
 import { and, count, desc, eq, gte, inArray, lte, notInArray, sql } from "drizzle-orm";
@@ -29,16 +27,11 @@ const STATUS_TONE: Record<string, string> = {
   RETURNED: "bg-amber-50 text-amber-700", PAID: "bg-green-50 text-green-700",
 };
 
-async function requireAdmin() {
-  const cookie = (await headers()).get("cookie");
-  const db = createDatabase();
-  const principal = await getSessionPrincipal(new Request("http://azadimart.internal", { headers: cookie ? { cookie } : undefined }), db);
-  if (!principal || (principal.role !== "ADMIN" && principal.role !== "SUPER_ADMIN")) redirect("/login");
-  return db;
-}
-
 export default async function DashboardPage() {
-  const db = await requireAdmin();
+  const { db, access } = await requireStaffPage("dashboard");
+  // Each team member sees only the numbers and queues of their own areas.
+  const can = (area: string) => access.permissions.includes(area as never);
+  const seesSales = can("orders") || can("payments");
   const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
   const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const sales = (since: Date) => db.select({ revenue: sql<number>`coalesce(sum(${orders.grandTotalPaise}), 0)`, n: count() })
@@ -58,7 +51,7 @@ export default async function DashboardPage() {
       .innerJoin(productVariants, eq(productVariants.id, inventory.variantId))
       .innerJoin(products, eq(products.id, productVariants.productId))
       .where(and(eq(products.status, "LIVE"), eq(productVariants.isActive, true), lte(sql`${inventory.onHand} - ${inventory.reserved}`, 5))),
-    db.select({
+    !seesSales ? Promise.resolve([]) : db.select({
       id: orders.id, orderNumber: orders.orderNumber, status: orders.status, total: orders.grandTotalPaise, createdAt: orders.createdAt,
       customer: customers.fullName,
     }).from(orders).innerJoin(customers, eq(customers.id, orders.customerId))
@@ -70,12 +63,14 @@ export default async function DashboardPage() {
   const paymentRows = recentIds.length ? await db.select({ orderId: payments.orderId, status: payments.status, provider: payments.provider }).from(payments).where(inArray(payments.orderId, recentIds)) : [];
   const n = (rows: Array<{ n: number }>) => Number(rows[0]?.n ?? 0);
 
+  const supportWaiting = can("support") ? n(await db.select({ n: count() }).from(supportTickets).where(and(inArray(supportTickets.status, ["OPEN", "IN_PROGRESS"]), eq(supportTickets.lastReplyBy, "REQUESTER")))) : 0;
   const queues = [
-    { href: "/sellers", label: "Sellers waiting for KYC review", value: n(kyc), icon: PortalIcons.sellers },
-    { href: "/qc", label: "Products in quality control", value: n(qc), icon: PortalIcons.qc },
-    { href: "/products", label: "Products awaiting final approval", value: n(approvals), icon: PortalIcons.products },
-    { href: "/aplus", label: "A+ content to review", value: n(aplus), icon: PortalIcons.aplus },
-  ];
+    { href: "/sellers", label: "Sellers waiting for KYC review", value: n(kyc), icon: PortalIcons.sellers, area: "sellers" },
+    { href: "/qc", label: "Products in quality control", value: n(qc), icon: PortalIcons.qc, area: "catalog" },
+    { href: "/products", label: "Products awaiting final approval", value: n(approvals), icon: PortalIcons.products, area: "catalog" },
+    { href: "/aplus", label: "A+ content to review", value: n(aplus), icon: PortalIcons.aplus, area: "catalog" },
+    { href: "/support", label: "Support requests waiting for a reply", value: supportWaiting, icon: PortalIcons.support, area: "support" },
+  ].filter((queue) => can(queue.area));
   const pending = queues.reduce((sum, queue) => sum + queue.value, 0);
 
   return (
@@ -84,18 +79,18 @@ export default async function DashboardPage() {
         eyebrow={new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
         title="Good to see you"
         description={pending ? `${pending} item${pending === 1 ? "" : "s"} waiting for your review.` : "Everything is reviewed. Nice work."}
-        actions={<><Link href="/orders" className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:border-slate-900">View orders</Link><Link href="/online-store" className="rounded-full bg-chrome px-4 py-2 text-sm font-semibold text-white hover:bg-black">Edit storefront</Link></>}
+        actions={<>{can("orders") ? <Link href="/orders" className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:border-slate-900">View orders</Link> : null}{can("storefront") ? <Link href="/online-store" className="rounded-full bg-chrome px-4 py-2 text-sm font-semibold text-white hover:bg-black">Edit storefront</Link> : null}</>}
       />
 
       <section className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <StatCard label="Sales today" value={money(Number(today[0]?.revenue ?? 0))} hint={`${n(today)} order${n(today) === 1 ? "" : "s"}`} icon="orders" tone="brand" href="/orders" Link={Link} />
-        <StatCard label="Sales · 30 days" value={money(Number(month[0]?.revenue ?? 0))} hint={`${n(month)} orders`} icon="finance" tone="good" />
+        {seesSales ? <StatCard label="Sales today" value={money(Number(today[0]?.revenue ?? 0))} hint={`${n(today)} order${n(today) === 1 ? "" : "s"}`} icon="orders" tone="brand" href={can("orders") ? "/orders" : undefined} Link={Link} /> : null}
+        {seesSales ? <StatCard label="Sales · 30 days" value={money(Number(month[0]?.revenue ?? 0))} hint={`${n(month)} orders`} icon="finance" tone="good" /> : null}
         <StatCard label="Live products" value={n(liveProducts).toLocaleString("en-IN")} hint={`${n(lowStock)} low on stock`} icon="products" tone={n(lowStock) ? "warn" : "default"} />
         <StatCard label="Sellers · customers" value={`${n(activeSellers)} · ${n(customerCount)}`} hint="Active sellers · registered customers" icon="customers" />
       </section>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <section className="rounded-2xl border border-slate-200/80 bg-white shadow-card">
+      <div className={"mt-6 grid gap-6 " + (seesSales ? "xl:grid-cols-[minmax(0,1fr)_380px]" : "xl:max-w-3xl")}>
+        {seesSales ? <section className="rounded-2xl border border-slate-200/80 bg-white shadow-card">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
             <h2 className="font-semibold">Recent orders</h2>
             <Link href="/orders" className="text-sm font-semibold text-brand-600 hover:underline">All orders →</Link>
@@ -121,9 +116,9 @@ export default async function DashboardPage() {
               </table>
             </div>
           )}
-        </section>
+        </section> : null}
 
-        <section className="h-fit rounded-2xl border border-slate-200/80 bg-white shadow-card">
+        {queues.length ? <section className="h-fit rounded-2xl border border-slate-200/80 bg-white shadow-card">
           <h2 className="border-b border-slate-100 px-5 py-4 font-semibold">Needs your attention</h2>
           <ul className="divide-y divide-slate-100">
             {queues.map(({ href, label, value, icon: Icon }) => (
@@ -136,7 +131,7 @@ export default async function DashboardPage() {
               </li>
             ))}
           </ul>
-        </section>
+        </section> : null}
       </div>
     </main>
   );

@@ -1,7 +1,7 @@
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, "catalog");
     const db = createDatabase();
 
     const submissions = await db
@@ -80,7 +80,7 @@ export async function GET(request: Request) {
   }
 }
 
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, createDatabase, mediaAssets, productAplusContent, productMedia, productVariants, products, qcSubmissions, sellers } from "@azadimart/database";
 import { AppError, qcDecisionSchema, toApiError } from "@azadimart/shared";
 import { and, asc, eq, inArray } from "drizzle-orm";
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
 
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "catalog");
     const input = qcDecisionSchema.parse(await request.json());
     const db = createDatabase();
 

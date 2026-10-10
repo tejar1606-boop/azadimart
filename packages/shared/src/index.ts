@@ -11,3 +11,4 @@ export * from "./settlement";
 export * from "./ads";
 export * from "./page-banners";
 export * from "./support";
+export * from "./staff";

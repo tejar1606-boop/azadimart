@@ -1,7 +1,6 @@
-import SupportTeam from "./support-team";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Support team" };
-
+/** The support team is managed with the rest of the team. */
 export default function SupportTeamPage() {
-  return <SupportTeam />;
+  redirect("/team");
 }

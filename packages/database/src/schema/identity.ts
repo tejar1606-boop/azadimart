@@ -21,12 +21,26 @@ export const users = pgTable(
   ],
 );
 
+/** A team role in the admin portal: a named set of areas (see STAFF_PERMISSIONS). */
 export const roles = pgTable("roles", {
   id,
   name: text("name").notNull(),
   description: text("description"),
+  permissions: text("permissions").array().notNull().default([]),
+  /** Ready-made roles can be edited but not deleted. */
+  isSystem: boolean("is_system").notNull().default(false),
   ...timestamps,
 }, (table) => [uniqueIndex("roles_name_unique").on(table.name)]);
+
+/** A team member of the admin portal: name on replies, role and on/off switch. */
+export const staffMembers = pgTable("staff_members", {
+  userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  displayName: text("display_name").notNull(),
+  roleId: uuid("role_id").notNull().references(() => roles.id, { onDelete: "restrict" }),
+  isActive: boolean("is_active").notNull().default(true),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id),
+  ...timestamps,
+}, (table) => [index("staff_members_role_idx").on(table.roleId)]);
 
 export const userRoles = pgTable(
   "user_roles",

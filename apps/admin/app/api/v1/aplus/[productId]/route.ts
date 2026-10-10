@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, createDatabase, productAplusContent } from "@azadimart/database";
 import { AppError, aplusBlocksSchema, aplusDecisionSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { and, eq } from "drizzle-orm";
@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request, { params }: { params: Promise<{ productId: string }> }) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "catalog");
     const { productId } = await params;
     if (!uuidSchema.safeParse(productId).success) throw new AppError("NOT_FOUND", "A+ content not found");
     const input = aplusDecisionSchema.parse(await request.json());

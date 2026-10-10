@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { createDatabase, productAplusContent, productSummaries, products, sellers } from "@azadimart/database";
 import { type AplusBlock, aplusComparedProductIds, toApiError } from "@azadimart/shared";
 import { asc, eq } from "drizzle-orm";
@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, "catalog");
     const db = createDatabase();
     const rows = await db.select({
       productId: productAplusContent.productId,

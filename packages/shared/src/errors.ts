@@ -60,9 +60,10 @@ function normalizeError(error: unknown): unknown {
     );
   }
   // Postgres constraint/type errors caused by client input (driver errors
-  // carry a SQLSTATE `code`). Messages stay generic: constraint names and
-  // values are not exposed.
-  const sqlState = typeof (error as { code?: unknown })?.code === "string" ? (error as { code: string }).code : undefined;
+  // carry a SQLSTATE `code`; the ORM may wrap them, with the driver error as
+  // `cause`). Messages stay generic: constraint names and values are not exposed.
+  const codeOf = (e: unknown) => (typeof (e as { code?: unknown })?.code === "string" ? (e as { code: string }).code : undefined);
+  const sqlState = codeOf(error) ?? codeOf((error as { cause?: unknown })?.cause);
   if (sqlState === "23505") return new AppError("CONFLICT", "A record with these details already exists");
   if (sqlState === "23503") return new AppError("VALIDATION_ERROR", "A referenced record does not exist");
   if (sqlState === "22P02") return new AppError("VALIDATION_ERROR", "Invalid identifier or value format");

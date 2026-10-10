@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, categories, createDatabase, pageBanners } from "@azadimart/database";
 import { AppError, PAGE_BANNER_PAGES, pageBannerKeyPattern, pageBannerSchema, toApiError } from "@azadimart/shared";
 import { asc, eq } from "drizzle-orm";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, "storefront");
     const db = createDatabase();
     const [banners, cats] = await Promise.all([
       db.select().from(pageBanners),
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "storefront");
     const input = pageBannerSchema.parse(await request.json());
     const db = createDatabase();
     if (input.pageKey.startsWith("category:")) {
@@ -59,7 +59,7 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "storefront");
     const pageKey = new URL(request.url).searchParams.get("pageKey") ?? "";
     if (!pageBannerKeyPattern.test(pageKey)) throw new AppError("VALIDATION_ERROR", "Unknown page");
     const db = createDatabase();

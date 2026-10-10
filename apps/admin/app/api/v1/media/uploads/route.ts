@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { AppError, mediaUploadRequestSchema, toApiError } from "@azadimart/shared";
 import { createDatabase, products } from "@azadimart/database";
 import { createUpload, getObjectStore, UploadError, type UploadPurpose } from "@azadimart/storage";
@@ -10,7 +10,7 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, ["catalog", "storefront", "marketing"]);
     const input = mediaUploadRequestSchema.parse(await request.json());
     let keyPrefix = "site-media";
     if (input.purpose === "PRODUCT_IMAGE" || input.purpose === "PRODUCT_VIDEO") {

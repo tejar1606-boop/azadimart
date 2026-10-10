@@ -1,21 +1,22 @@
-import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, supportAgents, users } from "@azadimart/database";
-import { SUPPORT_DESK_ROLES } from "@azadimart/shared";
+import { requireStaff } from "@azadimart/auth";
+import { createDatabase, roles, staffMembers, users } from "@azadimart/database";
 import { and, eq, inArray } from "drizzle-orm";
 
-/** Admins and SUPPORT agents may work tickets. */
+/** Team members whose role includes the Support desk may work tickets. */
 export async function requireSupportStaff(request: Request) {
-  const principal = await requireApiAccess(request, "admin", SUPPORT_DESK_ROLES);
-  return { db: createDatabase(), userId: principal.userId, role: principal.role };
+  const db = createDatabase();
+  const principal = await requireStaff(request, "support", db);
+  return { db, userId: principal.userId, role: principal.role };
 }
 
-/** Everyone who can be assigned a ticket: active admins and support agents, with display names. */
+/** Everyone who can be assigned a ticket: active team members with the Support desk, with display names. */
 export async function supportTeam(db: ReturnType<typeof createDatabase>) {
-  const rows = await db.select({ userId: users.id, email: users.email, role: users.role, displayName: supportAgents.displayName, isActive: supportAgents.isActive })
-    .from(users).leftJoin(supportAgents, eq(supportAgents.userId, users.id))
-    .where(and(inArray(users.role, SUPPORT_DESK_ROLES), eq(users.status, "ACTIVE")));
+  const rows = await db.select({ userId: users.id, email: users.email, role: users.role, displayName: staffMembers.displayName, isActive: staffMembers.isActive, permissions: roles.permissions })
+    .from(users).leftJoin(staffMembers, eq(staffMembers.userId, users.id)).leftJoin(roles, eq(roles.id, staffMembers.roleId))
+    .where(and(inArray(users.role, ["ADMIN", "SUPER_ADMIN", "SUPPORT"]), eq(users.status, "ACTIVE")));
   return rows
-    .filter((r) => r.isActive !== false && (r.role !== "SUPPORT" || r.displayName))
-    .map((r) => ({ userId: r.userId, email: r.email, role: r.role, name: r.displayName || r.email.split("@")[0]! }))
+    // With a team role: it must include Support. Without one: owner and older full admins, and older support agents.
+    .filter((r) => (r.permissions ? r.isActive !== false && r.permissions.includes("support") : true))
+    .map((r) => ({ userId: r.userId, email: r.email, role: r.role, name: r.displayName || r.email.split("@")[0] || r.email }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

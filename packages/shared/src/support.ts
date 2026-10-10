@@ -97,9 +97,3 @@ export const supportStaffUpdateSchema = z.object({
 });
 
 export const supportCannedReplySchema = z.object({ title: z.string().trim().min(2).max(80), body: z.string().trim().min(2).max(4000) });
-export const supportAgentUpdateSchema = z.object({ displayName: z.string().trim().min(2).max(60).optional(), isActive: z.boolean().optional() });
-export const supportAgentCreateSchema = z.object({
-  displayName: z.string().trim().min(2).max(60),
-  email: z.string().trim().toLowerCase().email(),
-  password: z.string().min(10, "Use at least 10 characters").max(200),
-});

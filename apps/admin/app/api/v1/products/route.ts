@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, createDatabase, products, productVariants, sellers } from "@azadimart/database";
 import { AppError, toApiError } from "@azadimart/shared";
 import { and, eq, inArray } from "drizzle-orm";
@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, "catalog");
     const db = createDatabase();
     const rows = await db
       .select({
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "catalog");
     const body = (await request.json().catch(() => ({}))) as {
       productId?: string;
       decision?: "APPROVED" | "REJECTED";

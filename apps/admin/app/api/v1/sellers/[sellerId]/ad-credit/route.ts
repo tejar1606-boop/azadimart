@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { adBudget, auditLogs, createDatabase, sellers } from "@azadimart/database";
 import { AppError, adCreditLimitSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { eq } from "drizzle-orm";
@@ -10,7 +10,7 @@ type Params = { params: Promise<{ sellerId: string }> };
 export async function GET(request: Request, { params }: Params) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, ["sellers", "marketing"]);
     const { sellerId } = await params;
     if (!uuidSchema.safeParse(sellerId).success) throw new AppError("NOT_FOUND", "Seller not found");
     const db = createDatabase();
@@ -27,7 +27,7 @@ export async function GET(request: Request, { params }: Params) {
 export async function PUT(request: Request, { params }: Params) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, ["sellers", "marketing"]);
     const { sellerId } = await params;
     if (!uuidSchema.safeParse(sellerId).success) throw new AppError("NOT_FOUND", "Seller not found");
     const { limitPaise } = adCreditLimitSchema.parse(await request.json());

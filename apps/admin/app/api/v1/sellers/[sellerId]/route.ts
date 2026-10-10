@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import {
   adBudget,
   createDatabase,
@@ -21,7 +21,7 @@ export async function GET(
   const requestId = crypto.randomUUID();
 
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, "sellers");
     const { sellerId } = await context.params;
 
     if (!uuidSchema.safeParse(sellerId).success) {

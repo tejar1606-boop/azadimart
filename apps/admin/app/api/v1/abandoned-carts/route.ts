@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { cartItems, createDatabase, mediaAssets, productMedia, productVariants, products } from "@azadimart/database";
 import { toApiError } from "@azadimart/shared";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
@@ -19,7 +19,7 @@ type CartRow = { cart_id: string; customer_id: string; full_name: string; email:
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, "orders");
     const url = new URL(request.url);
     const idle = IDLE[url.searchParams.get("idle") ?? "1h"] ?? IDLE["1h"]!;
     const q = url.searchParams.get("q")?.trim().slice(0, 100) ?? "";

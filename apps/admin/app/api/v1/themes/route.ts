@@ -1,5 +1,5 @@
 import { createDatabase, themeRevisions, themes } from "@azadimart/database";
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { toApiError } from "@azadimart/shared";
 import { desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
 
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, "storefront");
     const db = createDatabase();
 
     const [themeRows, revisionRows] = await Promise.all([

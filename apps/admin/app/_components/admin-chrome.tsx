@@ -4,25 +4,30 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { PortalShell, type PortalNavSection } from "@azadimart/ui";
+import { STAFF_PERMISSION_KEYS, adminPagePermission, firstAdminPage } from "@azadimart/shared";
 
-export type AdminCounts = { role: string; support: number; sellers: number; qc: number; approvals: number; aplus: number; ads: number };
+export type AdminCounts = { role: string; roleName: string; displayName: string | null; permissions: string[]; support: number; sellers: number; qc: number; approvals: number; aplus: number; ads: number };
 
 const badge = (n: number) => (n > 0 ? String(n > 99 ? "99+" : n) : undefined);
 
 export default function AdminChrome({ counts, children }: { counts: AdminCounts | null; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const supportOnly = counts?.role === "SUPPORT";
-  // Support agents only work the Support desk (the APIs refuse everything else too).
-  useEffect(() => { if (supportOnly && pathname !== "/login" && !pathname.startsWith("/support")) router.replace("/support"); }, [supportOnly, pathname, router]);
+  const permissions = counts?.permissions;
+  const allowed = (href: string) => { const area = adminPagePermission(href); return !area || Boolean(permissions?.includes(area)); };
+  // Pages outside the member's role go to their first allowed page (the APIs refuse them too).
+  useEffect(() => {
+    if (!permissions || pathname === "/login") return;
+    const area = adminPagePermission(pathname);
+    if (area && !permissions.includes(area)) router.replace(firstAdminPage(permissions));
+  }, [permissions, pathname, router]);
   if (pathname === "/login" || !counts) return <>{children}</>;
 
   const supportItems: PortalNavSection["items"] = [
     { href: "/support", label: "Support desk", icon: "support", badge: badge(counts.support) },
     { href: "/support/replies", label: "Saved replies", icon: "support" },
-    { href: "/support/team", label: "Support team", icon: "customers" },
   ];
-  const sections: PortalNavSection[] = supportOnly ? [{ title: "Support", items: supportItems }] : [
+  const all: PortalNavSection[] = [
     { items: [{ href: "/dashboard", label: "Dashboard", icon: "dashboard" }] },
     { title: "Sales", items: [
       { href: "/orders", label: "Orders", icon: "orders" },
@@ -55,14 +60,16 @@ export default function AdminChrome({ counts, children }: { counts: AdminCounts 
       { href: "/security", label: "Security & audit", icon: "security" },
     ] },
     { title: "Support", items: supportItems },
+    { title: "Team", items: [{ href: "/team", label: "Team & roles", icon: "customers" }] },
   ];
+  const sections = all.map((section) => ({ ...section, items: section.items.filter((item) => allowed(item.href)) })).filter((section) => section.items.length);
 
   async function signOut() {
     try { await fetch("/api/auth/logout", { method: "POST" }); } finally { router.replace("/login"); router.refresh(); }
   }
 
   return (
-    <PortalShell product="Admin console" sections={sections} pathname={pathname} Link={Link} onSignOut={() => void signOut()}>
+    <PortalShell product={counts.permissions.length >= STAFF_PERMISSION_KEYS.length ? "Admin console" : `Admin · ${counts.roleName}`} sections={sections} pathname={pathname} Link={Link} onSignOut={() => void signOut()}>
       {children}
     </PortalShell>
   );

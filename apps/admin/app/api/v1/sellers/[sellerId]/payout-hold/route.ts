@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, createDatabase, sellers } from "@azadimart/database";
 import { AppError, toApiError, uuidSchema } from "@azadimart/shared";
 import { eq } from "drizzle-orm";
@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request, { params }: { params: Promise<{ sellerId: string }> }) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, ["sellers", "payments"]);
     const { sellerId } = await params;
     if (!uuidSchema.safeParse(sellerId).success) throw new AppError("NOT_FOUND", "Seller not found");
     const { hold, reason } = (await request.json().catch(() => ({}))) as { hold?: boolean; reason?: string };

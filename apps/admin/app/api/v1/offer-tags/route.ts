@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, createDatabase, offerTags, products, sellers } from "@azadimart/database";
 import { PRICE_DROP_TAG_DAYS, offerTagSchema, toApiError } from "@azadimart/shared";
 import { and, desc, eq, gt, isNotNull } from "drizzle-orm";
@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, ["marketing", "catalog"]);
     const db = createDatabase();
     const since = new Date(Date.now() - PRICE_DROP_TAG_DAYS * 24 * 60 * 60 * 1000);
     const [tags, drops] = await Promise.all([
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "marketing");
     const input = offerTagSchema.parse(await request.json());
     const db = createDatabase();
     const tag = (await db.insert(offerTags).values({

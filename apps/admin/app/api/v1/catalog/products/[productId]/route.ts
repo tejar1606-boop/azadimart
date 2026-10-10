@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import {
   auditLogs, cartItems, categories, createDatabase, inventory, inventoryMovements, mediaAssets, orderItems,
   productMedia, productVariants, products, recordLowestPriceChange, sellers,
@@ -10,7 +10,7 @@ import { NextResponse } from "next/server";
 type Params = { params: Promise<{ productId: string }> };
 
 async function admin(request: Request, params: Params["params"]) {
-  const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+  const principal = await requireStaff(request, "catalog");
   const { productId } = await params;
   if (!uuidSchema.safeParse(productId).success) throw new AppError("NOT_FOUND", "Product not found");
   return { principal, productId, db: createDatabase() };

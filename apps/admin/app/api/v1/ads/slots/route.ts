@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { adBids, adCampaigns, adSlots, auditLogs, categories, createDatabase, sellers } from "@azadimart/database";
 import { settleAdAuctions } from "@azadimart/notify";
 import { adSlotSchema, istDayKey, toApiError } from "@azadimart/shared";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, "marketing");
     const db = createDatabase();
     await settleAdAuctions(db);
     const [slots, bookings, pending] = await Promise.all([
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "marketing");
     const input = adSlotSchema.parse(await request.json());
     const db = createDatabase();
     const [slot] = await db.insert(adSlots).values({ ...input, buyNowPricePaise: input.buyNowPricePaise ?? null }).returning();

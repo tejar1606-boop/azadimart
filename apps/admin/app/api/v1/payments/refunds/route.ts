@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, createDatabase, orders, payments, refunds } from "@azadimart/database";
 import { getPaymentProvider } from "@azadimart/payments";
 import { AppError, toApiError } from "@azadimart/shared";
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
 
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "payments");
     const input = (await request.json()) as RefundRequest;
 
     if (

@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { adCampaigns, adSlots, createDatabase, mediaAssets, products, sellers } from "@azadimart/database";
 import { toApiError } from "@azadimart/shared";
 import { alias } from "drizzle-orm/pg-core";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, "marketing");
     const db = createDatabase();
     const desktop = alias(mediaAssets, "desktop"), mobile = alias(mediaAssets, "mobile");
     const items = await db.select({

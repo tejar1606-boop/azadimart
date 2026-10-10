@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, createDatabase, pageSections, pages, themeRevisions, themes } from "@azadimart/database";
 import { getPendingDraft } from "../homepage-draft";
 import { AppError, publishThemeSchema, toApiError } from "@azadimart/shared";
@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "storefront");
     const input = publishThemeSchema.parse(await request.json());
     const db = createDatabase();
 

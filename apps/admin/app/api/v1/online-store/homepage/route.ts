@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, createDatabase, pageSections, pages, themeRevisions, themes } from "@azadimart/database";
 import { AppError, DEFAULT_HOME_SECTIONS, saveHomepageSchema, toApiError } from "@azadimart/shared";
 import { asc, eq, sql } from "drizzle-orm";
@@ -63,7 +63,7 @@ async function ensureHomepage() {
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, "storefront");
     const { db, theme, page, sections } = await ensureHomepage();
     const draft = await getPendingDraft(db, theme.id);
     return NextResponse.json({
@@ -83,7 +83,7 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "storefront");
     const input = saveHomepageSchema.parse(await request.json());
     const { db, theme } = await ensureHomepage();
     await db.transaction(async (tx) => {

@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, categories, createDatabase, products } from "@azadimart/database";
 import { AppError, adminCategoryUpdateSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { and, eq, isNull, max, ne } from "drizzle-orm";
@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 export async function PATCH(request: Request, { params }: { params: Promise<{ categoryId: string }> }) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "catalog");
     const { categoryId } = await params;
     if (!uuidSchema.safeParse(categoryId).success) throw new AppError("NOT_FOUND", "Category not found");
     const input = adminCategoryUpdateSchema.parse(await request.json());
@@ -58,7 +58,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ca
 export async function DELETE(request: Request, { params }: { params: Promise<{ categoryId: string }> }) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "catalog");
     const { categoryId } = await params;
     if (!uuidSchema.safeParse(categoryId).success) throw new AppError("NOT_FOUND", "Category not found");
     const db = createDatabase();

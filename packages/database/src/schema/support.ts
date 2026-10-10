@@ -82,14 +82,6 @@ export const supportChats = pgTable(
   (table) => [index("support_chats_created_idx").on(table.createdAt)],
 );
 
-/** Display names for support-team members (admins and SUPPORT agents). */
-export const supportAgents = pgTable("support_agents", {
-  userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
-  displayName: text("display_name").notNull(),
-  isActive: boolean("is_active").notNull().default(true),
-  ...timestamps,
-});
-
 /** Saved replies the team can insert with one click. */
 export const supportCannedReplies = pgTable("support_canned_replies", {
   id,

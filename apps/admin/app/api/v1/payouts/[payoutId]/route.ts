@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, createDatabase, orderItems, orders, payoutItems, payouts, sellerCharges } from "@azadimart/database";
 import { AppError, toApiError, uuidSchema } from "@azadimart/shared";
 import { eq } from "drizzle-orm";
@@ -11,7 +11,7 @@ type Params = { params: Promise<{ payoutId: string }> };
 export async function GET(request: Request, { params }: Params) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, "payments");
     const { payoutId } = await params;
     if (!uuidSchema.safeParse(payoutId).success) throw new AppError("NOT_FOUND", "Payout not found");
     const db = createDatabase();
@@ -33,7 +33,7 @@ export async function GET(request: Request, { params }: Params) {
 export async function POST(request: Request, { params }: Params) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "payments");
     const { payoutId } = await params;
     if (!uuidSchema.safeParse(payoutId).success) throw new AppError("NOT_FOUND", "Payout not found");
     const { action } = (await request.json().catch(() => ({}))) as { action?: string };

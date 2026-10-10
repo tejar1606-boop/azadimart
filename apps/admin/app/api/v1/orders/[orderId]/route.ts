@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, cancelOrderInTransaction, createDatabase, orders } from "@azadimart/database";
 import { notifySellersOfCancellation } from "@azadimart/notify";
 import { AppError, orderStatusUpdateSchema, toApiError, uuidSchema } from "@azadimart/shared";
@@ -19,7 +19,7 @@ const transitions: Record<string, string[]> = {
 export async function PATCH(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "orders");
     const { orderId } = await params;
     if (!uuidSchema.safeParse(orderId).success) throw new AppError("NOT_FOUND", "Order not found");
     const input = orderStatusUpdateSchema.parse(await request.json());

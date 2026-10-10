@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { adCampaigns, auditLogs, createDatabase } from "@azadimart/database";
 import { notifySeller } from "@azadimart/notify";
 import { AppError, toApiError, uuidSchema } from "@azadimart/shared";
@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request, { params }: { params: Promise<{ campaignId: string }> }) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "marketing");
     const { campaignId } = await params;
     if (!uuidSchema.safeParse(campaignId).success) throw new AppError("NOT_FOUND", "Ad not found");
     const { decision, note } = (await request.json().catch(() => ({}))) as { decision?: string; note?: string };

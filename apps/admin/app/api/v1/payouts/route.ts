@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { createDatabase, payoutItems, payouts, sellerBankAccounts, sellers, unpaidSettlementLines } from "@azadimart/database";
 import { toApiError } from "@azadimart/shared";
 import { desc, eq, gte, sql } from "drizzle-orm";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    await requireStaff(request, "payments");
     const db = createDatabase();
     const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const [items, lines, totals] = await Promise.all([

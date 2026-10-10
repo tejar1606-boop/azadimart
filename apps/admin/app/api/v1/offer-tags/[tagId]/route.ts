@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, createDatabase, offerTags } from "@azadimart/database";
 import { AppError, offerTagSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { eq } from "drizzle-orm";
@@ -14,7 +14,7 @@ async function tagIdOf(params: Promise<{ tagId: string }>) {
 export async function PATCH(request: Request, { params }: { params: Promise<{ tagId: string }> }) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "marketing");
     const tagId = await tagIdOf(params);
     const input = offerTagSchema.parse(await request.json());
     const db = createDatabase();
@@ -34,7 +34,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ta
 export async function DELETE(request: Request, { params }: { params: Promise<{ tagId: string }> }) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, "marketing");
     const tagId = await tagIdOf(params);
     const db = createDatabase();
     const removed = (await db.delete(offerTags).where(eq(offerTags.id, tagId)).returning({ id: offerTags.id, label: offerTags.label }))[0];

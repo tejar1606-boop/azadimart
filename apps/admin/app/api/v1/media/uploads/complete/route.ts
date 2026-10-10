@@ -1,4 +1,4 @@
-import { requireApiAccess } from "@azadimart/auth";
+import { requireStaff } from "@azadimart/auth";
 import { auditLogs, createDatabase, mediaAssets } from "@azadimart/database";
 import { AppError, mediaUploadCompleteSchema, toApiError } from "@azadimart/shared";
 import { finalizeUpload, getObjectStore, UploadError, verifyUploadToken } from "@azadimart/storage";
@@ -10,7 +10,7 @@ import { eq } from "drizzle-orm";
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    const principal = await requireApiAccess(request, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const principal = await requireStaff(request, ["catalog", "storefront", "marketing"]);
     const input = mediaUploadCompleteSchema.parse(await request.json());
     const store = getObjectStore();
     const claims = verifyUploadToken(input.token, principal.userId);
