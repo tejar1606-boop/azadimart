@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { StoreChrome } from "../lib/chrome";
-import { BadgeIcon, CashIcon, LockIcon, ReturnIcon, ShieldIcon } from "./icons";
 import FooterBackdrop from "./footer-backdrop";
 import { TricolourRibbon } from "./site-header";
 
@@ -8,15 +7,6 @@ const SELLER_URL = process.env.NEXT_PUBLIC_SELLER_URL || "https://seller.azadima
 // Customer support contact, shown once set (Vercel / .env).
 const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "";
 const SUPPORT_PHONE = process.env.NEXT_PUBLIC_SUPPORT_PHONE || "";
-
-// Footer trust markers: only promises AzadiMart keeps today.
-const TRUST = [
-  { icon: BadgeIcon, title: "KYC-verified sellers", text: "Every seller checked" },
-  { icon: ShieldIcon, title: "Quality-checked", text: "Reviewed before listing" },
-  { icon: CashIcon, title: "Cash on Delivery", text: "Pay when it arrives" },
-  { icon: ReturnIcon, title: "Easy 7-day returns", text: "On eligible items" },
-  { icon: LockIcon, title: "Secure checkout", text: "Your data protected" },
-];
 
 export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
   const shopLinks = [{ label: "All products", href: "/products" }, ...chrome.categories.slice(0, 5).map((c) => ({ label: c.name, href: c.href }))];
@@ -57,17 +47,7 @@ export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
             </div>
           </div>
 
-          {/* Trust markers */}
-          <ul aria-label="Why shop with AzadiMart" className="mt-16 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:mt-24 lg:grid-cols-5">
-            {TRUST.map(({ icon: Icon, title, text }) => (
-              <li key={title} className="flex items-center gap-2.5 last:col-span-2 sm:last:col-span-1 rounded-2xl border border-white/15 bg-white/[0.06] px-3 py-2.5 backdrop-blur-sm sm:gap-3 sm:px-4 sm:py-3">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10 text-[#ffb366] sm:h-10 sm:w-10"><Icon size={18} /></span>
-                <span className="min-w-0 leading-tight"><span className="block text-[13px] font-semibold text-white sm:text-sm">{title}</span><span className="hidden text-xs text-white/65 sm:block">{text}</span></span>
-              </li>
-            ))}
-          </ul>
-
-          <div className="mt-10 border-t border-white/25 pt-6 text-[15px] text-white/75">© {new Date().getFullYear()} AzadiMart. All rights reserved.</div>
+          <div className="mt-16 border-t border-white/25 pt-6 lg:mt-24 text-[15px] text-white/75">© {new Date().getFullYear()} AzadiMart. All rights reserved.</div>
         </div>
       </div>
     </footer>
