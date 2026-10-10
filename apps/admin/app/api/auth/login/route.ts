@@ -8,7 +8,7 @@ export async function POST(request: Request) {
 
   try {
     const input = loginSchema.parse(await request.json());
-    const result = await protectedLogin(createDatabase(), request, input, "admin", ["ADMIN", "SUPER_ADMIN"]);
+    const result = await protectedLogin(createDatabase(), request, input, "admin", ["ADMIN", "SUPER_ADMIN", "SUPPORT"]);
     const response = NextResponse.json({
       ok: true,
       userId: result.userId,

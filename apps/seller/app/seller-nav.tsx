@@ -62,7 +62,7 @@ export default function SellerChrome({ counts, children }: { counts: SellerCount
     { title: "Account", items: [
       { href: "/kyc", label: "KYC & business", icon: "kyc", tone: "teal" },
       { href: "/settings/alerts", label: "Alerts & notifications", icon: "bell", tone: "rose" },
-      { href: "/help", label: "Help & support", icon: "help", tone: "slate" },
+      { href: "/help", label: "Help & support", icon: "help", tone: "slate", badge: counts?.supportUnread ? String(counts.supportUnread) : undefined },
     ] },
   ];
 

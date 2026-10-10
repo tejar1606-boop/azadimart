@@ -9,6 +9,8 @@ export type SellerAttention = {
   newReviews: number;
   aadhaarVerified: boolean;
   bankStatus: "NONE" | "PENDING" | "VERIFIED" | "REJECTED";
+  /** Support tickets with a reply the seller hasn't read. */
+  supportUnread: number;
 };
 
 /** How many notices need action (each kind counts once). */

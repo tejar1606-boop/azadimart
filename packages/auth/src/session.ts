@@ -91,6 +91,14 @@ export async function revokeSession(db: Database, token: string): Promise<void> 
     .where(eq(sessions.tokenHash, hashToken(token)));
 }
 
+/** Signs a user out everywhere (e.g. when their access is switched off). */
+export async function revokeUserSessions(db: Database, userId: string): Promise<void> {
+  await db
+    .update(sessions)
+    .set({ revokedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
+}
+
 export async function getSessionPrincipal(
   request: Request,
   db: Database = createDatabase(),

@@ -1,4 +1,5 @@
-export const ROLES = ["CUSTOMER", "SELLER", "ADMIN", "SUPER_ADMIN"] as const;
+/** SUPPORT: a support-team agent; signs in to the admin portal but only works the Support desk. */
+export const ROLES = ["CUSTOMER", "SELLER", "ADMIN", "SUPER_ADMIN", "SUPPORT"] as const;
 
 export type Role = (typeof ROLES)[number];
 
@@ -11,9 +12,12 @@ export const ROLE_AUDIENCE: Record<Role, AppAudience> = {
   SELLER: "seller",
   ADMIN: "admin",
   SUPER_ADMIN: "admin",
+  SUPPORT: "admin",
 };
 
 export const PRIVILEGED_ROLES: readonly Role[] = ["ADMIN", "SUPER_ADMIN"];
+/** Who may work support tickets in the admin portal. */
+export const SUPPORT_DESK_ROLES: Role[] = ["ADMIN", "SUPER_ADMIN", "SUPPORT"];
 
 export function isRole(value: unknown): value is Role {
   return typeof value === "string" && (ROLES as readonly string[]).includes(value);

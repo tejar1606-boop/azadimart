@@ -7,3 +7,4 @@ export * from "./review-totals";
 export * from "./price-drop";
 export * from "./settlements";
 export * from "./ads";
+export * from "./support";

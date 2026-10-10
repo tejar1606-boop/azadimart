@@ -5,6 +5,8 @@ import MobileTabBar from "./components/mobile-tab-bar";
 import ScrollToTop from "./components/scroll-to-top";
 import SiteFooter from "./components/site-footer";
 import SiteHeader from "./components/site-header";
+import { HelpChat } from "@azadimart/ui";
+import { SUPPORT_CATEGORIES, supportCategoriesFor } from "@azadimart/shared";
 import { getStoreChrome } from "./lib/chrome";
 import { SITE_NAME, SITE_URL } from "./lib/seo";
 
@@ -63,6 +65,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {children}
         <SiteFooter chrome={chrome} />
         <MobileTabBar />
+        <HelpChat title="AzadiMart Help" subtitle="Orders, returns, payments and products" apiBase="/api/v1/support" ticketsPath="/account/support" signInHref="/login"
+          categories={supportCategoriesFor("CUSTOMER").map((key) => ({ key, label: SUPPORT_CATEGORIES[key].label }))} storageKey="azm-help" launcherClassName="bottom-24 lg:bottom-6" hideLauncherOn={["/checkout"]} />
       </body>
     </html>
   );

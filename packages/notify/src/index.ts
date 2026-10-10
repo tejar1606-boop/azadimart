@@ -4,11 +4,12 @@ import webpush from "web-push";
 
 type Db = ReturnType<typeof createDatabase>;
 
-export type SellerAlertKind = "NEW_ORDER" | "SHIP_BY_REMINDER" | "ORDER_LATE" | "ORDER_AUTO_CANCELLED" | "ORDER_CANCELLED_BY_CUSTOMER" | "ORDER_CANCELLED_BY_ADMIN" | "PAYOUT_PAID" | "PAYOUT_ON_HOLD" | "AD_OUTBID" | "AD_WON" | "AD_LOST" | "AD_CHARGED" | "AD_REVIEWED";
+export type SellerAlertKind = "NEW_ORDER" | "SHIP_BY_REMINDER" | "ORDER_LATE" | "ORDER_AUTO_CANCELLED" | "ORDER_CANCELLED_BY_CUSTOMER" | "ORDER_CANCELLED_BY_ADMIN" | "PAYOUT_PAID" | "PAYOUT_ON_HOLD" | "AD_OUTBID" | "AD_WON" | "AD_LOST" | "AD_CHARGED" | "AD_REVIEWED" | "SUPPORT_REPLY";
 export type SellerAlertPreferences = { newOrders: boolean; reminders: boolean; cancellations: boolean; payouts: boolean; ads: boolean };
 export const DEFAULT_ALERT_PREFERENCES: SellerAlertPreferences = { newOrders: true, reminders: true, cancellations: true, payouts: true, ads: true };
 
-const CATEGORY: Record<SellerAlertKind, keyof SellerAlertPreferences> = {
+// null: always pushed (e.g. a support reply the seller is waiting for).
+const CATEGORY: Record<SellerAlertKind, keyof SellerAlertPreferences | null> = {
   NEW_ORDER: "newOrders",
   SHIP_BY_REMINDER: "reminders",
   ORDER_LATE: "reminders",
@@ -22,10 +23,11 @@ const CATEGORY: Record<SellerAlertKind, keyof SellerAlertPreferences> = {
   AD_LOST: "ads",
   AD_CHARGED: "ads",
   AD_REVIEWED: "ads",
+  SUPPORT_REPLY: null,
 };
 
 /** Whether the seller wants a browser push for this kind of alert (it's always kept in Notices). */
-export const wantsPush = (prefs: SellerAlertPreferences, kind: SellerAlertKind) => prefs[CATEGORY[kind]];
+export const wantsPush = (prefs: SellerAlertPreferences, kind: SellerAlertKind) => { const category = CATEGORY[kind]; return category ? prefs[category] : true; };
 
 /** "Kitchen Set × 2 and 1 more" */
 export const orderLinesSummary = (lines: Array<{ title: string; quantity: number }>) => `${lines[0]!.title} × ${lines[0]!.quantity}${lines.length > 1 ? ` and ${lines.length - 1} more` : ""}`;

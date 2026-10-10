@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { PortalPageHeader } from "@azadimart/ui";
+import { PortalPageHeader, SupportTicketList } from "@azadimart/ui";
+import { SUPPORT_CATEGORIES, supportCategoriesFor } from "@azadimart/shared";
 
 export const metadata = { title: "Help & support" };
 
@@ -20,7 +21,7 @@ const TOPICS: Array<{ title: string; items: Array<[string, React.ReactNode]> }> 
   ] },
   { title: "Payments & account", items: [
     ["When do I get paid?", <>Your sales and payouts are shown in <Link href="/payouts" className="font-semibold text-brand-600">Payments</Link>, paid to the bank account verified in KYC.</>],
-    ["How do I change my bank account?", "Bank details are verified during KYC. To change them after approval, contact AzadiMart seller support."],
+    ["How do I change my bank account?", <>Submit the new account in <Link href="/payouts" className="font-semibold text-brand-600">Payments</Link>; payouts pause until it&apos;s verified. Need help? Write to seller support above.</>],
   ] },
 ];
 
@@ -29,8 +30,13 @@ export default function HelpPage() {
   const phone = process.env.NEXT_PUBLIC_SELLER_SUPPORT_PHONE;
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
-      <PortalPageHeader eyebrow="Seller Hub" title="Help & support" description="Quick answers to common questions. Tap a question to open it." />
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <PortalPageHeader eyebrow="Seller Hub" title="Help & support" description="Ask the assistant, write to seller support, or browse quick answers." />
+      <section className="mt-6" aria-labelledby="my-requests">
+        <h2 id="my-requests" className="mb-3 font-semibold">Your support requests</h2>
+        <SupportTicketList apiBase="/api/v1/support" ticketsPath="/help/tickets" categories={supportCategoriesFor("SELLER").map((key) => ({ key, label: SUPPORT_CATEGORIES[key].label }))} />
+      </section>
+      <h2 className="mb-3 mt-8 font-semibold">Quick answers</h2>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-5">
           {TOPICS.map((topic) => (
             <section key={topic.title} className="rounded-2xl border border-slate-200/80 bg-white shadow-card">
@@ -53,7 +59,7 @@ export default function HelpPage() {
               {email ? <a href={`mailto:${email}`} className="block rounded-xl bg-slate-50 px-4 py-3 font-medium hover:bg-slate-100">✉️ {email}</a> : null}
               {phone ? <a href={`https://wa.me/91${phone.replace(/\D/g, "").slice(-10)}`} target="_blank" rel="noreferrer" className="block rounded-xl bg-[#25d366]/10 px-4 py-3 font-medium text-[#128c4b] hover:bg-[#25d366]/20">WhatsApp {phone}</a> : null}
             </div>
-          ) : <p className="mt-2 text-sm text-slate-500">Seller support contact details will appear here.</p>}
+          ) : <p className="mt-2 text-sm leading-6 text-slate-500">Tap <b>Write to support</b> above, or ask the assistant and choose “Talk to support”. Our team usually replies within a day, and you&apos;ll get an alert.</p>}
         </aside>
       </div>
     </main>

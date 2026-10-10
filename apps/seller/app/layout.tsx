@@ -6,6 +6,8 @@ import { createDatabase } from "@azadimart/database";
 import { loadSellerAttention } from "./lib/seller-attention";
 import "@azadimart/ui/globals.css";
 import SellerChrome, { type SellerCounts } from "./seller-nav";
+import { HelpChat } from "@azadimart/ui";
+import { SUPPORT_CATEGORIES, supportCategoriesFor } from "@azadimart/shared";
 
 const poppins = Poppins({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-sans" });
 
@@ -34,6 +36,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en" className={poppins.variable}>
       <body className="min-h-screen bg-panel font-sans text-slate-950 antialiased">
         <SellerChrome counts={counts}>{children}</SellerChrome>
+        {counts ? (
+          <HelpChat title="Seller support" subtitle="Payments, KYC, products and orders" apiBase="/api/v1/support" ticketsPath="/help/tickets"
+            categories={supportCategoriesFor("SELLER").map((key) => ({ key, label: SUPPORT_CATEGORIES[key].label }))} storageKey="azm-seller-help" hideLauncherOn={["/help"]} />
+        ) : null}
       </body>
     </html>
   );

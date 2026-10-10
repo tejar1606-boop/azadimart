@@ -2,18 +2,27 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { PortalShell, type PortalNavSection } from "@azadimart/ui";
 
-export type AdminCounts = { sellers: number; qc: number; approvals: number; aplus: number; ads: number };
+export type AdminCounts = { role: string; support: number; sellers: number; qc: number; approvals: number; aplus: number; ads: number };
 
 const badge = (n: number) => (n > 0 ? String(n > 99 ? "99+" : n) : undefined);
 
 export default function AdminChrome({ counts, children }: { counts: AdminCounts | null; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const supportOnly = counts?.role === "SUPPORT";
+  // Support agents only work the Support desk (the APIs refuse everything else too).
+  useEffect(() => { if (supportOnly && pathname !== "/login" && !pathname.startsWith("/support")) router.replace("/support"); }, [supportOnly, pathname, router]);
   if (pathname === "/login" || !counts) return <>{children}</>;
 
-  const sections: PortalNavSection[] = [
+  const supportItems: PortalNavSection["items"] = [
+    { href: "/support", label: "Support desk", icon: "support", badge: badge(counts.support) },
+    { href: "/support/replies", label: "Saved replies", icon: "support" },
+    { href: "/support/team", label: "Support team", icon: "customers" },
+  ];
+  const sections: PortalNavSection[] = supportOnly ? [{ title: "Support", items: supportItems }] : [
     { items: [{ href: "/dashboard", label: "Dashboard", icon: "dashboard" }] },
     { title: "Sales", items: [
       { href: "/orders", label: "Orders", icon: "orders" },
@@ -43,9 +52,9 @@ export default function AdminChrome({ counts, children }: { counts: AdminCounts 
     { title: "Operations", items: [
       { href: "/logistics", label: "Logistics", icon: "logistics" },
       { href: "/finance", label: "Finance", icon: "finance" },
-      { href: "/support", label: "Support", icon: "support" },
       { href: "/security", label: "Security & audit", icon: "security" },
     ] },
+    { title: "Support", items: supportItems },
   ];
 
   async function signOut() {

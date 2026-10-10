@@ -6,3 +6,5 @@ export { AplusContent, type AplusProductSummary } from "./aplus-content";
 export { PortalIcons, type PortalIconName } from "./portal-icons";
 export { ComingSoon, PortalAuthLayout, PortalPageHeader, PortalShell, StatCard, type PortalNavItem, type PortalNavSection, type PortalTone } from "./portal-shell";
 export { DescriptionStyleToggle, SpecTableEditor, parseSpecPaste, type SpecRow } from "./spec-table-editor";
+export { HelpChat, HELP_CHAT_OPEN_EVENT, OpenHelpChatButton, type HelpChatProps } from "./help-chat";
+export { SupportStatusPill, SupportTicketList, SupportTicketView } from "./support-tickets";
