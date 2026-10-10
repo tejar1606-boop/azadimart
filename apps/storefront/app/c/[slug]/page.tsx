@@ -6,6 +6,7 @@ import { Suspense, cache } from "react";
 import { getCategoryRail } from "../../lib/category-rail";
 import { SITE_NAME, absoluteUrl, clip, jsonLd } from "../../lib/seo";
 import CatalogView, { type FixedCategory } from "../../products/catalog-view";
+import PageBanner from "../../components/page-banner";
 
 type CategorySeo = FixedCategory & { metaTitle: string | null; metaDescription: string | null };
 
@@ -53,6 +54,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
           { "@type": "ListItem", position: category.parent ? 3 : 2, name: category.name, item: absoluteUrl("/c/" + category.slug) },
         ],
       })} />
+      <PageBanner categoryId={category.id} />
       <CatalogView category={category} rail={rail} />
     </Suspense>
   );

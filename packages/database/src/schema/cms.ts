@@ -1,4 +1,4 @@
-import { boolean, index, integer, jsonb, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { id, timestamps } from "./columns";
 import { mediaKindEnum, pageStatusEnum, themeStatusEnum } from "./enums";
@@ -112,4 +112,27 @@ export const banners = pgTable(
     ...timestamps,
   },
   (table) => [index("banners_theme_id_idx").on(table.themeId)],
+);
+/**
+ * A banner at the top of a storefront page (Admin → Page banners).
+ * page_key: "shop" (All products and search), "category:<id>" (a category page;
+ * sub-categories fall back to their parent's), "product" (all product pages),
+ * "cart", "wishlist", "account".
+ */
+export const pageBanners = pgTable(
+  "page_banners",
+  {
+    id,
+    pageKey: text("page_key").notNull(),
+    desktopImageUrl: text("desktop_image_url").notNull(),
+    mobileImageUrl: text("mobile_image_url"),
+    href: text("href"),
+    alt: text("alt").notNull().default(""),
+    isActive: boolean("is_active").notNull().default(true),
+    startsAt: timestamp("starts_at", { withTimezone: true }),
+    endsAt: timestamp("ends_at", { withTimezone: true }),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("page_banners_page_key_unique").on(table.pageKey)],
 );

@@ -17,6 +17,7 @@ import ReviewsSection from "./reviews-section";
 import ShareButton from "./share-button";
 import { loadCardBadges, loadProductOffers } from "../../lib/offers";
 import { OfferBadge } from "../../components/offer-badge";
+import PageBanner from "../../components/page-banner";
 
 /** Search title/description: the product's own SEO text if set, else built from name, price and seller. */
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -156,6 +157,8 @@ export default async function ProductDetailPage({ params, searchParams }: { para
   const aplusCompared = Object.fromEntries(Object.values(aplusSummaries).filter((summary) => summary.status === "LIVE" && summary.id !== first.id).map((summary) => [summary.id, { ...summary, href: "/products/" + summary.slug }]));
 
   return (
+    <>
+    <PageBanner pageKey="product" />
     <main className="min-h-[60vh] bg-canvas px-4 py-8 sm:px-6 sm:py-12">
       <div className="mx-auto max-w-[1440px]">
         <nav aria-label="Breadcrumb" className="text-xs text-slate-500">
@@ -348,5 +351,6 @@ export default async function ProductDetailPage({ params, searchParams }: { para
         ) : null}
       </div>
     </main>
+    </>
   );
 }

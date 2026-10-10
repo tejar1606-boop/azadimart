@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { getCategoryRail } from "../lib/category-rail";
 import CatalogView from "./catalog-view";
+import PageBanner from "../components/page-banner";
 
 import type { Metadata } from "next";
 
@@ -19,8 +20,11 @@ export const dynamic = "force-dynamic";
 export default async function ProductsPage() {
   const rail = await getCategoryRail();
   return (
-    <Suspense>
-      <CatalogView rail={rail} />
-    </Suspense>
+    <>
+      <PageBanner pageKey="shop" />
+      <Suspense>
+        <CatalogView rail={rail} />
+      </Suspense>
+    </>
   );
 }

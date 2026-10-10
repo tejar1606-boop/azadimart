@@ -9,3 +9,4 @@ export * from "./seller-tax";
 export * from "./aplus";
 export * from "./settlement";
 export * from "./ads";
+export * from "./page-banners";
