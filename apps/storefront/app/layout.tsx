@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import "@azadimart/ui/globals.css";
 import MobileTabBar from "./components/mobile-tab-bar";
+import ScrollToTop from "./components/scroll-to-top";
 import SiteFooter from "./components/site-footer";
 import SiteHeader from "./components/site-header";
 import { getStoreChrome } from "./lib/chrome";
@@ -57,6 +58,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className={poppins.variable}>
       <body className="min-h-screen bg-canvas font-sans text-slate-950 antialiased">
+        <ScrollToTop />
         <SiteHeader chrome={chrome} />
         {children}
         <SiteFooter chrome={chrome} />
