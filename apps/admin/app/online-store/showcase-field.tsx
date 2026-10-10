@@ -58,7 +58,7 @@ export default function ShowcaseField({ settings, onChange }: { settings: Record
         </div>
       </div>
       <div className="md:col-span-2">
-        <MediaField kind="image" label="Panel photo (optional, replaces the colour)" hint="760 × 760 px" size={{ width: 760, height: 760 }} value={str("imageUrl")} onChange={(v) => onChange("imageUrl", v)} />
+        <MediaField kind="image" label="Panel photo (optional, replaces the colour)" hint="1600 × 1200 px (4:3) · keep the subject on the right; text sits on the left" size={{ width: 1600, height: 1200 }} value={str("imageUrl")} onChange={(v) => onChange("imageUrl", v)} />
       </div>
 
       <div className="space-y-2 md:col-span-2">
