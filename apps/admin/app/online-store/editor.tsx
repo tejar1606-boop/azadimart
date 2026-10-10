@@ -4,7 +4,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { DEFAULT_HOME_SECTIONS, SECTION_TYPES, type ThemeSectionDraft } from "@azadimart/shared";
 import BannerRowField, { type RowBanner } from "./banner-row-field";
-import HeroSlidesField, { slidesFromSettings } from "./hero-slides-field";
+import HeroSlidesField, { SLIDE_SECONDS_DEFAULT, slidesFromSettings } from "./hero-slides-field";
 import MediaField from "./media-field";
 import NavigationEditor from "./navigation-editor";
 import ShowcaseField from "./showcase-field";
@@ -120,7 +120,7 @@ function SectionFields({section,onChange}:{section:Row;onChange:(key:string,valu
     </>}
     {t!=="hero" && t!=="image_banner" && t!=="marquee" && t!=="promo_banner" && t!=="banner_row" && t!=="category_showcase" && <Field label="Subtitle"><input className="w-full rounded-lg border p-2.5" value={val(section,"subtitle")} onChange={e=>onChange("subtitle",e.target.value)}/></Field>}
     {(t==="hero"||t==="image_banner") && <><Field label="Eyebrow"><input className="w-full rounded-lg border p-2.5" value={val(section,"eyebrow")} onChange={e=>onChange("eyebrow",e.target.value)}/></Field><Field label="Heading"><input className="w-full rounded-lg border p-2.5" value={val(section,"heading")} onChange={e=>onChange("heading",e.target.value)}/></Field><Field label="Description" wide><textarea className="min-h-24 w-full rounded-lg border p-2.5" value={val(section,"description")} onChange={e=>onChange("description",e.target.value)}/></Field><Field label="Button label"><input className="w-full rounded-lg border p-2.5" value={val(section,t==="hero"?"primaryLabel":"buttonLabel")} onChange={e=>onChange(t==="hero"?"primaryLabel":"buttonLabel",e.target.value)}/></Field><Field label="Button link"><input className="w-full rounded-lg border p-2.5" value={val(section,t==="hero"?"primaryHref":"buttonHref")} onChange={e=>onChange(t==="hero"?"primaryHref":"buttonHref",e.target.value)}/></Field>{t==="hero" ? <>
-      <HeroSlidesField slides={slidesFromSettings(section.settings)} onChange={(update)=>onChange("slides",(settings:Record<string,unknown>)=>update(slidesFromSettings(settings)))}/>
+      <HeroSlidesField slides={slidesFromSettings(section.settings)} onChange={(update)=>onChange("slides",(settings:Record<string,unknown>)=>update(slidesFromSettings(settings)))} slideSeconds={Number(section.settings.slideSeconds)||SLIDE_SECONDS_DEFAULT} onSecondsChange={(seconds)=>onChange("slideSeconds",seconds)}/>
       <p className="text-xs text-slate-500 md:col-span-2">The heading, text and buttons above are used for the designed banner shown when there are no slides.</p>
     </> : <MediaField kind="image" label="Side image (optional)" hint="Recommended 1200 × 900" value={val(section,"imageUrl")} onChange={v=>onChange("imageUrl",v)}/>}</>}
     {(t==="trust_strip"||t==="marquee") && <Field label="Items (one per line)" wide><textarea className="min-h-28 w-full rounded-lg border p-2.5" value={Array.isArray(section.settings.items)?section.settings.items.filter((v): v is string=>typeof v==="string").join("\n"):""} onChange={e=>onChange("items",e.target.value.split("\n").map(v=>v.trim()).filter(Boolean))}/></Field>}

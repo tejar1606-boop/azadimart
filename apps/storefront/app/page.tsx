@@ -291,6 +291,8 @@ function safeHref(href: string): string | undefined {
   return undefined;
 }
 
+const secondsOf = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.min(30, Math.max(2, Math.round(v))) : undefined);
+
 /** Banner slides from the hero settings; the original single-banner fields become slide 1. */
 function heroSlides(s: Settings): HeroSlide[] {
   const raw = Array.isArray(s.slides) ? (s.slides as Settings[]) : [];
@@ -306,6 +308,9 @@ function heroSlides(s: Settings): HeroSlide[] {
       mobileVideoUrl: str(slide, "mobileVideoUrl") || undefined,
       href: str(slide, "href") ? safeHref(str(slide, "href")) : undefined,
       alt: str(slide, "alt", "AzadiMart offer"),
+      // Banner-wide time (Admin → Online Store), unless this slide has its own.
+      seconds: secondsOf(slide.seconds) ?? secondsOf(s.slideSeconds),
+      playFullVideo: slide.playFullVideo === true,
     }))
     .filter((slide) => slide.desktopImageUrl || slide.desktopVideoUrl);
 }
@@ -315,7 +320,7 @@ function Hero({ s, sponsored }: { s: Settings; sponsored: HeroSlide[] }) {
   const description = str(s, "description", "Shop quality-checked products from KYC-verified Indian sellers. Cash on Delivery and easy returns on every order.");
   const primaryLabel = str(s, "primaryLabel", "Shop now");
   const primaryHref = str(s, "primaryHref", "/products");
-  const slides = [...sponsored, ...heroSlides(s)];
+  const slides = [...sponsored.map((ad) => ({ ...ad, seconds: secondsOf(s.slideSeconds) })), ...heroSlides(s)];
   if (slides.length) return <><HeroCarousel slides={slides} /><TricolourRibbon /></>;
 
   // No banner uploaded yet: a designed banner in the same frame (8:3 desktop,

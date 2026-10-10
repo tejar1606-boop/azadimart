@@ -14,23 +14,30 @@ export type HeroSlide = {
   alt: string;
   /** Set for a seller's paid ad: labelled "Sponsored", views and clicks are counted. */
   sponsoredId?: string;
+  /** How long this slide shows (seconds), set in Admin → Online Store. */
+  seconds?: number;
+  /** Video slides: move on when the video ends instead of after `seconds`. */
+  playFullVideo?: boolean;
 };
 
 
-const INTERVAL_MS = 4000;
+const DEFAULT_SECONDS = 4;
+const MAX_VIDEO_WAIT_MS = 90_000; // if a video never finishes (slow network), move on anyway
 
-function SlideArt({ image, video, alt, active, priority, className }: { image?: string; video?: string; alt: string; active: boolean; priority: boolean; className: string }) {
+function SlideArt({ image, video, alt, active, priority, className, loop = true, restart = false, onEnded }: { image?: string; video?: string; alt: string; active: boolean; priority: boolean; className: string; loop?: boolean; restart?: boolean; onEnded?: () => void }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (active) void el.play().catch(() => undefined);
-    else el.pause();
-  }, [active]);
+    if (active) {
+      if (restart) el.currentTime = 0; // "play the whole video" starts from the beginning each time
+      void el.play().catch(() => undefined);
+    } else el.pause();
+  }, [active, restart]);
   return (
     <span className={"relative block w-full overflow-hidden " + className}>
       {video ? (
-        <video ref={ref} className="absolute inset-0 h-full w-full object-cover" src={video} poster={image || undefined} muted loop playsInline preload={active ? "auto" : "metadata"} aria-label={alt} />
+        <video ref={ref} className="absolute inset-0 h-full w-full object-cover" src={video} poster={image || undefined} muted loop={loop} onEnded={onEnded} playsInline preload={active ? "auto" : "metadata"} aria-label={alt} />
       ) : image ? (
         <Image src={image} alt={alt} fill priority={priority} sizes="100vw" className="object-cover" unoptimized />
       ) : null}
@@ -69,11 +76,26 @@ export default function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
 
   const go = useCallback((next: number) => setIndex(((next % count) + count) % count), [count]);
 
+  // Phones show the mobile art (below 640px), so "play the whole video" follows whichever video is on screen.
+  const [wide, setWide] = useState(true);
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 640px)");
+    setWide(query.matches);
+    const onChange = () => setWide(query.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+  const visibleVideo = (slide: HeroSlide | undefined) => !slide ? undefined : wide ? slide.desktopVideoUrl : slide.mobileVideoUrl || (slide.mobileImageUrl ? undefined : slide.desktopVideoUrl);
+  const current = slides[index];
+  const waitForVideo = Boolean(current?.playFullVideo && visibleVideo(current) && count > 1);
+
   useEffect(() => {
     if (count < 2 || paused || tabHidden) return;
-    const timer = window.setTimeout(() => go(index + 1), INTERVAL_MS);
+    const ms = waitForVideo ? MAX_VIDEO_WAIT_MS : Math.min(30, Math.max(2, current?.seconds ?? DEFAULT_SECONDS)) * 1000;
+    const timer = window.setTimeout(() => go(index + 1), ms);
     return () => window.clearTimeout(timer);
-  }, [count, go, index, paused, tabHidden]);
+  }, [count, current?.seconds, go, index, paused, tabHidden, waitForVideo]);
+  const videoEnded = useCallback(() => { if (!paused && !tabHidden) go(index + 1); }, [go, index, paused, tabHidden]);
 
   const shownId = slides[index]?.sponsoredId;
   useEffect(() => {
@@ -103,10 +125,11 @@ export default function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
             const active = i === index;
             const mobileImage = slide.mobileImageUrl || slide.desktopImageUrl;
             const mobileVideo = slide.mobileVideoUrl || (slide.mobileImageUrl ? undefined : slide.desktopVideoUrl);
+            const full = Boolean(slide.playFullVideo && count > 1);
             const art = (
               <>
-                <SlideArt image={mobileImage} video={mobileVideo} alt={slide.alt} active={active} priority={i === 0} className="aspect-[4/5] sm:hidden" />
-                <SlideArt image={slide.desktopImageUrl} video={slide.desktopVideoUrl} alt={slide.alt} active={active} priority={i === 0} className="hidden aspect-[8/3] sm:block" />
+                <SlideArt image={mobileImage} video={mobileVideo} alt={slide.alt} active={active} priority={i === 0} className="aspect-[4/5] sm:hidden" loop={!full || paused} restart={full} onEnded={full && !wide ? videoEnded : undefined} />
+                <SlideArt image={slide.desktopImageUrl} video={slide.desktopVideoUrl} alt={slide.alt} active={active} priority={i === 0} className="hidden aspect-[8/3] sm:block" loop={!full || paused} restart={full} onEnded={full && wide ? videoEnded : undefined} />
               </>
             );
             const href = slide.href ?? "";

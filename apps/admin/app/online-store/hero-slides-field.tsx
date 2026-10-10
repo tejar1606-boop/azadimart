@@ -9,7 +9,14 @@ export type HeroSlideSettings = {
   mobileVideoUrl?: string;
   href?: string;
   alt?: string;
+  /** Overrides the banner-wide time for this slide (seconds). */
+  seconds?: number;
+  /** For video slides: stay until the video has played to the end. */
+  playFullVideo?: boolean;
 };
+
+export const SLIDE_SECONDS_DEFAULT = 4;
+const clampSeconds = (n: number) => Math.min(30, Math.max(2, Math.round(n)));
 
 const MAX_SLIDES = 8;
 
@@ -22,7 +29,7 @@ export function slidesFromSettings(settings: Record<string, unknown>): HeroSlide
 
 /** Banner slides editor: add, reorder, remove; each slide has image/video for desktop and mobile plus an optional link. */
 /** onChange receives an updater so concurrent uploads always apply to the latest slides. */
-export default function HeroSlidesField({ slides, onChange }: { slides: HeroSlideSettings[]; onChange: (update: (current: HeroSlideSettings[]) => HeroSlideSettings[]) => void }) {
+export default function HeroSlidesField({ slides, onChange, slideSeconds, onSecondsChange }: { slides: HeroSlideSettings[]; onChange: (update: (current: HeroSlideSettings[]) => HeroSlideSettings[]) => void; slideSeconds: number; onSecondsChange: (seconds: number) => void }) {
   const update = (index: number, patch: Partial<HeroSlideSettings>) => onChange((current) => current.map((slide, i) => (i === index ? { ...slide, ...patch } : slide)));
   const move = (index: number, delta: number) => onChange((current) => {
     const j = index + delta;
@@ -36,7 +43,13 @@ export default function HeroSlidesField({ slides, onChange }: { slides: HeroSlid
     <div className="space-y-4 md:col-span-2">
       <div className="flex items-baseline justify-between">
         <p className="text-sm font-semibold">Banner slides <span className="font-normal text-slate-400">({slides.length}/{MAX_SLIDES})</span></p>
-        <p className="text-xs text-slate-500">Slides change every 4 s · shoppers can pause or swipe</p>
+        <p className="text-xs text-slate-500">Shoppers can always pause or swipe</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-slate-50 p-4">
+        <label className="flex items-center gap-2 text-sm font-medium" htmlFor="slide-seconds">Each slide shows for</label>
+        <input id="slide-seconds" type="number" min={2} max={30} step={1} value={slideSeconds} onChange={(e) => onSecondsChange(clampSeconds(Number(e.target.value) || SLIDE_SECONDS_DEFAULT))} className="w-20 rounded-lg border p-2 text-sm" />
+        <span className="text-sm">seconds</span>
+        <span className="text-xs text-slate-500">2–30 s. You can change it for a single slide below, or let a video play to the end.</span>
       </div>
       {slides.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">No slides yet. The designed banner with your heading and buttons is shown until you add one.</p> : null}
       {slides.map((slide, index) => {
@@ -60,6 +73,25 @@ export default function HeroSlidesField({ slides, onChange }: { slides: HeroSlid
                 <input className="mt-1 w-full rounded-lg border p-2.5 text-sm" placeholder="/c/electronics-accessories or https://…" value={slide.href ?? ""} onChange={(e) => update(index, { href: e.target.value || undefined })} />
                 <span className="mt-1 block text-xs font-normal text-slate-500">Leave empty for a banner that isn&apos;t clickable.</span>
               </label>
+              <div className="rounded-xl border border-slate-200 p-3 text-sm md:col-span-2">
+                <p className="font-medium">How long this slide shows</p>
+                <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2">
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={slide.seconds != null} disabled={Boolean(slide.playFullVideo)} onChange={(e) => update(index, { seconds: e.target.checked ? slideSeconds : undefined })} className="h-4 w-4 accent-[#ff9933]" />
+                    Use its own time
+                  </label>
+                  {slide.seconds != null && !slide.playFullVideo ? (
+                    <span className="flex items-center gap-2"><input type="number" min={2} max={30} value={slide.seconds} onChange={(e) => update(index, { seconds: clampSeconds(Number(e.target.value) || slideSeconds) })} className="w-20 rounded-lg border p-1.5 text-sm" aria-label={`Seconds for slide ${index + 1}`} /> seconds</span>
+                  ) : null}
+                  {slide.desktopVideoUrl || slide.mobileVideoUrl ? (
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={Boolean(slide.playFullVideo)} onChange={(e) => update(index, { playFullVideo: e.target.checked || undefined, seconds: e.target.checked ? undefined : slide.seconds })} className="h-4 w-4 accent-[#ff9933]" />
+                      Play the whole video before moving on
+                    </label>
+                  ) : null}
+                </div>
+                <p className="mt-1.5 text-xs text-slate-500">{slide.playFullVideo ? "The next slide comes when the video ends." : `Shows for ${slide.seconds ?? slideSeconds} seconds${slide.seconds == null ? " (banner setting)" : ""}.`}</p>
+              </div>
               <label className="text-sm font-medium">Describe the banner
                 <input className="mt-1 w-full rounded-lg border p-2.5 text-sm" placeholder="e.g. Diwali sale — up to 50% off" maxLength={160} value={slide.alt ?? ""} onChange={(e) => update(index, { alt: e.target.value || undefined })} />
                 <span className="mt-1 block text-xs font-normal text-slate-500">Read aloud by screen readers.</span>
