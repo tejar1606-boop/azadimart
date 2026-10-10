@@ -1,8 +1,30 @@
-export default function ProductsPage() {
+import { Suspense } from "react";
+import { getCategoryRail } from "../lib/category-rail";
+import CatalogView from "./catalog-view";
+import PageBanner from "../components/page-banner";
+
+import type { Metadata } from "next";
+
+/** Shop page is indexed; search-result variants (?q=) are not, to avoid thin duplicate pages. */
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ q?: string }> }): Promise<Metadata> {
+  const { q } = await searchParams;
+  return {
+    title: q ? `Results for “${q.slice(0, 60)}”` : "Shop all products online",
+    description: "Browse all products from KYC-verified Indian sellers on AzadiMart: fashion, home & kitchen, beauty, electronics and more. Cash on Delivery and easy returns.",
+    alternates: { canonical: "/products" },
+    robots: q ? { index: false, follow: true } : undefined,
+  };
+}
+export const dynamic = "force-dynamic";
+
+export default async function ProductsPage() {
+  const rail = await getCategoryRail();
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
-      <h1 className="text-3xl font-semibold">Products</h1>
-      <p className="mt-2 text-ink-muted">Live catalog only. Draft and QC products never appear here.</p>
-    </main>
+    <>
+      <PageBanner pageKey="shop" />
+      <Suspense>
+        <CatalogView rail={rail} />
+      </Suspense>
+    </>
   );
 }

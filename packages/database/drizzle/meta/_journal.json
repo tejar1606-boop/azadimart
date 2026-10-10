@@ -1,0 +1,188 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791324204838,
+      "tag": "20261006220324_smooth_lady_ursula",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791341591247,
+      "tag": "20261007075500_online_store_coupons",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791344100000,
+      "tag": "20261007091500_seller_tax_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791344400000,
+      "tag": "20261007092000_seller_tax_declaration",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791344700000,
+      "tag": "20261007094500_checkout_orders",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791346500000,
+      "tag": "20261007101500_shipment_integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791347400000,
+      "tag": "20261007103000_variant_package_weight",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791351900000,
+      "tag": "20261007114500_payment_integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791354600000,
+      "tag": "20261007123000_published_theme_integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791357300000,
+      "tag": "20261007131500_refund_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791449300961,
+      "tag": "20261008084820_login_attempts",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791450627126,
+      "tag": "20261008091027_delivery_and_wishlist",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791460331384,
+      "tag": "20261008115211_aplus_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791472977176,
+      "tag": "20261008152257_product_position",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791480750783,
+      "tag": "20261008173230_seo_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1791484299240,
+      "tag": "20261008183139_rate_limits",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791486437644,
+      "tag": "20261008190717_product_reviews",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791529060035,
+      "tag": "20261009065740_offer_tags",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791535332196,
+      "tag": "20261009084212_product_specifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791562672152,
+      "tag": "20261009161752_cart_reminders",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791564401513,
+      "tag": "20261009164641_order_deadlines_and_alerts",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791565273668,
+      "tag": "20261009170113_seller_aadhaar",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791573323261,
+      "tag": "20261009191523_seller_payouts",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791574657855,
+      "tag": "20261009193737_seller_ads",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791575976195,
+      "tag": "20261009195936_ads_placements_gst_credit",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791595484627,
+      "tag": "20261010012444_page_banners",
+      "breakpoints": true
+    }
+  ]
+}

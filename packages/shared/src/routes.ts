@@ -24,11 +24,20 @@ export const STOREFRONT_ROUTES = [
   "/products",
   "/cart",
   "/checkout",
+  "/account/orders",
+  "/account/orders/:orderId",
   "/account",
+  "/login",
+  "/register",
   "/wishlist",
   "/api/health",
   "/api/v1/catalog/products",
+  "/api/v1/catalog/categories",
   "/api/v1/cart",
+  "/api/v1/addresses",
+  "/api/v1/checkout",
+  "/api/v1/orders",
+  "/api/v1/orders/:orderId",
 ] as const;
 
 export const SELLER_ROUTES = [
@@ -43,7 +52,11 @@ export const SELLER_ROUTES = [
   "/payouts",
   "/api/health",
   "/api/v1/products",
+  "/api/v1/categories",
   "/api/v1/qc-submissions",
+  "/api/v1/orders",
+  "/api/v1/shipments",
+  "/api/v1/shipments/:shipmentId",
 ] as const;
 
 export const ADMIN_ROUTES = [
@@ -66,6 +79,9 @@ export const ADMIN_ROUTES = [
   "/api/v1/sellers",
   "/api/v1/qc",
   "/api/v1/themes",
+  "/api/v1/orders",
+  "/api/v1/orders/:orderId",
+  "/api/v1/payments/refunds",
 ] as const;
 
 export const PRODUCT_MEDIA_LIMITS = {

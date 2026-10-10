@@ -20,16 +20,37 @@
     "verify:routes": "node scripts/verify-routes.mjs",
     "verify:contracts": "pnpm --filter @azadimart/shared test -- src/api",
     "db:generate": "pnpm --filter @azadimart/database generate",
-    "db:migrate": "pnpm --filter @azadimart/database migrate",
+    "db:migrate": "node scripts/db-migrate-safe.mjs",
     "db:studio": "pnpm --filter @azadimart/database studio",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "db:check": "node scripts/db-preflight.mjs",
+    "db:seed:demo": "node scripts/seed-demo.mjs",
+    "e2e:smoke": "node scripts/e2e-smoke.mjs",
+    "e2e:seller": "node scripts/e2e-seller.mjs",
+    "db:seed:catalog": "node scripts/seed-catalog.mjs",
+    "e2e:aplus": "node scripts/e2e-aplus.mjs",
+    "e2e:reviews": "node scripts/e2e-reviews.mjs",
+    "e2e:offers": "node scripts/e2e-offers.mjs",
+    "e2e:abandoned": "node scripts/e2e-abandoned.mjs",
+    "e2e:fulfilment": "node scripts/e2e-fulfilment.mjs",
+    "e2e:payouts": "node scripts/e2e-payouts.mjs",
+    "e2e:ads": "node scripts/e2e-ads.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@neondatabase/serverless": "0.10.4",
     "eslint": "^9.17.0",
     "prettier": "^3.4.2",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss": ">=8.5.29",
+      "fast-xml-parser@<5.7.0": ">=5.7.0",
+      "uuid@<11.1.1": ">=11.1.1",
+      "ws@>=8.0.0 <8.21.0": ">=8.22.0"
+    }
   }
 }

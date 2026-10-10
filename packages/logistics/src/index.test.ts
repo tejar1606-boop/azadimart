@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createShipmentForOrder, getLogisticsProvider } from "./index";
+import { createShipmentForOrder, getLogisticsProvider, getLogisticsProviderReadiness } from "./index";
 
 describe("logistics providers", () => {
   it("creates shipments through the abstraction, not a vendor SDK", async () => {
@@ -26,6 +26,7 @@ describe("logistics providers", () => {
       },
       weightGrams: 500,
       declaredValuePaise: 99900,
+      idempotencyKey: "order_o1_seller_s1",
     });
     expect(shipment.provider).toBe("MANUAL");
   });
@@ -35,4 +36,13 @@ describe("logistics providers", () => {
       "SHIPROCKET is not configured",
     );
   });
+});
+
+it("reports logistics readiness without exposing credentials", () => {
+  expect(getLogisticsProviderReadiness()).toEqual([
+    { code: "MANUAL", isConfigured: true },
+    { code: "SHIPROCKET", isConfigured: false },
+    { code: "DELHIVERY", isConfigured: false },
+    { code: "SHADOWFAX", isConfigured: false },
+  ]);
 });

@@ -1,14 +1,36 @@
 export const SECTION_TYPES = [
   "hero",
+  "marquee",
+  "promo_banner",
+  "banner_row",
+  "category_showcase",
   "featured_products",
   "category_grid",
+  "trust_strip",
   "rich_text",
   "image_banner",
   "video",
+  "sales_coupons",
+  "seller_cta",
   "newsletter",
 ] as const;
 
 export type SectionType = (typeof SECTION_TYPES)[number];
+
+/** Which screens a homepage section appears on (settings.showOn). Desktop means 1024 px and wider. */
+export const SECTION_SHOW_ON = ["all", "desktop", "mobile"] as const;
+export type SectionShowOn = (typeof SECTION_SHOW_ON)[number];
+
+/** Colour themes for the "Top category" banner (Meesho-style category showcase). */
+export const SHOWCASE_THEMES = ["saffron", "green", "navy", "rose", "sky", "sand"] as const;
+export type ShowcaseTheme = (typeof SHOWCASE_THEMES)[number];
+
+/** Banner row: 1–3 clickable banners side by side. Recommended size per banner, by count. */
+export const BANNER_ROW_SIZES: Record<1 | 2 | 3, { width: number; height: number }> = {
+  1: { width: 1800, height: 450 },
+  2: { width: 880, height: 440 },
+  3: { width: 600, height: 450 },
+};
 
 export type ThemeSectionDraft = {
   id?: string;
@@ -37,3 +59,114 @@ export function applySectionReorder<T extends { id: string }>(
     .map((id) => byId.get(id))
     .filter((section): section is T => Boolean(section));
 }
+
+export const DEFAULT_HOME_SECTIONS: ThemeSectionDraft[] = [
+  {
+    type: "hero",
+    position: 0,
+    isVisible: true,
+    settings: {
+      eyebrow: "Made for India",
+      heading: "Everything India. One trusted marketplace.",
+      description:
+        "Discover products from verified sellers across farming, travel, fashion, home and beauty.",
+      primaryLabel: "Shop now",
+      primaryHref: "/products",
+      secondaryLabel: "Become a seller",
+      secondaryHref: "/seller",
+      desktopImageUrl: "",
+      mobileImageUrl: "",
+      badge: "Verified sellers • Secure checkout",
+    },
+  },
+  {
+    type: "category_grid",
+    position: 1,
+    isVisible: true,
+    settings: {
+      heading: "Shop by category",
+      subtitle: "Built around everyday India",
+      categories: [
+        "Farming",
+        "Hotels & stays",
+        "Made in India clothing",
+        "Home & kitchen",
+        "Beauty",
+      ],
+    },
+  },
+  {
+    type: "trust_strip",
+    position: 2,
+    isVisible: true,
+    settings: {
+      items: [
+        "Verified sellers | Every seller is KYC-verified",
+        "Quality checked | Products reviewed before listing",
+        "Cash on Delivery | Pay when your order arrives",
+        "Easy returns | 7-day returns on eligible items",
+      ],
+    },
+  },
+  {
+    type: "featured_products",
+    position: 3,
+    isVisible: true,
+    settings: {
+      heading: "Featured on AzadiMart",
+      subtitle: "Handpicked products from active sellers",
+      limit: 8,
+      sort: "newest",
+    },
+  },
+  {
+    type: "sales_coupons",
+    position: 4,
+    isVisible: true,
+    settings: {
+      heading: "Save more with AzadiMart coupons",
+      subtitle: "Copy a code and apply it at checkout.",
+      limit: 4,
+    },
+  },
+  {
+    type: "image_banner",
+    position: 5,
+    isVisible: true,
+    settings: {
+      eyebrow: "Proudly Indian",
+      heading: "Support Indian sellers. Grow local.",
+      description:
+        "A marketplace designed to give trustworthy Indian businesses a digital storefront.",
+      imageUrl: "",
+      buttonLabel: "Explore collections",
+      buttonHref: "/products",
+    },
+  },
+  {
+    type: "seller_cta",
+    position: 6,
+    isVisible: true,
+    settings: {
+      eyebrow: "Built for ambitious sellers",
+      heading: "Take your business online with AzadiMart.",
+      description:
+        "A professional storefront, catalog tools, QC workflow and marketplace reach in one place.",
+      primaryLabel: "Start selling",
+      primaryHref: "/seller",
+      secondaryLabel: "Learn more",
+      secondaryHref: "/seller",
+    },
+  },
+  {
+    type: "newsletter",
+    position: 7,
+    isVisible: true,
+    settings: {
+      heading: "Stay in the loop",
+      description:
+        "Get early access to new collections and major offers.",
+      buttonLabel: "Notify me",
+    },
+  },
+];

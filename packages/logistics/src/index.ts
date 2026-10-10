@@ -17,6 +17,7 @@ export type CreateShipmentInput = {
   delivery: Address;
   weightGrams: number;
   declaredValuePaise: number;
+  idempotencyKey: string;
 };
 
 export type ShipmentQuote = {
@@ -40,6 +41,7 @@ export type TrackingEvent = {
 
 export interface LogisticsProvider {
   readonly code: LogisticsProviderCode;
+  readonly isConfigured: boolean;
   quote(input: CreateShipmentInput): Promise<ShipmentQuote[]>;
   createShipment(input: CreateShipmentInput): Promise<CreatedShipment>;
   cancelShipment(providerShipmentId: string): Promise<void>;
@@ -48,6 +50,7 @@ export interface LogisticsProvider {
 
 export class ManualLogisticsProvider implements LogisticsProvider {
   readonly code = "MANUAL" as const;
+  readonly isConfigured = true;
 
   async quote(): Promise<ShipmentQuote[]> {
     return [{ provider: "MANUAL", service: "manual", amountPaise: 0, estimatedDays: 5 }];
@@ -65,6 +68,7 @@ export class ManualLogisticsProvider implements LogisticsProvider {
 }
 
 class UnconfiguredLogisticsProvider implements LogisticsProvider {
+  readonly isConfigured = false;
   constructor(readonly code: Exclude<LogisticsProviderCode, "MANUAL">) {}
 
   async quote(): Promise<ShipmentQuote[]> {
@@ -106,4 +110,12 @@ export async function createShipmentForOrder(
   input: CreateShipmentInput,
 ): Promise<CreatedShipment> {
   return getLogisticsProvider(code).createShipment(input);
+}
+
+
+export function getLogisticsProviderReadiness(): Array<{ code: LogisticsProviderCode; isConfigured: boolean }> {
+  return Array.from(registry.values()).map((provider) => ({
+    code: provider.code,
+    isConfigured: provider.isConfigured,
+  }));
 }
