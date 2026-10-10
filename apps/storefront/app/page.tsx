@@ -306,7 +306,8 @@ function heroSlides(s: Settings): HeroSlide[] {
       mobileImageUrl: str(slide, "mobileImageUrl") || undefined,
       desktopVideoUrl: str(slide, "desktopVideoUrl") || undefined,
       mobileVideoUrl: str(slide, "mobileVideoUrl") || undefined,
-      href: str(slide, "href") ? safeHref(str(slide, "href")) : undefined,
+      // The button is part of the banner art, so every banner links somewhere (default: all products).
+      href: str(slide, "href") ? safeHref(str(slide, "href")) : "/products",
       alt: str(slide, "alt", "AzadiMart offer"),
       // Banner-wide time (Admin → Online Store), unless this slide has its own.
       seconds: secondsOf(slide.seconds) ?? secondsOf(s.slideSeconds),

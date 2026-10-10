@@ -69,9 +69,9 @@ export default function HeroSlidesField({ slides, onChange, slideSeconds, onSeco
               <MediaField kind="image" label="Mobile image (optional)" hint="1200 × 1500 px" size={{ width: 1200, height: 1500 }} value={slide.mobileImageUrl ?? ""} onChange={(v) => update(index, { mobileImageUrl: v || undefined })} />
               <MediaField kind="video" label="Desktop video (optional)" hint="Same shape as 2880 × 1080" value={slide.desktopVideoUrl ?? ""} onChange={(v) => update(index, { desktopVideoUrl: v || undefined })} />
               <MediaField kind="video" label="Mobile video (optional)" hint="Same shape as 1200 × 1500" value={slide.mobileVideoUrl ?? ""} onChange={(v) => update(index, { mobileVideoUrl: v || undefined })} />
-              <label className="text-sm font-medium">Link (optional)
+              <label className="text-sm font-medium">Link (where the banner button goes)
                 <input className="mt-1 w-full rounded-lg border p-2.5 text-sm" placeholder="/c/electronics-accessories or https://…" value={slide.href ?? ""} onChange={(e) => update(index, { href: e.target.value || undefined })} />
-                <span className="mt-1 block text-xs font-normal text-slate-500">Leave empty for a banner that isn&apos;t clickable.</span>
+                <span className="mt-1 block text-xs font-normal text-slate-500">The whole banner is clickable. Empty = All products.</span>
               </label>
               <div className="rounded-xl border border-slate-200 p-3 text-sm md:col-span-2">
                 <p className="font-medium">How long this slide shows</p>
