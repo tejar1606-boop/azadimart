@@ -321,6 +321,16 @@ function Hero({ s, sponsored }: { s: Settings; sponsored: HeroSlide[] }) {
   const primaryLabel = str(s, "primaryLabel", "Shop now");
   const primaryHref = str(s, "primaryHref", "/products");
   const slides = [...sponsored.map((ad) => ({ ...ad, seconds: secondsOf(s.slideSeconds) })), ...heroSlides(s)];
+  if (slides.length && str(s, "size") === "compact") {
+    // Compact: a smaller, rounded banner card with space around it (e.g. lower down the page).
+    return (
+      <section className="py-8 sm:py-12">
+        <div className="mx-auto max-w-[1100px] px-4 sm:px-6">
+          <div className="overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/5 sm:rounded-3xl"><HeroCarousel slides={slides} /></div>
+        </div>
+      </section>
+    );
+  }
   if (slides.length) return <><HeroCarousel slides={slides} /><TricolourRibbon /></>;
 
   // No banner uploaded yet: a designed banner in the same frame (8:3 desktop,

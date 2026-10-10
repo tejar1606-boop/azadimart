@@ -137,6 +137,7 @@ function SectionFields({section,onChange}:{section:Row;onChange:(key:string,valu
     </>}
     {t!=="hero" && t!=="image_banner" && t!=="marquee" && t!=="promo_banner" && t!=="banner_row" && t!=="category_showcase" && <Field label="Subtitle"><input className="w-full rounded-lg border p-2.5" value={val(section,"subtitle")} onChange={e=>onChange("subtitle",e.target.value)}/></Field>}
     {t==="hero" && <>
+      <Field label="Banner size"><select className="w-full rounded-lg border p-2.5" value={val(section,"size")||"full"} onChange={e=>onChange("size",e.target.value)}><option value="full">Full width</option><option value="compact">Compact (smaller card)</option></select></Field>
       <HeroSlidesField slides={slidesFromSettings(section.settings)} onChange={(update)=>onChange("slides",(settings:Record<string,unknown>)=>update(slidesFromSettings(settings)))} slideSeconds={Number(section.settings.slideSeconds)||SLIDE_SECONDS_DEFAULT} onSecondsChange={(seconds)=>onChange("slideSeconds",seconds)}/>
       <details className="rounded-xl border border-slate-200 p-3 md:col-span-2" open={slidesFromSettings(section.settings).length===0}>
         <summary className="cursor-pointer text-sm font-semibold">Text banner <span className="font-normal text-slate-500">(only shown when there are no slides)</span></summary>
@@ -193,7 +194,7 @@ function HeroPreview({s,device}:{s:Record<string,unknown>;device:"desktop"|"phon
 
 function Preview({section,device,categoryName}:{section:Row;device:"desktop"|"phone";categoryName?:string}){
   const s=section.settings; const heading=String(s.heading ?? LABELS[section.type] ?? section.type); const phone=device==="phone";
-  if(section.type==="hero") return <HeroPreview s={s} device={device}/>;
+  if(section.type==="hero") return s.size==="compact" ? <div className="bg-slate-50 px-[8%] py-4"><div className="overflow-hidden rounded-xl"><HeroPreview s={s} device={device}/></div></div> : <HeroPreview s={s} device={device}/>;
   if(section.type==="category_grid") return <div className="bg-white p-4"><h3 className="text-sm font-bold">{String(s.heading??"Shop by category")}</h3><p className="text-[11px] text-slate-500">{String(s.subtitle??"")}</p><div className="mt-3 grid grid-cols-2 gap-2">{(Array.isArray(s.categories)?s.categories:[]).slice(0,4).map((c:unknown)=><div key={String(c)} className="rounded-lg bg-slate-100 p-3 text-[11px] font-semibold">{String(c)}</div>)}</div></div>;
   if(section.type==="promo_banner"){ const img=phone?(str2(s.mobileImageUrl)||str2(s.desktopImageUrl)):str2(s.desktopImageUrl); return img ? <div className="bg-white p-2"><div className={"w-full rounded bg-cover bg-center "+(phone&&s.mobileImageUrl?"aspect-[800/329]":"aspect-[1800/320]")} style={bg(img)}/></div> : <div className="grid aspect-[1800/320] place-items-center bg-slate-100 text-[11px] font-semibold text-slate-400">Promo banner · upload 1800 × 320</div>; }
   if(section.type==="banner_row"){
