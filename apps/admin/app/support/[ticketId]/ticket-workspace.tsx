@@ -191,7 +191,7 @@ export default function TicketWorkspace({ ticketId }: { ticketId: string }) {
               <ul className="mt-2 space-y-1 text-sm">
                 {order.items.map((i, k) => <li key={k} className="flex justify-between gap-2"><span className="truncate">{i.title} × {i.quantity}<span className="block text-xs text-slate-500">{i.storeName}</span></span><span className="shrink-0">{money(i.unitPricePaise * i.quantity)}</span></li>)}
               </ul>
-              <Link href="/orders" className="mt-3 inline-block text-xs font-semibold text-brand-700 hover:underline">Open Orders →</Link>
+              <Link href={`/orders?q=${encodeURIComponent(order.number)}`} className="mt-3 inline-block text-xs font-semibold text-brand-700 hover:underline">Open in Orders →</Link>
             </div>
           ) : null}
 

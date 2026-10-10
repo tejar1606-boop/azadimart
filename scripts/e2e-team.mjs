@@ -59,6 +59,15 @@ check("a role needs at least one known area", (await admin("/api/v1/team/roles",
 r = await admin("/api/v1/team/roles", { method: "POST", body: { name: `E2E Lead ${RUN}`, permissions: ["team", "catalog", "dashboard"] } });
 const leadRole = r.json?.role?.id; if (leadRole) created.roles.push(leadRole);
 
+// Test roles with fixed areas (ready-made roles may have been edited by the team).
+const testRole = async (name, permissions) => { const res = await admin("/api/v1/team/roles", { method: "POST", body: { name: `E2E ${name} ${RUN}`, permissions } }); created.roles.push(res.json.role.id); return res.json.role.id; };
+const R = {
+  catalog: await testRole("Catalogue", ["dashboard", "catalog"]),
+  finance: await testRole("Finance", ["dashboard", "payments", "orders"]),
+  marketing: await testRole("Marketing", ["dashboard", "storefront", "marketing"]),
+  support: await testRole("Support", ["support"]),
+};
+
 // --- members
 const members = {};
 async function addMember(key, roleId) {
@@ -71,16 +80,16 @@ async function addMember(key, roleId) {
   members[key] = { id, email, c, status: res.status, login: login.status };
 }
 team = (await admin("/api/v1/team")).json;
-await addMember("catalog", role("Catalogue & QC").id);
-await addMember("finance", role("Finance").id);
-await addMember("marketing", role("Marketing").id);
-await addMember("support", role("Support agent").id);
+await addMember("catalog", R.catalog);
+await addMember("finance", R.finance);
+await addMember("marketing", R.marketing);
+await addMember("support", R.support);
 await addMember("returns", returnsRole);
 await addMember("lead", leadRole);
 check("admin adds team members with their own sign-in", Object.values(members).every((m) => m.status === 201 && m.login === 200), JSON.stringify(Object.fromEntries(Object.entries(members).map(([k, m]) => [k, [m.status, m.login]]))));
-check("email must be unused", (await admin("/api/v1/team/members", { method: "POST", body: { displayName: "Dup", email: members.catalog.email, password: "TeamPass2026!", roleId: role("Finance").id } })).status === 409);
+check("email must be unused", (await admin("/api/v1/team/members", { method: "POST", body: { displayName: "Dup", email: members.catalog.email, password: "TeamPass2026!", roleId: R.finance } })).status === 409);
 let session = (await members.finance.c("/api/auth/session")).json;
-check("session reports the role and its areas", session?.roleName === "Finance" && session.permissions.includes("payments") && !session.permissions.includes("catalog") && session.fullAccess === false);
+check("session reports the role and its areas", session?.roleName === `E2E Finance ${RUN}` && session.permissions.includes("payments") && !session.permissions.includes("catalog") && session.fullAccess === false);
 
 // --- every area enforced on the server
 const allowed = async (key, paths, expect) => {
@@ -106,7 +115,7 @@ check("Sellers & KYC page refused for Catalogue & QC", [307, 308].includes(r.sta
 check("pages inside the role open", (await members.catalog.c("/dashboard", { redirect: "manual" })).status === 200);
 
 // --- changes apply at once
-await admin(`/api/v1/team/members/${members.finance.id}`, { method: "PATCH", body: { roleId: role("Support agent").id } });
+await admin(`/api/v1/team/members/${members.finance.id}`, { method: "PATCH", body: { roleId: R.support } });
 check("changing a role applies without signing in again", (await members.finance.c("/api/v1/payouts")).status === 403 && (await members.finance.c("/api/v1/support/tickets")).status === 200);
 await admin(`/api/v1/team/roles/${returnsRole}`, { method: "PATCH", body: { permissions: ["orders", "support", "payments"] } });
 check("editing a role applies to everyone with it", (await members.returns.c("/api/v1/payouts")).status === 200);
@@ -114,16 +123,16 @@ check("editing a role applies to everyone with it", (await members.returns.c("/a
 // --- no privilege escalation
 const lead = members.lead.c;
 check("a team lead can open Team & roles", (await lead("/api/v1/team")).status === 200);
-check("…but can't add someone with more access than they have", (await lead("/api/v1/team/members", { method: "POST", body: { displayName: "Too much", email: `e2e.team.x.${RUN}@azadimart.test`, password: "TeamPass2026!", roleId: role("Admin").id } })).status === 403);
-r = await lead("/api/v1/team/members", { method: "POST", body: { displayName: "E2E lead hire", email: `e2e.team.hire.${RUN}@azadimart.test`, password: "TeamPass2026!", roleId: role("Catalogue & QC").id } });
+check("…but can't add someone with more access than they have", (await lead("/api/v1/team/members", { method: "POST", body: { displayName: "Too much", email: `e2e.team.x.${RUN}@azadimart.test`, password: "TeamPass2026!", roleId: R.finance } })).status === 403);
+r = await lead("/api/v1/team/members", { method: "POST", body: { displayName: "E2E lead hire", email: `e2e.team.hire.${RUN}@azadimart.test`, password: "TeamPass2026!", roleId: R.catalog } });
 if (r.json?.member?.userId) created.users.push(r.json.member.userId);
 check("…can add someone within their own access", r.status === 201);
 check("…can't create a role with areas they don't have", (await lead("/api/v1/team/roles", { method: "POST", body: { name: `E2E Sneaky ${RUN}`, permissions: ["payments"] } })).status === 403);
-check("…can't edit a role with more access", (await lead(`/api/v1/team/roles/${role("Finance").id}`, { method: "PATCH", body: { permissions: ["catalog"] } })).status === 403);
+check("…can't edit a role with more access", (await lead(`/api/v1/team/roles/${R.finance}`, { method: "PATCH", body: { permissions: ["catalog"] } })).status === 403);
 check("…can't edit their own role", (await lead(`/api/v1/team/roles/${leadRole}`, { method: "PATCH", body: { permissions: ["team", "catalog", "dashboard", "payments"] } })).status === 403);
 check("…can't change someone with more access", (await lead(`/api/v1/team/members/${members.finance.id}`, { method: "PATCH", body: { isActive: false } })).status === 403 && (await lead(`/api/v1/team/members/${demoAdmin.id}`, { method: "PATCH", body: { isActive: false } })).status === 403);
 check("…can change someone within their access", (await lead(`/api/v1/team/members/${members.catalog.id}`, { method: "PATCH", body: { displayName: "E2E Catalogue" } })).status === 200);
-check("nobody can change their own access", (await lead(`/api/v1/team/members/${members.lead.id}`, { method: "PATCH", body: { roleId: role("Admin").id } })).status === 403 && (await admin(`/api/v1/team/members/${demoAdmin.id}`, { method: "PATCH", body: { isActive: false } })).status === 403);
+check("nobody can change their own access", (await lead(`/api/v1/team/members/${members.lead.id}`, { method: "PATCH", body: { roleId: R.finance } })).status === 403 && (await admin(`/api/v1/team/members/${demoAdmin.id}`, { method: "PATCH", body: { isActive: false } })).status === 403);
 
 // --- deleting roles
 check("a role in use can't be deleted", (await admin(`/api/v1/team/roles/${returnsRole}`, { method: "DELETE" })).status === 409);

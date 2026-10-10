@@ -104,6 +104,23 @@ check("cancelling a shared order makes a request", r.status === 202 && r.json?.o
 check("seller sees their request is pending", (await sellerOrder(o2))?.cancelRequestedByMe === true);
 let listed = (await admin("/api/v1/orders")).json?.items?.find((o) => o.id === o2);
 check("admin sees the request and reason", listed?.cancelRequestedAt && listed.cancelRequestReason === "Price or listing error" && listed.status === "CONFIRMED");
+// --- admin order search and filters
+const [o2row] = await sql`select o.order_number, u.email, (o.shipping_address_snapshot->>'phone') phone from orders o join customers c on c.id = o.customer_id join users u on u.id = c.user_id where o.id = ${o2}`;
+const found = async (qs) => (await admin(`/api/v1/orders?${qs}`)).json;
+let res = await found(`q=${encodeURIComponent(o2row.order_number)}`);
+check("admin finds an order by its number", res?.total === 1 && res.items[0].id === o2 && res.items[0].customerName && res.items[0].sellers.length === 2);
+check("…by part of the number", (await found(`q=${o2row.order_number.slice(-6)}`))?.items?.some((o) => o.id === o2));
+check("…by customer email", (await found(`q=${encodeURIComponent(o2row.email)}&status=CONFIRMED`))?.items?.some((o) => o.id === o2));
+const [otherStore] = await sql`select store_name from sellers where id = ${otherSeller.id}`;
+check("…by seller name", (await found(`q=${encodeURIComponent(otherStore.store_name)}`))?.items?.some((o) => o.id === o2));
+check("status filter and counts", (await found(`q=${o2row.order_number}&status=DELIVERED`))?.total === 0 && (await found(`q=${o2row.order_number}&status=DELIVERED`))?.counts?.CONFIRMED === 1);
+check("today's date filter includes it; an old range doesn't", (await found(`q=${o2row.order_number}&from=${new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10)}`))?.total === 1 && (await found(`q=${o2row.order_number}&to=2020-01-01`))?.total === 0);
+check("no match → empty list", (await found("q=zzqq-no-such-order"))?.total === 0);
+const csvLogin = await fetch(`${AD}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json", origin: AD }, body: JSON.stringify({ email: "demo.admin@azadimart.test", password: PW }) });
+const csvCookie = (csvLogin.headers.getSetCookie?.() ?? []).map((c) => c.split(";")[0]).join("; ");
+const csvRes = await fetch(`${AD}/api/v1/orders?format=csv&q=${o2row.order_number}`, { headers: { cookie: csvCookie } }).catch(() => null);
+const csvText = csvRes ? await csvRes.text() : "";
+check("CSV export of the filtered orders", csvRes?.headers.get("content-type")?.startsWith("text/csv") && csvText.includes(o2row.order_number) && csvText.split("\r\n").length === 2);
 r = await admin(`/api/v1/orders/${o2}/cancel-request`, { method: "POST", body: { decision: "DECLINE" } });
 check("admin declines", r.status === 200);
 const [d2] = await sql`select status, cancel_requested_at from orders where id = ${o2}`;
