@@ -1,9 +1,14 @@
 import Link from "next/link";
 import type { StoreChrome } from "../lib/chrome";
 import { BadgeIcon, CashIcon, ReturnIcon, ShieldIcon } from "./icons";
-import { TricolourRibbon, Wordmark } from "./site-header";
+import FooterBackdrop from "./footer-backdrop";
+import IndiaFlag from "./india-flag";
+import { TricolourRibbon } from "./site-header";
 
 const SELLER_URL = process.env.NEXT_PUBLIC_SELLER_URL || "https://seller.azadimart.com";
+// Customer support contact, shown once set (Vercel / .env).
+const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "";
+const SUPPORT_PHONE = process.env.NEXT_PUBLIC_SUPPORT_PHONE || "";
 
 // Icon tints cycle through the tricolour palette: saffron, navy, green.
 const PROMISES = [
@@ -32,47 +37,52 @@ export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
       </section>
 
       <TricolourRibbon />
-      <div className="relative overflow-hidden bg-navy-deep text-white">
-        {/* Soft saffron and green glows echo the tricolour without using the flag. */}
-        <div aria-hidden="true" className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-tiranga-saffron/10 blur-3xl" />
-        <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 -right-24 h-96 w-96 rounded-full bg-tiranga-green/15 blur-3xl" />
-        <div className="relative mx-auto grid max-w-[1440px] gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
-          <div>
-            <Link href="/" className="text-2xl" aria-label="AzadiMart home"><Wordmark /></Link>
-            <p className="mt-3 max-w-xs text-sm leading-6 text-white/65">India&apos;s marketplace for verified sellers. Quality-checked products, delivered to your door.</p>
-            <p className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/85">
-              <span className="flex h-2.5 w-6 overflow-hidden rounded-full" aria-hidden="true"><span className="flex-1 bg-tiranga-saffron" /><span className="flex-1 bg-white" /><span className="flex-1 bg-tiranga-green" /></span>
-              Proudly made in India
-            </p>
+      {/* Editorial footer: cinematic flag footage behind, big wordmark, plain links, brand story, legal line. */}
+      <div className="relative overflow-hidden bg-[#060b1a] text-white">
+        <FooterBackdrop />
+        <div className="relative mx-auto max-w-[1440px] px-5 pb-8 pt-14 sm:px-8 lg:px-20 lg:pt-20">
+          <div className="grid gap-12 lg:grid-cols-[1.25fr_1fr_1.35fr_1.15fr] lg:gap-10">
+            <Link href="/" aria-label="AzadiMart home" className="block text-[44px] font-bold leading-none tracking-[-0.04em] sm:text-[56px]"><span className="text-[#FF9933]">Azadi</span><span className="text-[#4cc94a]">Mart</span></Link>
+
+            <div className="text-[15px] leading-6 text-white/85">
+              <p className="font-semibold text-white">Need assistance?</p>
+              {SUPPORT_EMAIL || SUPPORT_PHONE ? (
+                <p className="mt-1">
+                  {SUPPORT_EMAIL ? <>Write to us at <a href={"mailto:" + SUPPORT_EMAIL} className="font-semibold text-white underline underline-offset-2">{SUPPORT_EMAIL}</a></> : null}
+                  {SUPPORT_EMAIL && SUPPORT_PHONE ? " or call " : null}
+                  {SUPPORT_PHONE ? <a href={"tel:" + SUPPORT_PHONE.replace(/\s/g, "")} className="font-semibold text-white underline underline-offset-2">{SUPPORT_PHONE}</a> : null}.
+                </p>
+              ) : null}
+              <p className="mt-1">Track, cancel or return an order from <Link href="/account" className="font-semibold text-white underline underline-offset-2">My orders</Link>. Pay by Cash on Delivery, with easy 7-day returns.</p>
+              <p className="mt-5"><span className="font-semibold text-white/90">Want to sell on AzadiMart?</span> <a href={SELLER_URL + "/register"} className="font-semibold text-white underline underline-offset-2">Register as a seller</a> or <a href={SELLER_URL + "/login"} className="font-semibold text-white underline underline-offset-2">sign in</a>.</p>
+            </div>
+
+            <nav aria-label="Footer" className="grid grid-cols-2 content-start gap-x-8 gap-y-4 text-[15px] text-white/80">
+              {[...shopLinks, { label: "My orders", href: "/account" }, { label: "Wishlist", href: "/wishlist" }, { label: "Cart", href: "/cart" }, { label: "Sign in", href: "/login" }].map((link) => (
+                <Link key={link.href + link.label} href={link.href} className="transition hover:text-white">{link.label}</Link>
+              ))}
+            </nav>
+
+            <div className="text-[15px] leading-6 text-white/80">
+              <p className="font-semibold text-white">#ShopIndia</p>
+              <p className="mt-1">We believe the best of India is made by people you can trust: weavers, cooks, makers and small businesses in every corner of the country.</p>
+              <p className="mt-4">AzadiMart gives them a fair, modern shop window. Every seller is KYC-verified and every product is quality-checked, so you can shop with confidence and pay when it arrives.</p>
+              <p className="mt-4">Shop India. Support Indian sellers.</p>
+            </div>
           </div>
-          <FooterColumn title="Shop" links={shopLinks} />
-          <FooterColumn title="Your account" links={[{ label: "My orders", href: "/account" }, { label: "Wishlist", href: "/wishlist" }, { label: "Cart", href: "/cart" }, { label: "Sign in", href: "/login" }]} />
-          <FooterColumn title="Sell with us" links={[{ label: "Become a seller", href: SELLER_URL + "/register" }, { label: "Seller login", href: SELLER_URL + "/login" }]} />
-        </div>
-        <div className="relative border-t border-white/10">
-          <div className="mx-auto flex max-w-[1440px] flex-col gap-3 px-4 py-5 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <span>© {new Date().getFullYear()} AzadiMart. All rights reserved.</span>
-            <span className="flex items-center gap-2">
-              <span className="rounded border border-white/15 px-2 py-1 font-semibold text-white/75">Cash on Delivery</span>
-              <span className="rounded border border-white/15 px-2 py-1 font-semibold text-white/75">UPI &amp; cards</span>
-              <span className="rounded border border-white/15 px-2 py-1 font-semibold text-white/75">Secure checkout</span>
-            </span>
+
+          <div className="mt-16 flex items-center gap-4 lg:mt-24">
+            <IndiaFlag width={60} />
+            <div className="text-[15px] leading-6 text-white/85">
+              <p className="font-semibold text-white">Proudly made in India</p>
+              <p className="text-white/70">KYC-verified sellers · Quality-checked products · Cash on Delivery</p>
+            </div>
           </div>
+
+          <div className="mt-10 border-t border-white/25 pt-6 text-[15px] text-white/75">© {new Date().getFullYear()} AzadiMart. All rights reserved.</div>
         </div>
       </div>
     </footer>
   );
 }
 
-function FooterColumn({ title, links }: { title: string; links: Array<{ label: string; href: string }> }) {
-  return (
-    <div>
-      <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-tiranga-saffron/90">{title}</p>
-      <ul className="mt-4 space-y-3">
-        {links.map((link) => (
-          <li key={link.href + link.label}><Link href={link.href} className="text-sm text-white/80 transition hover:text-white">{link.label}</Link></li>
-        ))}
-      </ul>
-    </div>
-  );
-}

@@ -11,3 +11,11 @@ body {
   color: var(--azadimart-ink);
   background: #f3f4f6;
 }
+
+/* Waving flag of India (apps/storefront components/india-flag): strips rise, fall and catch the light in turn. */
+@keyframes india-flag-wave {
+  0%, 100% { transform: translateY(calc(var(--flag-amp, 2px) * -1)); filter: brightness(1.06); }
+  50% { transform: translateY(var(--flag-amp, 2px)); filter: brightness(0.86); }
+}
+.india-flag-strip { animation: india-flag-wave 2.2s ease-in-out infinite; will-change: transform; }
+@media (prefers-reduced-motion: reduce) { .india-flag-strip { animation: none; } }
