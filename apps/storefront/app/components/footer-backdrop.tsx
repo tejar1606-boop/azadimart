@@ -23,7 +23,7 @@ export default function FooterBackdrop() {
       <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url(/footer/flag-poster.webp)" }} />
       {play ? <video className="absolute inset-0 h-full w-full object-cover" src="/footer/flag-loop.mp4" poster="/footer/flag-poster.webp" autoPlay muted loop playsInline /> : null}
       {/* Dark, slightly navy grade so white text reads clearly over the flag. */}
-      <div className="absolute inset-0 bg-[#060b1a]/72" />
+      <div className="absolute inset-0 bg-[#060b1a]/[0.78]" />
       <div className="absolute inset-0 bg-gradient-to-b from-[#060b1a]/40 via-transparent to-[#060b1a]/70" />
     </div>
   );

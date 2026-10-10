@@ -625,17 +625,34 @@ function WhyBanner({ s }: { s: Settings }) {
   );
 }
 
+// Icon tints cycle through the tricolour palette: saffron, green, navy.
+const TRUST_ICONS = [
+  { icon: BadgeIcon, tint: "bg-brand-50 text-brand-600" },
+  { icon: ShieldIcon, tint: "bg-india-light text-india" },
+  { icon: CashIcon, tint: "bg-navy/5 text-navy" },
+  { icon: ReturnIcon, tint: "bg-brand-50 text-brand-600" },
+];
+
+// Each item is "Title | short line"; the short line is optional.
 function TrustStrip({ s }: { s: Settings }) {
   const items = list(s, "items").slice(0, 4);
   if (!items.length) return null;
   return (
-    <section className="border-y border-slate-200 bg-white">
-      <Container className="grid grid-cols-2 gap-4 py-5 lg:grid-cols-4">
-        {items.map((item) => (
-          <div key={item} className="flex items-center gap-3 text-sm font-medium text-slate-800">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-india-light text-india"><CheckIcon size={16} /></span>{item}
-          </div>
-        ))}
+    <section aria-label="Our promise" className="border-b border-slate-200 bg-white">
+      <Container className="grid grid-cols-2 gap-x-3 gap-y-5 py-6 sm:py-7 lg:grid-cols-4">
+        {items.map((item, i) => {
+          const [title, text] = item.split("|").map((part) => part.trim());
+          const { icon: Icon, tint } = TRUST_ICONS[i % TRUST_ICONS.length]!;
+          return (
+            <div key={item} className="flex items-center gap-3 sm:items-start">
+              <span className={"grid h-10 w-10 shrink-0 place-items-center rounded-full sm:h-11 sm:w-11 " + tint}><Icon size={20} /></span>
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold leading-tight sm:text-sm">{title}</p>
+                {text ? <p className="mt-0.5 hidden text-xs leading-5 text-slate-500 sm:block">{text}</p> : null}
+              </div>
+            </div>
+          );
+        })}
       </Container>
     </section>
   );

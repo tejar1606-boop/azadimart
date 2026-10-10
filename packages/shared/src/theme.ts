@@ -101,10 +101,10 @@ export const DEFAULT_HOME_SECTIONS: ThemeSectionDraft[] = [
     isVisible: true,
     settings: {
       items: [
-        "Verified sellers",
-        "Quality-controlled catalog",
-        "Secure payments",
-        "Responsive support",
+        "Verified sellers | Every seller is KYC-verified",
+        "Quality checked | Products reviewed before listing",
+        "Cash on Delivery | Pay when your order arrives",
+        "Easy returns | 7-day returns on eligible items",
       ],
     },
   },
