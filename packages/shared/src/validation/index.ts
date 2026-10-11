@@ -211,7 +211,8 @@ export const adminProductUpdateSchema = z.object({
 export const adminProductStatusSchema = z.object({ action: z.enum(["hide", "show", "archive", "restore"]), reason: z.string().trim().max(500).optional() });
 
 const categoryName = z.string().trim().min(2, "Category name needs at least 2 characters").max(60);
-export const adminCategoryCreateSchema = z.object({ name: categoryName, parentId: uuidSchema.nullable().optional() });
+/** position: 1 = first in its group; left out = at the end. */
+export const adminCategoryCreateSchema = z.object({ name: categoryName, parentId: uuidSchema.nullable().optional(), position: z.number().int().min(1).max(500).optional() });
 export const adminCategoryUpdateSchema = z.object({
   name: categoryName.optional(),
   isActive: z.boolean().optional(),

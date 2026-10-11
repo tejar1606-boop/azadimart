@@ -1,7 +1,7 @@
 import { requireStaff } from "@azadimart/auth";
 import { auditLogs, categories, createDatabase, products } from "@azadimart/database";
 import { AppError, adminCategoryCreateSchema, toApiError } from "@azadimart/shared";
-import { and, asc, count, eq, isNull, like, max, or } from "drizzle-orm";
+import { and, asc, count, eq, isNull, like, max, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 function slugifyCategory(name: string): string {
@@ -56,8 +56,19 @@ export async function POST(request: Request) {
       let slug = base;
       for (let n = 2; taken.has(slug); n++) slug = `${base}-${n}`;
 
-      const last = (await tx.select({ value: max(categories.sortOrder) }).from(categories).where(parentId ? eq(categories.parentId, parentId) : isNull(categories.parentId)))[0]?.value ?? 0;
-      const row = (await tx.insert(categories).values({ name: input.name, slug, parentId, isActive: true, sortOrder: last + 1 }).returning())[0]!;
+      const group = parentId ? eq(categories.parentId, parentId) : isNull(categories.parentId);
+      const last = (await tx.select({ value: max(categories.sortOrder) }).from(categories).where(group))[0]?.value ?? 0;
+      let sortOrder = last + 1;
+      if (input.position) {
+        // Number the group 1, 2, 3… in its current order, then make room at the chosen position.
+        const siblings = await tx.select({ id: categories.id }).from(categories).where(group).orderBy(asc(categories.sortOrder), asc(categories.name));
+        sortOrder = Math.min(input.position, siblings.length + 1);
+        if (siblings.length) {
+          const values = sql.join(siblings.map((s, i) => sql`(${s.id}::uuid, ${i + 1 >= sortOrder ? i + 2 : i + 1}::int)`), sql`, `);
+          await tx.execute(sql`update categories set sort_order = v.pos, updated_at = now() from (values ${values}) as v(id, pos) where categories.id = v.id`);
+        }
+      }
+      const row = (await tx.insert(categories).values({ name: input.name, slug, parentId, isActive: true, sortOrder }).returning())[0]!;
       await tx.insert(auditLogs).values({ actorUserId: principal.userId, action: "CATEGORY_CREATED", entityType: "category", entityId: row.id, metadata: { name: row.name, parentId } });
       return row;
     });

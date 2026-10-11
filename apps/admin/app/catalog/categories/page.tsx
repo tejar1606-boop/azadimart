@@ -22,6 +22,11 @@ export default function CategoriesPage() {
   const [editing, setEditing] = useState<{ id: string; name: string; parentId: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Category | null>(null);
   const [seo, setSeo] = useState<SeoDraft | null>(null);
+  const [newPosition, setNewPosition] = useState("");
+  // Drag and drop: the row being dragged (only from its handle) and where it would land.
+  const [armed, setArmed] = useState<string | null>(null);
+  const [drag, setDrag] = useState<{ id: string; groupKey: string } | null>(null);
+  const [over, setOver] = useState<{ id: string; after: boolean } | null>(null);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/v1/catalog/categories", { cache: "no-store" });
@@ -53,22 +58,55 @@ export default function CategoriesPage() {
   const childrenOf = (id: string) => items.filter((c) => c.parentId === id);
 
   function reorder(group: Category[], index: number, delta: number) {
-    const j = index + delta;
-    if (j < 0 || j >= group.length) return;
+    moveTo(group, index, index + delta);
+  }
+
+  /** Moves a category to a new place within its group and saves the order. */
+  function moveTo(group: Category[], from: number, to: number) {
+    if (to < 0 || to >= group.length || from === to) return;
     const ids = group.map((c) => c.id);
-    [ids[index], ids[j]] = [ids[j]!, ids[index]!];
+    const [moved] = ids.splice(from, 1);
+    ids.splice(to, 0, moved!);
     // Show the new order immediately, then save it.
     setItems((all) => all.map((c) => (ids.includes(c.id) ? { ...c, sortOrder: ids.indexOf(c.id) + 1 } : c)).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)));
-    void call("/api/v1/catalog/categories/order", { method: "PUT", body: JSON.stringify({ ids }) }, "Order saved.");
+    const name = group[from]?.name ?? "Category";
+    void call("/api/v1/catalog/categories/order", { method: "PUT", body: JSON.stringify({ ids }) }, `${name} moved to position ${to + 1}.`);
+  }
+
+  const groupKey = (c: Category) => c.parentId ?? "top";
+  function dropOn(target: Category, group: Category[]) {
+    if (!drag || drag.groupKey !== groupKey(target) || drag.id === target.id) return;
+    const from = group.findIndex((c) => c.id === drag.id);
+    let to = group.findIndex((c) => c.id === target.id);
+    if (over?.after && to < from) to += 1;
+    if (!over?.after && to > from) to -= 1;
+    moveTo(group, from, to);
   }
 
   // A plain render function (not a component) so the edit box keeps focus while typing.
   function renderRow(category: Category, group: Category[], index: number) {
     const isEditing = editing?.id === category.id;
     const hasChildren = childrenOf(category.id).length > 0;
+    const dragging = drag?.id === category.id;
+    const sameGroup = drag && drag.groupKey === groupKey(category) && !dragging;
+    const line = over?.id === category.id && sameGroup ? (over.after ? "shadow-[inset_0_-3px_0_0_#f97316]" : "shadow-[inset_0_3px_0_0_#f97316]") : "";
     return (
-      <div key={category.id} className={"flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between " + (category.parentId ? "bg-panel/60 pl-8 sm:pl-12" : "")}>
+      <div key={category.id}
+        draggable={armed === category.id && !isEditing}
+        onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", category.id); setDrag({ id: category.id, groupKey: groupKey(category) }); }}
+        onDragEnd={() => { setDrag(null); setOver(null); setArmed(null); }}
+        onDragOver={(e) => { if (!sameGroup) return; e.preventDefault(); e.stopPropagation(); const box = e.currentTarget.getBoundingClientRect(); const after = e.clientY > box.top + box.height / 2; if (over?.id !== category.id || over.after !== after) setOver({ id: category.id, after }); }}
+        onDrop={(e) => { if (!sameGroup) return; e.preventDefault(); e.stopPropagation(); dropOn(category, group); setDrag(null); setOver(null); setArmed(null); }}
+        className={"flex flex-col gap-3 p-4 transition sm:flex-row sm:items-center sm:justify-between " + (category.parentId ? "bg-panel/60 pl-8 sm:pl-12 " : "bg-white ") + (dragging ? "opacity-40 " : "") + line}>
         <div className="flex min-w-0 items-center gap-3">
+          <button type="button" aria-hidden tabIndex={-1} title="Drag to reorder" onPointerDown={() => setArmed(category.id)} onPointerUp={() => !drag && setArmed(null)}
+            className="hidden h-8 w-6 cursor-grab touch-none place-items-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 active:cursor-grabbing sm:grid">
+            <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor" aria-hidden><circle cx="3" cy="3" r="1.5" /><circle cx="9" cy="3" r="1.5" /><circle cx="3" cy="8" r="1.5" /><circle cx="9" cy="8" r="1.5" /><circle cx="3" cy="13" r="1.5" /><circle cx="9" cy="13" r="1.5" /></svg>
+          </button>
+          <select value={index + 1} disabled={busy || group.length < 2} onChange={(e) => moveTo(group, index, Number(e.target.value) - 1)} aria-label={`Position of ${category.name}`} title="Position"
+            className="h-8 rounded-lg border border-slate-200 bg-white pl-2 pr-6 text-xs font-semibold tabular-nums hover:border-slate-900">
+            {group.map((_, i) => <option key={i} value={i + 1}>{i + 1} of {group.length}</option>)}
+          </select>
           <div className="flex gap-1">
             <button type="button" className={small} disabled={busy || index === 0} onClick={() => reorder(group, index, -1)} aria-label={`Move ${category.name} up`}>↑</button>
             <button type="button" className={small} disabled={busy || index === group.length - 1} onClick={() => reorder(group, index, 1)} aria-label={`Move ${category.name} down`}>↓</button>
@@ -123,16 +161,22 @@ export default function CategoriesPage() {
         className="mt-6 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card"
         onSubmit={(e) => {
           e.preventDefault();
-          void call("/api/v1/catalog/categories", { method: "POST", body: JSON.stringify({ name, parentId: parentId || null }) }, `"${name.trim()}" created.`).then((ok) => { if (ok) setName(""); });
+          void call("/api/v1/catalog/categories", { method: "POST", body: JSON.stringify({ name, parentId: parentId || null, ...(newPosition ? { position: Number(newPosition) } : {}) }) }, `"${name.trim()}" created${newPosition ? ` at position ${newPosition}` : ""}.`).then((ok) => { if (ok) { setName(""); setNewPosition(""); } });
         }}
       >
         <label className="text-sm font-medium">New category
           <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="e.g. Footwear" className={field + " mt-1 block w-64"} required />
         </label>
         <label className="text-sm font-medium">Place it
-          <select value={parentId} onChange={(e) => setParentId(e.target.value)} className={field + " mt-1 block"}>
+          <select value={parentId} onChange={(e) => { setParentId(e.target.value); setNewPosition(""); }} className={field + " mt-1 block"}>
             <option value="">As a main category</option>
             {topLevel.map((c) => <option key={c.id} value={c.id}>Inside {c.name}</option>)}
+          </select>
+        </label>
+        <label className="text-sm font-medium">Position
+          <select value={newPosition} onChange={(e) => setNewPosition(e.target.value)} className={field + " mt-1 block max-w-64"}>
+            <option value="">At the end</option>
+            {(parentId ? childrenOf(parentId) : topLevel).map((c, i) => <option key={c.id} value={i + 1}>{i + 1}. Before {c.name}</option>)}
           </select>
         </label>
         <button disabled={busy || name.trim().length < 2} className="h-11 rounded-full bg-brand px-5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50">Add category</button>
@@ -156,7 +200,7 @@ export default function CategoriesPage() {
           </div>
         )}
       </div>
-      <p className="mt-3 text-xs text-slate-500">The order here is the order of category tiles and menus on the store. A category can only be deleted when it has no products; hide it instead to keep its products.</p>
+      <p className="mt-3 text-xs text-slate-500">Drag a category by its ⋮⋮ handle, pick its position, or use the arrows. Sub-categories move within their main category. The order here is the order of category tiles and menus on the store. A category can only be deleted when it has no products; hide it instead to keep its products.</p>
 
       {seo ? (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="seo-title">
