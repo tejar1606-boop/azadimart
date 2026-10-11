@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { DescriptionStyleToggle, directUpload, PortalPageHeader, readImageSize, SpecTableEditor, type SpecRow } from "@azadimart/ui";
 import SeoFields from "../../_components/seo-fields";
+import RelatedProducts from "./related-products";
 
 type Variant = { id: string; title: string; sku: string; pricePaise: number; compareAtPaise: number | null; weightGrams: number; isActive: boolean; onHand: number; reserved: number };
 type Media = { mediaAssetId: string; kind: "IMAGE" | "VIDEO"; url: string };
@@ -248,6 +249,7 @@ export default function ProductEditor({ productId, storefrontUrl }: { productId:
             <input ref={videoInput} type="file" hidden accept="video/mp4,video/webm,video/quicktime" onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f, "VIDEO"); e.currentTarget.value = ""; }} />
             <p className="mt-4 text-xs text-slate-500">Photo and video changes take effect when you click <b>Save changes</b>.</p>
           </section>
+          <RelatedProducts productId={productId} className={card} />
         </div>
 
         <aside className="space-y-6">

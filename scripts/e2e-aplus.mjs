@@ -124,5 +124,24 @@ await seller(`/api/v1/products/${target.id}/aplus`, { method: "PUT", body: { blo
 const audits = await sql`select action from audit_logs where entity_id = ${target.id} and action like 'APLUS_%'`;
 check("submissions and decisions audited", ["APLUS_SUBMITTED", "APLUS_REJECTED", "APLUS_APPROVED"].every((a) => audits.some((x) => x.action === a)));
 
+// --- "More to explore": chosen products first, in order; the rest fills automatically
+const explore = (html) => { const at = html.indexOf("More to explore"); if (at < 0) return []; return [...new Set([...html.slice(at, at + 60000).matchAll(/href="\/products\/([^"?#]+)"/g)].map((m) => m[1]))]; };
+const [{ related_product_ids: originalRelated }] = await sql`select related_product_ids from products where id = ${target.id}`;
+const [hidden] = await sql`select id from products where status <> 'LIVE' and id <> ${target.id} limit 1`;
+let rel = await admin(`/api/v1/catalog/products/${target.id}/related`, { method: "PUT", body: { productIds: [other2.id, other1.id, target.id, ...(hidden ? [hidden.id] : [])] } });
+check("admin chooses products for More to explore (self ignored)", rel.status === 200 && rel.json.items[0].id === other2.id && rel.json.items[1].id === other1.id && !rel.json.items.some((i) => i.id === target.id));
+page = await fetch(`${SF}/products/${target.slug}`).then((x) => x.text());
+let shown = explore(page);
+check("store shows the chosen products first, in order", shown[0] === other2.slug && shown[1] === other1.slug, shown.slice(0, 3).join(", "));
+check("row is filled up to 8 and never shows the product itself", shown.length <= 8 && shown.length >= 2 && !shown.includes(target.slug));
+check("chosen products that aren't live stay hidden", !hidden || !(await sql`select slug from products where id = ${hidden.id}`).some((h) => shown.includes(h.slug)));
+check("more than 8 is refused", (await admin(`/api/v1/catalog/products/${target.id}/related`, { method: "PUT", body: { productIds: Array.from({ length: 9 }, () => crypto.randomUUID()) } })).status === 400);
+check("unknown products are refused", (await admin(`/api/v1/catalog/products/${target.id}/related`, { method: "PUT", body: { productIds: [crypto.randomUUID()] } })).status === 400);
+check("sellers can't choose them", [401, 403, 404].includes((await seller(`${AD}/api/v1/catalog/products/${target.id}/related`, { method: "PUT", body: { productIds: [] } })).status));
+await admin(`/api/v1/catalog/products/${target.id}/related`, { method: "PUT", body: { productIds: [] } });
+shown = explore(await fetch(`${SF}/products/${target.slug}`).then((x) => x.text()));
+check("with none chosen the row still fills automatically", shown.length >= 1 && shown.length <= 8);
+await sql`update products set related_product_ids = ${originalRelated} where id = ${target.id}`;
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

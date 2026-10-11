@@ -316,3 +316,7 @@ export const sellerBankAccountSchema = z.object({
   confirmAccountNumber: z.string().transform((v) => v.replace(/\s/g, "")),
   ifsc: z.string().trim().toUpperCase().refine((v) => /^[A-Z]{4}0[A-Z0-9]{6}$/.test(v), "Enter a valid 11-character IFSC, e.g. HDFC0001234"),
 }).refine((v) => v.accountNumber === v.confirmAccountNumber, { message: "Account numbers don't match", path: ["confirmAccountNumber"] });
+
+/** "More to explore" on a product page: products chosen by AzadiMart, in order (the rest fills automatically). */
+export const MAX_RELATED_PRODUCTS = 8;
+export const productRelatedSchema = z.object({ productIds: z.array(uuidSchema).max(MAX_RELATED_PRODUCTS, `Choose up to ${MAX_RELATED_PRODUCTS} products`) });

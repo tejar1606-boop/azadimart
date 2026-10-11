@@ -67,6 +67,8 @@ export const products = pgTable(
     description: text("description"),
     // Optional specification table (label/value rows), stored as plain text and rendered by AzadiMart. Never raw HTML.
     specifications: jsonb("specifications").$type<Array<{ label: string; value: string }>>().notNull().default([]),
+    /** Products chosen by AzadiMart for "More to explore" on this product's page, in order (the rest is filled automatically). */
+    relatedProductIds: uuid("related_product_ids").array().notNull().default([]),
     status: productStatusEnum("status").notNull().default("DRAFT"),
     // Storefront display order set by admins (1 = first). Null = not arranged yet; shown after arranged products, newest first.
     position: integer("position"),

@@ -2,7 +2,7 @@ import Link from "next/link";
 import ProductGallery from "./product-gallery";
 import { notFound } from "next/navigation";
 import { createDatabase, inventory, mediaAssets, productMedia, productVariants, products, sellers, categories, productAplusContent, productSummaries } from "@azadimart/database";
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, notInArray, or, type SQL } from "drizzle-orm";
 import AddToCart from "./add-to-cart";
 import ProductCard from "../../components/product-card";
 import { type AplusBlock, aplusComparedProductIds } from "@azadimart/shared";
@@ -64,6 +64,50 @@ function onePerProduct<T extends { id: string; pricePaise: number; mediaStorageK
   return [...byId.values()].slice(0, limit);
 }
 
+const RELATED_LIMIT = 8;
+
+/**
+ * "More to explore": products chosen by AzadiMart for this product first (in
+ * their order), then the same category, then related categories (parent,
+ * sister and sub-categories), then popular products, up to 8 live products.
+ */
+async function moreToExplore(db: ReturnType<typeof createDatabase>, product: { id: string; categoryId: string; categoryParentId: string | null; relatedProductIds: string[] }) {
+  const card = (where: SQL, order: "chosen" | "popular" | "newest") => db.select({
+    id: products.id, title: products.title, slug: products.slug,
+    pricePaise: productVariants.pricePaise, compareAtPaise: productVariants.compareAtPaise,
+    mediaStorageKey: mediaAssets.storageKey, mediaAltText: mediaAssets.altText,
+    reviewCount: products.reviewCount, ratingTotal: products.ratingTotal, categoryId: products.categoryId,
+    priceDroppedAt: products.priceDroppedAt, priceBeforeDropPaise: products.priceBeforeDropPaise,
+  }).from(products)
+    .innerJoin(productVariants, eq(productVariants.productId, products.id))
+    .leftJoin(productMedia, and(eq(productMedia.productId, products.id), eq(productMedia.kind, "IMAGE")))
+    .leftJoin(mediaAssets, eq(mediaAssets.id, productMedia.mediaAssetId))
+    .where(and(eq(products.status, "LIVE"), eq(productVariants.isActive, true), ne(products.id, product.id), where))
+    .orderBy(...(order === "popular" ? [desc(products.reviewCount), desc(products.createdAt)] : order === "newest" ? [desc(products.createdAt)] : []), asc(productMedia.sortOrder))
+    .limit(200);
+
+  const picked: Awaited<ReturnType<typeof card>> = [];
+  const add = (rows: typeof picked) => { for (const row of onePerProduct(rows, 200)) if (picked.length < RELATED_LIMIT && !picked.some((p) => p.id === row.id)) picked.push(row); };
+  const taken = () => [product.id, ...picked.map((p) => p.id)];
+
+  if (product.relatedProductIds.length) {
+    const chosen = onePerProduct(await card(inArray(products.id, product.relatedProductIds), "chosen"), 200);
+    add(product.relatedProductIds.map((id) => chosen.find((c) => c.id === id)).filter((c): c is (typeof chosen)[number] => Boolean(c)));
+  }
+  if (picked.length < RELATED_LIMIT) add(await card(and(eq(products.categoryId, product.categoryId), notInArray(products.id, taken()))!, "popular"));
+  if (picked.length < RELATED_LIMIT) {
+    const family = await db.select({ id: categories.id }).from(categories).where(or(
+      product.categoryParentId ? eq(categories.id, product.categoryParentId) : undefined,
+      product.categoryParentId ? eq(categories.parentId, product.categoryParentId) : undefined,
+      eq(categories.parentId, product.categoryId),
+    ));
+    const ids = family.map((c) => c.id).filter((id) => id !== product.categoryId);
+    if (ids.length) add(await card(and(inArray(products.categoryId, ids), notInArray(products.id, taken()))!, "popular"));
+  }
+  if (picked.length < RELATED_LIMIT) add(await card(notInArray(products.id, taken()), "popular"));
+  return picked;
+}
+
 export const dynamic = "force-dynamic";
 
 const money = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -82,6 +126,8 @@ export default async function ProductDetailPage({ params, searchParams }: { para
     categoryId: products.categoryId,
     categoryName: categories.name,
     categorySlug: categories.slug,
+    categoryParentId: categories.parentId,
+    relatedProductIds: products.relatedProductIds,
     sellerId: products.sellerId,
     sellerName: sellers.storeName,
     priceDroppedAt: products.priceDroppedAt,
@@ -122,26 +168,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
   const availableQuantity = Math.max(0, (selectedVariant.onHand ?? 0) - (selectedVariant.reserved ?? 0));
   const hasDiscount = Boolean(selectedVariant.compareAtPaise && selectedVariant.compareAtPaise > selectedVariant.pricePaise);
   const discountPercent = hasDiscount ? Math.round((1 - selectedVariant.pricePaise / (selectedVariant.compareAtPaise ?? selectedVariant.pricePaise)) * 100) : 0;
-  const relatedRows = onePerProduct(await db.select({
-    id: products.id,
-    title: products.title,
-    slug: products.slug,
-    pricePaise: productVariants.pricePaise,
-    compareAtPaise: productVariants.compareAtPaise,
-    mediaStorageKey: mediaAssets.storageKey,
-    mediaAltText: mediaAssets.altText,
-    reviewCount: products.reviewCount,
-    ratingTotal: products.ratingTotal,
-    categoryId: products.categoryId,
-    priceDroppedAt: products.priceDroppedAt,
-    priceBeforeDropPaise: products.priceBeforeDropPaise,
-  }).from(products)
-    .innerJoin(productVariants, eq(productVariants.productId, products.id))
-    .leftJoin(productMedia, and(eq(productMedia.productId, products.id), eq(productMedia.kind, "IMAGE")))
-    .leftJoin(mediaAssets, eq(mediaAssets.id, productMedia.mediaAssetId))
-    .where(and(eq(products.status, "LIVE"), eq(productVariants.isActive, true), eq(products.categoryId, first.categoryId), ne(products.id, first.id)))
-    .orderBy(asc(productMedia.sortOrder))
-    .limit(160), 8);
+  const relatedRows = await moreToExplore(db, first);
 
   const lowestPrice = Math.min(...variants.map((v) => v.pricePaise));
   const [reviewSummary, reviewPage, reviewPhotos, offers, relatedBadges] = await Promise.all([
