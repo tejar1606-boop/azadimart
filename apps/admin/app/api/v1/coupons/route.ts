@@ -1,7 +1,7 @@
 import { requireStaff } from "@azadimart/auth";
 import { auditLogs, categories, createDatabase, coupons, products, sellers } from "@azadimart/database";
 import { AppError, couponSchema, toApiError } from "@azadimart/shared";
-import { desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray, isNull } from "drizzle-orm";
 
 type Db = ReturnType<typeof createDatabase>;
 type Scope = { productIds?: string[]; categoryIds?: string[]; sellerIds?: string[] };
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
   try {
     await requireStaff(request, ["marketing", "orders"]);
     const db = createDatabase();
-    const rows = await db.select().from(coupons).orderBy(desc(coupons.createdAt));
+    const rows = await db.select().from(coupons).where(isNull(coupons.deletedAt)).orderBy(desc(coupons.createdAt));
     const labels = await scopeLabels(db, rows);
     return NextResponse.json({ coupons: rows.map((c) => ({ ...c, appliesTo: labels.get(c.id) })) });
   } catch (error) {
@@ -46,8 +46,8 @@ export async function POST(request: Request) {
     const principal = await requireStaff(request, "marketing");
     const input = couponSchema.parse(await request.json());
     const db = createDatabase();
-    const existing = (await db.select({ id: coupons.id }).from(coupons).where(eq(coupons.code, input.code)).limit(1))[0];
-    if (existing) throw new AppError("CONFLICT", "Coupon code already exists");
+    const existing = (await db.select({ id: coupons.id, deletedAt: coupons.deletedAt }).from(coupons).where(eq(coupons.code, input.code)).limit(1))[0];
+    if (existing) throw new AppError("CONFLICT", existing.deletedAt ? "This code belonged to a deleted coupon that was used on orders, so it can't be reused. Pick another code." : "Coupon code already exists");
 
     // Chosen products must exist; a single seller's coupon can only cover that seller's products.
     const warnings: string[] = [];

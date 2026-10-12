@@ -48,6 +48,8 @@ export const coupons = pgTable(
       sellerIds?: string[];
     }>().notNull().default({}),
     isActive: boolean("is_active").notNull().default(true),
+    /** Deleted after being used: hidden from admin and never valid again, kept for the orders it discounted. */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
     ...timestamps,
   },
   (table) => [

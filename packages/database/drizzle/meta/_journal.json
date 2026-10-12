@@ -225,6 +225,13 @@
       "when": 1791788045867,
       "tag": "20261012065405_seller_coupon_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1791790074167,
+      "tag": "20261012072754_coupon_deleted_at",
+      "breakpoints": true
     }
   ]
 }

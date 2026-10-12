@@ -47,7 +47,8 @@ const couponIds = [];
 let orderId = null;
 async function tidy() {
   for (const p of stocked) await sql`update products set coupon_max_discount_pct = ${p.coupon_max_discount_pct} where id = ${p.product_id}`;
-  for (const id of couponIds) await sql`update coupons set is_active = false where id = ${id}`;
+  // Test coupons are deleted (kept in the background only if an order used them).
+  for (const id of couponIds) await admin(`/api/v1/coupons/${id}`, { method: "DELETE" });
   if (orderId) {
     await sql`delete from coupon_redemptions where order_id = ${orderId}`;
     const items = await sql`select variant_id, quantity from order_items where order_id = ${orderId}`;
@@ -140,6 +141,24 @@ const [other] = await sql`select p.id from products p where p.seller_id <> ${me.
 check("a seller's coupon can't include another seller's product", (await mk({ code: `E2EBAD${RUN}`, discountType: "PERCENTAGE", discountValue: 10, fundingType: "SELLER", sellerId: me.id, scope: { productIds: [A.product_id, other.id] } })).status === 400);
 r = await mk({ code: `E2EWARN${RUN}`, discountType: "PERCENTAGE", discountValue: 30, fundingType: "SELLERS", scope: { productIds: [A.product_id] } });
 check("a seller-paid coupon above the product's limit is created with a clear warning", r.status === 201 && (r.json.warnings ?? []).some((w) => w.includes("up to 15%")), JSON.stringify(r.json?.warnings));
+
+// --- deleting coupons
+const cDel = `E2EDEL${RUN}`;
+r = await mk({ code: cDel, discountType: "PERCENTAGE", discountValue: 5, fundingType: "AZADIMART" });
+const delId = r.json?.coupon?.id;
+r = await admin(`/api/v1/coupons/${delId}`, { method: "DELETE" });
+check("an unused coupon is deleted for good", r.status === 200 && r.json.result === "DELETED" && (await sql`select count(*)::int n from coupons where id = ${delId}`)[0].n === 0);
+const usedId = (await sql`select id from coupons where code = ${c10}`)[0].id;
+r = await admin(`/api/v1/coupons/${usedId}`, { method: "DELETE" });
+const [usedRow] = await sql`select deleted_at, is_active from coupons where id = ${usedId}`;
+check("a used coupon is removed from the list but kept for its orders", r.status === 200 && r.json.result === "ARCHIVED" && r.json.orders >= 1 && usedRow.deleted_at && !usedRow.is_active && !((await admin("/api/v1/coupons")).json?.coupons ?? []).some((c) => c.id === usedId));
+check("the order still shows its discount", orderId ? (await sql`select discount_paise from orders where id = ${orderId}`)[0].discount_paise > 0 : true);
+await shop("/api/v1/cart", { method: "POST", body: { variantId: A.variant_id, quantity: 1 } });
+check("customers can't use a deleted coupon", (await shop("/api/v1/coupons/validate", { method: "POST", body: { cartId: (await shop("/api/v1/cart")).json?.cartId, code: c10 } })).status >= 400);
+check("a deleted coupon can't be switched back on", (await admin(`/api/v1/coupons/${usedId}`, { method: "PATCH", body: { isActive: true } })).status === 404);
+r = await admin("/api/v1/coupons", { method: "POST", body: { code: c10, title: "Reuse", discountType: "PERCENTAGE", discountValue: 5, startsAt: iso(-1) } });
+check("its code can't be reused", r.status === 409 && /deleted coupon/.test(r.json?.error?.message ?? ""));
+check("deletes are audited", (await sql`select count(*)::int n from audit_logs where entity_id in (${delId}, ${usedId}) and action in ('COUPON_DELETED', 'COUPON_ARCHIVED')`)[0].n === 2);
 
 await tidy();
 console.log(`\n${pass} passed, ${fail} failed`);

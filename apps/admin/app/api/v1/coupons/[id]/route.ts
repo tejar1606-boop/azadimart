@@ -1,7 +1,7 @@
 import { requireStaff } from "@azadimart/auth";
-import { auditLogs, createDatabase, coupons } from "@azadimart/database";
+import { auditLogs, couponRedemptions, createDatabase, coupons } from "@azadimart/database";
 import { AppError, couponUpdateSchema, toApiError, uuidSchema } from "@azadimart/shared";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id:string }> }) {
@@ -13,7 +13,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const input=couponUpdateSchema.parse(await request.json());
     const db=createDatabase();
     const existing=(await db.select().from(coupons).where(eq(coupons.id,id)).limit(1))[0];
-    if(!existing) throw new AppError("NOT_FOUND","Coupon not found");
+    if(!existing||existing.deletedAt) throw new AppError("NOT_FOUND","Coupon not found");
     // Validate the coupon as it will be after the update, not just the fields
     // sent: switching FIXED 5000 to PERCENTAGE alone must not create a 5000% coupon.
     const finalType = input.discountType ?? existing.discountType;
@@ -58,6 +58,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }catch(error){const {status,body}=toApiError(error,requestId);return NextResponse.json(body,{status});}
 }
 
+/**
+ * Deletes a coupon. Never used: removed for good. Used on orders: hidden and
+ * switched off for good, but kept so those orders (and seller payouts) still
+ * show the discount; its code stays reserved.
+ */
 export async function DELETE(request:Request,{params}:{params:Promise<{id:string}>}){
   const requestId=crypto.randomUUID();
   try{
@@ -65,12 +70,19 @@ export async function DELETE(request:Request,{params}:{params:Promise<{id:string
     const { id } = await params;
     if(!uuidSchema.safeParse(id).success) throw new AppError("NOT_FOUND","Coupon not found");
     const db=createDatabase();
-    const existing=(await db.select({id:coupons.id,code:coupons.code}).from(coupons).where(eq(coupons.id,id)).limit(1))[0];
-    if(!existing) throw new AppError("NOT_FOUND","Coupon not found");
-    await db.transaction(async(tx)=>{
-      await tx.update(coupons).set({isActive:false,updatedAt:new Date()}).where(eq(coupons.id,id));
-      await tx.insert(auditLogs).values({actorUserId:principal.userId,action:"COUPON_DEACTIVATED",entityType:"coupon",entityId:id,metadata:{code:existing.code}});
+    const existing=(await db.select({id:coupons.id,code:coupons.code,deletedAt:coupons.deletedAt}).from(coupons).where(eq(coupons.id,id)).limit(1))[0];
+    if(!existing||existing.deletedAt) throw new AppError("NOT_FOUND","Coupon not found");
+    const used=Number((await db.select({n:count()}).from(couponRedemptions).where(eq(couponRedemptions.couponId,id)))[0]?.n??0);
+    const result=await db.transaction(async(tx)=>{
+      if(used===0){
+        await tx.delete(coupons).where(eq(coupons.id,id));
+        await tx.insert(auditLogs).values({actorUserId:principal.userId,action:"COUPON_DELETED",entityType:"coupon",entityId:id,metadata:{code:existing.code}});
+        return "DELETED" as const;
+      }
+      await tx.update(coupons).set({isActive:false,deletedAt:new Date(),updatedAt:new Date()}).where(eq(coupons.id,id));
+      await tx.insert(auditLogs).values({actorUserId:principal.userId,action:"COUPON_ARCHIVED",entityType:"coupon",entityId:id,metadata:{code:existing.code,orders:used}});
+      return "ARCHIVED" as const;
     });
-    return NextResponse.json({ok:true});
+    return NextResponse.json({ok:true,result,orders:used});
   }catch(error){const {status,body}=toApiError(error,requestId);return NextResponse.json(body,{status});}
 }
