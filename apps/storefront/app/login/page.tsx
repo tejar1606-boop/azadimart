@@ -4,6 +4,7 @@ import { FormEvent, useRef, useEffect, useState } from "react";
 import { Turnstile, type TurnstileHandle } from "@azadimart/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import AuthScene, { AuthField, SecureNote } from "../components/auth-scene";
 
 export default function CustomerLoginPage() {
   const router = useRouter();
@@ -40,22 +41,23 @@ export default function CustomerLoginPage() {
   }
 
   return (
-    <main className="min-h-[60vh] bg-canvas px-4 py-10 sm:px-6">
-      <div className="mx-auto max-w-md rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_25px_70px_rgba(15,23,42,0.06)] sm:p-8">
+    <AuthScene headline={<>Welcome back to<br /><span className="text-brand-300">India&apos;s own</span> marketplace.</>} sub="Handpicked products from KYC-verified Indian sellers, with Cash on Delivery and easy 7-day returns.">
+      <div className="mx-auto max-w-md rounded-[2rem] border border-white/60 bg-white p-6 shadow-[0_30px_80px_rgba(2,6,23,0.45)] sm:p-8">
         <Link href="/" className="text-xl font-bold tracking-[-0.04em]">Azadi<span className="text-amber-500">Mart</span></Link>
         <p className="mt-8 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Welcome back</p>
         <h1 className="mt-2 text-3xl font-bold tracking-[-0.04em]">Sign in to shop</h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">Access your cart, orders, addresses and personalized shopping experience.</p>
         {justRegistered ? <p role="status" className="mt-6 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">Your account is ready. Sign in to continue.</p> : null}
         <form onSubmit={submit} className="mt-7 space-y-4">
-          <label className="block text-sm font-semibold">Email<input className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-slate-400" type="email" value={email} onChange={(e)=>setEmail(e.target.value)} required /></label>
-          <label className="block text-sm font-semibold">Password<input className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-slate-400" type="password" value={password} onChange={(e)=>setPassword(e.target.value)} required /></label>
+          <AuthField label="Email" icon="email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e)=>setEmail(e.target.value)} required />
+          <AuthField label="Password" icon="password" type="password" autoComplete="current-password" placeholder="Your password" value={password} onChange={(e)=>setPassword(e.target.value)} required />
           <Turnstile ref={captchaRef} siteKey={siteKey} onToken={setCaptchaToken} action="login" />
           {error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
-          <button disabled={busy || Boolean(siteKey && !captchaToken)} className="w-full rounded-full bg-brand px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50">{busy ? "Signing in…" : "Sign in"}</button>
+          <button disabled={busy || Boolean(siteKey && !captchaToken)} className="w-full rounded-full bg-gradient-to-b from-brand-500 to-brand-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-[0_10px_24px_-8px_rgba(234,88,12,0.7)] transition hover:from-brand-600 hover:to-brand-700 disabled:opacity-50">{busy ? "Signing in…" : "Sign in"}</button>
+          <SecureNote />
         </form>
         <p className="mt-6 text-center text-sm text-slate-500">New to AzadiMart? <Link href={"/register" + carry} className="font-semibold text-slate-950 underline">Create account</Link></p>
       </div>
-    </main>
+    </AuthScene>
   );
 }

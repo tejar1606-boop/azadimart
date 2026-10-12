@@ -4,6 +4,7 @@ import { FormEvent, useRef, useEffect, useState } from "react";
 import { Turnstile, type TurnstileHandle } from "@azadimart/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import AuthScene, { AuthField, SecureNote } from "../components/auth-scene";
 
 export default function CustomerRegisterPage() {
   const router = useRouter();
@@ -32,23 +33,24 @@ export default function CustomerRegisterPage() {
   }
 
   return (
-    <main className="min-h-[60vh] bg-canvas px-4 py-10 sm:px-6">
-      <div className="mx-auto max-w-lg rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_25px_70px_rgba(15,23,42,0.06)] sm:p-8">
+    <AuthScene headline={<>Shop India.<br /><span className="text-brand-300">Support Indian</span> sellers.</>} sub="Join AzadiMart to save your cart, track orders and check out faster, from sellers you can trust.">
+      <div className="mx-auto max-w-lg rounded-[2rem] border border-white/60 bg-white p-6 shadow-[0_30px_80px_rgba(2,6,23,0.45)] sm:p-8">
         <Link href="/" className="text-xl font-bold tracking-[-0.04em]">Azadi<span className="text-amber-500">Mart</span></Link>
         <p className="mt-8 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Join AzadiMart</p>
         <h1 className="mt-2 text-3xl font-bold tracking-[-0.04em]">Create your account</h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">Save your cart, manage orders and checkout faster with a trusted AzadiMart account.</p>
         <form onSubmit={submit} className="mt-7 space-y-4">
-          <label className="block text-sm font-semibold">Full name<input className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" value={form.fullName} onChange={(e)=>set("fullName",e.target.value)} required /></label>
-          <label className="block text-sm font-semibold">Email<input className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" type="email" value={form.email} onChange={(e)=>set("email",e.target.value)} required /></label>
-          <label className="block text-sm font-semibold">Mobile number<input className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" type="tel" inputMode="numeric" maxLength={10} value={form.phone} onChange={(e)=>set("phone",e.target.value.replace(/\D/g,"").slice(0,10))} required /></label>
-          <label className="block text-sm font-semibold">Password<input className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" type="password" minLength={8} value={form.password} onChange={(e)=>set("password",e.target.value)} required /></label>
+          <AuthField label="Full name" icon="name" autoComplete="name" placeholder="As you'd like it on deliveries" value={form.fullName} onChange={(e)=>set("fullName",e.target.value)} required />
+          <AuthField label="Email" icon="email" type="email" autoComplete="email" placeholder="you@example.com" value={form.email} onChange={(e)=>set("email",e.target.value)} required />
+          <AuthField label="Mobile number" icon="phone" prefix="+91" type="tel" inputMode="numeric" autoComplete="tel-national" maxLength={10} placeholder="10-digit mobile" value={form.phone} onChange={(e)=>set("phone",e.target.value.replace(/\D/g,"").slice(0,10))} required />
+          <AuthField label="Password" icon="password" type="password" autoComplete="new-password" minLength={8} placeholder="At least 8 characters" value={form.password} onChange={(e)=>set("password",e.target.value)} required />
           <Turnstile ref={captchaRef} siteKey={siteKey} onToken={setCaptchaToken} action="register" />
           {error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
-          <button disabled={busy || Boolean(siteKey && !captchaToken)} className="w-full rounded-full bg-brand px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50">{busy ? "Creating account…" : "Create account"}</button>
+          <button disabled={busy || Boolean(siteKey && !captchaToken)} className="w-full rounded-full bg-gradient-to-b from-brand-500 to-brand-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-[0_10px_24px_-8px_rgba(234,88,12,0.7)] transition hover:from-brand-600 hover:to-brand-700 disabled:opacity-50">{busy ? "Creating account…" : "Create account"}</button>
+          <SecureNote />
         </form>
         <p className="mt-6 text-center text-sm text-slate-500">Already registered? <Link href={"/login" + carry} className="font-semibold text-slate-950 underline">Sign in</Link></p>
       </div>
-    </main>
+    </AuthScene>
   );
 }

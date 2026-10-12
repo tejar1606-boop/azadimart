@@ -49,3 +49,28 @@ body {
   .azm-coupon-tag, .azm-coupon-copy { display: none; }
   .azm-coupon-code { font-size: 9.5px; letter-spacing: 0; }
 }
+
+/* Sign-in / sign-up scene: deep night sky, soft tricolour edge-light, a faint dot grid,
+   sparkles, floating glass badges and a 3D ring of real products. */
+.azm-auth { background: radial-gradient(140% 100% at 15% 0%, #1b2a6b 0%, #0b1a45 42%, #050d26 100%); min-height: calc(100vh - 120px); }
+.azm-auth::before { content: ""; position: absolute; inset: 0; z-index: -10; background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px); background-size: 22px 22px; -webkit-mask-image: radial-gradient(ellipse at 30% 40%, #000 0%, transparent 70%); mask-image: radial-gradient(ellipse at 30% 40%, #000 0%, transparent 70%); }
+.azm-glow { position: absolute; border-radius: 9999px; filter: blur(90px); will-change: transform; }
+.azm-glow-a { width: 520px; height: 520px; left: -160px; top: -200px; background: #ff9933; opacity: 0.32; animation: azm-drift-a 18s ease-in-out infinite alternate; }
+.azm-glow-b { width: 460px; height: 460px; right: -160px; bottom: -160px; background: #138808; opacity: 0.28; animation: azm-drift-b 21s ease-in-out infinite alternate; }
+.azm-glow-c { width: 520px; height: 520px; left: 30%; top: 20%; background: #4f46e5; opacity: 0.22; animation: azm-drift-c 24s ease-in-out infinite alternate; }
+@keyframes azm-drift-a { to { transform: translate(140px, 90px) scale(1.12); } }
+@keyframes azm-drift-b { to { transform: translate(-120px, -80px) scale(0.92); } }
+@keyframes azm-drift-c { to { transform: translate(-110px, 60px) scale(1.15); } }
+.azm-spark { position: absolute; width: 2px; height: 2px; border-radius: 9999px; background: #fff; box-shadow: 0 0 8px 2px rgba(255, 255, 255, 0.55); animation: azm-twinkle 4.6s ease-in-out infinite; }
+@keyframes azm-twinkle { 0%, 100% { opacity: 0.1; transform: scale(0.6); } 50% { opacity: 0.9; transform: scale(1.25); } }
+.azm-ring-stage { position: absolute; inset: 0; display: grid; place-items: center; perspective: 1200px; }
+.azm-ring { position: relative; transform-style: preserve-3d; animation: azm-spin 42s linear infinite; }
+.azm-ring-tile { position: absolute; left: 50%; top: 50%; translate: -50% -50%; backface-visibility: hidden; -webkit-box-reflect: below 8px linear-gradient(transparent 72%, rgba(255, 255, 255, 0.16)); }
+@keyframes azm-spin { from { transform: rotateX(-9deg) rotateY(0deg); } to { transform: rotateX(-9deg) rotateY(360deg); } }
+.azm-float { animation: azm-bob 6s ease-in-out infinite; }
+@keyframes azm-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.azm-auth-input:focus-within { border-color: #f97316; box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.14); }
+@media (prefers-reduced-motion: reduce) {
+  .azm-glow, .azm-spark, .azm-ring, .azm-float { animation: none; }
+  .azm-ring { transform: rotateX(-9deg) rotateY(20deg); }
+}
