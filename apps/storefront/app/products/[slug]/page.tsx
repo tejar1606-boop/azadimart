@@ -239,7 +239,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
           },
         ])} />
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10 [&>*]:min-w-0">
           <div className="relative"><ProductGallery
             title={first.title}
             media={media.filter((item) => Boolean(item.mediaAssetId && item.mediaStorageKey && (item.mediaKind === "IMAGE" || item.mediaKind === "VIDEO"))).map((item) => ({ mediaAssetId: String(item.mediaAssetId), mediaStorageKey: String(item.mediaStorageKey), altText: item.altText, kind: item.mediaKind as "IMAGE" | "VIDEO" }))}

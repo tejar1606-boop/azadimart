@@ -43,3 +43,9 @@ body {
   .azm-coupon, .azm-coupon-shine { animation: none; }
   .azm-coupon-shine { display: none; }
 }
+/* Very narrow cards (e.g. two per row beside the phone category rail): drop the
+   little icons and tighten the code so it stays on one line. */
+@container (max-width: 124px) {
+  .azm-coupon-tag, .azm-coupon-copy { display: none; }
+  .azm-coupon-code { font-size: 9.5px; letter-spacing: 0; }
+}
