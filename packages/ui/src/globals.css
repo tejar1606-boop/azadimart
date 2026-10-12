@@ -19,3 +19,27 @@ body {
 }
 .india-flag-strip { animation: india-flag-wave 2.2s ease-in-out infinite; will-change: transform; }
 @media (prefers-reduced-motion: reduce) { .india-flag-strip { animation: none; } }
+
+/* Coupon "ticket": raised 3D look, a light sweep and a soft glow pulse. */
+.azm-coupon {
+  background: linear-gradient(180deg, #fb8a3c 0%, #ea580c 55%, #c2410c 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -2px 0 rgba(0, 0, 0, 0.18) inset, 0 3px 0 #9a3412, 0 6px 14px -4px rgba(234, 88, 12, 0.55);
+  animation: azm-coupon-glow 2.4s ease-in-out infinite;
+}
+.azm-coupon-shine {
+  background: linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, 0.55) 50%, transparent 100%);
+  transform: skewX(-20deg);
+  animation: azm-coupon-shine 2.8s ease-in-out infinite;
+}
+@keyframes azm-coupon-shine {
+  0% { left: -40%; }
+  55%, 100% { left: 130%; }
+}
+@keyframes azm-coupon-glow {
+  0%, 100% { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -2px 0 rgba(0, 0, 0, 0.18) inset, 0 3px 0 #9a3412, 0 6px 14px -4px rgba(234, 88, 12, 0.55); }
+  50% { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -2px 0 rgba(0, 0, 0, 0.18) inset, 0 3px 0 #9a3412, 0 6px 22px 0 rgba(249, 115, 22, 0.8); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .azm-coupon, .azm-coupon-shine { animation: none; }
+  .azm-coupon-shine { display: none; }
+}

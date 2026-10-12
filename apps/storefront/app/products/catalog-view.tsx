@@ -11,7 +11,7 @@ import { countAdView } from "../lib/ad-tracking";
 type Variant = { id: string; title: string; pricePaise: number; compareAtPaise: number | null; availableQuantity: number };
 /** Set on a category page (/c/<slug>): the category is fixed and shown as the page title. */
 export type FixedCategory = { id: string; name: string; slug: string; intro?: string | null; parent: { name: string; slug: string } | null; children: Array<{ name: string; slug: string }> };
-type Product = { id: string; title: string; slug: string; description: string | null; categoryName: string; sellerName: string; reviewCount?: number; ratingTotal?: number; badge?: { label: string; tone: string; kind: "tag" | "price_drop" } | null; variants: Variant[]; media?: Array<{ storageKey: string; kind: string; altText: string | null }> };
+type Product = { id: string; title: string; slug: string; description: string | null; categoryName: string; sellerName: string; reviewCount?: number; ratingTotal?: number; badge?: { label: string; tone: string; kind: "tag" | "price_drop" } | null; coupon?: { code: string; text: string } | null; variants: Variant[]; media?: Array<{ storageKey: string; kind: string; altText: string | null }> };
 
 const SORTS: Array<[string, string]> = [["featured", "Featured"], ["newest", "Newest"], ["price_asc", "Price: Low to high"], ["price_desc", "Price: High to low"]];
 
@@ -182,7 +182,7 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
                   return (
                     <SponsoredView key={(bidId ? "ad-" : "") + product.id} bidId={bidId}>
                       <ProductCard
-                        product={{ id: product.id, slug: product.slug, title: product.title, pricePaise: variant?.pricePaise ?? 0, compareAtPaise: variant?.compareAtPaise, mediaStorageKey: image?.storageKey, mediaAltText: image?.altText, sellerName: product.sellerName, reviewCount: product.reviewCount, ratingTotal: product.ratingTotal, badge: product.badge, sponsoredHref: bidId ? `/api/v1/ads/click/${bidId}` : undefined }}
+                        product={{ id: product.id, slug: product.slug, title: product.title, pricePaise: variant?.pricePaise ?? 0, compareAtPaise: variant?.compareAtPaise, mediaStorageKey: image?.storageKey, mediaAltText: image?.altText, sellerName: product.sellerName, reviewCount: product.reviewCount, ratingTotal: product.ratingTotal, badge: product.badge, coupon: product.coupon ?? null, sponsoredHref: bidId ? `/api/v1/ads/click/${bidId}` : undefined }}
                       />
                     </SponsoredView>
                   );

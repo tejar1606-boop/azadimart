@@ -15,9 +15,10 @@ import { loadReviewPhotos, loadReviewSummary, loadReviews } from "../../lib/revi
 import { RatingPill } from "../../components/stars";
 import ReviewsSection from "./reviews-section";
 import ShareButton from "./share-button";
-import { loadCardBadges, loadProductOffers } from "../../lib/offers";
+import { loadCardBadges, loadCardCoupons, loadProductOffers } from "../../lib/offers";
 import { OfferBadge } from "../../components/offer-badge";
 import PageBanner from "../../components/page-banner";
+import CouponChip from "../../components/coupon-chip";
 
 /** Search title/description: the product's own SEO text if set, else built from name, price and seller. */
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -172,10 +173,11 @@ export default async function ProductDetailPage({ params, searchParams }: { para
   const relatedRows = await moreToExplore(db, first);
 
   const lowestPrice = Math.min(...variants.map((v) => v.pricePaise));
-  const [reviewSummary, reviewPage, reviewPhotos, offers, relatedBadges] = await Promise.all([
+  const [reviewSummary, reviewPage, reviewPhotos, offers, relatedBadges, relatedCoupons] = await Promise.all([
     loadReviewSummary(db, first.id), loadReviews(db, first.id), loadReviewPhotos(db, first.id),
     loadProductOffers(db, { id: first.id, categoryId: first.categoryId, sellerId: first.sellerId, couponMaxDiscountPct: first.couponMaxDiscountPct, pricePaise: lowestPrice, priceDroppedAt: first.priceDroppedAt, priceBeforeDropPaise: first.priceBeforeDropPaise }),
     loadCardBadges(db, relatedRows),
+    loadCardCoupons(db, relatedRows),
   ]);
 
   // Approved A+ content only; comparison columns show LIVE products.
@@ -273,15 +275,11 @@ export default async function ProductDetailPage({ params, searchParams }: { para
             ) : null}
             <p className="mt-2 text-xs text-slate-400">Inclusive of applicable taxes • Final price shown at checkout</p>
             {offers.coupons.length ? (
-              <div className="mt-4 rounded-2xl border border-dashed border-brand/40 bg-brand-50/50 p-3.5">
+              <div className="mt-4 rounded-2xl border border-dashed border-brand/40 bg-white p-3.5">
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">Available offers</p>
-                <ul className="mt-2 space-y-1.5">
+                <ul className="mt-2.5 space-y-2.5">
                   {offers.coupons.map((c) => (
-                    <li key={c.code} className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-brand-600" aria-hidden="true"><path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1 1 0 0 1 0 1.4l-7.4 7.4a1 1 0 0 1-1.4 0l-8.2-8.4ZM8 9.4a1.4 1.4 0 1 0 0-2.8 1.4 1.4 0 0 0 0 2.8Z" /></svg>
-                      <span>{c.text} with code</span>
-                      <code className="rounded-md border border-dashed border-brand-300 bg-white px-1.5 py-0.5 text-xs font-bold text-brand-700">{c.code}</code>
-                    </li>
+                    <li key={c.code}><CouponChip code={c.code} text={c.text} size="offer" /></li>
                   ))}
                 </ul>
               </div>
@@ -373,7 +371,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
               <Link href="/products" className="text-sm font-bold text-slate-500 hover:text-slate-950">View all →</Link>
             </div>
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {relatedRows.map((item) => <ProductCard key={item.id} product={{ ...item, badge: relatedBadges[item.id] ?? null }} />)}
+              {relatedRows.map((item) => <ProductCard key={item.id} product={{ ...item, badge: relatedBadges[item.id] ?? null, coupon: relatedCoupons[item.id] ?? null }} />)}
             </div>
           </section>
         ) : null}

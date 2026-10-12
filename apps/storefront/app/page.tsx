@@ -23,7 +23,7 @@ import { ArrowRightIcon, BadgeIcon, CashIcon, CheckIcon, ReturnIcon, ShieldIcon 
 import ProductCard, { type ProductCardData } from "./components/product-card";
 import { TricolourRibbon } from "./components/site-header";
 import { getCategoryRail, type RailCategory } from "./lib/category-rail";
-import { loadCardBadges } from "./lib/offers";
+import { loadCardBadges, loadCardCoupons } from "./lib/offers";
 import { SITE_NAME, SITE_URL, absoluteUrl, clip, jsonLd } from "./lib/seo";
 import type { Metadata } from "next";
 
@@ -103,8 +103,8 @@ async function getHome() {
 
   // Offer badges (admin tags, price drops) for every product a homepage section may show.
   const allLive = onePerProduct(productRows, 400);
-  const badges = await loadCardBadges(db, allLive);
-  const withBadge = <T extends { id: string }>(p: T) => ({ ...p, badge: badges[p.id] ?? null });
+  const [badges, cardCoupons] = await Promise.all([loadCardBadges(db, allLive), loadCardCoupons(db, allLive)]);
+  const withBadge = <T extends { id: string }>(p: T) => ({ ...p, badge: badges[p.id] ?? null, coupon: cardCoupons[p.id] ?? null });
   const liveProducts = allLive.slice(0, 24).map(withBadge);
 
   // Each category tile uses a real product photo from that category when available.

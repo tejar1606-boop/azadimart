@@ -1,7 +1,7 @@
-import { categories, coupons, offerTags, type createDatabase } from "@azadimart/database";
+import { categories, coupons, offerTags, products, type createDatabase } from "@azadimart/database";
 import { productAllowsCoupon } from "@azadimart/shared";
 import { PRICE_DROP_TAG_DAYS } from "@azadimart/shared";
-import { and, desc, eq, gt, isNull, lte, or } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, lte, or } from "drizzle-orm";
 
 type Db = ReturnType<typeof createDatabase>;
 
@@ -55,6 +55,45 @@ export async function loadCardBadges(db: Db, items: OfferProduct[]): Promise<Rec
   }));
 }
 
+export type CardCoupon = { code: string; text: string };
+
+/**
+ * For product cards: the best coupon made for that specific product (not
+ * store-wide or category coupons, which would be on every card), if it is
+ * live, has uses left and, when sellers pay, the seller allows it.
+ */
+export async function loadCardCoupons(db: Db, items: Array<{ id: string; pricePaise: number }>): Promise<Record<string, CardCoupon>> {
+  if (!items.length) return {};
+  const now = new Date();
+  const rows = (await db.select({
+    code: coupons.code, discountType: coupons.discountType, discountValue: coupons.discountValue, minimumOrderPaise: coupons.minimumOrderPaise,
+    maximumDiscountPaise: coupons.maximumDiscountPaise, scope: coupons.scope, usageLimit: coupons.usageLimit, usageCount: coupons.usageCount,
+    fundingType: coupons.fundingType, sellerId: coupons.sellerId,
+  }).from(coupons).where(and(eq(coupons.isActive, true), isNull(coupons.deletedAt), lte(coupons.startsAt, now), or(isNull(coupons.endsAt), gt(coupons.endsAt, now)))).limit(300))
+    .filter((c) => (c.usageLimit === null || c.usageCount < c.usageLimit) && (c.scope?.productIds?.length ?? 0) > 0);
+  const wanted = new Set(items.map((i) => i.id));
+  const relevant = rows.filter((c) => c.scope!.productIds!.some((id) => wanted.has(id)));
+  if (!relevant.length) return {};
+  const ids = [...new Set(relevant.flatMap((c) => c.scope!.productIds!.filter((id) => wanted.has(id))))];
+  const facts = new Map((await db.select({ id: products.id, sellerId: products.sellerId, limit: products.couponMaxDiscountPct }).from(products).where(inArray(products.id, ids))).map((r) => [r.id, r]));
+  const out: Record<string, CardCoupon> = {};
+  for (const item of items) {
+    const f = facts.get(item.id);
+    if (!f) continue;
+    const saving = (c: (typeof relevant)[number]) => {
+      const raw = c.discountType === "PERCENTAGE" ? Math.floor((item.pricePaise * c.discountValue) / 100) : c.discountType === "FIXED" ? Math.min(c.discountValue, item.pricePaise) : 0;
+      return c.maximumDiscountPaise !== null ? Math.min(raw, c.maximumDiscountPaise) : raw;
+    };
+    const best = relevant
+      .filter((c) => c.scope!.productIds!.includes(item.id) && (!c.sellerId || c.sellerId === f.sellerId) && productAllowsCoupon(c, f.limit))
+      .sort((a, b) => saving(b) - saving(a))[0];
+    if (!best) continue;
+    const what = best.discountType === "PERCENTAGE" ? `Extra ${best.discountValue}% off` : best.discountType === "FIXED" ? `${best.fundingType === "SELLERS" ? "Up to " : ""}${money(best.discountValue)} off` : "Free delivery";
+    out[item.id] = { code: best.code, text: best.minimumOrderPaise > 0 ? `${what} on ${money(best.minimumOrderPaise)}+` : what };
+  }
+  return out;
+}
+
 /** Everything the product page highlights: all offer tags, the price drop, and coupons that apply. */
 export async function loadProductOffers(db: Db, product: OfferProduct & { sellerId: string; couponMaxDiscountPct: number }) {
   const ctx = await loadContext(db);
@@ -63,7 +102,7 @@ export async function loadProductOffers(db: Db, product: OfferProduct & { seller
     code: coupons.code, discountType: coupons.discountType, discountValue: coupons.discountValue, minimumOrderPaise: coupons.minimumOrderPaise,
     maximumDiscountPaise: coupons.maximumDiscountPaise, firstOrderOnly: coupons.firstOrderOnly, scope: coupons.scope,
     usageLimit: coupons.usageLimit, usageCount: coupons.usageCount, fundingType: coupons.fundingType, sellerId: coupons.sellerId,
-  }).from(coupons).where(and(eq(coupons.isActive, true), lte(coupons.startsAt, now), or(isNull(coupons.endsAt), gt(coupons.endsAt, now))))
+  }).from(coupons).where(and(eq(coupons.isActive, true), isNull(coupons.deletedAt), lte(coupons.startsAt, now), or(isNull(coupons.endsAt), gt(coupons.endsAt, now))))
     .orderBy(desc(coupons.discountValue)).limit(50);
   const family = new Set([product.categoryId, parentOfSafe(ctx.parentOf, product.categoryId)].filter(Boolean) as string[]);
   const applies = (scope: { productIds?: string[]; categoryIds?: string[]; sellerIds?: string[] }) => {

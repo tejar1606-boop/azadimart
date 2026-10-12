@@ -3,6 +3,7 @@ import { OfferBadge } from "./offer-badge";
 import Image from "next/image";
 import Link from "next/link";
 import WishlistButton from "./wishlist-button";
+import CouponChip from "./coupon-chip";
 
 export type ProductCardData = {
   id: string;
@@ -18,6 +19,8 @@ export type ProductCardData = {
   ratingTotal?: number | null;
   /** Highlighted offer badge (admin offer tag or "Price drop"). */
   badge?: { label: string; tone: string; kind: "tag" | "price_drop" } | null;
+  /** A coupon made for this product: shown under the price. */
+  coupon?: { code: string; text: string } | null;
   /** A seller's paid placement: labelled "Sponsored"; the link counts the click. */
   sponsoredHref?: string;
 };
@@ -65,6 +68,7 @@ export default function ProductCard({ product, priority = false, sizes = "(max-w
             </>
           ) : null}
         </div>
+        {product.coupon ? <span className="mt-2 block"><CouponChip code={product.coupon.code} text={product.coupon.text} /></span> : null}
       </div>
     </>
   );

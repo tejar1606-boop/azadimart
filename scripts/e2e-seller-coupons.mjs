@@ -81,8 +81,9 @@ check("admin creates a 10% coupon paid by sellers", r.status === 201, r.status +
 await mk({ code: c20, discountType: "PERCENTAGE", discountValue: 20, fundingType: "SELLERS" });
 await mk({ code: cAzm, discountType: "PERCENTAGE", discountValue: 5, fundingType: "AZADIMART", scope: { productIds: [B.product_id] } });
 
-// --- product pages
-const pageA = (await shop(`/products/${A.slug}`)).text, pageB = (await shop(`/products/${B.slug}`)).text;
+// --- product pages ("Available offers" box only: cards elsewhere on the page can show other products' coupons)
+const offersOf = (html) => { const at = html.indexOf("Available offers"); return at < 0 ? "" : html.slice(at, html.indexOf("</ul>", at)); };
+const pageA = offersOf((await shop(`/products/${A.slug}`)).text), pageB = offersOf((await shop(`/products/${B.slug}`)).text);
 check("the 10% coupon shows on the product that allows 15%", pageA.includes(c10));
 check("the 20% coupon doesn't (above the seller's 15%)", !pageA.includes(c20));
 check("neither shows on the product kept out of coupons", !pageB.includes(c10) && !pageB.includes(c20));
@@ -131,7 +132,10 @@ const cOne = `E2EONE${RUN}`;
 r = await mk({ code: cOne, discountType: "PERCENTAGE", discountValue: 12, fundingType: "SELLER", sellerId: me.id, scope: { productIds: [A.product_id] } });
 check("admin creates a coupon for one product, paid by its seller", r.status === 201 && r.json.coupon.appliesTo === `Products: ${A.title}`, JSON.stringify(r.json?.coupon?.appliesTo ?? r.json?.error));
 check("…and it's listed with what it applies to", ((await admin("/api/v1/coupons")).json?.coupons ?? []).some((c) => c.code === cOne && c.appliesTo?.includes(A.title)));
-check("its product page shows it; the seller's other product doesn't", (await shop(`/products/${A.slug}`)).text.includes(cOne) && !(await shop(`/products/${B.slug}`)).text.includes(cOne));
+const cardsFor = async (title) => (await shop(`/api/v1/catalog/products?limit=50&q=${encodeURIComponent(title)}`)).json?.items ?? [];
+check("its product card in listings shows the coupon", (await cardsFor(A.title)).find((x) => x.id === A.product_id)?.coupon?.code === cOne);
+check("…but not on other products' cards", (await cardsFor(B.title)).find((x) => x.id === B.product_id)?.coupon?.code !== cOne);
+check("its product page offers it; the seller's other product doesn't", offersOf((await shop(`/products/${A.slug}`)).text).includes(cOne) && !offersOf((await shop(`/products/${B.slug}`)).text).includes(cOne));
 for (const item of (await shop("/api/v1/cart")).json?.items ?? []) await shop("/api/v1/cart", { method: "DELETE", body: { variantId: item.variantId } });
 await shop("/api/v1/cart", { method: "POST", body: { variantId: A.variant_id, quantity: 1 } });
 await shop("/api/v1/cart", { method: "POST", body: { variantId: B.variant_id, quantity: 1 } });
