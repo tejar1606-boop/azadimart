@@ -11,6 +11,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Hide the Next.js dev-tools "N" button in local development (it covered the mobile tab bar). Production never shows it.
+  devIndicators: false,
   // Gives this app its own login cookie name (see SESSION_COOKIE_NAME in @azadimart/auth).
   env: { AZADIMART_APP: "admin" },
   transpilePackages: ["@azadimart/ui", "@azadimart/shared", "@azadimart/auth", "@azadimart/storage", "@azadimart/notify"],
