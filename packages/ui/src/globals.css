@@ -22,8 +22,9 @@ body {
 
 /* Coupon "ticket": raised 3D look, a light sweep and a soft glow pulse. */
 .azm-coupon {
-  background: linear-gradient(180deg, #fb8a3c 0%, #ea580c 55%, #c2410c 100%);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -2px 0 rgba(0, 0, 0, 0.18) inset, 0 3px 0 #9a3412, 0 6px 14px -4px rgba(234, 88, 12, 0.55);
+  /* brand orange (#e58530) */
+  background: linear-gradient(180deg, #ef9447 0%, #e58530 55%, #c96e1f 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -2px 0 rgba(0, 0, 0, 0.16) inset, 0 3px 0 #a7561a, 0 6px 14px -4px rgba(229, 133, 48, 0.55);
   animation: azm-coupon-glow 2.4s ease-in-out infinite;
 }
 .azm-coupon-shine {
@@ -36,8 +37,8 @@ body {
   55%, 100% { left: 130%; }
 }
 @keyframes azm-coupon-glow {
-  0%, 100% { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -2px 0 rgba(0, 0, 0, 0.18) inset, 0 3px 0 #9a3412, 0 6px 14px -4px rgba(234, 88, 12, 0.55); }
-  50% { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -2px 0 rgba(0, 0, 0, 0.18) inset, 0 3px 0 #9a3412, 0 6px 22px 0 rgba(249, 115, 22, 0.8); }
+  0%, 100% { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -2px 0 rgba(0, 0, 0, 0.16) inset, 0 3px 0 #a7561a, 0 6px 14px -4px rgba(229, 133, 48, 0.55); }
+  50% { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -2px 0 rgba(0, 0, 0, 0.16) inset, 0 3px 0 #a7561a, 0 6px 22px 0 rgba(229, 133, 48, 0.8); }
 }
 @media (prefers-reduced-motion: reduce) {
   .azm-coupon, .azm-coupon-shine { animation: none; }
@@ -69,7 +70,7 @@ body {
 @keyframes azm-spin { from { transform: rotateX(-9deg) rotateY(0deg); } to { transform: rotateX(-9deg) rotateY(360deg); } }
 .azm-float { animation: azm-bob 6s ease-in-out infinite; }
 @keyframes azm-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-.azm-auth-input:focus-within { border-color: #f97316; box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.14); }
+.azm-auth-input:focus-within { border-color: #e58530; box-shadow: 0 0 0 4px rgba(229, 133, 48, 0.16); }
 @media (prefers-reduced-motion: reduce) {
   .azm-glow, .azm-spark, .azm-ring, .azm-float { animation: none; }
   .azm-ring { transform: rotateX(-9deg) rotateY(20deg); }
