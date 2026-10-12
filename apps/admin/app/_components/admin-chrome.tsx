@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { PortalShell, type PortalNavSection } from "@azadimart/ui";
 import { STAFF_PERMISSION_KEYS, adminPagePermission, firstAdminPage } from "@azadimart/shared";
 
-export type AdminCounts = { role: string; roleName: string; displayName: string | null; permissions: string[]; support: number; sellers: number; qc: number; approvals: number; aplus: number; ads: number };
+export type AdminCounts = { liveWaiting: number; role: string; roleName: string; displayName: string | null; permissions: string[]; support: number; sellers: number; qc: number; approvals: number; aplus: number; ads: number };
 
 const badge = (n: number) => (n > 0 ? String(n > 99 ? "99+" : n) : undefined);
 
@@ -24,6 +24,7 @@ export default function AdminChrome({ counts, children }: { counts: AdminCounts 
   if (pathname === "/login" || !counts) return <>{children}</>;
 
   const supportItems: PortalNavSection["items"] = [
+    { href: "/live-chat", label: "Live chat", icon: "support", badge: badge(counts.liveWaiting) },
     { href: "/support", label: "Support desk", icon: "support", badge: badge(counts.support) },
     { href: "/support/replies", label: "Saved replies", icon: "support" },
   ];

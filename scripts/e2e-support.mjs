@@ -45,7 +45,7 @@ const [me] = await sql`select s.id, s.store_name from sellers s join users u on 
 const [myOrder] = await sql`select id, order_number from orders where customer_id = ${customer.id} order by created_at desc limit 1`;
 const [otherOrder] = await sql`select id from orders where customer_id <> ${customer.id} limit 1`;
 
-const tickets = [], chats = [], canned = [];
+const tickets = [], chats = [], canned = [], createdRoles = [];
 let agentUserId = null;
 async function tidy() {
   for (const id of tickets) {
@@ -60,6 +60,7 @@ async function tidy() {
     await sql`delete from audit_logs where actor_user_id = ${agentUserId} or entity_id = ${agentUserId}`;
     await sql`delete from users where id = ${agentUserId}`;
   }
+  for (const id of createdRoles) { await sql`delete from audit_logs where entity_id = ${id}`; await sql`delete from roles where id = ${id}`; }
 }
 for (const event of ["uncaughtException", "unhandledRejection"]) process.on(event, (error) => { console.error(error); tidy().finally(() => process.exit(1)); });
 
@@ -166,7 +167,9 @@ check("seller unread count", (await seller("/api/v1/support/unread")).json?.coun
 
 // --- support agents and saved replies
 const agentEmail = `e2e.agent.${RUN.toLowerCase()}@azadimart.test`;
-const supportRole = ((await admin("/api/v1/team")).json?.roles ?? []).find((x) => x.name === "Support agent");
+// Its own support-only role: ready-made roles may have been edited by the team.
+const supportRole = (await admin("/api/v1/team/roles", { method: "POST", body: { name: `E2E Support ${RUN}`, permissions: ["support"] } })).json?.role;
+if (supportRole?.id) createdRoles.push(supportRole.id);
 r = await admin("/api/v1/team/members", { method: "POST", body: { displayName: `Agent ${RUN}`, email: agentEmail, password: "AgentPass2026!", roleId: supportRole?.id } });
 agentUserId = r.json?.member?.userId ?? null;
 check("admin adds a support agent", r.status === 201 && agentUserId);

@@ -12,3 +12,4 @@ export * from "./ads";
 export * from "./page-banners";
 export * from "./support";
 export * from "./staff";
+export * from "./live-chat";

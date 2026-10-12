@@ -31,7 +31,7 @@ export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
                 </p>
               ) : null}
               <p className="mt-1">Track, cancel or return an order from <Link href="/account" className="font-semibold text-white underline underline-offset-2">My orders</Link>. Pay by Cash on Delivery, with easy 7-day returns.</p>
-              <OpenHelpChatButton className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-navy transition hover:bg-brand-50">Chat with us</OpenHelpChatButton>
+              <OpenHelpChatButton mode="live" className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-navy transition hover:bg-brand-50"><span className="h-2 w-2 rounded-full bg-[#22c55e]" aria-hidden />Chat with us live</OpenHelpChatButton>
               <p className="mt-5"><span className="font-semibold text-white/90">Want to sell on AzadiMart?</span> <a href={SELLER_URL + "/register"} className="font-semibold text-white underline underline-offset-2">Register as a seller</a> or <a href={SELLER_URL + "/login"} className="font-semibold text-white underline underline-offset-2">sign in</a>.</p>
             </div>
 

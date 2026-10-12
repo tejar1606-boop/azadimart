@@ -15,6 +15,7 @@ export const STAFF_PERMISSIONS = {
   marketing: { label: "Marketing", description: "Coupons, offer tags, seller ads" },
   logistics: { label: "Logistics", description: "Shipments and couriers" },
   support: { label: "Support desk", description: "Customer and seller support requests" },
+  livechat: { label: "Live chat", description: "Chat in real time with shoppers and sellers" },
   security: { label: "Security & audit", description: "Audit log and security settings" },
   team: { label: "Team & roles", description: "Add team members, assign roles, edit roles" },
 } as const;
@@ -25,12 +26,12 @@ export const isStaffPermission = (v: unknown): v is StaffPermission => typeof v 
 /** Ready-made roles, created on first use; they can be edited (not deleted). */
 export const DEFAULT_STAFF_ROLES: Array<{ name: string; description: string; permissions: StaffPermission[] }> = [
   { name: "Admin", description: "Everything, including the team", permissions: [...STAFF_PERMISSION_KEYS] },
-  { name: "Operations", description: "Day-to-day orders, shipping and support", permissions: ["dashboard", "orders", "logistics", "support"] },
+  { name: "Operations", description: "Day-to-day orders, shipping and support", permissions: ["dashboard", "orders", "logistics", "support", "livechat"] },
   { name: "Catalogue & QC", description: "Checks and manages products", permissions: ["dashboard", "catalog"] },
   { name: "Seller onboarding", description: "Approves sellers and their KYC", permissions: ["dashboard", "sellers", "support"] },
   { name: "Finance", description: "Payments, refunds and seller payouts", permissions: ["dashboard", "payments", "orders"] },
   { name: "Marketing", description: "Store design, banners, coupons and ads", permissions: ["dashboard", "storefront", "marketing"] },
-  { name: "Support agent", description: "Answers customer and seller requests", permissions: ["support"] },
+  { name: "Support agent", description: "Answers customer and seller requests", permissions: ["support", "livechat"] },
 ];
 
 /** Which area each admin page belongs to (longest matching prefix wins). */
@@ -44,6 +45,7 @@ export const ADMIN_PAGE_PERMISSIONS: Array<[string, StaffPermission]> = [
   ["/marketing", "marketing"],
   ["/logistics", "logistics"],
   ["/support", "support"],
+  ["/live-chat", "livechat"],
   ["/security", "security"],
   ["/team", "team"],
 ];

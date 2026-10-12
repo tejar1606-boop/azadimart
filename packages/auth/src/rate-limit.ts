@@ -18,6 +18,8 @@ export const RATE_LIMITS = {
   supportChat: { limit: 40, windowSeconds: 10 * 60 },
   supportTicket: { limit: 10, windowSeconds: 60 * 60 },
   supportReply: { limit: 60, windowSeconds: 60 * 60 },
+  liveChatStart: { limit: 8, windowSeconds: 60 * 60 },
+  liveChatMessage: { limit: 60, windowSeconds: 5 * 60 },
 } satisfies Record<string, RateLimitRule>;
 
 function retryText(seconds: number) {

@@ -96,7 +96,9 @@ check("not paid before 7 days", !(await payoutFor(o1.id)));
 await age(o1.id, 8);
 r = await run();
 let p1 = await payoutFor(o1.id);
-check("payout created after 7 days", r.status === 200 && p1 && p1.amount_paise === expectedNet(gross1, 0), r.status + " " + JSON.stringify(p1 && { amount: p1.amount_paise }));
+// Ad charges the seller owes (e.g. a real booking) are taken out of the same payout.
+const adCharges = p1 ? Number((await sql`select coalesce(sum(amount_paise), 0)::int n from seller_charges where payout_id = ${p1.id}`)[0].n) : 0;
+check("payout created after 7 days", r.status === 200 && p1 && p1.amount_paise === expectedNet(gross1, 0) - adCharges, r.status + " " + JSON.stringify(p1 && { amount: p1.amount_paise, adCharges }));
 check("held while the bank account is being verified", p1?.status === "ON_HOLD" && /being verified/.test(p1.failure_reason ?? ""), JSON.stringify(p1 && { s: p1.status, why: p1.failure_reason }));
 check("seller alerted that the payment is on hold", (await alerts("PAYOUT_ON_HOLD")).length >= 1);
 

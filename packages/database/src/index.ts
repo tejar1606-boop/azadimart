@@ -8,3 +8,4 @@ export * from "./price-drop";
 export * from "./settlements";
 export * from "./ads";
 export * from "./support";
+export * from "./live-chat";

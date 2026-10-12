@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LIVE_CHAT_STATE_EVENT, LiveChat, type LiveChatProps } from "./live-chat";
 
 type Card =
   | { kind: "order"; title: string; subtitle: string; status: string; tone: "green" | "amber" | "red" | "slate"; href: string }
@@ -32,6 +33,8 @@ export type HelpChatProps = {
   /** Pages where the floating launcher is hidden (the chat can still be opened by event). */
   hideLauncherOn?: string[];
   storageKey: string;
+  /** Live chat with the support team (a separate tool inside the same panel). */
+  live?: Omit<LiveChatProps, "onBack">;
 };
 
 /** Other buttons can open the chat: window.dispatchEvent(new CustomEvent(HELP_CHAT_OPEN_EVENT)). */
@@ -49,8 +52,11 @@ function SendIcon() {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h13M13 6l6 6-6 6" /></svg>;
 }
 
-export function HelpChat({ title, subtitle = "Usually answers instantly", apiBase, categories, ticketsPath, signInHref, launcherClassName = "bottom-6", hideLauncherOn = [], storageKey }: HelpChatProps) {
+export function HelpChat({ title, subtitle = "Usually answers instantly", apiBase, categories, ticketsPath, signInHref, launcherClassName = "bottom-6", hideLauncherOn = [], storageKey, live }: HelpChatProps) {
   const [open, setOpen] = useState(false);
+  // "bot" = the assistant; "live" = live chat with a person.
+  const [mode, setMode] = useState<"bot" | "live">("bot");
+  const [liveOpen, setLiveOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatId, setChatId] = useState<string | null>(null);
   const [input, setInput] = useState("");
@@ -68,8 +74,9 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
       const saved = JSON.parse(sessionStorage.getItem(storageKey) ?? "null") as { messages: Message[]; chatId: string | null } | null;
       if (saved?.messages?.length) { setMessages(saved.messages.slice(-40)); setChatId(saved.chatId); }
     } catch { /* storage blocked */ }
+    try { if (live && localStorage.getItem(live.storageKey)) { setLiveOpen(true); setMode("live"); } } catch { /* storage blocked */ }
     void fetch(`${apiBase}/unread`, { cache: "no-store" }).then((r) => r.json()).then((b: { count?: number }) => setUnread(b.count ?? 0)).catch(() => undefined);
-  }, [apiBase, storageKey]);
+  }, [apiBase, storageKey, live]);
   useEffect(() => {
     try { sessionStorage.setItem(storageKey, JSON.stringify({ messages: messages.slice(-40), chatId })); } catch { /* storage blocked */ }
   }, [messages, chatId, storageKey]);
@@ -102,12 +109,17 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
     setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
   useEffect(() => {
-    const onOpen = () => openChat();
+    const onOpen = (e: Event) => { if (live && (e as CustomEvent<{ mode?: string }>).detail?.mode === "live") setMode("live"); openChat(); };
     window.addEventListener(HELP_CHAT_OPEN_EVENT, onOpen);
     return () => window.removeEventListener(HELP_CHAT_OPEN_EVENT, onOpen);
-  }, [openChat]);
+  }, [openChat, live]);
+  useEffect(() => {
+    const onState = (e: Event) => setLiveOpen(Boolean((e as CustomEvent<{ active?: boolean }>).detail?.active));
+    window.addEventListener(LIVE_CHAT_STATE_EVENT, onState);
+    return () => window.removeEventListener(LIVE_CHAT_STATE_EVENT, onState);
+  }, []);
   // Greet on first open.
-  useEffect(() => { if (open && !messages.length && !busy) void send({ intent: "menu" }); }, [open, messages.length, busy, send]);
+  useEffect(() => { if (open && mode === "bot" && !messages.length && !busy) void send({ intent: "menu" }); }, [open, mode, messages.length, busy, send]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
@@ -156,7 +168,8 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
         <button type="button" onClick={openChat} aria-label={unread ? `Open help chat, ${unread} new support repl${unread === 1 ? "y" : "ies"}` : "Open help chat"}
           className={"fixed right-4 z-40 flex items-center gap-2 rounded-full bg-navy py-3 pl-3.5 pr-4 text-white shadow-[0_8px_30px_rgba(11,42,91,0.35)] transition hover:-translate-y-0.5 hover:bg-navy-soft sm:right-6 " + launcherClassName}>
           <ChatIcon size={22} />
-          <span className="text-sm font-semibold">Help</span>
+          <span className="text-sm font-semibold">{liveOpen ? "Live chat" : "Help"}</span>
+          {liveOpen ? <span className="absolute -left-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-[#22c55e]" aria-hidden /> : null}
           {unread ? <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[11px] font-bold">{unread}</span> : null}
         </button>
       ) : null}
@@ -167,13 +180,19 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
           <header className="relative flex items-center gap-3 bg-navy px-4 py-3.5 text-white">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/10 text-brand-300"><ChatIcon size={20} /></span>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold leading-tight">{title}</p>
-              <p className="flex items-center gap-1.5 text-xs text-white/70"><span className="h-1.5 w-1.5 rounded-full bg-[#4ade80]" />{subtitle}</p>
+              <p className="truncate font-semibold leading-tight">{mode === "live" ? "Live chat" : title}</p>
+              <p className="flex items-center gap-1.5 text-xs text-white/70"><span className="h-1.5 w-1.5 rounded-full bg-[#4ade80]" />{mode === "live" ? "Talk to our support team" : subtitle}</p>
             </div>
+            {live ? (
+              <button type="button" onClick={() => setMode(mode === "live" ? "bot" : "live")} className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20">
+                {mode === "live" ? "Assistant" : "Live agent"}
+              </button>
+            ) : null}
             <button type="button" onClick={() => setOpen(false)} className="grid h-9 w-9 place-items-center rounded-full hover:bg-white/10" aria-label="Close help chat"><CloseIcon /></button>
             <span className="absolute inset-x-0 bottom-0 flex h-[3px]" aria-hidden><span className="flex-1 bg-brand" /><span className="flex-1 bg-white" /><span className="flex-1 bg-india" /></span>
           </header>
 
+          {live && mode === "live" ? <LiveChat {...live} onBack={() => setMode("bot")} /> : <>
           {unread ? (
             <a href={ticketsPath} className="flex items-center justify-between gap-2 border-b border-brand-100 bg-brand-50 px-4 py-2.5 text-sm font-medium text-brand-800">
               <span>You have {unread} new repl{unread === 1 ? "y" : "ies"} from support</span><span className="font-semibold">View →</span>
@@ -212,9 +231,12 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
                       </div>
                     ) : null}
                     {m.reply?.handoff && i === messages.length - 1 && !handoff ? (
-                      <button type="button" onClick={() => startHandoff(m.reply!.handoff)} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-navy/20 bg-white px-3 py-2.5 text-sm font-semibold text-navy shadow-sm hover:bg-navy hover:text-white">
-                        Talk to a person
-                      </button>
+                      <div className="grid gap-1.5">
+                        {live ? <button type="button" onClick={() => setMode("live")} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-navy px-3 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-navy-soft"><span className="h-2 w-2 rounded-full bg-[#4ade80]" />Chat live with our team</button> : null}
+                        <button type="button" onClick={() => startHandoff(m.reply!.handoff)} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-navy/20 bg-white px-3 py-2.5 text-sm font-semibold text-navy shadow-sm hover:bg-navy hover:text-white">
+                          {live ? "Leave a message instead" : "Talk to a person"}
+                        </button>
+                      </div>
                     ) : null}
                   </div>
                 )}
@@ -269,6 +291,7 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
               placeholder="Type your question…" className="max-h-28 min-h-[42px] flex-1 resize-none rounded-2xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-navy" />
             <button type="submit" disabled={!input.trim() || busy} aria-label="Send" className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full bg-brand text-white hover:bg-brand-600 disabled:bg-slate-300"><SendIcon /></button>
           </form>
+          </>}
         </div>
       ) : null}
     </>
@@ -276,6 +299,6 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
 }
 
 /** A button anywhere on the page that opens the help chat. */
-export function OpenHelpChatButton({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <button type="button" className={className} onClick={() => window.dispatchEvent(new CustomEvent(HELP_CHAT_OPEN_EVENT))}>{children}</button>;
+export function OpenHelpChatButton({ className, children, mode }: { className?: string; children: React.ReactNode; mode?: "live" }) {
+  return <button type="button" className={className} onClick={() => window.dispatchEvent(new CustomEvent(HELP_CHAT_OPEN_EVENT, { detail: { mode } }))}>{children}</button>;
 }

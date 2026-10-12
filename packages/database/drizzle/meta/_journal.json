@@ -211,6 +211,13 @@
       "when": 1791679278585,
       "tag": "20261011004118_product_related",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1791781153638,
+      "tag": "20261012045913_live_chat",
+      "breakpoints": true
     }
   ]
 }

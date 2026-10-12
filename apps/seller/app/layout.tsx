@@ -38,7 +38,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <SellerChrome counts={counts}>{children}</SellerChrome>
         {counts ? (
           <HelpChat title="Seller support" subtitle="Payments, KYC, products and orders" apiBase="/api/v1/support" ticketsPath="/help/tickets"
-            categories={supportCategoriesFor("SELLER").map((key) => ({ key, label: SUPPORT_CATEGORIES[key].label }))} storageKey="azm-seller-help" hideLauncherOn={["/help"]} />
+            categories={supportCategoriesFor("SELLER").map((key) => ({ key, label: SUPPORT_CATEGORIES[key].label }))} storageKey="azm-seller-help" hideLauncherOn={["/help"]}
+            live={{ apiBase: "/api/v1/live-chat", ticketsPath: "/help/tickets", storageKey: "azm-seller-live-chat", topics: supportCategoriesFor("SELLER").map((key) => ({ key, label: SUPPORT_CATEGORIES[key].label })) }} />
         ) : null}
       </body>
     </html>

@@ -8,3 +8,4 @@ export { ComingSoon, PortalAuthLayout, PortalPageHeader, PortalShell, StatCard, 
 export { DescriptionStyleToggle, SpecTableEditor, parseSpecPaste, type SpecRow } from "./spec-table-editor";
 export { HelpChat, HELP_CHAT_OPEN_EVENT, OpenHelpChatButton, type HelpChatProps } from "./help-chat";
 export { SupportStatusPill, SupportTicketList, SupportTicketView } from "./support-tickets";
+export { LIVE_CHAT_STATE_EVENT, LiveChat, type LiveChatProps } from "./live-chat";

@@ -37,7 +37,8 @@
     "e2e:ads": "node scripts/e2e-ads.mjs",
     "e2e:support": "node scripts/e2e-support.mjs",
     "e2e:team": "node scripts/e2e-team.mjs",
-    "e2e:categories": "node scripts/e2e-categories.mjs"
+    "e2e:categories": "node scripts/e2e-categories.mjs",
+    "e2e:livechat": "node scripts/e2e-livechat.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
