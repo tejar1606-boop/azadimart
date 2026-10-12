@@ -11,9 +11,15 @@ export const couponDiscountTypeEnum = pgEnum("coupon_discount_type", [
   "FREE_SHIPPING",
 ]);
 
+/**
+ * Who pays for the discount: AZADIMART; one SELLER (their own coupon); or
+ * SELLERS: an AzadiMart coupon paid by each seller, only on products whose
+ * seller allows at least that much off (products.coupon_max_discount_pct).
+ */
 export const couponFundingTypeEnum = pgEnum("coupon_funding_type", [
   "AZADIMART",
   "SELLER",
+  "SELLERS",
 ]);
 
 export const coupons = pgTable(

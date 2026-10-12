@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { CouponLimitHelp, CouponLimitSelect } from "../coupon-limit";
 import { useRouter } from "next/navigation";
 import { DescriptionStyleToggle, SpecTableEditor, directUpload, readImageSize, type SpecRow } from "@azadimart/ui";
 
@@ -11,6 +12,7 @@ export default function ProductBuilder() {
   const router = useRouter();
   const [step,setStep] = useState(0);
   const [form,setForm] = useState({title:"",description:"",categoryId:"",sku:"",variantTitle:"Default",price:"",compareAt:"",weightGrams:"",onHand:"0"});
+  const [couponPct,setCouponPct] = useState(0);
   // Product details: a normal text description or a specification table; only the chosen style is saved.
   const [detailStyle,setDetailStyle] = useState<"text"|"table">("text");
   const [specs,setSpecs] = useState<SpecRow[]>([]);
@@ -67,6 +69,7 @@ export default function ProductBuilder() {
       const response=await fetch("/api/v1/products",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         title:form.title.trim(),categoryId:form.categoryId.trim(),
         description:detailStyle==="text"?form.description.trim():"",
+        couponMaxDiscountPct:couponPct,
         specifications:detailStyle==="table"?specs.filter(r=>r.label.trim()&&r.value.trim()).map(r=>({label:r.label.trim(),value:r.value.trim()})):[],
         imageAssetIds:images.map(v=>v.id),videoAssetId:video?.id,
         variant:{sku:form.sku.trim(),title:form.variantTitle.trim()||"Default",pricePaise:Math.round(Number(form.price)*100),compareAtPaise:form.compareAt?Math.round(Number(form.compareAt)*100):undefined,weightGrams:Math.max(0,Math.floor(Number(form.weightGrams)||0)),onHand:Math.max(0,Math.floor(Number(form.onHand)||0))}
@@ -112,6 +115,7 @@ export default function ProductBuilder() {
         <Field label="Compare-at price (₹)" value={form.compareAt} onChange={v=>set("compareAt",v)} inputMode="decimal"/>
         <Field label="Package weight (grams)" value={form.weightGrams} onChange={v=>set("weightGrams",v)} inputMode="numeric"/>
         <Field label="Opening inventory" value={form.onHand} onChange={v=>set("onHand",v)} inputMode="numeric"/>
+        <div className="text-sm font-semibold sm:col-span-2"><label htmlFor="coupon-limit">AzadiMart coupons</label><CouponLimitSelect id="coupon-limit" value={couponPct} onChange={setCouponPct}/><CouponLimitHelp pct={couponPct} pricePaise={form.price?Math.round(Number(form.price)*100):null}/></div>
       </div>:null}
       {step===3?<div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Ready for QC</p><h2 className="mt-2 text-2xl font-black">Review before creating your draft.</h2><div className="mt-5 grid gap-3 sm:grid-cols-2"><Summary label="Product" value={form.title||"—"}/><Summary label="Category" value={categories.find(category=>category.id===form.categoryId)?.name||"—"}/><Summary label="Product details" value={detailStyle==="table"?`Specification table · ${specs.filter(r=>r.label.trim()&&r.value.trim()).length} rows`:"Text description"}/><Summary label="Images" value={String(images.length)}/><Summary label="Price" value={form.price?"₹"+form.price:"—"}/><Summary label="Package weight" value={form.weightGrams+" g"}/><Summary label="Opening stock" value={form.onHand}/></div><p className="mt-5 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">Draft products remain hidden from customers until they pass QC and are published by AzadiMart.</p></div>:null}
       {busy&&step===1?<div className="mt-5"><p className="text-xs font-semibold text-slate-500">Uploading… {progress}%</p><div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-slate-950 transition-[width]" style={{width:progress+"%"}}/></div></div>:null}

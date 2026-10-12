@@ -95,6 +95,8 @@ export const payoutItems = pgTable(
     gstOnCommissionPaise: integer("gst_on_commission_paise").notNull().default(0),
     tcsPaise: integer("tcs_paise").notNull().default(0),
     tdsPaise: integer("tds_paise").notNull().default(0),
+    /** The seller's share of coupon discounts on these items. */
+    sellerDiscountPaise: integer("seller_discount_paise").notNull().default(0),
     ...timestamps,
   },
   (table) => [

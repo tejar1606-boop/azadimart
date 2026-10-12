@@ -9,59 +9,9 @@ import {
   products,
   productVariants,
 } from "@azadimart/database";
-import { AppError, couponValidationSchema, toApiError } from "@azadimart/shared";
+import { AppError, allocateCoupon, couponValidationSchema, toApiError } from "@azadimart/shared";
 import { and, count, eq, ne } from "drizzle-orm";
 import { NextResponse } from "next/server";
-
-type CartLine = {
-  productId: string;
-  categoryId: string;
-  sellerId: string;
-  quantity: number;
-  pricePaise: number;
-  variantActive: boolean;
-  productStatus: string;
-};
-
-function matchesScope(
-  scope: { productIds?: string[]; categoryIds?: string[]; sellerIds?: string[] },
-  line: CartLine,
-) {
-  const hasProductScope = Boolean(scope.productIds?.length);
-  const hasCategoryScope = Boolean(scope.categoryIds?.length);
-  const hasSellerScope = Boolean(scope.sellerIds?.length);
-
-  if (!hasProductScope && !hasCategoryScope && !hasSellerScope) return true;
-
-  return Boolean(
-    (hasProductScope && scope.productIds?.includes(line.productId)) ||
-      (hasCategoryScope && scope.categoryIds?.includes(line.categoryId)) ||
-      (hasSellerScope && scope.sellerIds?.includes(line.sellerId)),
-  );
-}
-
-function calculateDiscount(
-  coupon: {
-    discountType: "PERCENTAGE" | "FIXED" | "FREE_SHIPPING";
-    discountValue: number;
-    maximumDiscountPaise: number | null;
-  },
-  eligibleSubtotalPaise: number,
-) {
-  if (eligibleSubtotalPaise <= 0 || coupon.discountType === "FREE_SHIPPING") return 0;
-
-  const raw =
-    coupon.discountType === "PERCENTAGE"
-      ? Math.floor((eligibleSubtotalPaise * coupon.discountValue) / 100)
-      : coupon.discountValue;
-
-  const capped =
-    coupon.maximumDiscountPaise !== null
-      ? Math.min(raw, coupon.maximumDiscountPaise)
-      : raw;
-
-  return Math.min(eligibleSubtotalPaise, Math.max(0, capped));
-}
 
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
@@ -105,8 +55,10 @@ export async function POST(request: Request) {
 
     const rows = await db
       .select({
+        cartItemId: cartItems.id,
         productId: products.id,
         categoryId: products.categoryId,
+        couponMaxDiscountPct: products.couponMaxDiscountPct,
         sellerId: products.sellerId,
         quantity: cartItems.quantity,
         pricePaise: productVariants.pricePaise,
@@ -122,34 +74,22 @@ export async function POST(request: Request) {
       (line) => line.quantity > 0 && line.variantActive && line.productStatus === "LIVE",
     );
 
-    const scope = (coupon.scope ?? {}) as {
-      productIds?: string[];
-      categoryIds?: string[];
-      sellerIds?: string[];
-    };
-    // Seller-funded coupons only discount that seller's lines.
-    const eligibleLines = lines.filter(
-      (line) => matchesScope(scope, line) && (!coupon.sellerId || line.sellerId === coupon.sellerId),
-    );
-    const eligibleSubtotalPaise = eligibleLines.reduce(
-      (sum, line) => sum + line.pricePaise * line.quantity,
-      0,
-    );
-
-    if (eligibleLines.length === 0) {
-      throw new AppError("UNPROCESSABLE", "Coupon is not applicable to this cart");
+    // Same rules as checkout: seller coupons only discount that seller's products, and
+    // coupons paid by sellers only products whose seller allows that much off.
+    const allocation = allocateCoupon(coupon, lines.map((line) => ({
+      key: line.cartItemId, productId: line.productId, categoryId: line.categoryId, sellerId: line.sellerId,
+      lineTotalPaise: line.pricePaise * line.quantity, couponMaxDiscountPct: line.couponMaxDiscountPct,
+    })));
+    const eligibleSubtotalPaise = allocation.eligibleSubtotalPaise;
+    if (allocation.problem === "NOT_APPLICABLE") {
+      throw new AppError("UNPROCESSABLE", coupon.fundingType === "SELLERS" ? "This coupon isn't available on the products in your cart" : "Coupon is not applicable to this cart");
     }
-
-    if (eligibleSubtotalPaise < coupon.minimumOrderPaise) {
+    if (allocation.problem === "MINIMUM") {
       throw new AppError(
         "UNPROCESSABLE",
         "The cart does not meet the coupon minimum order value",
         { minimumOrderPaise: coupon.minimumOrderPaise, eligibleSubtotalPaise },
       );
-    }
-
-    if (coupon.sellerId && !eligibleLines.some((line) => line.sellerId === coupon.sellerId)) {
-      throw new AppError("UNPROCESSABLE", "Coupon is not applicable to this cart");
     }
 
     const customerRedemptions =
@@ -188,7 +128,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const discountPaise = calculateDiscount(coupon, eligibleSubtotalPaise);
+    const discountPaise = allocation.discountPaise;
 
     return NextResponse.json({
       valid: true,

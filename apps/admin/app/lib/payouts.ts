@@ -79,7 +79,7 @@ export async function createDuePayouts(db: Database, now = new Date()) {
           payoutId: payout!.id, orderItemId: l.orderItemId, quantity: l.quantity,
           grossAmountPaise: l.breakdown.grossPaise, deductionsPaise: l.breakdown.grossPaise - l.breakdown.netPaise, netAmountPaise: l.breakdown.netPaise,
           commissionRateBps: l.breakdown.commissionRateBps, commissionPaise: l.breakdown.commissionPaise,
-          gstOnCommissionPaise: l.breakdown.gstOnCommissionPaise, tcsPaise: l.breakdown.tcsPaise, tdsPaise: l.breakdown.tdsPaise,
+          gstOnCommissionPaise: l.breakdown.gstOnCommissionPaise, tcsPaise: l.breakdown.tcsPaise, tdsPaise: l.breakdown.tdsPaise, sellerDiscountPaise: l.breakdown.sellerDiscountPaise,
         })));
         if (taken.length) await tx.update(sellerCharges).set({ status: "SETTLED", payoutId: payout!.id, updatedAt: now }).where(inArray(sellerCharges.id, taken));
       });

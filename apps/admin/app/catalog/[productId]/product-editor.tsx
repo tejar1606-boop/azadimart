@@ -10,7 +10,7 @@ import RelatedProducts from "./related-products";
 type Variant = { id: string; title: string; sku: string; pricePaise: number; compareAtPaise: number | null; weightGrams: number; isActive: boolean; onHand: number; reserved: number };
 type Media = { mediaAssetId: string; kind: "IMAGE" | "VIDEO"; url: string };
 type Detail = {
-  product: { id: string; title: string; slug: string; description: string | null; specifications: SpecRow[]; metaTitle: string | null; metaDescription: string | null; status: string; categoryId: string; sellerName: string };
+  product: { id: string; title: string; slug: string; description: string | null; specifications: SpecRow[]; metaTitle: string | null; metaDescription: string | null; status: string; categoryId: string; sellerName: string; couponMaxDiscountPct: number };
   variants: Variant[];
   media: Media[];
   categories: Array<{ id: string; name: string; isActive: boolean }>;
@@ -255,6 +255,7 @@ export default function ProductEditor({ productId, storefrontUrl }: { productId:
         <aside className="space-y-6">
           <section className={card}>
             <h2 className="font-semibold">Visibility</h2>
+            <p className="mt-1 text-sm text-slate-500">Seller-paid coupons: <b className={data.product.couponMaxDiscountPct ? "text-india" : ""}>{data.product.couponMaxDiscountPct ? `up to ${data.product.couponMaxDiscountPct}% off` : "not included"}</b> <span className="text-xs">(set by the seller)</span></p>
             <p className="mt-1 text-sm text-slate-500">Current: <b>{STATUS_LABEL[status] ?? status}</b></p>
             <div className="mt-4 grid gap-2">
               {status === "LIVE" ? <button type="button" disabled={busy} onClick={() => void changeStatus("hide")} className="rounded-xl px-4 py-2.5 text-sm font-semibold ring-1 ring-slate-300 hover:ring-slate-900">Hide from store</button> : null}

@@ -114,6 +114,8 @@ export const orderItems = pgTable(
     sku: text("sku").notNull(),
     quantity: integer("quantity").notNull(),
     unitPricePaise: integer("unit_price_paise").notNull(),
+    /** Coupon discount on this line paid by the seller (taken from their payout). */
+    sellerDiscountPaise: integer("seller_discount_paise").notNull().default(0),
     ...timestamps,
   },
   (table) => [

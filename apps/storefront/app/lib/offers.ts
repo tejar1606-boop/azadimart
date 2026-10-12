@@ -1,4 +1,5 @@
 import { categories, coupons, offerTags, type createDatabase } from "@azadimart/database";
+import { productAllowsCoupon } from "@azadimart/shared";
 import { PRICE_DROP_TAG_DAYS } from "@azadimart/shared";
 import { and, desc, eq, gt, isNull, lte, or } from "drizzle-orm";
 
@@ -55,13 +56,13 @@ export async function loadCardBadges(db: Db, items: OfferProduct[]): Promise<Rec
 }
 
 /** Everything the product page highlights: all offer tags, the price drop, and coupons that apply. */
-export async function loadProductOffers(db: Db, product: OfferProduct & { sellerId: string }) {
+export async function loadProductOffers(db: Db, product: OfferProduct & { sellerId: string; couponMaxDiscountPct: number }) {
   const ctx = await loadContext(db);
   const now = new Date();
   const rows = await db.select({
     code: coupons.code, discountType: coupons.discountType, discountValue: coupons.discountValue, minimumOrderPaise: coupons.minimumOrderPaise,
     maximumDiscountPaise: coupons.maximumDiscountPaise, firstOrderOnly: coupons.firstOrderOnly, scope: coupons.scope,
-    usageLimit: coupons.usageLimit, usageCount: coupons.usageCount,
+    usageLimit: coupons.usageLimit, usageCount: coupons.usageCount, fundingType: coupons.fundingType, sellerId: coupons.sellerId,
   }).from(coupons).where(and(eq(coupons.isActive, true), lte(coupons.startsAt, now), or(isNull(coupons.endsAt), gt(coupons.endsAt, now))))
     .orderBy(desc(coupons.discountValue)).limit(50);
   const family = new Set([product.categoryId, parentOfSafe(ctx.parentOf, product.categoryId)].filter(Boolean) as string[]);
@@ -70,11 +71,12 @@ export async function loadProductOffers(db: Db, product: OfferProduct & { seller
     return !scoped || Boolean(scope.productIds?.includes(product.id) || scope.categoryIds?.some((c) => family.has(c)) || scope.sellerIds?.includes(product.sellerId));
   };
   const couponOffers: CouponOffer[] = rows
-    .filter((c) => (c.usageLimit === null || c.usageCount < c.usageLimit) && applies(c.scope))
+    // A seller's own coupon only on their products; coupons paid by sellers only where this seller allows that much off.
+    .filter((c) => (c.usageLimit === null || c.usageCount < c.usageLimit) && applies(c.scope) && (!c.sellerId || c.sellerId === product.sellerId) && productAllowsCoupon(c, product.couponMaxDiscountPct))
     .slice(0, 3)
     .map((c) => {
       const what = c.discountType === "PERCENTAGE" ? `Extra ${c.discountValue}% off${c.maximumDiscountPaise ? ` (up to ${money(c.maximumDiscountPaise)})` : ""}`
-        : c.discountType === "FIXED" ? `Flat ${money(c.discountValue)} off` : "Free delivery";
+        : c.discountType === "FIXED" ? (c.fundingType === "SELLERS" ? `Up to ${money(c.discountValue)} off` : `Flat ${money(c.discountValue)} off`) : "Free delivery";
       const when = [c.minimumOrderPaise > 0 ? `on orders above ${money(c.minimumOrderPaise)}` : "", c.firstOrderOnly ? "on your first order" : ""].filter(Boolean).join(", ");
       return { code: c.code, text: when ? `${what} ${when}` : what };
     });

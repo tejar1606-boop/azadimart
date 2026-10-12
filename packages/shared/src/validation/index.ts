@@ -49,8 +49,13 @@ export const specRowsSchema = z.array(z.object({
   label: z.string().trim().min(1, "Every row needs a label").max(60, "Keep labels under 60 characters"),
   value: z.string().trim().min(1, "Every row needs a value").max(500, "Keep each value under 500 characters"),
 })).max(40, "Add up to 40 specification rows").default([]);
+/** Choices sellers get for "AzadiMart coupons may take up to …% off" (0 = not in coupons). */
+export const COUPON_DISCOUNT_CHOICES = [0, 5, 10, 15, 20, 25, 30, 40, 50] as const;
+const couponMaxDiscountPct = z.number().int().min(0).max(90);
+export const productCouponLimitSchema = z.object({ couponMaxDiscountPct });
 export const productDraftSchema = z.object({
   title:z.string().trim().min(3).max(200),
+  couponMaxDiscountPct: couponMaxDiscountPct.optional().default(0),
   description:z.string().trim().max(20000).optional(),
   specifications:specRowsSchema.optional(),
   categoryId:uuidSchema,
@@ -88,7 +93,8 @@ const couponBaseSchema = z.object({
   perCustomerLimit:z.number().int().positive().max(100).default(1),
   firstOrderOnly:z.boolean().default(false),
   stackable:z.boolean().default(false),
-  fundingType:z.enum(["AZADIMART","SELLER"]).default("AZADIMART"),
+  // SELLERS: paid by each seller, only on products that allow at least this much off.
+  fundingType:z.enum(["AZADIMART","SELLER","SELLERS"]).default("AZADIMART"),
   sellerId:uuidSchema.optional(),
   scope:z.object({
     productIds:z.array(uuidSchema).max(100).default([]),
@@ -114,6 +120,12 @@ function validateCouponRules(value: Partial<CouponPayload>, ctx: z.RefinementCtx
       path: ["endsAt"],
       message: "End date must be after start date",
     });
+  }
+  if (value.fundingType === "SELLERS" && value.sellerId) {
+    ctx.addIssue({ code: "custom", path: ["sellerId"], message: "A coupon paid by sellers applies to every seller who allows it; don't pick one seller" });
+  }
+  if (value.fundingType === "SELLERS" && value.discountType === "FREE_SHIPPING") {
+    ctx.addIssue({ code: "custom", path: ["discountType"], message: "Free shipping can't be paid by sellers" });
   }
   if (value.fundingType === "SELLER" && !value.sellerId) {
     ctx.addIssue({

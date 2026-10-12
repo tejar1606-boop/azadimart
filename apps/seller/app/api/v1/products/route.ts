@@ -41,6 +41,7 @@ export async function POST(request: Request) {
         slug: slugify(input.title),
         description: input.description || null,
         specifications: input.specifications ?? [],
+        couponMaxDiscountPct: input.couponMaxDiscountPct,
         status: "DRAFT",
       }).returning({ id: products.id, title: products.title, slug: products.slug, status: products.status }))[0];
 
@@ -96,6 +97,7 @@ export async function GET(request: Request) {
       slug: products.slug,
       description: products.description,
       status: products.status,
+      couponMaxDiscountPct: products.couponMaxDiscountPct,
       categoryId: products.categoryId,
       brandId: products.brandId,
       createdAt: products.createdAt,

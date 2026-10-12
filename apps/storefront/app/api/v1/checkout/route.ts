@@ -3,25 +3,12 @@ import {
   cartItems, carts, couponRedemptions, coupons, createDatabase, customerAddresses,
   customers, inventory, orderItems, orders, payments, productVariants, products, sellers, users,
 } from "@azadimart/database";
-import { AppError, SHIP_BY_DAYS, checkoutSchema, checkSellerSupplyToState, toApiError } from "@azadimart/shared";
+import { AppError, SHIP_BY_DAYS, allocateCoupon, checkoutSchema, checkSellerSupplyToState, toApiError } from "@azadimart/shared";
 import { notifySellersOfNewOrder } from "@azadimart/notify";
 import { getPaymentProvider } from "@azadimart/payments";
 import { and, asc, count, eq, gte, ne, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-function matchesScope(scope: {productIds?:string[];categoryIds?:string[];sellerIds?:string[]}, line: {productId:string;categoryId:string;sellerId:string}) {
-  const productsMatch = scope.productIds?.length ? scope.productIds.includes(line.productId) : false;
-  const categoriesMatch = scope.categoryIds?.length ? scope.categoryIds.includes(line.categoryId) : false;
-  const sellersMatch = scope.sellerIds?.length ? scope.sellerIds.includes(line.sellerId) : false;
-  if (!scope.productIds?.length && !scope.categoryIds?.length && !scope.sellerIds?.length) return true;
-  return productsMatch || categoriesMatch || sellersMatch;
-}
-
-function discountForCoupon(coupon:{discountType:"PERCENTAGE"|"FIXED"|"FREE_SHIPPING";discountValue:number;maximumDiscountPaise:number|null},subtotal:number){
-  if(coupon.discountType==="FREE_SHIPPING"||subtotal<=0)return 0;
-  const raw=coupon.discountType==="PERCENTAGE"?Math.floor(subtotal*coupon.discountValue/100):coupon.discountValue;
-  return Math.min(subtotal, coupon.maximumDiscountPaise===null?raw:Math.min(raw,coupon.maximumDiscountPaise));
-}
 
 function orderNumber(){return "AZM-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+crypto.randomUUID().replace(/-/g,"").slice(0,10).toUpperCase();}
 
@@ -68,7 +55,7 @@ export async function POST(request:Request){
       const rawLines=await tx.select({
         cartItemId:cartItems.id,variantId:productVariants.id,productId:products.id,categoryId:products.categoryId,sellerId:sellers.id,
         sellerName:sellers.storeName,taxIdentityType:sellers.taxIdentityType,businessState:sellers.businessState,gstin:sellers.gstin,gstEnrolmentId:sellers.gstEnrolmentId,
-        title:products.title,sku:productVariants.sku,quantity:cartItems.quantity,unitPricePaise:productVariants.pricePaise,
+        title:products.title,sku:productVariants.sku,quantity:cartItems.quantity,unitPricePaise:productVariants.pricePaise,couponMaxDiscountPct:products.couponMaxDiscountPct,
         productStatus:products.status,variantActive:productVariants.isActive,onHand:inventory.onHand,reserved:inventory.reserved,
       }).from(cartItems).innerJoin(productVariants,eq(cartItems.variantId,productVariants.id)).innerJoin(products,eq(productVariants.productId,products.id))
         .innerJoin(sellers,eq(products.sellerId,sellers.id)).leftJoin(inventory,eq(inventory.variantId,productVariants.id))
@@ -91,6 +78,8 @@ export async function POST(request:Request){
 
       const subtotal=rawLines.reduce((sum,line)=>sum+line.unitPricePaise*line.quantity,0);
       let discount=0;let couponCode:string|undefined;
+      // The part of the coupon each line's seller pays (taken from their payout).
+      let sellerShare=new Map<string,number>();
 
       if(input.couponCode){
         const coupon=(await tx.select().from(coupons).where(and(eq(coupons.code,input.couponCode),eq(coupons.isActive,true))).limit(1))[0];
@@ -100,12 +89,9 @@ export async function POST(request:Request){
         if(!coupon)throw new AppError("NOT_FOUND","Coupon code is not available");
         const now=new Date();
         if(coupon.startsAt>now||(coupon.endsAt&&coupon.endsAt<=now))throw new AppError("UNPROCESSABLE","Coupon is outside its valid date range");
-        const scope=(coupon.scope??{}) as {productIds?:string[];categoryIds?:string[];sellerIds?:string[]};
-        // Seller-funded coupons only discount that seller's lines.
-        const eligible=rawLines.filter(line=>matchesScope(scope,line)&&(!coupon.sellerId||line.sellerId===coupon.sellerId));
-        const eligibleSubtotal=eligible.reduce((sum,line)=>sum+line.unitPricePaise*line.quantity,0);
-        if(!eligible.length||eligibleSubtotal<coupon.minimumOrderPaise)throw new AppError("UNPROCESSABLE","Coupon is not applicable to this cart");
-        if(coupon.sellerId&&!eligible.some(line=>line.sellerId===coupon.sellerId))throw new AppError("UNPROCESSABLE","Coupon is not applicable to this cart");
+        // Seller coupons only discount that seller's lines; coupons paid by sellers only products whose seller allows that much off.
+        const allocation=allocateCoupon(coupon,rawLines.map(line=>({key:line.cartItemId,productId:line.productId,categoryId:line.categoryId,sellerId:line.sellerId,lineTotalPaise:line.unitPricePaise*line.quantity,couponMaxDiscountPct:line.couponMaxDiscountPct})));
+        if(allocation.problem)throw new AppError("UNPROCESSABLE","Coupon is not applicable to this cart");
         if(coupon.usageLimit!==null&&coupon.usageCount>=coupon.usageLimit)throw new AppError("UNPROCESSABLE","Coupon usage limit has been reached");
         const customerRedemptions=(await tx.select({value:count()}).from(couponRedemptions).where(and(eq(couponRedemptions.couponId,coupon.id),eq(couponRedemptions.customerId,session.customerId!))))[0]?.value??0;
         if(customerRedemptions>=coupon.perCustomerLimit)throw new AppError("UNPROCESSABLE","You have already used this coupon the maximum number of times");
@@ -113,7 +99,8 @@ export async function POST(request:Request){
           const previous=(await tx.select({id:orders.id}).from(orders).where(and(eq(orders.customerId,session.customerId!),ne(orders.status,"CANCELLED"))).limit(1))[0];
           if(previous)throw new AppError("UNPROCESSABLE","This coupon is only valid on your first order");
         }
-        discount=coupon.discountType==="FREE_SHIPPING"?0:discountForCoupon(coupon,eligibleSubtotal);
+        discount=allocation.discountPaise;
+        if(allocation.sellerFunded)sellerShare=allocation.perLine;
         couponCode=coupon.code;
       }
 
@@ -133,7 +120,7 @@ export async function POST(request:Request){
       }
 
       await tx.insert(orderItems).values(rawLines.map(line=>({
-        orderId:order.id,sellerId:line.sellerId,productId:line.productId,variantId:line.variantId,title:line.title,sku:line.sku,quantity:line.quantity,unitPricePaise:line.unitPricePaise,
+        orderId:order.id,sellerId:line.sellerId,productId:line.productId,variantId:line.variantId,title:line.title,sku:line.sku,quantity:line.quantity,unitPricePaise:line.unitPricePaise,sellerDiscountPaise:sellerShare.get(line.cartItemId)??0,
       })));
 
       const payment=getPaymentProvider("COD");

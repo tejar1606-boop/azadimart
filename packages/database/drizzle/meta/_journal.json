@@ -218,6 +218,13 @@
       "when": 1791781153638,
       "tag": "20261012045913_live_chat",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1791788045867,
+      "tag": "20261012065405_seller_coupon_limit",
+      "breakpoints": true
     }
   ]
 }

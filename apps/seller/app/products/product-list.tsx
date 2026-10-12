@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { CouponLimitSelect } from "./coupon-limit";
 
-type Product = { id: string; title: string; status: string; slug: string; createdAt: string; coverImageUrl: string | null; pricePaise: number | null; available: number };
+type Product = { id: string; title: string; status: string; slug: string; createdAt: string; coverImageUrl: string | null; pricePaise: number | null; available: number; couponMaxDiscountPct: number };
 type Action = "submit" | "unlist" | "relist" | "withdraw";
 
 const money = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -81,6 +82,22 @@ export default function ProductList() {
     } finally { setBusy(null); }
   }
 
+  /** Changes how much AzadiMart coupons may take off this product (seller-paid). */
+  async function setCouponLimit(product: Product, pct: number) {
+    setBusy(product.id + ":coupon"); setError(""); setMessage("");
+    const before = product.couponMaxDiscountPct;
+    setItems((all) => all.map((p) => (p.id === product.id ? { ...p, couponMaxDiscountPct: pct } : p)));
+    try {
+      const response = await fetch(`/api/v1/products/${product.id}/coupon-limit`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ couponMaxDiscountPct: pct }) });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.error?.message ?? "Couldn't save");
+      setMessage(pct ? `AzadiMart coupons may now take up to ${pct}% off “${product.title}” (paid from your payout).` : `“${product.title}” is out of seller-paid coupons.`);
+    } catch (e) {
+      setItems((all) => all.map((p) => (p.id === product.id ? { ...p, couponMaxDiscountPct: before } : p)));
+      setError(e instanceof Error ? e.message : "Couldn't save");
+    } finally { setBusy(null); }
+  }
+
   const counts = useMemo(() => Object.fromEntries(TABS.map((t) => [t.key, items.filter((i) => t.statuses.includes(i.status)).length])), [items]);
   const current = TABS.find((t) => t.key === tab)!;
   const shown = items.filter((item) => current.statuses.includes(item.status));
@@ -118,7 +135,10 @@ export default function ProductList() {
                       <p className="mt-1 text-xs text-slate-500">
                         {product.pricePaise !== null ? money(product.pricePaise) : "No price"} · <span className={product.available === 0 ? "font-semibold text-red-600" : product.available <= 5 ? "font-semibold text-amber-700" : ""}>{product.available === 0 ? "Out of stock" : product.available + " in stock"}</span>
                       </p>
-                      <span className={"mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold " + status.tone}>{status.label}</span>
+                      <span className="mt-1.5 flex flex-wrap items-center gap-2">
+                        <span className={"inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold " + status.tone}>{status.label}</span>
+                        {!removed ? <CouponLimitSelect compact value={product.couponMaxDiscountPct ?? 0} disabled={busy === product.id + ":coupon"} onChange={(pct) => void setCouponLimit(product, pct)} /> : null}
+                      </span>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">

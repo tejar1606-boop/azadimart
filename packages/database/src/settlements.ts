@@ -26,13 +26,13 @@ export type SettlementLine = {
 
 type Row = {
   order_item_id: string; order_id: string; order_number: string; seller_id: string; title: string;
-  quantity: number; returned: number; unit_price_paise: number; ordered_at: string; delivered_at: string;
+  quantity: number; returned: number; unit_price_paise: number; seller_discount_paise: number; ordered_at: string; delivered_at: string;
   approved_at: string | null; tax_identity_type: string; open_return: boolean;
 };
 
 export async function unpaidSettlementLines(db: Pick<Database, "execute">, options: { sellerId?: string } = {}): Promise<SettlementLine[]> {
   const result = await db.execute<Row>(sql`
-    select oi.id order_item_id, oi.order_id, o.order_number, oi.seller_id, oi.title, oi.quantity, oi.unit_price_paise,
+    select oi.id order_item_id, oi.order_id, o.order_number, oi.seller_id, oi.title, oi.quantity, oi.unit_price_paise, oi.seller_discount_paise,
       o.created_at ordered_at, o.delivered_at, s.approved_at, s.tax_identity_type,
       coalesce((select sum(ri.quantity) from return_items ri join returns r on r.id = ri.return_id
         where ri.order_item_id = oi.id and r.status in ('RECEIVED', 'REFUNDED')), 0)::int returned,
@@ -56,6 +56,8 @@ export async function unpaidSettlementLines(db: Pick<Database, "execute">, optio
       eligibleAt: payoutEligibleAt(deliveredAt), openReturn: row.open_return,
       breakdown: calculateSettlement({
         grossPaise: row.unit_price_paise * quantity, orderedAt,
+        // The seller's coupon share, for the units they keep (returned units take theirs back).
+        sellerDiscountPaise: Math.round((row.seller_discount_paise * quantity) / Math.max(1, row.quantity)),
         sellerApprovedAt: row.approved_at ? new Date(row.approved_at) : null,
         gstRegistered: row.tax_identity_type === "GSTIN",
       }),

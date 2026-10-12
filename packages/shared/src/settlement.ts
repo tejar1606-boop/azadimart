@@ -28,7 +28,8 @@ export function commissionFreeUntil(approvedAt: Date): Date {
 }
 
 export type SettlementInput = {
-  grossPaise: number; // the seller's item value in the order (what the customer paid for those items)
+  grossPaise: number; // the seller's item value in the order (price × quantity)
+  sellerDiscountPaise?: number; // coupon discount on these items that the seller pays
   taxableValuePaise?: number; // value without GST, when known; TCS is charged on this
   orderedAt: Date;
   sellerApprovedAt: Date | null;
@@ -36,6 +37,8 @@ export type SettlementInput = {
 };
 export type SettlementBreakdown = {
   grossPaise: number;
+  /** Coupon discount the seller pays; commission and taxes are on the price after it. */
+  sellerDiscountPaise: number;
   commissionFree: boolean;
   commissionRateBps: number;
   commissionPaise: number;
@@ -47,14 +50,17 @@ export type SettlementBreakdown = {
 
 export function calculateSettlement(input: SettlementInput): SettlementBreakdown {
   const gross = Math.max(0, Math.round(input.grossPaise));
+  const sellerDiscount = Math.min(gross, Math.max(0, Math.round(input.sellerDiscountPaise ?? 0)));
+  // What the customer actually paid for these items: commission and taxes are worked out on this.
+  const sold = gross - sellerDiscount;
   // A seller without an approval date hasn't started the free period, so it's treated as free.
   const commissionFree = !input.sellerApprovedAt || input.orderedAt < commissionFreeUntil(input.sellerApprovedAt);
   const commissionRateBps = commissionFree ? 0 : COMMISSION_RATE_BPS;
-  const commissionPaise = bps(gross, commissionRateBps);
+  const commissionPaise = bps(sold, commissionRateBps);
   const gstOnCommissionPaise = bps(commissionPaise, GST_ON_FEES_BPS);
-  const tcsPaise = input.gstRegistered ? bps(input.taxableValuePaise ?? gross, TCS_RATE_BPS) : 0;
-  const tdsPaise = bps(gross, TDS_RATE_BPS);
-  return { grossPaise: gross, commissionFree, commissionRateBps, commissionPaise, gstOnCommissionPaise, tcsPaise, tdsPaise, netPaise: gross - commissionPaise - gstOnCommissionPaise - tcsPaise - tdsPaise };
+  const tcsPaise = input.gstRegistered ? bps(input.taxableValuePaise ?? sold, TCS_RATE_BPS) : 0;
+  const tdsPaise = bps(sold, TDS_RATE_BPS);
+  return { grossPaise: gross, sellerDiscountPaise: sellerDiscount, commissionFree, commissionRateBps, commissionPaise, gstOnCommissionPaise, tcsPaise, tdsPaise, netPaise: sold - commissionPaise - gstOnCommissionPaise - tcsPaise - tdsPaise };
 }
 
 /** When a delivered item's money can be paid out. */

@@ -23,7 +23,7 @@ export async function GET(request: Request, { params }: Params) {
     const { db, productId } = await admin(request, params);
     const product = (await db.select({
       id: products.id, title: products.title, slug: products.slug, description: products.description, specifications: products.specifications, metaTitle: products.metaTitle, metaDescription: products.metaDescription, status: products.status,
-      categoryId: products.categoryId, sellerId: products.sellerId, sellerName: sellers.storeName, updatedAt: products.updatedAt,
+      categoryId: products.categoryId, sellerId: products.sellerId, sellerName: sellers.storeName, updatedAt: products.updatedAt, couponMaxDiscountPct: products.couponMaxDiscountPct,
     }).from(products).innerJoin(sellers, eq(sellers.id, products.sellerId)).where(eq(products.id, productId)).limit(1))[0];
     if (!product) throw new AppError("NOT_FOUND", "Product not found");
     const [variants, media, categoryRows, ordered] = await Promise.all([

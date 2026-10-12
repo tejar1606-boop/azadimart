@@ -128,6 +128,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
     categorySlug: categories.slug,
     categoryParentId: categories.parentId,
     relatedProductIds: products.relatedProductIds,
+    couponMaxDiscountPct: products.couponMaxDiscountPct,
     sellerId: products.sellerId,
     sellerName: sellers.storeName,
     priceDroppedAt: products.priceDroppedAt,
@@ -173,7 +174,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
   const lowestPrice = Math.min(...variants.map((v) => v.pricePaise));
   const [reviewSummary, reviewPage, reviewPhotos, offers, relatedBadges] = await Promise.all([
     loadReviewSummary(db, first.id), loadReviews(db, first.id), loadReviewPhotos(db, first.id),
-    loadProductOffers(db, { id: first.id, categoryId: first.categoryId, sellerId: first.sellerId, pricePaise: lowestPrice, priceDroppedAt: first.priceDroppedAt, priceBeforeDropPaise: first.priceBeforeDropPaise }),
+    loadProductOffers(db, { id: first.id, categoryId: first.categoryId, sellerId: first.sellerId, couponMaxDiscountPct: first.couponMaxDiscountPct, pricePaise: lowestPrice, priceDroppedAt: first.priceDroppedAt, priceBeforeDropPaise: first.priceBeforeDropPaise }),
     loadCardBadges(db, relatedRows),
   ]);
 
