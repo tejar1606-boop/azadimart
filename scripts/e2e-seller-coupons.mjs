@@ -125,6 +125,22 @@ await shop("/api/v1/cart", { method: "POST", body: { variantId: B.variant_id, qu
 r = await shop("/api/v1/coupons/validate", { method: "POST", body: { cartId: (await shop("/api/v1/cart")).json?.cartId, code: cAzm } });
 check("AzadiMart's coupon applies even to products kept out of seller coupons", r.status === 200 && r.json.discountPaise === Math.floor(B.price_paise * 5 / 100));
 
+// --- a coupon for one product only (e.g. "only on Gallardo")
+const cOne = `E2EONE${RUN}`;
+r = await mk({ code: cOne, discountType: "PERCENTAGE", discountValue: 12, fundingType: "SELLER", sellerId: me.id, scope: { productIds: [A.product_id] } });
+check("admin creates a coupon for one product, paid by its seller", r.status === 201 && r.json.coupon.appliesTo === `Products: ${A.title}`, JSON.stringify(r.json?.coupon?.appliesTo ?? r.json?.error));
+check("…and it's listed with what it applies to", ((await admin("/api/v1/coupons")).json?.coupons ?? []).some((c) => c.code === cOne && c.appliesTo?.includes(A.title)));
+check("its product page shows it; the seller's other product doesn't", (await shop(`/products/${A.slug}`)).text.includes(cOne) && !(await shop(`/products/${B.slug}`)).text.includes(cOne));
+for (const item of (await shop("/api/v1/cart")).json?.items ?? []) await shop("/api/v1/cart", { method: "DELETE", body: { variantId: item.variantId } });
+await shop("/api/v1/cart", { method: "POST", body: { variantId: A.variant_id, quantity: 1 } });
+await shop("/api/v1/cart", { method: "POST", body: { variantId: B.variant_id, quantity: 1 } });
+r = await shop("/api/v1/coupons/validate", { method: "POST", body: { cartId: (await shop("/api/v1/cart")).json?.cartId, code: cOne } });
+check("in the cart it discounts only that product", r.status === 200 && r.json.eligibleSubtotalPaise === A.price_paise && r.json.discountPaise === Math.floor(A.price_paise * 12 / 100), JSON.stringify(r.json));
+const [other] = await sql`select p.id from products p where p.seller_id <> ${me.id} and p.status = 'LIVE' limit 1`;
+check("a seller's coupon can't include another seller's product", (await mk({ code: `E2EBAD${RUN}`, discountType: "PERCENTAGE", discountValue: 10, fundingType: "SELLER", sellerId: me.id, scope: { productIds: [A.product_id, other.id] } })).status === 400);
+r = await mk({ code: `E2EWARN${RUN}`, discountType: "PERCENTAGE", discountValue: 30, fundingType: "SELLERS", scope: { productIds: [A.product_id] } });
+check("a seller-paid coupon above the product's limit is created with a clear warning", r.status === 201 && (r.json.warnings ?? []).some((w) => w.includes("up to 15%")), JSON.stringify(r.json?.warnings));
+
 await tidy();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

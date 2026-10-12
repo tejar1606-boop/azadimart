@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     }
     const rows = await db.select({
       id: products.id, title: products.title, slug: products.slug, status: products.status, updatedAt: products.updatedAt,
-      sellerName: sellers.storeName,
+      sellerName: sellers.storeName, sellerId: products.sellerId, couponMaxDiscountPct: products.couponMaxDiscountPct,
     }).from(products).innerJoin(sellers, eq(sellers.id, products.sellerId))
       .where(filters.length ? and(...filters) : undefined)
       .orderBy(desc(products.updatedAt)).limit(200);
