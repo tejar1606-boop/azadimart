@@ -9,3 +9,4 @@ export { DescriptionStyleToggle, SpecTableEditor, parseSpecPaste, type SpecRow }
 export { HelpChat, HELP_CHAT_OPEN_EVENT, OpenHelpChatButton, type HelpChatProps } from "./help-chat";
 export { SupportStatusPill, SupportTicketList, SupportTicketView } from "./support-tickets";
 export { LIVE_CHAT_STATE_EVENT, LiveChat, type LiveChatProps } from "./live-chat";
+export { BRAND_COLORS, BRAND_TAGLINE, BrandMark, BrandWordmark } from "./brand";

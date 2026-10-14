@@ -1,6 +1,7 @@
 "use client";
 
 import { type ComponentType, type ReactNode, useEffect, useRef, useState } from "react";
+import { BrandMark, BrandWordmark } from "./brand";
 import { PortalIcons, type PortalIconName } from "./portal-icons";
 
 /** tone: optional colourful icon tile (seller portal); isNew: small "NEW" tag. */
@@ -98,9 +99,9 @@ export function PortalShell({
 
   const brandMark = (
     <div className="flex items-center gap-2.5">
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand text-sm font-bold text-white">A</span>
+      <BrandMark size={36} />
       <div className="leading-tight">
-        <p className="text-[15px] font-bold tracking-[-0.03em] text-white">LOI<span className="text-brand-400">MART</span></p>
+        <p className="text-[17px] leading-none"><BrandWordmark onDark /></p>
         <p className="text-[11px] font-medium text-white/45">{product}</p>
       </div>
     </div>
@@ -125,7 +126,7 @@ export function PortalShell({
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-chrome px-4 text-white lg:hidden">
         <button type="button" onClick={() => setOpen(true)} aria-label="Open menu" className="-ml-1 grid h-9 w-9 place-items-center rounded-lg hover:bg-white/10"><PortalIcons.menu /></button>
-        <p className="text-[15px] font-bold tracking-[-0.03em]">LOI<span className="text-brand-400">MART</span><span className="ml-2 text-xs font-medium text-white/50">{product}</span></p>
+        <BrandMark size={28} /><p className="text-[17px]"><BrandWordmark onDark /><span className="ml-2 text-xs font-medium text-white/50">{product}</span></p>
         {current ? <span className="ml-auto truncate text-xs text-white/60">{current.label}</span> : null}
       </header>
       {open ? (
@@ -204,8 +205,8 @@ export function PortalAuthLayout({ product, headline, points, children }: { prod
         <div aria-hidden className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-brand/25 blur-3xl" />
         <div aria-hidden className="absolute -bottom-40 -left-20 h-96 w-96 rounded-full bg-india/25 blur-3xl" />
         <div className="relative flex items-center gap-2.5">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand text-base font-bold">A</span>
-          <div className="leading-tight"><p className="text-lg font-bold tracking-[-0.03em]">LOI<span className="text-brand-400">MART</span></p><p className="text-xs text-white/50">{product}</p></div>
+          <BrandMark size={40} />
+          <div className="leading-tight"><p className="text-xl leading-none"><BrandWordmark onDark /></p><p className="text-xs text-white/50">{product}</p></div>
         </div>
         <div className="relative max-w-md">
           <h1 className="text-4xl font-semibold leading-[1.1] tracking-[-0.04em]">{headline}</h1>
@@ -222,8 +223,8 @@ export function PortalAuthLayout({ product, headline, points, children }: { prod
       <section className="flex items-center justify-center px-4 py-10 sm:px-8">
         <div className="w-full max-w-md">
           <div className="mb-8 flex items-center gap-2.5 lg:hidden">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand text-sm font-bold text-white">A</span>
-            <p className="text-lg font-bold tracking-[-0.03em]">LOI<span className="text-brand-600">MART</span> <span className="text-sm font-medium text-slate-500">{product}</span></p>
+            <BrandMark size={36} />
+            <p className="text-xl"><BrandWordmark /> <span className="text-sm font-medium text-slate-500">{product}</span></p>
           </div>
           {children}
         </div>

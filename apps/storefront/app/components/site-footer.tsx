@@ -1,8 +1,8 @@
 import Link from "next/link";
 import type { StoreChrome } from "../lib/chrome";
 import FooterBackdrop from "./footer-backdrop";
-import { OpenHelpChatButton } from "@azadimart/ui";
-import { TricolourRibbon } from "./site-header";
+import { BRAND_TAGLINE, OpenHelpChatButton } from "@azadimart/ui";
+import { TricolourRibbon, Wordmark } from "./site-header";
 
 const SELLER_URL = process.env.NEXT_PUBLIC_SELLER_URL || "https://seller.azadimart.com";
 // Customer support contact, shown once set (Vercel / .env).
@@ -19,7 +19,7 @@ export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
         <FooterBackdrop />
         <div className="relative mx-auto max-w-[1440px] px-5 pb-8 pt-14 sm:px-8 lg:px-20 lg:pt-20">
           <div className="grid gap-12 lg:grid-cols-[1.25fr_1fr_1.35fr_1.15fr] lg:gap-10">
-            <Link href="/" aria-label="LOIMART home" className="block text-[44px] font-bold leading-none tracking-[-0.04em] sm:text-[56px]"><span className="text-[#FF9933]">LOI</span><span className="text-[#4cc94a]">MART</span></Link>
+            <div><Link href="/" aria-label="LOIMART home" className="block text-[40px] leading-none sm:text-[52px]"><Wordmark onDark /></Link><p className="mt-3 text-[15px] tracking-[0.02em] text-white/60">{BRAND_TAGLINE}</p></div>
 
             <div className="text-[15px] leading-6 text-white/85">
               <p className="font-semibold text-white">Need assistance?</p>

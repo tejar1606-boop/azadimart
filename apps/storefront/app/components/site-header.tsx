@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
+import { BrandMark, BrandWordmark } from "@azadimart/ui";
 import type { StoreChrome } from "../lib/chrome";
 import { BagIcon, CloseIcon, HeartIcon, MenuIcon, SearchIcon, UserIcon } from "./icons";
 
-/** Brand name in the tricolour palette: saffron "LOI", India green "MART". */
-export function Wordmark({ className = "" }: { className?: string }) {
-  return <span className={"font-bold tracking-[-0.04em] " + className}><span className="text-brand">LOI</span><span className="text-india">MART</span></span>;
+/** The LOIMART logo: bag icon + "loimart" in the logo colours. Icon scales with the font size. */
+export function Wordmark({ className = "", onDark = false }: { className?: string; onDark?: boolean }) {
+  return <span className={"inline-flex items-center gap-[0.3em] " + className}><BrandMark size="1.5em" /><BrandWordmark onDark={onDark} /></span>;
 }
 
 /** Thin saffron · white · green ribbon used on the header, banner and footer (colours only, not the flag). */
