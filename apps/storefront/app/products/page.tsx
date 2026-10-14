@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { getCategoryRail } from "../lib/category-rail";
 import CatalogView from "./catalog-view";
+import CatalogSkeleton from "../components/catalog-skeleton";
 import PageBanner from "../components/page-banner";
 
 import type { Metadata } from "next";
@@ -22,7 +23,7 @@ export default async function ProductsPage() {
   return (
     <>
       <PageBanner pageKey="shop" />
-      <Suspense>
+      <Suspense fallback={<CatalogSkeleton banner={false} />}>
         <CatalogView rail={rail} />
       </Suspense>
     </>

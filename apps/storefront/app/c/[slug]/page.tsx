@@ -6,6 +6,7 @@ import { Suspense, cache } from "react";
 import { getCategoryRail } from "../../lib/category-rail";
 import { SITE_NAME, absoluteUrl, clip, jsonLd } from "../../lib/seo";
 import CatalogView, { type FixedCategory } from "../../products/catalog-view";
+import CatalogSkeleton from "../../components/catalog-skeleton";
 import PageBanner from "../../components/page-banner";
 
 type CategorySeo = FixedCategory & { metaTitle: string | null; metaDescription: string | null };
@@ -44,7 +45,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const [category, rail] = await Promise.all([findCategory((await params).slug), getCategoryRail()]);
   if (!category) notFound();
   return (
-    <Suspense>
+    <Suspense fallback={<CatalogSkeleton />}>
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd({
         "@context": "https://schema.org",
         "@type": "BreadcrumbList",
