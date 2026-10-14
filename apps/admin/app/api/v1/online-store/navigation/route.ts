@@ -13,10 +13,10 @@ const DEFAULT_ITEMS = [
 
 async function getPrimaryNavigation(){
   const db=createDatabase();
-  let theme=(await db.select().from(themes).where(eq(themes.name,"LOIMART Core")).limit(1))[0];
+  let theme=(await db.select().from(themes).where(eq(themes.name,"AzadiMart Core")).limit(1))[0];
   if(!theme){
     const created=(await db.insert(themes).values({
-      name:"LOIMART Core",status:"DRAFT",settings:{mode:"premium-india",surface:"light"},
+      name:"AzadiMart Core",status:"DRAFT",settings:{mode:"premium-india",surface:"light"},
     }).returning())[0];
     if(!created) throw new AppError("INTERNAL","Theme creation failed",undefined,false);
     theme=created;
