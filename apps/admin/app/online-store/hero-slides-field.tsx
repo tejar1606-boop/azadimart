@@ -54,10 +54,12 @@ export default function HeroSlidesField({ slides, onChange, slideSeconds, onSeco
       {slides.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">No slides yet. The designed banner with your heading and buttons is shown until you add one.</p> : null}
       {slides.map((slide, index) => {
         const ready = Boolean(slide.desktopImageUrl || slide.desktopVideoUrl);
+        // Without phone art, phones crop the middle of the wide desktop banner and cut off its text.
+        const needsPhone = ready && !slide.mobileImageUrl && !slide.mobileVideoUrl;
         return (
           <div key={index} className="rounded-2xl border border-slate-200 bg-white p-4">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold">Slide {index + 1} {ready ? null : <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Needs a desktop image or video</span>}</p>
+              <p className="text-sm font-semibold">Slide {index + 1} {ready ? null : <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Needs a desktop image or video</span>}{needsPhone ? <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Add a mobile image: phones crop the desktop banner</span> : null}</p>
               <div className="flex gap-1.5">
                 <button type="button" onClick={() => move(index, -1)} disabled={index === 0} className="rounded-lg border px-2 py-1 text-xs disabled:opacity-30" aria-label="Move slide up">↑</button>
                 <button type="button" onClick={() => move(index, 1)} disabled={index === slides.length - 1} className="rounded-lg border px-2 py-1 text-xs disabled:opacity-30" aria-label="Move slide down">↓</button>
@@ -66,7 +68,7 @@ export default function HeroSlidesField({ slides, onChange, slideSeconds, onSeco
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <MediaField kind="image" label="Desktop image" hint="2880 × 1080 px" size={{ width: 2880, height: 1080 }} value={slide.desktopImageUrl ?? ""} onChange={(v) => update(index, { desktopImageUrl: v || undefined })} />
-              <MediaField kind="image" label="Mobile image (optional)" hint="1200 × 1500 px" size={{ width: 1200, height: 1500 }} value={slide.mobileImageUrl ?? ""} onChange={(v) => update(index, { mobileImageUrl: v || undefined })} />
+              <MediaField kind="image" label="Mobile image (recommended)" hint="1200 × 1500 px" size={{ width: 1200, height: 1500 }} value={slide.mobileImageUrl ?? ""} onChange={(v) => update(index, { mobileImageUrl: v || undefined })} />
               <MediaField kind="video" label="Desktop video (optional)" hint="Same shape as 2880 × 1080" value={slide.desktopVideoUrl ?? ""} onChange={(v) => update(index, { desktopVideoUrl: v || undefined })} />
               <MediaField kind="video" label="Mobile video (optional)" hint="Same shape as 1200 × 1500" value={slide.mobileVideoUrl ?? ""} onChange={(v) => update(index, { mobileVideoUrl: v || undefined })} />
               <label className="text-sm font-medium">Link (where the banner button goes)
