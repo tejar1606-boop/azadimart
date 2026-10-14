@@ -21,15 +21,15 @@ export const metadata: Metadata = {
   // Makes canonical and preview-image URLs absolute.
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "AzadiMart — One trusted Indian marketplace",
-    template: "%s | AzadiMart",
+    default: "LOIMART — One trusted Indian marketplace",
+    template: "%s | LOIMART",
   },
   description:
     "Discover products from verified Indian sellers across farming, fashion, home, beauty and more.",
-  applicationName: "AzadiMart",
-  keywords: ["AzadiMart", "Indian marketplace", "verified sellers", "made in India", "online shopping"],
+  applicationName: "LOIMART",
+  keywords: ["LOIMART", "Indian marketplace", "verified sellers", "made in India", "online shopping"],
   openGraph: {
-    title: "AzadiMart — One trusted Indian marketplace",
+    title: "LOIMART — One trusted Indian marketplace",
     description:
       "A modern Indian marketplace built around verified sellers and a trustworthy customer experience.",
     type: "website",
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false },
   twitter: {
     card: "summary_large_image",
-    title: "AzadiMart — One trusted Indian marketplace",
+    title: "LOIMART — One trusted Indian marketplace",
     description:
       "A modern Indian marketplace built around verified sellers and a trustworthy customer experience.",
   },
@@ -65,7 +65,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {children}
         <SiteFooter chrome={chrome} />
         <MobileTabBar />
-        <HelpChat title="AzadiMart Help" subtitle="Orders, returns, payments and products" apiBase="/api/v1/support" ticketsPath="/account/support" signInHref="/login"
+        <HelpChat title="LOIMART Help" subtitle="Orders, returns, payments and products" apiBase="/api/v1/support" ticketsPath="/account/support" signInHref="/login"
           categories={supportCategoriesFor("CUSTOMER").map((key) => ({ key, label: SUPPORT_CATEGORIES[key].label }))} storageKey="azm-help" launcherClassName="bottom-24 lg:bottom-6" hideLauncherOn={["/checkout"]}
           live={{ apiBase: "/api/v1/live-chat", ticketsPath: "/account/support", storageKey: "azm-live-chat", topics: supportCategoriesFor("CUSTOMER").map((key) => ({ key, label: SUPPORT_CATEGORIES[key].label })) }} />
       </body>

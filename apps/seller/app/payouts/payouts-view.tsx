@@ -52,7 +52,7 @@ function BankForm({ onSaved, onCancel }: { onSaved: (bank: Bank) => void; onCanc
         {onCancel ? <button type="button" onClick={onCancel} className="h-11 rounded-full px-4 text-sm font-semibold ring-1 ring-slate-300">Cancel</button> : null}
       </div>
       {error ? <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2">{error}</p> : null}
-      <p className="text-[11px] text-slate-500 sm:col-span-2">The name should match your business or the bank proof in your KYC. AzadiMart verifies new accounts before sending money; your account number is stored encrypted.</p>
+      <p className="text-[11px] text-slate-500 sm:col-span-2">The name should match your business or the bank proof in your KYC. LOIMART verifies new accounts before sending money; your account number is stored encrypted.</p>
     </form>
   );
 }
@@ -60,7 +60,7 @@ function BankForm({ onSaved, onCancel }: { onSaved: (bank: Bank) => void; onCanc
 function BreakdownRows({ b }: { b: Breakdown }) {
   return (
     <span className="block text-[11px] leading-5 text-slate-500">
-      {b.sellerDiscountPaise ? <span className="text-brand-700">AzadiMart coupon (your share) {money(b.sellerDiscountPaise)} · </span> : null}
+      {b.sellerDiscountPaise ? <span className="text-brand-700">LOIMART coupon (your share) {money(b.sellerDiscountPaise)} · </span> : null}
       {b.commissionRateBps ? `Commission ${b.commissionRateBps / 100}% ${money(b.commissionPaise)} + GST ${money(b.gstOnCommissionPaise)}` : "No commission"}
       {b.tcsPaise ? ` · TCS ${money(b.tcsPaise)}` : ""}{b.tdsPaise ? ` · TDS ${money(b.tdsPaise)}` : ""}
     </span>
@@ -103,13 +103,13 @@ export default function PayoutsView() {
       <div className={"rounded-2xl border p-4 sm:p-5 " + (commission.isFreeNow ? "border-green-200 bg-gradient-to-r from-green-50 to-white" : "border-slate-200 bg-white")}>
         {commission.isFreeNow ? (
           <><p className="font-semibold text-green-900">No commission{commission.freeUntil ? ` until ${date(commission.freeUntil)}` : " during your first 3 months"}</p>
-            <p className="mt-0.5 text-sm text-green-800">Your first 3 months on AzadiMart are free: you keep your full sale price, minus only the taxes the law requires (TCS and TDS). After that, commission is {commission.rateBps / 100}% per order.</p></>
+            <p className="mt-0.5 text-sm text-green-800">Your first 3 months on LOIMART are free: you keep your full sale price, minus only the taxes the law requires (TCS and TDS). After that, commission is {commission.rateBps / 100}% per order.</p></>
         ) : (
           <><p className="font-semibold">Commission: {commission.rateBps / 100}% per order</p>
             <p className="mt-0.5 text-sm text-slate-600">Plus 18% GST on the commission. Your free period ended{commission.freeUntil ? ` on ${date(commission.freeUntil)}` : ""}. Orders placed during it stay commission-free.</p></>
         )}
       </div>
-      {data.holdReason ? <p role="status" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><b>Payments are on hold.</b> {data.holdReason} Contact AzadiMart seller support.</p> : null}
+      {data.holdReason ? <p role="status" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><b>Payments are on hold.</b> {data.holdReason} Contact LOIMART seller support.</p> : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Sent to your bank (30 days)" value={money(summary.paid30dPaise)} icon="payouts" tone="good" />
@@ -124,7 +124,7 @@ export default function PayoutsView() {
           {bank && !editingBank ? <button type="button" onClick={() => setEditingBank(true)} className="text-xs font-semibold text-brand-600">Change account</button> : null}
         </div>
         {!bank || editingBank ? (
-          <>{!bank ? <p className="mt-1 text-sm text-slate-600">Add the bank account where AzadiMart should send your money.</p> : null}
+          <>{!bank ? <p className="mt-1 text-sm text-slate-600">Add the bank account where LOIMART should send your money.</p> : null}
             <BankForm onSaved={(b) => { setEditingBank(false); setData((d) => (d ? { ...d, bankAccount: b } : d)); void load(); }} onCancel={bank ? () => setEditingBank(false) : undefined} /></>
         ) : (
           <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -132,7 +132,7 @@ export default function PayoutsView() {
             <span className="text-sm text-slate-600">{bank.accountHolderName} · {bank.ifsc}</span>
             <span className={"rounded-full px-2.5 py-1 text-[11px] font-bold " + BANK_STATUS[bank.status].tone}>{BANK_STATUS[bank.status].label}</span>
             {bank.status === "REJECTED" && bank.rejectionReason ? <p className="w-full text-sm text-red-700">{bank.rejectionReason}. Please add a correct account.</p> : null}
-            {bank.status === "PENDING" ? <p className="w-full text-xs text-slate-500">AzadiMart checks it against your bank proof, usually within 1 working day. Payments wait until then.</p> : null}
+            {bank.status === "PENDING" ? <p className="w-full text-xs text-slate-500">LOIMART checks it against your bank proof, usually within 1 working day. Payments wait until then.</p> : null}
           </div>
         )}
       </section>

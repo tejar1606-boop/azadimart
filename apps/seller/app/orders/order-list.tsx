@@ -27,7 +27,7 @@ type Order = {
 };
 
 const CANCEL_REASONS = ["Out of stock", "Product damaged or defective", "Can't ship to this address", "Price or listing error", "Other"] as const;
-const CANCELLED_BY: Record<string, string> = { CUSTOMER: "the customer", SELLER: "you", ADMIN: "AzadiMart", SYSTEM: "AzadiMart (not shipped in time)" };
+const CANCELLED_BY: Record<string, string> = { CUSTOMER: "the customer", SELLER: "you", ADMIN: "LOIMART", SYSTEM: "LOIMART (not shipped in time)" };
 const shortDate = (iso: string) => new Date(iso).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
 /** "Ship by" chip: green with time left, amber on the last day, red when late. */
@@ -120,7 +120,7 @@ export default function OrderList() {
       const response = await fetch(`/api/v1/orders/${cancelling.id}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: cancelReason, note: cancelNote.trim() || undefined }) });
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error?.message ?? "Could not cancel the order.");
-      setNotice(body.outcome === "REQUESTED" ? `Cancellation requested for ${cancelling.orderNumber}. AzadiMart will review it because the order includes other sellers' items.` : `${cancelling.orderNumber} was cancelled and the stock released.`);
+      setNotice(body.outcome === "REQUESTED" ? `Cancellation requested for ${cancelling.orderNumber}. LOIMART will review it because the order includes other sellers' items.` : `${cancelling.orderNumber} was cancelled and the stock released.`);
       setCancelling(null); setCancelNote("");
       await reload();
       router.refresh();
@@ -255,7 +255,7 @@ export default function OrderList() {
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="cancel-title">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-lift">
             <h2 id="cancel-title" className="text-lg font-semibold">{cancelling.sharedWithOtherSellers ? "Request cancellation" : "Cancel order"} {cancelling.orderNumber}?</h2>
-            <p className="mt-1 text-sm text-slate-500">{cancelling.sharedWithOtherSellers ? "This order also has other sellers' items, so AzadiMart will review your request." : "The customer is told the reason and the stock is released. Cancellations lower your seller rating, so use this only when you really can't ship."}</p>
+            <p className="mt-1 text-sm text-slate-500">{cancelling.sharedWithOtherSellers ? "This order also has other sellers' items, so LOIMART will review your request." : "The customer is told the reason and the stock is released. Cancellations lower your seller rating, so use this only when you really can't ship."}</p>
             <fieldset className="mt-4 space-y-2">
               <legend className="text-sm font-medium">Reason</legend>
               {CANCEL_REASONS.map((r) => <label key={r} className="flex items-center gap-2 text-sm"><input type="radio" name="cancel-reason" checked={cancelReason === r} onChange={() => setCancelReason(r)} />{r}</label>)}
@@ -369,7 +369,7 @@ export default function OrderList() {
                       {working === item.id ? "Creating…" : "Create shipment"}
                     </button>
                     {item.cancelRequestedByMe ? (
-                      <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">Cancellation requested · awaiting AzadiMart</span>
+                      <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">Cancellation requested · awaiting LOIMART</span>
                     ) : (
                       <button type="button" disabled={working === item.id} onClick={() => { setCancelling(item); setCancelReason("Out of stock"); setCancelNote(""); }} className="rounded-full px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50">
                         {item.sharedWithOtherSellers ? "Request cancellation" : "Cancel order"}

@@ -12,8 +12,8 @@ import { SUPPORT_CATEGORIES, supportCategoriesFor } from "@azadimart/shared";
 const poppins = Poppins({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: { default: "AzadiMart Seller Centre", template: "%s · AzadiMart Seller Centre" },
-  description: "Sell on AzadiMart",
+  title: { default: "LOIMART Seller Centre", template: "%s · LOIMART Seller Centre" },
+  description: "Sell on LOIMART",
 };
 
 /** Store name, status and attention counts for the signed-in seller's sidebar. */

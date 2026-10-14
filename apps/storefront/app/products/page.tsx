@@ -10,7 +10,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   const { q } = await searchParams;
   return {
     title: q ? `Results for “${q.slice(0, 60)}”` : "Shop all products online",
-    description: "Browse all products from KYC-verified Indian sellers on AzadiMart: fashion, home & kitchen, beauty, electronics and more. Cash on Delivery and easy returns.",
+    description: "Browse all products from KYC-verified Indian sellers on LOIMART: fashion, home & kitchen, beauty, electronics and more. Cash on Delivery and easy returns.",
     alternates: { canonical: "/products" },
     robots: q ? { index: false, follow: true } : undefined,
   };

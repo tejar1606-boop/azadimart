@@ -177,7 +177,7 @@ check("payouts, holds and bank checks audited", ["PAYOUT_PAID", "PAYOUTS_HELD", 
 
 // --- access
 check("payout job refuses callers without the secret", (await anon("/api/cron/payouts", { method: "POST" })).status === 401);
-check("sellers can't see AzadiMart finance", [401, 403].includes((await seller(`${AD}/api/v1/payouts`)).status));
+check("sellers can't see LOIMART finance", [401, 403].includes((await seller(`${AD}/api/v1/payouts`)).status));
 check("sellers can't approve payouts or verify their own bank", [401, 403].includes((await seller(`${AD}/api/v1/payouts/${p1.id}`, { method: "POST", body: { action: "APPROVE" } })).status) && [401, 403].includes((await seller(`${AD}/api/v1/sellers/${me.id}/bank-account`, { method: "POST", body: { decision: "VERIFIED" } })).status));
 check("customers can't see seller payments", [401, 403].includes((await shop(`${SE}/api/v1/payouts`)).status));
 const [otherPayout] = await sql`select id from payouts where seller_id <> ${me.id} limit 1`;

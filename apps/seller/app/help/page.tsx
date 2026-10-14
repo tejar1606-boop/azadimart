@@ -6,7 +6,7 @@ export const metadata = { title: "Help & support" };
 
 const TOPICS: Array<{ title: string; items: Array<[string, React.ReactNode]> }> = [
   { title: "Getting started", items: [
-    ["How do I start selling?", <>Complete <Link href="/kyc" className="font-semibold text-brand-600">KYC</Link> (PAN, bank proof, address proof and GST or Enrolment ID). Once AzadiMart approves it, add products. Each product is quality-checked before it goes live.</>],
+    ["How do I start selling?", <>Complete <Link href="/kyc" className="font-semibold text-brand-600">KYC</Link> (PAN, bank proof, address proof and GST or Enrolment ID). Once LOIMART approves it, add products. Each product is quality-checked before it goes live.</>],
     ["I don't have GST. Can I sell?", "Yes. Register with a free GST Enrolment ID. You can sell to customers in your own state; add a GSTIN later to sell across India."],
   ] },
   { title: "Listing products", items: [

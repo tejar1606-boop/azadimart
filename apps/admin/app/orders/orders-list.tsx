@@ -36,7 +36,7 @@ type Order = {
 type Request = { id: string; orderNumber: string; cancelRequestReason: string | null; sellers: string[] };
 type Result = { items: Order[]; total: number; page: number; pages: number; counts: Record<string, number>; requests: Request[] };
 
-const CANCELLED_BY: Record<string, string> = { CUSTOMER: "the customer", SELLER: "the seller", ADMIN: "AzadiMart", SYSTEM: "AzadiMart (not shipped in time)" };
+const CANCELLED_BY: Record<string, string> = { CUSTOMER: "the customer", SELLER: "the seller", ADMIN: "LOIMART", SYSTEM: "LOIMART (not shipped in time)" };
 const OPEN = ["CREATED", "PAYMENT_PENDING", "PAID", "CONFIRMED", "PACKED"];
 const TABS: Array<[string, string]> = [["ALL", "All"], ["LATE", "Late to ship"], ["CONFIRMED", "To pack"], ["PACKED", "Packed"], ["SHIPPED", "Shipped"], ["OUT_FOR_DELIVERY", "Out for delivery"], ["DELIVERED", "Delivered"], ["CANCELLED", "Cancelled"], ["RETURNED", "Returned"]];
 const MORE_STATUSES: Array<[string, string]> = [["CREATED", "Created"], ["PAYMENT_PENDING", "Payment pending"], ["PAID", "Paid"]];

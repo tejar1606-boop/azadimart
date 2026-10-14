@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 type Alert = { id: string; kind: string; title: string; body: string | null; href: string | null; createdAt: string };
 
 const POLL_MS = 30_000;
-const BASE_TITLE = "AzadiMart Seller Hub";
+const BASE_TITLE = "LOIMART Seller Hub";
 
 /** Short two-tone chime (no audio file); browsers may block it until the seller has clicked the page once. */
 function chime() {

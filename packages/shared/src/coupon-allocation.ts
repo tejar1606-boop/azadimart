@@ -6,7 +6,7 @@
  * at least that much off (percentage coupons) or any coupon at all (fixed
  * amounts, capped per line at the allowed percentage). That discount is the
  * seller's share and comes out of their payout. A single seller's own
- * coupon (SELLER) is also paid by that seller. AzadiMart coupons cost
+ * coupon (SELLER) is also paid by that seller. LOIMART coupons cost
  * sellers nothing.
  */
 export type CouponScope = { productIds?: string[]; categoryIds?: string[]; sellerIds?: string[] };

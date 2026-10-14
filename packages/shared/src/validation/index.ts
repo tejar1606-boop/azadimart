@@ -49,7 +49,7 @@ export const specRowsSchema = z.array(z.object({
   label: z.string().trim().min(1, "Every row needs a label").max(60, "Keep labels under 60 characters"),
   value: z.string().trim().min(1, "Every row needs a value").max(500, "Keep each value under 500 characters"),
 })).max(40, "Add up to 40 specification rows").default([]);
-/** Choices sellers get for "AzadiMart coupons may take up to …% off" (0 = not in coupons). */
+/** Choices sellers get for "LOIMART coupons may take up to …% off" (0 = not in coupons). */
 export const COUPON_DISCOUNT_CHOICES = [0, 5, 10, 15, 20, 25, 30, 40, 50] as const;
 const couponMaxDiscountPct = z.number().int().min(0).max(90);
 export const productCouponLimitSchema = z.object({ couponMaxDiscountPct });
@@ -330,6 +330,6 @@ export const sellerBankAccountSchema = z.object({
   ifsc: z.string().trim().toUpperCase().refine((v) => /^[A-Z]{4}0[A-Z0-9]{6}$/.test(v), "Enter a valid 11-character IFSC, e.g. HDFC0001234"),
 }).refine((v) => v.accountNumber === v.confirmAccountNumber, { message: "Account numbers don't match", path: ["confirmAccountNumber"] });
 
-/** "More to explore" on a product page: products chosen by AzadiMart, in order (the rest fills automatically). */
+/** "More to explore" on a product page: products chosen by LOIMART, in order (the rest fills automatically). */
 export const MAX_RELATED_PRODUCTS = 8;
 export const productRelatedSchema = z.object({ productIds: z.array(uuidSchema).max(MAX_RELATED_PRODUCTS, `Choose up to ${MAX_RELATED_PRODUCTS} products`) });

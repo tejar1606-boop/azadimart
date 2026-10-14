@@ -19,7 +19,7 @@ export const AD_PLACEMENT_LABELS: Record<AdPlacement, string> = {
 /** Only the home page banner needs a banner image; product placements show the product card. */
 export const adNeedsBanner = (placement: string) => placement === "HOME_HERO";
 
-/** AzadiMart's ad fee carries 18% GST (confirm with the CA). */
+/** LOIMART's ad fee carries 18% GST (confirm with the CA). */
 export const AD_GST_BPS = 1800;
 export function adChargeFor(basePaise: number) {
   const gstPaise = Math.round((basePaise * AD_GST_BPS) / 10_000);

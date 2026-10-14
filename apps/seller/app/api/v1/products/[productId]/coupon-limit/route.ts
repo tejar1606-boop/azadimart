@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 /**
- * The most AzadiMart coupons may take off this product (paid from the
+ * The most LOIMART coupons may take off this product (paid from the
  * seller's payout). 0 takes it out of seller-paid coupons. Applies to new
  * orders straight away; orders already placed keep their discount.
  */

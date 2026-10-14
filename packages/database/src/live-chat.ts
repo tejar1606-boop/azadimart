@@ -361,7 +361,7 @@ export async function agentLiveTransfer(db: Database, agentUserId: string, chatI
 export async function agentLiveEnd(db: Database, agentUserId: string, chatId: string) {
   await assignedChat(db, agentUserId, chatId);
   await db.update(liveChats).set({ status: "ENDED", endedAt: new Date(), endedBy: "AGENT", endReason: "RESOLVED", updatedAt: new Date() }).where(eq(liveChats.id, chatId));
-  await system(db, chatId, "The agent ended the chat. Thanks for chatting with AzadiMart!");
+  await system(db, chatId, "The agent ended the chat. Thanks for chatting with LOIMART!");
 }
 
 export async function agentLiveToTicket(db: Database, agentUserId: string, chatId: string, note: string) {

@@ -4,7 +4,7 @@ import { AppError, adSlotClosedDaysSchema, toApiError, uuidSchema } from "@azadi
 import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-/** Take days off sale (e.g. for AzadiMart's own sale banner) or put them back. Booked days can't be closed. */
+/** Take days off sale (e.g. for LOIMART's own sale banner) or put them back. Booked days can't be closed. */
 export async function POST(request: Request, { params }: { params: Promise<{ slotId: string }> }) {
   const requestId = crypto.randomUUID();
   try {

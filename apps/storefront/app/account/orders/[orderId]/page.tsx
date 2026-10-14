@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 
 type Item={id:string;sellerName:string;title:string;sku:string;quantity:number;unitPricePaise:number;productSlug?:string};
 type Order={orderNumber:string;status:string;subtotalPaise:number;discountPaise:number;shippingPaise:number;grandTotalPaise:number;couponCode:string|null;shippingAddressSnapshot:{name?:string|null;phone?:string|null;line1:string;line2?:string|null;city:string;state:string;postalCode:string;country:string};createdAt:string;paymentStatus:string|null;paymentMethod?:string|null;cancelledBy?:string|null;cancellationReason?:string|null;items:Item[]};
-const CANCELLED_BY:Record<string,string>={CUSTOMER:"You cancelled this order",SELLER:"The seller cancelled this order",ADMIN:"AzadiMart cancelled this order",SYSTEM:"Cancelled because the seller didn't ship in time"};
+const CANCELLED_BY:Record<string,string>={CUSTOMER:"You cancelled this order",SELLER:"The seller cancelled this order",ADMIN:"LOIMART cancelled this order",SYSTEM:"Cancelled because the seller didn't ship in time"};
 type Tracking={shipmentId:string;sellerId:string;status:string;awb:string|null;providerShipmentId:string|null;events:{id:string;status:string;description:string|null;createdAt:string}[]};
 // What a shopper cares about. Payment is shown on its own (Cash on Delivery is paid at the door).
 const STEPS=[{key:"PLACED",label:"Order placed"},{key:"PACKED",label:"Packed"},{key:"SHIPPED",label:"Shipped"},{key:"OUT_FOR_DELIVERY",label:"Out for delivery"},{key:"DELIVERED",label:"Delivered"}] as const;

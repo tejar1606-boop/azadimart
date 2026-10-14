@@ -57,7 +57,7 @@ export default function LoginPage() {
         <button className="mt-6 w-full rounded-full bg-brand px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-60" type="submit" disabled={loading || Boolean(siteKey && !captchaToken)}>
           {loading ? "Signing in…" : "Sign in"}
         </button>
-        <p className="mt-6 text-center text-sm text-slate-500">New to AzadiMart? <a href="/register" className="font-semibold text-brand-600 hover:underline">Register as a seller</a></p>
+        <p className="mt-6 text-center text-sm text-slate-500">New to LOIMART? <a href="/register" className="font-semibold text-brand-600 hover:underline">Register as a seller</a></p>
       </form>
     </PortalAuthLayout>
   );

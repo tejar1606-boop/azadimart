@@ -2,7 +2,7 @@
   "name": "azadimart",
   "private": true,
   "version": "0.1.0",
-  "description": "AzadiMart — Indian multi-vendor marketplace monorepo",
+  "description": "LOIMART — Indian multi-vendor marketplace monorepo",
   "packageManager": "pnpm@9.15.9",
   "engines": {
     "node": ">=22"

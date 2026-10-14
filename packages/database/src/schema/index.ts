@@ -1,4 +1,4 @@
-// AzadiMart database schema source of truth.
+// LOIMART database schema source of truth.
 export * from "./enums";
 export * from "./identity";
 export * from "./sellers";

@@ -73,14 +73,14 @@ export const adBids = pgTable("ad_bids", {
   uniqueIndex("ad_bids_one_top").on(t.slotId, t.day).where(sql`status = 'ACTIVE'`),
 ]);
 
-/** Money a seller owes AzadiMart (ads), taken from their next payouts. */
+/** Money a seller owes LOIMART (ads), taken from their next payouts. */
 export const sellerCharges = pgTable("seller_charges", {
   id,
   sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "cascade" }),
   kind: text("kind").$type<"AD">().notNull(),
   referenceId: uuid("reference_id").notNull(),
   description: text("description").notNull(),
-  // amount = base + GST (18% on AzadiMart's ad fee).
+  // amount = base + GST (18% on LOIMART's ad fee).
   basePaise: integer("base_paise").notNull().default(0),
   gstPaise: integer("gst_paise").notNull().default(0),
   amountPaise: integer("amount_paise").notNull(),

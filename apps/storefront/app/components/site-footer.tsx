@@ -19,7 +19,7 @@ export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
         <FooterBackdrop />
         <div className="relative mx-auto max-w-[1440px] px-5 pb-8 pt-14 sm:px-8 lg:px-20 lg:pt-20">
           <div className="grid gap-12 lg:grid-cols-[1.25fr_1fr_1.35fr_1.15fr] lg:gap-10">
-            <Link href="/" aria-label="AzadiMart home" className="block text-[44px] font-bold leading-none tracking-[-0.04em] sm:text-[56px]"><span className="text-[#FF9933]">Azadi</span><span className="text-[#4cc94a]">Mart</span></Link>
+            <Link href="/" aria-label="LOIMART home" className="block text-[44px] font-bold leading-none tracking-[-0.04em] sm:text-[56px]"><span className="text-[#FF9933]">LOI</span><span className="text-[#4cc94a]">MART</span></Link>
 
             <div className="text-[15px] leading-6 text-white/85">
               <p className="font-semibold text-white">Need assistance?</p>
@@ -32,7 +32,7 @@ export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
               ) : null}
               <p className="mt-1">Track, cancel or return an order from <Link href="/account" className="font-semibold text-white underline underline-offset-2">My orders</Link>. Pay by Cash on Delivery, with easy 7-day returns.</p>
               <OpenHelpChatButton mode="live" className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-navy transition hover:bg-brand-50"><span className="h-2 w-2 rounded-full bg-[#22c55e]" aria-hidden />Chat with us live</OpenHelpChatButton>
-              <p className="mt-5"><span className="font-semibold text-white/90">Want to sell on AzadiMart?</span> <a href={SELLER_URL + "/register"} className="font-semibold text-white underline underline-offset-2">Register as a seller</a> or <a href={SELLER_URL + "/login"} className="font-semibold text-white underline underline-offset-2">sign in</a>.</p>
+              <p className="mt-5"><span className="font-semibold text-white/90">Want to sell on LOIMART?</span> <a href={SELLER_URL + "/register"} className="font-semibold text-white underline underline-offset-2">Register as a seller</a> or <a href={SELLER_URL + "/login"} className="font-semibold text-white underline underline-offset-2">sign in</a>.</p>
             </div>
 
             <nav aria-label="Footer" className="grid grid-cols-2 content-start gap-x-8 gap-y-4 text-[15px] text-white/80">
@@ -44,12 +44,12 @@ export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
             <div className="text-[15px] leading-6 text-white/80">
               <p className="font-semibold text-white">#ShopIndia</p>
               <p className="mt-1">We believe the best of India is made by people you can trust: weavers, cooks, makers and small businesses in every corner of the country.</p>
-              <p className="mt-4">AzadiMart gives them a fair, modern shop window. Every seller is KYC-verified and every product is quality-checked, so you can shop with confidence and pay when it arrives.</p>
+              <p className="mt-4">LOIMART gives them a fair, modern shop window. Every seller is KYC-verified and every product is quality-checked, so you can shop with confidence and pay when it arrives.</p>
               <p className="mt-4">Shop India. Support Indian sellers.</p>
             </div>
           </div>
 
-          <div className="mt-16 border-t border-white/25 pt-6 lg:mt-24 text-[15px] text-white/75">© {new Date().getFullYear()} AzadiMart. All rights reserved.</div>
+          <div className="mt-16 border-t border-white/25 pt-6 lg:mt-24 text-[15px] text-white/75">© {new Date().getFullYear()} LOIMART. All rights reserved.</div>
         </div>
       </div>
     </footer>

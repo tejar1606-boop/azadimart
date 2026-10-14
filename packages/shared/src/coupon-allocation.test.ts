@@ -27,7 +27,7 @@ describe("coupons paid by sellers", () => {
     expect((a.perLine.get("a") ?? 0) + (a.perLine.get("b") ?? 0)).toBe(6_000);
     expect(a.perLine.get("a")).toBe(4_000);
   });
-  it("AzadiMart coupons ignore the seller limit and cost sellers nothing", () => {
+  it("LOIMART coupons ignore the seller limit and cost sellers nothing", () => {
     const a = allocateCoupon(coupon({ fundingType: "AZADIMART", discountValue: 20 }), [line("a", 100_000, 0)]);
     expect(a.discountPaise).toBe(20_000);
     expect(a.sellerFunded).toBe(false);

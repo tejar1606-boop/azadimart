@@ -19,7 +19,7 @@ const BLOCK_LABELS: Record<Block["type"], string> = {
 
 const STATUS: Record<string, { label: string; tone: string }> = {
   DRAFT: { label: "Draft — not submitted", tone: "bg-slate-100 text-slate-700" },
-  PENDING_REVIEW: { label: "Waiting for AzadiMart review", tone: "bg-amber-50 text-amber-800" },
+  PENDING_REVIEW: { label: "Waiting for LOIMART review", tone: "bg-amber-50 text-amber-800" },
   APPROVED: { label: "Approved — live on the product page", tone: "bg-green-50 text-green-700" },
   REJECTED: { label: "Changes requested", tone: "bg-red-50 text-red-700" },
 };
@@ -97,7 +97,7 @@ export default function AplusEditor({ productId }: { productId: string }) {
       const response = await fetch(`/api/v1/products/${productId}/aplus/submit`, { method: "POST" });
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error?.message ?? "Could not submit");
-      setStatus("PENDING_REVIEW"); setMessage("Submitted. AzadiMart will review it shortly.");
+      setStatus("PENDING_REVIEW"); setMessage("Submitted. LOIMART will review it shortly.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not submit");
     } finally { setBusy(false); }

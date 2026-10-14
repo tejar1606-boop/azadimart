@@ -23,7 +23,7 @@ function defaults(type:string){
   // Mid-page banner rows are usually a desktop feature (like Meesho); start them desktop-only with two empty banners.
   if(type==="banner_row") return {heading:"",showOn:"desktop",banners:[{},{}]};
   if(type==="category_showcase") return {theme:"saffron",buttonLabel:"View all",showOn:"all"};
-  if(type==="sponsored_products") return {heading:"Sponsored picks",subtitle:"Featured by AzadiMart sellers",limit:10};
+  if(type==="sponsored_products") return {heading:"Sponsored picks",subtitle:"Featured by LOIMART sellers",limit:10};
   return DEFAULT_HOME_SECTIONS.find((s)=>s.type===type)?.settings ?? {heading:LABELS[type] ?? "New section"};
 }
 const SHOW_ON_LABEL: Record<string,string> = { all:"All devices", desktop:"Desktop only", mobile:"Mobile only" };
@@ -211,7 +211,7 @@ function Preview({section,device,categoryName}:{section:Row;device:"desktop"|"ph
   }
   if(section.type==="image_banner"){
     const img=str2(s.imageUrl);
-    return <div className={"grid "+(phone?"":"grid-cols-2")}><div className="bg-gradient-to-br from-brand-500 to-brand-600 p-3 text-white"><p className="text-[8px] uppercase tracking-[0.16em] opacity-80">{str2(s.eyebrow)||"Why AzadiMart"}</p><p className="mt-1 text-sm font-bold leading-tight">{str2(s.heading)||"Shopping you can trust."}</p><span className="mt-2 inline-block rounded-full bg-white px-2 py-0.5 text-[9px] font-semibold text-slate-900">{str2(s.buttonLabel)||"Start shopping"}</span></div>{img?<div className={"bg-cover bg-center "+(phone?"aspect-[4/3]":"min-h-24")} style={bg(img)}/>:<div className="grid grid-cols-2 gap-px bg-slate-200">{Array.from({length:4}).map((_,i)=><div key={i} className="min-h-10 bg-[#eff0f3]"/>)}</div>}</div>;
+    return <div className={"grid "+(phone?"":"grid-cols-2")}><div className="bg-gradient-to-br from-brand-500 to-brand-600 p-3 text-white"><p className="text-[8px] uppercase tracking-[0.16em] opacity-80">{str2(s.eyebrow)||"Why LOIMART"}</p><p className="mt-1 text-sm font-bold leading-tight">{str2(s.heading)||"Shopping you can trust."}</p><span className="mt-2 inline-block rounded-full bg-white px-2 py-0.5 text-[9px] font-semibold text-slate-900">{str2(s.buttonLabel)||"Start shopping"}</span></div>{img?<div className={"bg-cover bg-center "+(phone?"aspect-[4/3]":"min-h-24")} style={bg(img)}/>:<div className="grid grid-cols-2 gap-px bg-slate-200">{Array.from({length:4}).map((_,i)=><div key={i} className="min-h-10 bg-[#eff0f3]"/>)}</div>}</div>;
   }
   if(section.type==="marquee") return <div className="overflow-hidden bg-black px-4 py-3 text-[11px] font-medium uppercase tracking-[0.12em] text-white">{(Array.isArray(s.items)&&s.items.length?s.items:["Cash on Delivery available","KYC-verified sellers","Easy 7-day returns"]).filter((v):v is string=>typeof v==="string").join("  ✦  ")}</div>;
   if(section.type==="trust_strip") return <div className="grid grid-cols-2 border-y bg-white p-3">{(Array.isArray(s.items)?s.items:[]).filter((v):v is string=>typeof v==="string").slice(0,4).map((item)=><div key={item} className="p-2 text-center text-[10px] font-semibold text-slate-700">{item.split("|")[0]}</div>)}</div>;
@@ -230,7 +230,7 @@ function HomepageSeo({seo,onChange}:{seo:Record<string,unknown>;onChange:(key:st
     <p className="mt-1 text-xs text-slate-500">How the homepage appears on Google and when shared. Save and publish to apply.</p>
     <div className="mt-3">
       <SeoFields title={text("title")} description={text("description")} onTitle={(v)=>onChange("title",v)} onDescription={(v)=>onChange("description",v)}
-        autoTitle="AzadiMart — Online shopping from verified Indian sellers"
+        autoTitle="LOIMART — Online shopping from verified Indian sellers"
         autoDescription="Shop fashion, home & kitchen, beauty, electronics and more from KYC-verified Indian sellers. Quality-checked products, Cash on Delivery and easy returns across India."
         path="/" siteSuffix={false}/>
     </div>

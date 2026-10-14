@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     if (!row) return { title: "Product not found", robots: { index: false } };
     const price = "₹" + (row.pricePaise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
     const title = row.metaTitle?.trim() || `${row.title} – Buy online at ${price}`;
-    const description = clip(row.metaDescription?.trim() || `Buy ${row.title} for ${price} from ${row.sellerName}, a verified seller on AzadiMart. ${clip(row.description || (row.specifications ?? []).slice(0, 4).map((r) => `${r.label}: ${r.value}`).join(", "), 90)} Cash on Delivery and easy returns.`);
+    const description = clip(row.metaDescription?.trim() || `Buy ${row.title} for ${price} from ${row.sellerName}, a verified seller on LOIMART. ${clip(row.description || (row.specifications ?? []).slice(0, 4).map((r) => `${r.label}: ${r.value}`).join(", "), 90)} Cash on Delivery and easy returns.`);
     const image = row.imageKey ? absoluteUrl("/media/" + row.imageKey) : undefined;
     return {
       title,
@@ -68,7 +68,7 @@ function onePerProduct<T extends { id: string; pricePaise: number; mediaStorageK
 const RELATED_LIMIT = 8;
 
 /**
- * "More to explore": products chosen by AzadiMart for this product first (in
+ * "More to explore": products chosen by LOIMART for this product first (in
  * their order), then the same category, then related categories (parent,
  * sister and sub-categories), then popular products, up to 8 live products.
  */

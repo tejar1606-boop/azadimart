@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { requireAdSeller } from "../../seller";
 import { checkAdContent } from "../check";
 
-/** Edit an ad. Any change goes back to AzadiMart for review. The ad space can't change once created. */
+/** Edit an ad. Any change goes back to LOIMART for review. The ad space can't change once created. */
 export async function PUT(request: Request, { params }: { params: Promise<{ campaignId: string }> }) {
   const requestId = crypto.randomUUID();
   try {

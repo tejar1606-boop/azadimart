@@ -6,9 +6,9 @@ import { type FormEvent, useEffect, useState } from "react";
 import type { StoreChrome } from "../lib/chrome";
 import { BagIcon, CloseIcon, HeartIcon, MenuIcon, SearchIcon, UserIcon } from "./icons";
 
-/** Brand name in the tricolour palette: saffron "Azadi", India green "Mart". */
+/** Brand name in the tricolour palette: saffron "LOI", India green "MART". */
 export function Wordmark({ className = "" }: { className?: string }) {
-  return <span className={"font-bold tracking-[-0.04em] " + className}><span className="text-brand">Azadi</span><span className="text-india">Mart</span></span>;
+  return <span className={"font-bold tracking-[-0.04em] " + className}><span className="text-brand">LOI</span><span className="text-india">MART</span></span>;
 }
 
 /** Thin saffron · white · green ribbon used on the header, banner and footer (colours only, not the flag). */
@@ -102,7 +102,7 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
             <button type="button" onClick={() => setMenuOpen(true)} className={iconButton + " -ml-2 mr-1 lg:hidden"} aria-label="Open menu">
               <MenuIcon />
             </button>
-            <Link href="/" className="text-[22px] leading-none lg:text-[26px]" aria-label="AzadiMart home"><Wordmark /></Link>
+            <Link href="/" className="text-[22px] leading-none lg:text-[26px]" aria-label="LOIMART home"><Wordmark /></Link>
           </div>
           <SearchForm className="hidden w-full max-w-2xl md:block" />
           <nav aria-label="Account" className="ml-auto flex items-center justify-end gap-0.5 sm:gap-1">

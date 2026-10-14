@@ -2,7 +2,7 @@
 
 ## Current state
 
-AzadiMart has provider-agnostic interfaces for payments and logistics. The checkout foundation currently supports **Cash on Delivery** only. Razorpay and Cashfree are intentionally unconfigured until their official API credentials and integration documentation are supplied.
+LOIMART has provider-agnostic interfaces for payments and logistics. The checkout foundation currently supports **Cash on Delivery** only. Razorpay and Cashfree are intentionally unconfigured until their official API credentials and integration documentation are supplied.
 
 Logistics currently supports a **manual shipment workflow** for development and operations testing. Shiprocket, Delhivery, and Shadowfax remain unconfigured until provider credentials, pickup-address requirements, serviceability rules, webhook specifications, and production API details are supplied.
 

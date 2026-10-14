@@ -220,7 +220,7 @@ export default function CategoriesPage() {
                 onTitle={(v) => setSeo({ ...seo, metaTitle: v })}
                 onDescription={(v) => setSeo({ ...seo, metaDescription: v })}
                 autoTitle={`${seo.name} – Shop online in India`}
-                autoDescription={seo.description.slice(0, 158) || `Shop ${seo.name} online from KYC-verified Indian sellers on AzadiMart. Quality-checked products, best prices, Cash on Delivery and easy returns.`}
+                autoDescription={seo.description.slice(0, 158) || `Shop ${seo.name} online from KYC-verified Indian sellers on LOIMART. Quality-checked products, best prices, Cash on Delivery and easy returns.`}
                 path={"/c/" + seo.slug}
               />
             </div>

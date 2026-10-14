@@ -216,7 +216,7 @@ function WriteReview({ productId, slug, productTitle }: { productId: string; slu
         throw new Error(detail || result?.error?.message || "Could not save your review.");
       }
       setOpen(false);
-      setMessage(result.review?.status === "HIDDEN" ? "Saved. Your review is currently hidden by AzadiMart." : "Thank you! Your review is live.");
+      setMessage(result.review?.status === "HIDDEN" ? "Saved. Your review is currently hidden by LOIMART." : "Thank you! Your review is live.");
       await load();
       router.refresh();
     } catch (err) {

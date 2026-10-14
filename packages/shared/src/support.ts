@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Help & support: customers and sellers chat with the AzadiMart assistant,
+ * Help & support: customers and sellers chat with the LOIMART assistant,
  * and can hand the conversation to a person, which opens a ticket. The
  * support team works tickets in the admin portal.
  */

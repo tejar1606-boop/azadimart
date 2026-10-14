@@ -212,7 +212,7 @@ export function LiveChat({ apiBase, topics, ticketsPath, storageKey, onBack }: L
         <span className={"grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-semibold uppercase " + (status === "ACTIVE" ? "bg-navy text-white" : "bg-slate-100 text-slate-500")}>{chat?.agentName ? chat.agentName.slice(0, 2) : "…"}</span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{status === "ACTIVE" ? chat?.agentName : status === "ENDED" ? "Chat ended" : "Connecting you to an agent…"}</p>
-          <p className="truncate text-xs text-slate-500">{status === "ACTIVE" ? (chat?.agentTyping ? "typing…" : "AzadiMart support · online") : status === "WAITING" ? (chat?.position ? `You're #${chat.position} in line · ${waitText(chat.waitSeconds).toLowerCase()}` : "One moment…") : "Thanks for chatting with us"}</p>
+          <p className="truncate text-xs text-slate-500">{status === "ACTIVE" ? (chat?.agentTyping ? "typing…" : "LOIMART support · online") : status === "WAITING" ? (chat?.position ? `You're #${chat.position} in line · ${waitText(chat.waitSeconds).toLowerCase()}` : "One moment…") : "Thanks for chatting with us"}</p>
         </div>
         {status !== "ENDED" ? <button type="button" onClick={() => { if (confirm("End this chat?")) void post(`/${chatId}/end`).then(() => setChat((c) => c && { ...c, status: "ENDED" })).catch(() => undefined); }} className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-600 ring-1 ring-red-200 hover:bg-red-50">End</button> : null}
       </div>

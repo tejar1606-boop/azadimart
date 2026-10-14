@@ -1,7 +1,7 @@
 import { AppError } from "@azadimart/shared";
 
 /**
- * Aadhaar OTP verification through a UIDAI-licensed provider. AzadiMart never
+ * Aadhaar OTP verification through a UIDAI-licensed provider. LOIMART never
  * stores the Aadhaar number: it goes straight to the provider, which sends an
  * OTP to the Aadhaar-linked mobile and returns the holder's details.
  *

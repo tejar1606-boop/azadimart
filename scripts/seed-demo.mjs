@@ -103,7 +103,7 @@ try {
       id, seller_id, category_id, title, slug, description, status, created_at, updated_at
     )
     values (
-      ${productId}, ${sellerId}, ${categoryId}, 'AzadiMart Demo Everyday Kitchen Set',
+      ${productId}, ${sellerId}, ${categoryId}, 'LOIMART Demo Everyday Kitchen Set',
       'azadimart-demo-everyday-kitchen-set',
       'A staging-only sample product used to test catalog, cart and checkout flows.',
       'LIVE', ${now}, ${now}
@@ -135,9 +135,9 @@ try {
   await pool.end();
 }
 
-console.log("AzadiMart demo seed completed.");
+console.log("LOIMART demo seed completed.");
 console.log("Admin:    demo.admin@azadimart.test");
 console.log("Seller:   demo.seller@azadimart.test");
 console.log("Customer: demo.customer@azadimart.test");
 console.log("Password:", password);
-console.log("Product:  AzadiMart Demo Everyday Kitchen Set");
+console.log("Product:  LOIMART Demo Everyday Kitchen Set");

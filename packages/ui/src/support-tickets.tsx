@@ -117,7 +117,7 @@ export function SupportTicketList({ apiBase, ticketsPath, categories }: { apiBas
 }
 
 /** One support request: the conversation, a reply box, "solved" and a rating. */
-export function SupportTicketView({ apiBase, ticketId, backHref, teamName = "AzadiMart support" }: { apiBase: string; ticketId: string; backHref: string; teamName?: string }) {
+export function SupportTicketView({ apiBase, ticketId, backHref, teamName = "LOIMART support" }: { apiBase: string; ticketId: string; backHref: string; teamName?: string }) {
   const [data, setData] = useState<{ ticket: TicketRow & { resolvedAt: string | null }; messages: ThreadMessage[] } | null>(null);
   const [error, setError] = useState("");
   const [reply, setReply] = useState("");

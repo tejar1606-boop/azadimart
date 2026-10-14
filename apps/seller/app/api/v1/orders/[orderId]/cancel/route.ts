@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 /**
  * Seller cancels an unshipped order with a reason (Amazon/Flipkart style).
  * If the order also has other sellers' items, the seller can't cancel it
- * alone: a cancellation request is recorded for AzadiMart to decide.
+ * alone: a cancellation request is recorded for LOIMART to decide.
  * Stock is released by the shared cancellation function.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ orderId: string }> }) {

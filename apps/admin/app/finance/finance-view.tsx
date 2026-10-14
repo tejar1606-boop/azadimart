@@ -58,14 +58,14 @@ export default function FinanceView() {
 
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
-      <PortalPageHeader eyebrow="Finance" title="Seller payouts" description="Sellers are paid automatically from AzadiMart's current account 7 days after delivery. No commission in a seller's first 3 months, then 5% per order (+18% GST)." />
+      <PortalPageHeader eyebrow="Finance" title="Seller payouts" description="Sellers are paid automatically from LOIMART's current account 7 days after delivery. No commission in a seller's first 3 months, then 5% per order (+18% GST)." />
       {data?.mode === "TEST" ? <p className="mt-5 rounded-2xl border border-purple-200 bg-purple-50 p-4 text-sm text-purple-900"><b>Test mode:</b> payouts are calculated and marked as sent, but no money leaves the bank. Connect your bank&apos;s payout API to go live.</p> : null}
-      {data?.mode === "NOT_SET_UP" ? <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><b>Bank connection not set up.</b> Payouts are calculated and wait here until AzadiMart&apos;s bank payout API is connected.</p> : null}
+      {data?.mode === "NOT_SET_UP" ? <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><b>Bank connection not set up.</b> Payouts are calculated and wait here until LOIMART&apos;s bank payout API is connected.</p> : null}
 
       {data ? (
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Paid to sellers (30 days)" value={money(data.summary.paid30dPaise)} icon="payouts" tone="good" />
-          <StatCard label="AzadiMart commission (30 days)" value={money(data.summary.commission30dPaise)} hint="Including 18% GST on commission" icon="finance" tone="brand" />
+          <StatCard label="LOIMART commission (30 days)" value={money(data.summary.commission30dPaise)} hint="Including 18% GST on commission" icon="finance" tone="brand" />
           <StatCard label="TCS + TDS to deposit (30 days)" value={money(data.summary.tcs30dPaise + data.summary.tds30dPaise)} hint={`TCS ${money(data.summary.tcs30dPaise)} (GSTR-8) · TDS ${money(data.summary.tds30dPaise)} (194-O)`} icon="security" />
           <StatCard label="In the 7-day return window" value={money(data.summary.inReturnWindowPaise)} hint={`${data.summary.inReturnWindowItems} item(s) · ${money(data.summary.heldByReturnsPaise)} held by open returns`} icon="returns" tone="warn" />
         </div>

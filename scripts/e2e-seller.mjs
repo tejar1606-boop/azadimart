@@ -33,7 +33,7 @@ function client(base) {
 const seller = client(SE), admin = client(AD);
 const rnd = () => Array.from({ length: 5 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ"[Math.floor(Math.random() * 24)]).join("");
 const gstin = `29${rnd()}${String(1000 + Math.floor(Math.random() * 8999))}A1Z5`;
-const email = `E2E.Seller.${Date.now()}@AzadiMart.test`;
+const email = `E2E.Seller.${Date.now()}@azadimart.test`;
 const phone = "9" + String(Date.now()).slice(-9);
 
 let r = await seller("/api/auth/register", { method: "POST", body: { storeName: "E2E Store", legalName: "E2E Store Pvt Ltd", email, phone, businessState: "Karnataka", taxIdentityType: "GSTIN", gstin, taxDeclarationAccepted: true, password: PW } });

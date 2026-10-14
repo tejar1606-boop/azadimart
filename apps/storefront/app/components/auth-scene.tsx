@@ -107,7 +107,7 @@ export default function AuthScene({ headline, sub, children }: { headline: React
           <div className="relative mx-auto h-[150px] w-full max-w-sm lg:hidden">{ring(150, "h-[96px] w-[74px]")}</div>
           <div className="hidden lg:block">
             <p className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.28em] text-brand-300">
-              <span className="flex h-1 w-10 overflow-hidden rounded"><i className="flex-1 bg-[#FF9933]" /><i className="flex-1 bg-white" /><i className="flex-1 bg-[#138808]" /></span>AzadiMart
+              <span className="flex h-1 w-10 overflow-hidden rounded"><i className="flex-1 bg-[#FF9933]" /><i className="flex-1 bg-white" /><i className="flex-1 bg-[#138808]" /></span>LOIMART
             </p>
             <h2 className="mt-4 text-5xl font-extrabold leading-[1.05] tracking-[-0.03em]">{headline}</h2>
             <p className="mt-4 max-w-md text-base leading-7 text-white/75">{sub}</p>
@@ -123,7 +123,7 @@ export default function AuthScene({ headline, sub, children }: { headline: React
           </div>
         </section>
         <div className="relative">
-          <Link href="/" className="sr-only">AzadiMart home</Link>
+          <Link href="/" className="sr-only">LOIMART home</Link>
           {children}
         </div>
       </div>

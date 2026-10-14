@@ -9,7 +9,7 @@ import { currentStaff } from "./lib/staff-page";
 const poppins = Poppins({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: { default: "AzadiMart Admin", template: "%s · AzadiMart Admin" },
+  title: { default: "LOIMART Admin", template: "%s · LOIMART Admin" },
   description: "Operations and commerce console",
   robots: { index: false, follow: false },
 };

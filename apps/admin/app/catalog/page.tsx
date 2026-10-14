@@ -30,7 +30,7 @@ export default function CatalogPage() {
 
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
-      <PortalPageHeader eyebrow="Catalogue" title="All products" description="Every product across sellers. Only AzadiMart admins can edit or delete products." />
+      <PortalPageHeader eyebrow="Catalogue" title="All products" description="Every product across sellers. Only LOIMART admins can edit or delete products." />
       <form onSubmit={(event) => { event.preventDefault(); setSearch(query.trim()); }} className="mt-6 flex max-w-xl gap-2">
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, SKU or seller" className="h-11 flex-1 rounded-full border border-slate-300 bg-white px-4 text-sm outline-none focus:border-slate-900" />
         <button className="rounded-full bg-chrome px-5 text-sm font-semibold text-white">Search</button>

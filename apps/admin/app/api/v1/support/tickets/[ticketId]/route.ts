@@ -62,7 +62,7 @@ async function loadTicket(db: Db, ticketId: string) {
   const names = new Map(team.map((m) => [m.userId, m.name]));
   return {
     ticket,
-    messages: messages.map((m) => ({ ...m, author: m.authorType === "STAFF" ? (names.get(m.senderUserId ?? "") ?? m.senderEmail ?? "Support") : m.authorType === "SYSTEM" ? "AzadiMart" : m.authorType === "BOT" ? "Assistant" : null })),
+    messages: messages.map((m) => ({ ...m, author: m.authorType === "STAFF" ? (names.get(m.senderUserId ?? "") ?? m.senderEmail ?? "Support") : m.authorType === "SYSTEM" ? "LOIMART" : m.authorType === "BOT" ? "Assistant" : null })),
     context, order, product, team, canned, chatEngine: chat?.engine ?? null,
   };
 }
@@ -120,7 +120,7 @@ export async function PATCH(request: Request, { params }: Params) {
       updatedAt: now,
     }).where(eq(supportTickets.id, ticketId));
     if (statusChanged && (input.status === "RESOLVED" || input.status === "CLOSED")) {
-      await db.insert(supportMessages).values({ ticketId, authorType: "SYSTEM", message: `Marked ${SUPPORT_STATUS_STAFF_LABELS[input.status!].toLowerCase()} by AzadiMart support. Reply here if you still need help.` });
+      await db.insert(supportMessages).values({ ticketId, authorType: "SYSTEM", message: `Marked ${SUPPORT_STATUS_STAFF_LABELS[input.status!].toLowerCase()} by LOIMART support. Reply here if you still need help.` });
       if (before.sellerId) await notifySeller(db, { sellerId: before.sellerId, kind: "SUPPORT_REPLY", dedupeKey: `SUPPORT_STATUS:${ticketId}:${input.status}`, href: `/help/tickets/${ticketId}`, title: `${supportTicketRef(before.number)} was ${input.status === "RESOLVED" ? "resolved" : "closed"}` }).catch(() => false);
     }
     await db.insert(auditLogs).values({ actorUserId: userId, action: "SUPPORT_TICKET_UPDATED", entityType: "support_ticket", entityId: ticketId, metadata: input });

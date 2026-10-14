@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 /**
  * Adds (or replaces) the bank account payouts go to. The number is stored
  * encrypted; only the last 4 digits are ever shown. A new account must be
- * verified by AzadiMart before money is sent to it.
+ * verified by LOIMART before money is sent to it.
  */
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();

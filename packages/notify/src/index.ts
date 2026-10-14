@@ -116,7 +116,7 @@ export async function notifySellersOfCancellation(db: Db, orderId: string, by: "
     const order = (await db.select({ orderNumber: orders.orderNumber }).from(orders).where(eq(orders.id, orderId)).limit(1))[0];
     if (!order) return;
     const kind: SellerAlertKind = by === "CUSTOMER" ? "ORDER_CANCELLED_BY_CUSTOMER" : by === "ADMIN" ? "ORDER_CANCELLED_BY_ADMIN" : "ORDER_AUTO_CANCELLED";
-    const who = by === "CUSTOMER" ? "the customer" : by === "ADMIN" ? "AzadiMart" : "AzadiMart because it wasn't shipped in time";
+    const who = by === "CUSTOMER" ? "the customer" : by === "ADMIN" ? "LOIMART" : "LOIMART because it wasn't shipped in time";
     for (const [sellerId, lines] of await linesBySeller(db, orderId)) {
       if (sellerId === exceptSellerId) continue;
       await notifySeller(db, {

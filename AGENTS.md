@@ -1,8 +1,8 @@
-# AzadiMart — Development Team Operating Manual
+# LOIMART — Development Team Operating Manual
 
 ## Purpose
 
-This document defines responsibilities and collaboration rules for the AzadiMart product, engineering, design, QA, security, operations, finance and growth teams.
+This document defines responsibilities and collaboration rules for the LOIMART product, engineering, design, QA, security, operations, finance and growth teams.
 
 The goal is a production-grade marketplace with clear ownership, secure boundaries, predictable interfaces and tested releases.
 

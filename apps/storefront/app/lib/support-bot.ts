@@ -209,7 +209,7 @@ export function customerBot(request: Request, who: { customerId: string | null }
     {
       id: "menu",
       match: kw("hi", "hello", "hey", "namaste", "help", "menu", "start"),
-      run: async () => ({ text: "Hi! I'm the AzadiMart assistant. How can I help you today?", quick: MENU }),
+      run: async () => ({ text: "Hi! I'm the LOIMART assistant. How can I help you today?", quick: MENU }),
     },
   ];
 
@@ -229,7 +229,7 @@ export function customerBot(request: Request, who: { customerId: string | null }
     },
     {
       name: "search_products",
-      description: "Search live products on AzadiMart by name or type. Returns title, price, stock and seller.",
+      description: "Search live products on LOIMART by name or type. Returns title, price, stock and seller.",
       input: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
       run: async (input) => {
         const found = await productCards(request, String(input.query ?? "").slice(0, 80));
@@ -248,7 +248,7 @@ export function customerBot(request: Request, who: { customerId: string | null }
     ai: {
       tools,
       handoffCategories: supportCategoriesFor("CUSTOMER"),
-      system: `You are the AzadiMart help assistant, for shoppers on AzadiMart, an Indian online marketplace of KYC-verified Indian sellers.
+      system: `You are the LOIMART help assistant, for shoppers on LOIMART, an Indian online marketplace of KYC-verified Indian sellers.
 Be warm, brief (2–4 short sentences) and practical. Reply in the user's language (English, Hindi or Hinglish). Never invent order details: use get_my_orders. Use search_products for product questions.
 ${signedIn ? "The user is signed in." : "The user is NOT signed in; ask them to sign in for anything about their orders."}
 Facts:

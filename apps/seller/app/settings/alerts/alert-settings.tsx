@@ -8,7 +8,7 @@ type DeviceState = "checking" | "unsupported" | "blocked" | "on" | "off";
 const OPTIONS: Array<[keyof Prefs, string, string]> = [
   ["newOrders", "New orders", "The moment a customer orders your product."],
   ["reminders", "Ship-by reminders", "When an order must ship today, and if it's late."],
-  ["cancellations", "Cancellations", "When a customer or AzadiMart cancels an order, so you don't ship it."],
+  ["cancellations", "Cancellations", "When a customer or LOIMART cancels an order, so you don't ship it."],
   ["payouts", "Payments to your bank", "When money is sent to your bank account, or a payment is on hold."],
   ["ads", "Ads", "When you're outbid, win or lose a day, and when your ad is reviewed or charged."],
 ];

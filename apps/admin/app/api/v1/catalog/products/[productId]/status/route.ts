@@ -28,7 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
       if (!rule.from.includes(current.status)) throw new AppError("CONFLICT", `Not possible while the product is ${current.status.replaceAll("_", " ").toLowerCase()}`);
       const updated = (await tx.update(products).set({ status: rule.to, updatedAt: new Date() }).where(eq(products.id, productId)).returning({ id: products.id, status: products.status }))[0];
       if (input.action === "archive") {
-        await tx.update(qcSubmissions).set({ status: "REJECTED", notes: "Archived by AzadiMart", updatedAt: new Date() })
+        await tx.update(qcSubmissions).set({ status: "REJECTED", notes: "Archived by LOIMART", updatedAt: new Date() })
           .where(and(eq(qcSubmissions.productId, productId), eq(qcSubmissions.status, "PENDING")));
       }
       await tx.insert(auditLogs).values({ actorUserId: principal.userId, action: rule.audit, entityType: "product", entityId: productId, metadata: { from: current.status, to: rule.to, reason: input.reason ?? null } });

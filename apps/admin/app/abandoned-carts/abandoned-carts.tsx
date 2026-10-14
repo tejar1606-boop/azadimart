@@ -23,7 +23,7 @@ function reminderText(cart: Cart, storefrontUrl: string, coupon: string) {
   const first = cart.customerName.trim().split(/\s+/)[0] || "there";
   const lead = cart.products[0]?.title ?? "your items";
   const more = cart.products.length > 1 ? ` and ${cart.products.length - 1} more item${cart.products.length > 2 ? "s" : ""}` : "";
-  return `Hi ${first}, you left ${lead}${more} in your AzadiMart cart (${money(cart.valuePaise)}). Your items are saved. Complete your order here: ${storefrontUrl}/cart${coupon ? `\nUse code ${coupon} at checkout for an extra discount.` : ""}\n– Team AzadiMart`;
+  return `Hi ${first}, you left ${lead}${more} in your LOIMART cart (${money(cart.valuePaise)}). Your items are saved. Complete your order here: ${storefrontUrl}/cart${coupon ? `\nUse code ${coupon} at checkout for an extra discount.` : ""}\n– Team LOIMART`;
 }
 
 export default function AbandonedCarts({ storefrontUrl }: { storefrontUrl: string }) {
@@ -60,7 +60,7 @@ export default function AbandonedCarts({ storefrontUrl }: { storefrontUrl: strin
     const text = reminderText(cart, storefrontUrl, coupon);
     // Open the message first (browsers block pop-ups opened after an await).
     if (channel === "WHATSAPP") window.open(`https://wa.me/91${(cart.phone ?? "").replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
-    else window.location.href = `mailto:${cart.email}?subject=${encodeURIComponent("You left something in your AzadiMart cart")}&body=${encodeURIComponent(text)}`;
+    else window.location.href = `mailto:${cart.email}?subject=${encodeURIComponent("You left something in your LOIMART cart")}&body=${encodeURIComponent(text)}`;
     await fetch(`/api/v1/abandoned-carts/${cart.cartId}/reminder`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channel, couponCode: coupon || undefined }) });
     await load();
   }
@@ -126,7 +126,7 @@ export default function AbandonedCarts({ storefrontUrl }: { storefrontUrl: strin
           </article>
         ))}
       </div>
-      <p className="mt-4 text-xs text-slate-500">Reminders open WhatsApp or your email app with a ready-written message. Only message customers who agreed to hear from AzadiMart; automatic reminders need a WhatsApp Business or email service.</p>
+      <p className="mt-4 text-xs text-slate-500">Reminders open WhatsApp or your email app with a ready-written message. Only message customers who agreed to hear from LOIMART; automatic reminders need a WhatsApp Business or email service.</p>
     </main>
   );
 }

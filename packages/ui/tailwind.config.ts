@@ -1,6 +1,6 @@
 import type { Config } from "tailwindcss";
 
-// AzadiMart design tokens shared by storefront, seller centre and admin:
+// LOIMART design tokens shared by storefront, seller centre and admin:
 // one saffron accent, India green, a soft grey canvas and dark chrome.
 const brand = {
   50: "#fef6ee",

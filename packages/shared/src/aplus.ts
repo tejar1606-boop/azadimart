@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * A+ content: rich product-page modules a seller builds and AzadiMart reviews
+ * A+ content: rich product-page modules a seller builds and LOIMART reviews
  * before they appear on the storefront. Blocks are structured data only (text
  * and media URLs) — never HTML — so they cannot inject markup or scripts.
  */

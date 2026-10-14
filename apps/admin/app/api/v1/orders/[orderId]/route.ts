@@ -42,7 +42,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ or
           orderId: order.id,
           fromStatus: order.status,
           actorUserId: principal.userId,
-          reason: input.notes ?? "Cancelled by AzadiMart",
+          reason: input.notes ?? "Cancelled by LOIMART",
           referenceType: "ADMIN_ORDER_CANCELLATION",
           by: "ADMIN",
         });

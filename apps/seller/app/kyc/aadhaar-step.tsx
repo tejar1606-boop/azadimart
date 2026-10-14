@@ -74,7 +74,7 @@ export default function AadhaarStep({ initial, locked }: { initial: AadhaarState
         <h2 className="font-semibold">Verify the owner&apos;s Aadhaar</h2>
         <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-600">Required</span>
       </div>
-      <p className="mt-1.5 text-sm text-slate-600">Every seller on AzadiMart verifies the owner or authorised signatory with Aadhaar. We&apos;ll send an OTP to the mobile number linked to the Aadhaar.</p>
+      <p className="mt-1.5 text-sm text-slate-600">Every seller on LOIMART verifies the owner or authorised signatory with Aadhaar. We&apos;ll send an OTP to the mobile number linked to the Aadhaar.</p>
 
       {locked ? (
         <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Aadhaar can&apos;t be verified while your account is suspended.</p>
@@ -93,7 +93,7 @@ export default function AadhaarStep({ initial, locked }: { initial: AadhaarState
           <input value={number} onChange={(e) => setNumber(formatAadhaar(e.target.value))} inputMode="numeric" autoComplete="off" placeholder="1234 5678 9012" aria-label="Aadhaar number" className={field + " font-mono tracking-wider sm:max-w-xs"} />
           <label className="flex items-start gap-2.5 text-xs leading-5 text-slate-600">
             <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff9933]" />
-            <span>I agree to AzadiMart verifying my Aadhaar through a UIDAI-licensed partner using OTP, only to confirm my identity as a seller. AzadiMart keeps only the last 4 digits and my name as returned, not the Aadhaar number.</span>
+            <span>I agree to LOIMART verifying my Aadhaar through a UIDAI-licensed partner using OTP, only to confirm my identity as a seller. LOIMART keeps only the last 4 digits and my name as returned, not the Aadhaar number.</span>
           </label>
           <button disabled={busy || number.replace(/\s/g, "").length !== 12 || !consent} className="h-11 rounded-full bg-chrome px-6 text-sm font-semibold text-white hover:bg-black disabled:opacity-40">{busy ? "Sending OTP…" : "Send OTP"}</button>
           {state.status === "OTP_SENT" && expiresIn === 0 && !changing ? <p className="text-xs text-amber-700">Your last OTP expired. Send a new one.</p> : null}

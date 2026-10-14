@@ -1,4 +1,4 @@
-# AzadiMart — Database Design
+# LOIMART — Database Design
 
 ## Principles
 - PostgreSQL / Neon

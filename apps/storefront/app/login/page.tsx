@@ -44,7 +44,7 @@ export default function CustomerLoginPage() {
   return (
     <AuthScene headline={<>Welcome back to<br /><span className="text-brand-300">India&apos;s own</span> marketplace.</>} sub="Handpicked products from KYC-verified Indian sellers, with Cash on Delivery and easy 7-day returns.">
       <div className="mx-auto max-w-md rounded-[2rem] border border-white/60 bg-white p-6 shadow-[0_30px_80px_rgba(2,6,23,0.45)] sm:p-8">
-        <Link href="/" aria-label="AzadiMart home"><Wordmark className="text-2xl" /></Link>
+        <Link href="/" aria-label="LOIMART home"><Wordmark className="text-2xl" /></Link>
         <p className="mt-8 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">Welcome back</p>
         <h1 className="mt-2 text-3xl font-bold tracking-[-0.04em]">Sign in to shop</h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">Access your cart, orders, addresses and personalized shopping experience.</p>
@@ -57,7 +57,7 @@ export default function CustomerLoginPage() {
           <button disabled={busy || Boolean(siteKey && !captchaToken)} className="w-full rounded-full bg-brand px-5 py-3.5 text-[15px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(229,133,48,0.9)] transition hover:bg-brand-600 disabled:opacity-50">{busy ? "Signing in…" : "Sign in"}</button>
           <SecureNote />
         </form>
-        <p className="mt-6 text-center text-sm text-slate-500">New to AzadiMart? <Link href={"/register" + carry} className="font-semibold text-slate-950 underline">Create account</Link></p>
+        <p className="mt-6 text-center text-sm text-slate-500">New to LOIMART? <Link href={"/register" + carry} className="font-semibold text-slate-950 underline">Create account</Link></p>
       </div>
     </AuthScene>
   );

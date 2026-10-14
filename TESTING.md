@@ -1,4 +1,4 @@
-# AzadiMart — Testing Strategy
+# LOIMART — Testing Strategy
 
 ## Release rule
 No feature is complete until relevant automated tests pass and desktop/mobile behavior is checked.

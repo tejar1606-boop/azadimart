@@ -14,11 +14,11 @@ async function ensureHomepage() {
   await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext('azadimart:theme_publish'))`);
 
-    let theme = (await tx.select().from(themes).where(eq(themes.name, "AzadiMart Core")).limit(1))[0];
+    let theme = (await tx.select().from(themes).where(eq(themes.name, "LOIMART Core")).limit(1))[0];
 
     if (!theme) {
       const created = (await tx.insert(themes).values({
-        name: "AzadiMart Core",
+        name: "LOIMART Core",
         status: "DRAFT",
         settings: { mode: "premium-india", surface: "light" },
       }).returning())[0];
@@ -47,7 +47,7 @@ async function ensureHomepage() {
     }
   });
 
-  const theme = (await db.select().from(themes).where(eq(themes.name, "AzadiMart Core")).limit(1))[0];
+  const theme = (await db.select().from(themes).where(eq(themes.name, "LOIMART Core")).limit(1))[0];
   if (!theme) throw new AppError("INTERNAL", "Homepage theme missing", undefined, false);
 
   const page = (await db.select().from(pages).where(eq(pages.themeId, theme.id)).limit(1))[0];

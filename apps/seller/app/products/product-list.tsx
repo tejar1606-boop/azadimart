@@ -16,7 +16,7 @@ const STATUS: Record<string, { label: string; tone: string }> = {
   PENDING_ADMIN_APPROVAL: { label: "Awaiting approval", tone: "bg-amber-50 text-amber-800" },
   LIVE: { label: "Live", tone: "bg-green-50 text-green-700" },
   UNLISTED: { label: "Hidden from store", tone: "bg-slate-200 text-slate-700" },
-  ARCHIVED: { label: "Removed by AzadiMart", tone: "bg-slate-100 text-slate-400" },
+  ARCHIVED: { label: "Removed by LOIMART", tone: "bg-slate-100 text-slate-400" },
 };
 
 const TABS: Array<{ key: string; label: string; statuses: string[] }> = [
@@ -82,7 +82,7 @@ export default function ProductList() {
     } finally { setBusy(null); }
   }
 
-  /** Changes how much AzadiMart coupons may take off this product (seller-paid). */
+  /** Changes how much LOIMART coupons may take off this product (seller-paid). */
   async function setCouponLimit(product: Product, pct: number) {
     setBusy(product.id + ":coupon"); setError(""); setMessage("");
     const before = product.couponMaxDiscountPct;
@@ -91,7 +91,7 @@ export default function ProductList() {
       const response = await fetch(`/api/v1/products/${product.id}/coupon-limit`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ couponMaxDiscountPct: pct }) });
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(body?.error?.message ?? "Couldn't save");
-      setMessage(pct ? `AzadiMart coupons may now take up to ${pct}% off “${product.title}” (paid from your payout).` : `“${product.title}” is out of seller-paid coupons.`);
+      setMessage(pct ? `LOIMART coupons may now take up to ${pct}% off “${product.title}” (paid from your payout).` : `“${product.title}” is out of seller-paid coupons.`);
     } catch (e) {
       setItems((all) => all.map((p) => (p.id === product.id ? { ...p, couponMaxDiscountPct: before } : p)));
       setError(e instanceof Error ? e.message : "Couldn't save");
@@ -143,7 +143,7 @@ export default function ProductList() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {!removed ? <Link href={"/products/" + product.id + "/aplus"} className="rounded-full px-3 py-2 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 hover:text-slate-950">A+ content</Link> : null}
-                    {removed ? <span className="text-xs text-slate-500">Contact AzadiMart support to restore</span> : null}
+                    {removed ? <span className="text-xs text-slate-500">Contact LOIMART support to restore</span> : null}
                     {actionsFor(product.status).map(({ action, label, primary }) => (
                       <button
                         key={action}

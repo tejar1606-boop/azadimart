@@ -39,10 +39,10 @@ function Icon({ done }: { done: boolean }) {
 }
 
 const BANNERS: Record<Exclude<KycStage, "TODO">, { tone: string; title: string; body: string }> = {
-  VERIFIED: { tone: "border-green-200 bg-green-50 text-green-900", title: "Your business is verified", body: "Your KYC is approved and you can sell on AzadiMart. To change a document (for example a new bank account), contact AzadiMart seller support." },
+  VERIFIED: { tone: "border-green-200 bg-green-50 text-green-900", title: "Your business is verified", body: "Your KYC is approved and you can sell on LOIMART. To change a document (for example a new bank account), contact LOIMART seller support." },
   IN_REVIEW: { tone: "border-amber-200 bg-amber-50 text-amber-900", title: "Your documents are under review", body: "Our team usually reviews KYC within 1–2 working days. You'll be able to make changes again if anything needs fixing." },
   REJECTED: { tone: "border-red-200 bg-red-50 text-red-900", title: "Some documents need attention", body: "Replace the documents mentioned below and submit again." },
-  SUSPENDED: { tone: "border-red-200 bg-red-50 text-red-900", title: "Your seller account is suspended", body: "Documents can't be changed while the account is suspended. Please contact AzadiMart seller support." },
+  SUSPENDED: { tone: "border-red-200 bg-red-50 text-red-900", title: "Your seller account is suspended", body: "Documents can't be changed while the account is suspended. Please contact LOIMART seller support." },
 };
 
 export default function KycForm({ stage, reviewNotes, taxIdentityType, taxNumber, businessState, aadhaar, existing }: {
@@ -122,7 +122,7 @@ export default function KycForm({ stage, reviewNotes, taxIdentityType, taxNumber
         {stage === "VERIFIED" && !aadhaarDone ? (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900" role="status">
             <p className="font-semibold">Action needed: verify your Aadhaar</p>
-            <p className="mt-1 text-sm opacity-90">Aadhaar verification is now required for every AzadiMart seller. It takes a minute with an OTP.</p>
+            <p className="mt-1 text-sm opacity-90">Aadhaar verification is now required for every LOIMART seller. It takes a minute with an OTP.</p>
           </div>
         ) : null}
         <AadhaarStep initial={aadhaar} locked={stage === "SUSPENDED"} />

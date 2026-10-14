@@ -111,7 +111,7 @@ export default function SellersPage() {
   }
   function setAdCredit() {
     const current = detail?.seller.adCreditLimitPaise;
-    const value = window.prompt("Ad credit for this seller in ₹ (leave empty for AzadiMart's default of ₹5,000). Ads they can book = upcoming earnings + this credit.", current != null ? String(current / 100) : "");
+    const value = window.prompt("Ad credit for this seller in ₹ (leave empty for LOIMART's default of ₹5,000). Ads they can book = upcoming earnings + this credit.", current != null ? String(current / 100) : "");
     if (value === null) return;
     const rupees = value.trim() === "" ? null : Number(value.replace(/[^\d]/g, ""));
     if (rupees !== null && !Number.isFinite(rupees)) return;

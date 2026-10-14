@@ -43,7 +43,7 @@ export default function LoginPage() {
     <PortalAuthLayout product="Admin console" headline="Run the marketplace with confidence." points={["Review sellers, products and A+ content","Manage orders, payments and refunds","Publish the storefront in a few clicks"]}>
       <form onSubmit={submit} className="rounded-3xl border border-slate-200/80 bg-white p-7 shadow-card sm:p-9">
         <h1 className="text-2xl font-semibold tracking-[-0.03em]">Sign in to Admin</h1>
-        <p className="mt-1.5 text-sm text-slate-500">Use your AzadiMart administrator account.</p>
+        <p className="mt-1.5 text-sm text-slate-500">Use your LOIMART administrator account.</p>
         <label className="mt-7 block text-sm font-medium">
           Email
           <input className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-900" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />

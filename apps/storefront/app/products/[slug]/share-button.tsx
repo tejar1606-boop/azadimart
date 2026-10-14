@@ -25,7 +25,7 @@ export default function ShareButton({ path, title, pricePaise }: { path: string;
   const [copied, setCopied] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const price = "₹" + (pricePaise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
-  const text = `Check out ${title} for ${price} on AzadiMart`;
+  const text = `Check out ${title} for ${price} on LOIMART`;
 
   useEffect(() => {
     if (!open) return;

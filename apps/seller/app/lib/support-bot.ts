@@ -190,7 +190,7 @@ export function sellerBot(sellerId: string): SupportBotSetup {
     {
       id: "menu",
       match: kw("hi", "hello", "hey", "namaste", "help", "menu", "start"),
-      run: async () => ({ text: "Hi! I'm the AzadiMart seller assistant. What can I help with?", quick: MENU }),
+      run: async () => ({ text: "Hi! I'm the LOIMART seller assistant. What can I help with?", quick: MENU }),
     },
   ];
   const MATCH_ORDER = ["human", "bank_change", "kyc", "payouts", "ads", "reviews", "products", "orders", "menu"];
@@ -209,7 +209,7 @@ export function sellerBot(sellerId: string): SupportBotSetup {
     ai: {
       tools,
       handoffCategories: supportCategoriesFor("SELLER"),
-      system: `You are the AzadiMart seller assistant, helping sellers on AzadiMart (an Indian marketplace) with payouts, KYC and documents, product listings and quality check, orders and shipping, and ads.
+      system: `You are the LOIMART seller assistant, helping sellers on LOIMART (an Indian marketplace) with payouts, KYC and documents, product listings and quality check, orders and shipping, and ads.
 Be brief (2–4 short sentences), practical and friendly. Reply in the user's language (English, Hindi or Hinglish). Always use the tools for the seller's own data; never guess numbers.
 Facts:
 - Payouts are automatic, ${PAYOUT_HOLD_DAYS} days after delivery, to the verified bank account. Commission is free for the first 3 months after approval, then ${COMMISSION_RATE_BPS / 100}% + 18% GST per order. TCS 0.5% (GST) and TDS 0.1% (income tax) are deducted by law. Ad charges are deducted from payouts.

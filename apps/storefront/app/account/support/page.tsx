@@ -15,7 +15,7 @@ export default async function SupportPage() {
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">My account</p>
             <h1 className="mt-2 text-3xl font-bold tracking-[-0.04em] sm:text-5xl">Help &amp; support.</h1>
-            <p className="mt-2 text-sm text-slate-500">Your conversations with the AzadiMart support team.</p>
+            <p className="mt-2 text-sm text-slate-500">Your conversations with the LOIMART support team.</p>
           </div>
           <Link href="/account" className="text-sm font-bold text-slate-500">← Your orders</Link>
         </div>

@@ -1,8 +1,8 @@
-// End-to-end test for seller coupon limits: a seller sets how much AzadiMart
+// End-to-end test for seller coupon limits: a seller sets how much LOIMART
 // coupons may take off each product; coupons "paid by sellers" show and apply
 // only where allowed, the discount is recorded per order line and comes out of
 // the seller's payout (commission and taxes on the lower price), and
-// AzadiMart-paid coupons are unaffected. Requires the demo seed and all three
+// LOIMART-paid coupons are unaffected. Requires the demo seed and all three
 // apps against a NON-PRODUCTION database.
 //   ALLOW_E2E=YES STOREFRONT_URL=… SELLER_URL=… ADMIN_URL=… pnpm e2e:seller-coupons
 import { neon } from "@neondatabase/serverless";
@@ -87,7 +87,7 @@ const pageA = offersOf((await shop(`/products/${A.slug}`)).text), pageB = offers
 check("the 10% coupon shows on the product that allows 15%", pageA.includes(c10));
 check("the 20% coupon doesn't (above the seller's 15%)", !pageA.includes(c20));
 check("neither shows on the product kept out of coupons", !pageB.includes(c10) && !pageB.includes(c20));
-check("AzadiMart's own coupon still shows there", pageB.includes(cAzm));
+check("LOIMART's own coupon still shows there", pageB.includes(cAzm));
 
 // --- cart
 for (const item of (await shop("/api/v1/cart")).json?.items ?? []) await shop("/api/v1/cart", { method: "DELETE", body: { variantId: item.variantId } });
@@ -121,11 +121,11 @@ check("the seller's payout shows the coupon share and pays the price after it", 
 const upB = ((await seller("/api/v1/payouts")).json?.upcoming ?? []).find((l) => l.title === B.title && l.grossPaise === B.price_paise && l.sellerDiscountPaise === 0);
 check("the product outside coupons is paid in full", Boolean(upB));
 
-// --- an AzadiMart coupon costs the seller nothing
+// --- an LOIMART coupon costs the seller nothing
 for (const item of (await shop("/api/v1/cart")).json?.items ?? []) await shop("/api/v1/cart", { method: "DELETE", body: { variantId: item.variantId } });
 await shop("/api/v1/cart", { method: "POST", body: { variantId: B.variant_id, quantity: 1 } });
 r = await shop("/api/v1/coupons/validate", { method: "POST", body: { cartId: (await shop("/api/v1/cart")).json?.cartId, code: cAzm } });
-check("AzadiMart's coupon applies even to products kept out of seller coupons", r.status === 200 && r.json.discountPaise === Math.floor(B.price_paise * 5 / 100));
+check("LOIMART's coupon applies even to products kept out of seller coupons", r.status === 200 && r.json.discountPaise === Math.floor(B.price_paise * 5 / 100));
 
 // --- a coupon for one product only (e.g. "only on Gallardo")
 const cOne = `E2EONE${RUN}`;

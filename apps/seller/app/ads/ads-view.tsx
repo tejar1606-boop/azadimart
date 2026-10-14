@@ -80,7 +80,7 @@ function AdForm({ slot, existing, products, onSaved }: { slot: Slot; existing: C
       {banner ? picker("mobile", mobile, "1200 × 1500", "aspect-[4/5]") : null}
       <div className="flex flex-wrap items-center gap-3 lg:col-span-2">
         <button type="button" disabled={!productId || headline.trim().length < 3 || (banner && !desktop) || Boolean(busy)} onClick={() => void save()} className="h-11 rounded-full bg-brand px-6 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-40">{busy === "save" ? "Saving…" : existing ? "Save changes (re-review)" : "Send ad for review"}</button>
-        <p className="text-xs text-slate-500">AzadiMart checks every ad before it runs. Show your own product, no misleading claims or other brands&apos; logos.</p>
+        <p className="text-xs text-slate-500">LOIMART checks every ad before it runs. Show your own product, no misleading claims or other brands&apos; logos.</p>
       </div>
       {error ? <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 lg:col-span-2">{error}</p> : null}
     </div>
@@ -298,7 +298,7 @@ export default function AdsView() {
               const base = c.basePaise || c.amountPaise;
               const status = c.status === "PENDING" ? { label: "Will be taken from your next payment", tone: "bg-amber-50 text-amber-800" }
                 : c.status === "SETTLED" ? { label: c.paidAt ? `Taken from your payment of ${new Date(c.paidAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : "Taken from your payment", tone: "bg-green-50 text-green-700" }
-                : { label: "Waived by AzadiMart", tone: "bg-slate-100 text-slate-600" };
+                : { label: "Waived by LOIMART", tone: "bg-slate-100 text-slate-600" };
               return (
                 <li key={c.id} className="flex flex-col gap-2 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">

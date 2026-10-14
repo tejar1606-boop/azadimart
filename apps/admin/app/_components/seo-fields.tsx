@@ -20,10 +20,10 @@ export default function SeoFields({ title, description, onTitle, onDescription, 
   autoTitle: string;
   autoDescription: string;
   path: string;
-  /** Pages other than the homepage get " | AzadiMart" added to the title. */
+  /** Pages other than the homepage get " | LOIMART" added to the title. */
   siteSuffix?: boolean;
 }) {
-  const shownTitle = (title || autoTitle) + (siteSuffix ? " | AzadiMart" : "");
+  const shownTitle = (title || autoTitle) + (siteSuffix ? " | LOIMART" : "");
   const shownDescription = description || autoDescription;
   const field = "mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-slate-900";
   return (

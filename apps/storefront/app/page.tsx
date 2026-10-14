@@ -186,7 +186,7 @@ export async function generateMetadata(): Promise<Metadata> {
     if (value && typeof value === "object") seo = value as Record<string, unknown>;
   } catch { /* defaults below */ }
   const text = (key: string) => (typeof seo[key] === "string" ? String(seo[key]).trim() : "");
-  const title = text("title") || "AzadiMart — Online shopping from verified Indian sellers";
+  const title = text("title") || "LOIMART — Online shopping from verified Indian sellers";
   const description = clip(text("description") || "Shop fashion, home & kitchen, beauty, electronics and more from KYC-verified Indian sellers. Quality-checked products, Cash on Delivery and easy returns across India.");
   const image = text("imageUrl");
   return {
@@ -328,7 +328,7 @@ function heroSlides(s: Settings): HeroSlide[] {
       mobileVideoUrl: str(slide, "mobileVideoUrl") || undefined,
       // The button is part of the banner art, so every banner links somewhere (default: all products).
       href: str(slide, "href") ? safeHref(str(slide, "href")) : "/products",
-      alt: str(slide, "alt", "AzadiMart offer"),
+      alt: str(slide, "alt", "LOIMART offer"),
       // Banner-wide time (Admin → Online Store), unless this slide has its own.
       seconds: secondsOf(slide.seconds) ?? secondsOf(s.slideSeconds),
       playFullVideo: slide.playFullVideo === true,
@@ -409,7 +409,7 @@ function PromoBanner({ s }: { s: Settings }) {
   if (!desktop && !desktopVideo) return null;
   const mobile = str(s, "mobileImageUrl", desktop);
   const mobileVideo = str(s, "mobileVideoUrl", str(s, "mobileImageUrl") ? "" : desktopVideo);
-  const alt = str(s, "alt", "AzadiMart offer");
+  const alt = str(s, "alt", "LOIMART offer");
   const href = str(s, "href") ? safeHref(str(s, "href")) : undefined;
   const images = (
     <>
@@ -516,7 +516,7 @@ function BannerRow({ s }: { s: Settings }) {
       {heading ? <h2 className="mb-4 text-xl font-semibold tracking-[-0.03em] sm:text-2xl">{heading}</h2> : null}
       <div className={"grid gap-3 sm:gap-4 " + cols}>
         {banners.map((b, i) => {
-          const alt = str(b, "alt", heading || "AzadiMart offer");
+          const alt = str(b, "alt", heading || "LOIMART offer");
           const href = str(b, "href") ? safeHref(str(b, "href")) : undefined;
           const art = (
             <span className={"relative block overflow-hidden rounded-xl bg-slate-200 " + aspect}>
@@ -587,7 +587,7 @@ function FeaturedProducts({ s, products }: { s: Settings; products: ProductCardD
   const limit = Math.max(1, Math.min(20, Math.floor(num(s, "limit", 10))));
   return (
     <Container className="py-10 sm:py-14">
-      <SectionHeading eyebrow="Curated" heading={str(s, "heading", "Trending on AzadiMart")} subtitle={str(s, "subtitle", "Handpicked products from verified sellers")} actionLabel="View all" actionHref="/products" />
+      <SectionHeading eyebrow="Curated" heading={str(s, "heading", "Trending on LOIMART")} subtitle={str(s, "subtitle", "Handpicked products from verified sellers")} actionLabel="View all" actionHref="/products" />
       {products.length ? (
         <ProductGrid products={products.slice(0, limit)} />
       ) : (
@@ -603,7 +603,7 @@ function SponsoredProducts({ s, items }: { s: Settings; items: HomeData["sponsor
   const limit = Math.max(1, Math.min(20, Math.floor(num(s, "limit", 10))));
   return (
     <Container className="py-10 sm:py-14">
-      <SectionHeading eyebrow="Sponsored" heading={str(s, "heading", "Sponsored picks")} subtitle={str(s, "subtitle", "Featured by AzadiMart sellers")} />
+      <SectionHeading eyebrow="Sponsored" heading={str(s, "heading", "Sponsored picks")} subtitle={str(s, "subtitle", "Featured by LOIMART sellers")} />
       <SponsoredRow items={items.slice(0, limit)} />
     </Container>
   );
@@ -638,7 +638,7 @@ function WhyBanner({ s }: { s: Settings }) {
       <div className="grid overflow-hidden lg:grid-cols-2">
         <div className="relative flex flex-col justify-center bg-gradient-to-br from-brand-500 to-brand-600 p-8 text-white sm:p-12">
           <TricolourRibbon className="absolute inset-x-0 bottom-0 h-1" />
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80">{str(s, "eyebrow", "Why AzadiMart")}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80">{str(s, "eyebrow", "Why LOIMART")}</p>
           <h2 className="mt-3 text-[32px] font-semibold leading-[1.08] tracking-[-0.04em] sm:text-5xl">{str(s, "heading", "Shopping you can trust.")}</h2>
           <p className="mt-4 max-w-md text-[15px] leading-7 text-white/90">{str(s, "description", "We verify every seller and check every product, so you can shop with confidence.")}</p>
           <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2">
@@ -721,7 +721,7 @@ function SellerCta({ s }: { s: Settings }) {
         <TricolourRibbon className="absolute inset-x-0 top-0 h-1" />
         <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-400">{str(s, "eyebrow", "Sell on AzadiMart")}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-400">{str(s, "eyebrow", "Sell on LOIMART")}</p>
             <h2 className="mt-3 max-w-2xl text-[28px] font-semibold leading-[1.1] tracking-[-0.035em] sm:text-[40px]">{str(s, "heading", "Grow your business with India's trusted marketplace.")}</h2>
             <p className="mt-3 max-w-xl text-[15px] leading-7 text-white/70">{str(s, "description", "Simple onboarding, a professional storefront and Cash on Delivery orders from day one.")}</p>
           </div>

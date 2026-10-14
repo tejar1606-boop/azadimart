@@ -114,7 +114,7 @@ export const DEFAULT_HOME_SECTIONS: ThemeSectionDraft[] = [
     position: 3,
     isVisible: true,
     settings: {
-      heading: "Featured on AzadiMart",
+      heading: "Featured on LOIMART",
       subtitle: "Handpicked products from active sellers",
       limit: 8,
       sort: "newest",
@@ -125,7 +125,7 @@ export const DEFAULT_HOME_SECTIONS: ThemeSectionDraft[] = [
     position: 4,
     isVisible: true,
     settings: {
-      heading: "Save more with AzadiMart coupons",
+      heading: "Save more with LOIMART coupons",
       subtitle: "Copy a code and apply it at checkout.",
       limit: 4,
     },
@@ -150,7 +150,7 @@ export const DEFAULT_HOME_SECTIONS: ThemeSectionDraft[] = [
     isVisible: true,
     settings: {
       eyebrow: "Built for ambitious sellers",
-      heading: "Take your business online with AzadiMart.",
+      heading: "Take your business online with LOIMART.",
       description:
         "A professional storefront, catalog tools, QC workflow and marketplace reach in one place.",
       primaryLabel: "Start selling",

@@ -7,7 +7,7 @@ import { dailyLimitPaise, payoutRail } from "../../../lib/payouts";
 
 export const dynamic = "force-dynamic";
 
-/** Finance overview: payouts, what's coming up, and AzadiMart's commission and tax collected. */
+/** Finance overview: payouts, what's coming up, and LOIMART's commission and tax collected. */
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {

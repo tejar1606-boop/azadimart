@@ -23,7 +23,7 @@ export async function GET(request: Request, { params }: Params) {
   }
 }
 
-/** Set this seller's ad credit (null = AzadiMart's default). */
+/** Set this seller's ad credit (null = LOIMART's default). */
 export async function PUT(request: Request, { params }: Params) {
   const requestId = crypto.randomUUID();
   try {

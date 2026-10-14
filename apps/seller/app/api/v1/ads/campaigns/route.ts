@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { requireAdSeller } from "../seller";
 import { checkAdContent } from "./check";
 
-/** Create an ad (product + banner + headline) for an ad space. AzadiMart reviews it before it runs. */
+/** Create an ad (product + banner + headline) for an ad space. LOIMART reviews it before it runs. */
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {

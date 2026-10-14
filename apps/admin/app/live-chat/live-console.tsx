@@ -85,7 +85,7 @@ export default function LiveConsole({ meId }: { meId: string }) {
         else if (unread > known.current.unread) alert("New message", "A customer is waiting for your reply");
       }
       known.current = { mine: mineIds, unread };
-      document.title = `${unread || (body as Console).queue.length ? `(${unread || (body as Console).queue.length}) ` : ""}Live chat · AzadiMart Admin`;
+      document.title = `${unread || (body as Console).queue.length ? `(${unread || (body as Console).queue.length}) ` : ""}Live chat · LOIMART Admin`;
     } catch (e) { setError(e instanceof Error ? e.message : "Couldn't load live chat"); }
   }, [alert]);
   useEffect(() => {

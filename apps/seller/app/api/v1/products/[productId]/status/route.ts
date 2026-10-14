@@ -9,7 +9,7 @@ type Status = typeof products.$inferSelect.status;
 
 /**
  * Allowed seller transitions: from-statuses and the resulting status.
- * Sellers can't remove or delete products; only AzadiMart admins can archive or delete.
+ * Sellers can't remove or delete products; only LOIMART admins can archive or delete.
  */
 const ACTIONS: Record<Action, { from: Status[]; to: Status; audit: string }> = {
   // Hide a live product from the storefront (orders and history stay intact).

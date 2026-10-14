@@ -28,7 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ord
       return current;
     });
     if (decision === "APPROVE") await notifySellersOfCancellation(db, orderId, "ADMIN", order.cancelRequestReason);
-    else if (order.cancelRequestedBySellerId) await notifySeller(db, { sellerId: order.cancelRequestedBySellerId, kind: "ORDER_CANCELLED_BY_ADMIN", dedupeKey: `REQ_DECLINED:${orderId}:${Date.now()}`, href: "/orders", title: `Cancellation request declined for ${order.orderNumber}`, body: "AzadiMart asked you to ship your items in this order. Contact support if you can't." });
+    else if (order.cancelRequestedBySellerId) await notifySeller(db, { sellerId: order.cancelRequestedBySellerId, kind: "ORDER_CANCELLED_BY_ADMIN", dedupeKey: `REQ_DECLINED:${orderId}:${Date.now()}`, href: "/orders", title: `Cancellation request declined for ${order.orderNumber}`, body: "LOIMART asked you to ship your items in this order. Contact support if you can't." });
     return NextResponse.json({ ok: true, decision });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);

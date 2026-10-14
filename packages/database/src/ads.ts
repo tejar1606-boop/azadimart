@@ -127,7 +127,7 @@ export async function placeAdBids(db: Database, input: { sellerId: string; campa
     // Budget check (with GST), once the day is known to be available: raising your own top bid only needs the difference.
     const overBudget = (price: number, own: number) => {
       extra = adChargeFor(Math.max(0, price - own)).totalPaise;
-      return extra > available ? { ok: false as const, reason: `This is more than your ad budget (₹${Math.floor(available / 100).toLocaleString("en-IN")} left, including GST). It grows with your sales; AzadiMart can also raise your limit.` } : null;
+      return extra > available ? { ok: false as const, reason: `This is more than your ad budget (₹${Math.floor(available / 100).toLocaleString("en-IN")} left, including GST). It grows with your sales; LOIMART can also raise your limit.` } : null;
     };
     try {
       const result = await db.transaction(async (tx) => {

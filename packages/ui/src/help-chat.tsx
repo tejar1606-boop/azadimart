@@ -17,7 +17,7 @@ type Reply = {
 type Message = { role: "user" | "assistant"; text: string; reply?: Reply; ticket?: { id: string; number: number } };
 
 export type HelpChatProps = {
-  /** Header title, e.g. "AzadiMart Help". */
+  /** Header title, e.g. "LOIMART Help". */
   title: string;
   subtitle?: string;
   /** Base of the support API: /chat, /tickets, /unread live under it. */

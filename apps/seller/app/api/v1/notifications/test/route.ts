@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const { sellerId, userId } = await requireSeller(request);
     const db = createDatabase();
     await enforceRateLimit(db, request, "alertTest", { subject: userId, rule: { limit: 10, windowSeconds: 60 * 60 } });
-    await notifySeller(db, { sellerId, kind: "NEW_ORDER", title: "Test alert from AzadiMart", body: "This is how new-order alerts will look.", href: "/orders", dedupeKey: `TEST:${Date.now()}` });
+    await notifySeller(db, { sellerId, kind: "NEW_ORDER", title: "Test alert from LOIMART", body: "This is how new-order alerts will look.", href: "/orders", dedupeKey: `TEST:${Date.now()}` });
     return NextResponse.json({ ok: true });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);

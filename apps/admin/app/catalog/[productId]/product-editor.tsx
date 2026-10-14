@@ -143,7 +143,7 @@ export default function ProductEditor({ productId, storefrontUrl }: { productId:
         <PortalPageHeader
           eyebrow={`${data.product.sellerName} · ${STATUS_LABEL[status] ?? status}`}
           title={data.product.title}
-          description="Edits apply immediately. Only AzadiMart admins can edit or delete products."
+          description="Edits apply immediately. Only LOIMART admins can edit or delete products."
           actions={<>
             {status === "LIVE" && storefrontUrl ? <a href={`${storefrontUrl}/products/${data.product.slug}`} target="_blank" rel="noreferrer" className="rounded-full px-4 py-2 text-sm font-semibold ring-1 ring-slate-300 hover:ring-slate-900">View on store ↗</a> : null}
             <button type="button" disabled={busy} onClick={() => void save()} className="rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50">{busy ? "Saving…" : "Save changes"}</button>
@@ -184,7 +184,7 @@ export default function ProductEditor({ productId, storefrontUrl }: { productId:
                 onTitle={setMetaTitle}
                 onDescription={setMetaDescription}
                 autoTitle={`${title || "Product name"} – Buy online at ₹${variants[0]?.price || "…"}`}
-                autoDescription={`Buy ${title || "this product"} for ₹${variants[0]?.price || "…"} from ${data.product.sellerName}, a verified seller on AzadiMart. Cash on Delivery and easy returns.`}
+                autoDescription={`Buy ${title || "this product"} for ₹${variants[0]?.price || "…"} from ${data.product.sellerName}, a verified seller on LOIMART. Cash on Delivery and easy returns.`}
                 path={"/products/" + data.product.slug}
               />
             </div>

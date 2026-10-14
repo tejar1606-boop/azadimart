@@ -39,11 +39,11 @@ export function PortalShell({
   Link: ComponentType<LinkProps>;
   onSignOut: () => void;
   footer?: ReactNode;
-  /** Replaces the AzadiMart mark at the top of the sidebar (e.g. the seller's store card). */
+  /** Replaces the LOIMART mark at the top of the sidebar (e.g. the seller's store card). */
   header?: ReactNode;
   /** Small buttons under the header (e.g. Notices, Help). */
   quickActions?: ReactNode;
-  /** Show the AzadiMart wordmark above Sign out (used when `header` replaces it). */
+  /** Show the LOIMART wordmark above Sign out (used when `header` replaces it). */
   brandFooter?: boolean;
   children: ReactNode;
 }) {
@@ -100,7 +100,7 @@ export function PortalShell({
     <div className="flex items-center gap-2.5">
       <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand text-sm font-bold text-white">A</span>
       <div className="leading-tight">
-        <p className="text-[15px] font-bold tracking-[-0.03em] text-white">Azadi<span className="text-brand-400">Mart</span></p>
+        <p className="text-[15px] font-bold tracking-[-0.03em] text-white">LOI<span className="text-brand-400">MART</span></p>
         <p className="text-[11px] font-medium text-white/45">{product}</p>
       </div>
     </div>
@@ -125,7 +125,7 @@ export function PortalShell({
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-chrome px-4 text-white lg:hidden">
         <button type="button" onClick={() => setOpen(true)} aria-label="Open menu" className="-ml-1 grid h-9 w-9 place-items-center rounded-lg hover:bg-white/10"><PortalIcons.menu /></button>
-        <p className="text-[15px] font-bold tracking-[-0.03em]">Azadi<span className="text-brand-400">Mart</span><span className="ml-2 text-xs font-medium text-white/50">{product}</span></p>
+        <p className="text-[15px] font-bold tracking-[-0.03em]">LOI<span className="text-brand-400">MART</span><span className="ml-2 text-xs font-medium text-white/50">{product}</span></p>
         {current ? <span className="ml-auto truncate text-xs text-white/60">{current.label}</span> : null}
       </header>
       {open ? (
@@ -205,7 +205,7 @@ export function PortalAuthLayout({ product, headline, points, children }: { prod
         <div aria-hidden className="absolute -bottom-40 -left-20 h-96 w-96 rounded-full bg-india/25 blur-3xl" />
         <div className="relative flex items-center gap-2.5">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand text-base font-bold">A</span>
-          <div className="leading-tight"><p className="text-lg font-bold tracking-[-0.03em]">Azadi<span className="text-brand-400">Mart</span></p><p className="text-xs text-white/50">{product}</p></div>
+          <div className="leading-tight"><p className="text-lg font-bold tracking-[-0.03em]">LOI<span className="text-brand-400">MART</span></p><p className="text-xs text-white/50">{product}</p></div>
         </div>
         <div className="relative max-w-md">
           <h1 className="text-4xl font-semibold leading-[1.1] tracking-[-0.04em]">{headline}</h1>
@@ -217,13 +217,13 @@ export function PortalAuthLayout({ product, headline, points, children }: { prod
             ))}
           </ul>
         </div>
-        <p className="relative text-xs text-white/40">© {new Date().getFullYear()} AzadiMart</p>
+        <p className="relative text-xs text-white/40">© {new Date().getFullYear()} LOIMART</p>
       </section>
       <section className="flex items-center justify-center px-4 py-10 sm:px-8">
         <div className="w-full max-w-md">
           <div className="mb-8 flex items-center gap-2.5 lg:hidden">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand text-sm font-bold text-white">A</span>
-            <p className="text-lg font-bold tracking-[-0.03em]">Azadi<span className="text-brand-600">Mart</span> <span className="text-sm font-medium text-slate-500">{product}</span></p>
+            <p className="text-lg font-bold tracking-[-0.03em]">LOI<span className="text-brand-600">MART</span> <span className="text-sm font-medium text-slate-500">{product}</span></p>
           </div>
           {children}
         </div>

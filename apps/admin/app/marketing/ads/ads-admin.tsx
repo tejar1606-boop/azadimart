@@ -89,7 +89,7 @@ function AdminCalendar({ slot, onChanged }: { slot: Slot; onChanged: () => void 
         })}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="text-xs text-slate-500">{picked.length ? `${picked.length} day(s) picked` : "Pick days to take them off sale (e.g. for AzadiMart's own sale banner) or put them back."}</span>
+        <span className="text-xs text-slate-500">{picked.length ? `${picked.length} day(s) picked` : "Pick days to take them off sale (e.g. for LOIMART's own sale banner) or put them back."}</span>
         {picked.length ? <><button type="button" onClick={() => void setClosed(true)} className="rounded-full bg-slate-900 px-3.5 py-1.5 text-xs font-bold text-white">Close days</button><button type="button" onClick={() => void setClosed(false)} className="rounded-full px-3.5 py-1.5 text-xs font-bold ring-1 ring-slate-300">Reopen days</button></> : null}
         {error ? <p role="alert" className="w-full text-sm text-red-700">{error}</p> : null}
       </div>

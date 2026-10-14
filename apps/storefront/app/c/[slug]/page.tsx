@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const category = await findCategory((await params).slug);
   if (!category) return { title: "Category not found", robots: { index: false } };
   const title = category.metaTitle?.trim() || `${category.name} – Shop online in India`;
-  const description = clip(category.metaDescription?.trim() || category.intro || `Shop ${category.name} online from KYC-verified Indian sellers on AzadiMart. Quality-checked products, best prices, Cash on Delivery and easy returns.`);
+  const description = clip(category.metaDescription?.trim() || category.intro || `Shop ${category.name} online from KYC-verified Indian sellers on LOIMART. Quality-checked products, best prices, Cash on Delivery and easy returns.`);
   return {
     title,
     description,

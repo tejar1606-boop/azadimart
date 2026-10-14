@@ -21,7 +21,7 @@ export type ReviewItem = {
 /** "Priya Sharma" -> "Priya S." (reviews never show full names). */
 export function displayName(fullName: string | null | undefined): string {
   const parts = (fullName ?? "").trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return "AzadiMart customer";
+  if (!parts.length) return "LOIMART customer";
   return parts.length === 1 ? parts[0]! : `${parts[0]} ${parts[parts.length - 1]![0]!.toUpperCase()}.`;
 }
 

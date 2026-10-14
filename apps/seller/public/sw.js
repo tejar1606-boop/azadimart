@@ -1,9 +1,9 @@
-// AzadiMart Seller Hub service worker: shows browser-push alerts (new orders,
+// LOIMART Seller Hub service worker: shows browser-push alerts (new orders,
 // ship-by reminders, cancellations) even when Seller Hub isn't open.
 self.addEventListener("push", (event) => {
   let data = {};
-  try { data = event.data ? event.data.json() : {}; } catch { data = { title: "AzadiMart Seller Hub", body: event.data ? event.data.text() : "" }; }
-  event.waitUntil(self.registration.showNotification(data.title || "AzadiMart Seller Hub", {
+  try { data = event.data ? event.data.json() : {}; } catch { data = { title: "LOIMART Seller Hub", body: event.data ? event.data.text() : "" }; }
+  event.waitUntil(self.registration.showNotification(data.title || "LOIMART Seller Hub", {
     body: data.body || "",
     tag: data.tag || undefined,
     icon: "/alert-icon.png",

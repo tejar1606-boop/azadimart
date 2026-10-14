@@ -4,7 +4,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { assertBlocksOwned, requireOwnedProduct } from "../shared";
 
-/** Send the saved draft to AzadiMart for review. */
+/** Send the saved draft to LOIMART for review. */
 export async function POST(request: Request, { params }: { params: Promise<{ productId: string }> }) {
   const requestId = crypto.randomUUID();
   try {

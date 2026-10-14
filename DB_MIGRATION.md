@@ -1,6 +1,6 @@
-# AzadiMart — Real Neon Database Integration
+# LOIMART — Real Neon Database Integration
 
-The repository contains a reviewed Drizzle migration for the current AzadiMart schema.
+The repository contains a reviewed Drizzle migration for the current LOIMART schema.
 
 ## Migration safety
 

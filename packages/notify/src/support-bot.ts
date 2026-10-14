@@ -1,5 +1,5 @@
 /**
- * The AzadiMart help assistant. Each app (storefront, seller portal) gives it
+ * The LOIMART help assistant. Each app (storefront, seller portal) gives it
  * "intents": topics with keywords and a handler that looks up live data. It
  * works without any AI service. When ANTHROPIC_API_KEY is set, typed
  * questions go to Claude instead, which can call the same lookups as tools;
@@ -64,7 +64,7 @@ type ClaudeMessage = { role: "user" | "assistant"; content: string | Array<Recor
 async function askClaude(ai: NonNullable<SupportBotSetup["ai"]>, history: Array<{ role: "user" | "assistant"; content: string }>, message: string): Promise<BotReply> {
   const handoffTool: BotTool = {
     name: "offer_human_handoff",
-    description: "Offer to pass the conversation to a person in the AzadiMart support team. Use when the problem needs a human (refund disputes, damaged items, payment taken but no order, bank or KYC changes, anything you can't solve), or when the user asks for a person.",
+    description: "Offer to pass the conversation to a person in the LOIMART support team. Use when the problem needs a human (refund disputes, damaged items, payment taken but no order, bank or KYC changes, anything you can't solve), or when the user asks for a person.",
     input: { type: "object", properties: { category: { type: "string", enum: ai.handoffCategories }, subject: { type: "string", description: "Short subject for the ticket, under 80 characters" }, orderId: { type: "string", description: "Order id (uuid) if the problem is about one order" } }, required: ["category", "subject"] },
     run: async (input) => ({ data: { offered: true }, reply: { handoff: { category: String(input.category), subject: String(input.subject).slice(0, 120), orderId: typeof input.orderId === "string" && /^[0-9a-f-]{36}$/i.test(input.orderId) ? input.orderId : null } } }),
   };

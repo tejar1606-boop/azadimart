@@ -1,15 +1,15 @@
 /**
- * Seller settlement rules: what AzadiMart keeps and what the seller is paid
+ * Seller settlement rules: what LOIMART keeps and what the seller is paid
  * for their part of an order. All amounts are in paise.
  *
  * - Commission: free for the seller's first 3 months after approval (by
  *   order date), then 5% of the seller's order value, plus 18% GST on the
- *   commission (a service AzadiMart charges).
+ *   commission (a service LOIMART charges).
  * - TCS under GST section 52 (0.5% of the net taxable value) applies to
  *   GST-registered sellers only.
  * - TDS under Income-tax section 194-O (0.1% of the gross amount).
  * - Paid out 7 days after delivery if no return is open.
- * Tax rates must be confirmed with AzadiMart's CA before going live.
+ * Tax rates must be confirmed with LOIMART's CA before going live.
  */
 export const COMMISSION_FREE_MONTHS = 3;
 export const COMMISSION_RATE_BPS = 500; // 5%

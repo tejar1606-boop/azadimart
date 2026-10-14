@@ -4,7 +4,7 @@ import { notifyAdEvents, notifySeller, settleAdAuctions } from "@azadimart/notif
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 
 /**
- * Automatic seller payouts, from AzadiMart's own current account.
+ * Automatic seller payouts, from LOIMART's own current account.
  *
  * Every day: order items delivered 7+ days ago, paid, with no open return
  * are grouped per seller into a payout (commission etc. fixed per item), and
@@ -36,7 +36,7 @@ const testRail: PayoutRail = {
 };
 
 /**
- * The connection to AzadiMart's bank. Only test mode exists until the bank's
+ * The connection to LOIMART's bank. Only test mode exists until the bank's
  * payout API (or a payout service linked to the current account) is set up,
  * and test mode is refused on the live site so nothing is marked paid falsely.
  */
@@ -115,15 +115,15 @@ export async function processPayout(db: Database, payoutId: string, options: { a
     return "ON_HOLD" as const;
   };
   if (!seller) return "SKIPPED";
-  if (seller.holdReason) return hold(`Held by AzadiMart: ${seller.holdReason}`);
+  if (seller.holdReason) return hold(`Held by LOIMART: ${seller.holdReason}`);
   if (seller.status !== "ACTIVE") return hold("Your seller account isn't active.");
   if (!account) return hold("Add your bank account in Payments to receive this money.");
-  if (account.verificationStatus === "PENDING") return hold("Your bank account is being verified by AzadiMart.");
+  if (account.verificationStatus === "PENDING") return hold("Your bank account is being verified by LOIMART.");
   if (account.verificationStatus === "REJECTED") return hold(`Your bank account was rejected${account.rejectionReason ? `: ${account.rejectionReason}` : ""}. Add a correct account in Payments.`);
 
   const rail = payoutRail();
   if (!rail) {
-    await db.update(payouts).set({ status: "PENDING", failureReason: "Waiting for AzadiMart's bank connection to be set up.", updatedAt: now }).where(eq(payouts.id, payoutId));
+    await db.update(payouts).set({ status: "PENDING", failureReason: "Waiting for LOIMART's bank connection to be set up.", updatedAt: now }).where(eq(payouts.id, payoutId));
     return "NOT_SET_UP";
   }
 
@@ -147,7 +147,7 @@ export async function processPayout(db: Database, payoutId: string, options: { a
 
   let result: TransferResult;
   try {
-    result = await rail.send({ reference: payout.reference!, amountPaise: payout.amountPaise, accountHolderName: account.accountHolderName, accountNumber: decryptSecret(account.accountNumberEncrypted), ifsc: account.ifsc, narration: `AzadiMart payout ${payout.reference}` });
+    result = await rail.send({ reference: payout.reference!, amountPaise: payout.amountPaise, accountHolderName: account.accountHolderName, accountNumber: decryptSecret(account.accountNumberEncrypted), ifsc: account.ifsc, narration: `LOIMART payout ${payout.reference}` });
   } catch (error) {
     result = { status: "FAILED", reason: error instanceof Error ? error.message : "Transfer failed" };
   }

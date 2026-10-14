@@ -34,12 +34,12 @@ export default function CustomerRegisterPage() {
   }
 
   return (
-    <AuthScene headline={<>Shop India.<br /><span className="text-brand-300">Support Indian</span> sellers.</>} sub="Join AzadiMart to save your cart, track orders and check out faster, from sellers you can trust.">
+    <AuthScene headline={<>Shop India.<br /><span className="text-brand-300">Support Indian</span> sellers.</>} sub="Join LOIMART to save your cart, track orders and check out faster, from sellers you can trust.">
       <div className="mx-auto max-w-lg rounded-[2rem] border border-white/60 bg-white p-6 shadow-[0_30px_80px_rgba(2,6,23,0.45)] sm:p-8">
-        <Link href="/" aria-label="AzadiMart home"><Wordmark className="text-2xl" /></Link>
-        <p className="mt-8 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">Join AzadiMart</p>
+        <Link href="/" aria-label="LOIMART home"><Wordmark className="text-2xl" /></Link>
+        <p className="mt-8 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">Join LOIMART</p>
         <h1 className="mt-2 text-3xl font-bold tracking-[-0.04em]">Create your account</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-500">Save your cart, manage orders and checkout faster with a trusted AzadiMart account.</p>
+        <p className="mt-2 text-sm leading-6 text-slate-500">Save your cart, manage orders and checkout faster with a trusted LOIMART account.</p>
         <form onSubmit={submit} className="mt-7 space-y-4">
           <AuthField label="Full name" icon="name" autoComplete="name" placeholder="As you'd like it on deliveries" value={form.fullName} onChange={(e)=>set("fullName",e.target.value)} required />
           <AuthField label="Email" icon="email" type="email" autoComplete="email" placeholder="you@example.com" value={form.email} onChange={(e)=>set("email",e.target.value)} required />
