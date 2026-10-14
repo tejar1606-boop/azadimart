@@ -149,13 +149,18 @@ export const navigationSchema = z.object({
   items: z.array(navigationItemSchema).max(20),
 });
 
+/** "Buy now": check out only these cart lines (by variant) and leave the rest of the cart saved. */
+const checkoutVariantIdsSchema = z.array(uuidSchema).min(1).max(50).optional();
 export const couponValidationSchema = z.object({
   cartId: uuidSchema,
+  variantIds: checkoutVariantIdsSchema,
   code: z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,32}$/),
 });
 export const cartItemMutationSchema = z.object({
   variantId: uuidSchema,
   quantity: z.number().int().min(1).max(99),
+  /** Set the cart line to exactly this quantity instead of adding to it (Buy now). */
+  replace: z.boolean().optional(),
 });
 export const cartRemoveSchema = z.object({ variantId: uuidSchema });
 export const addressSchema = z.object({
@@ -170,6 +175,7 @@ export const addressSchema = z.object({
 });
 export const checkoutSchema = z.object({
   shippingAddressId: uuidSchema,
+  variantIds: checkoutVariantIdsSchema,
   couponCode:z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,32}$/).optional(),
   paymentMethod:z.enum(["COD","RAZORPAY","CASHFREE"]).default("COD"),
 });

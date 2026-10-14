@@ -6,7 +6,7 @@ import {
 import { AppError, SHIP_BY_DAYS, allocateCoupon, checkoutSchema, checkSellerSupplyToState, toApiError } from "@azadimart/shared";
 import { notifySellersOfNewOrder } from "@azadimart/notify";
 import { getPaymentProvider } from "@azadimart/payments";
-import { and, asc, count, eq, gte, ne, sql } from "drizzle-orm";
+import { and, asc, count, eq, gte, inArray, ne, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 
@@ -59,9 +59,10 @@ export async function POST(request:Request){
         productStatus:products.status,variantActive:productVariants.isActive,onHand:inventory.onHand,reserved:inventory.reserved,
       }).from(cartItems).innerJoin(productVariants,eq(cartItems.variantId,productVariants.id)).innerJoin(products,eq(productVariants.productId,products.id))
         .innerJoin(sellers,eq(products.sellerId,sellers.id)).leftJoin(inventory,eq(inventory.variantId,productVariants.id))
-        .where(eq(cartItems.cartId,cart.id)).orderBy(asc(productVariants.id));
+        // Buy now: only the chosen lines are ordered; everything else stays in the cart.
+        .where(input.variantIds?and(eq(cartItems.cartId,cart.id),inArray(cartItems.variantId,input.variantIds)):eq(cartItems.cartId,cart.id)).orderBy(asc(productVariants.id));
 
-      if(rawLines.length===0)throw new AppError("UNPROCESSABLE","Your cart is empty");
+      if(rawLines.length===0)throw new AppError("UNPROCESSABLE",input.variantIds?"This item is no longer in your cart":"Your cart is empty");
       const unavailable=rawLines.filter(line=>line.productStatus!=="LIVE"||!line.variantActive);
       if(unavailable.length)throw new AppError("UNPROCESSABLE","No longer available — remove from your cart: "+unavailable.map(line=>line.title).join(", "));
 
@@ -138,7 +139,7 @@ export async function POST(request:Request){
         await tx.insert(couponRedemptions).values({couponId:coupon.id,customerId:session.customerId!,orderId:order.id,discountPaise:discount});
       }
 
-      await tx.delete(cartItems).where(eq(cartItems.cartId,cart.id));
+      await tx.delete(cartItems).where(and(eq(cartItems.cartId,cart.id),inArray(cartItems.id,rawLines.map(line=>line.cartItemId))));
       return {orderId:order.id,orderNumber:order.orderNumber,subtotalPaise:subtotal,discountPaise:discount,shippingPaise:shipping,grandTotalPaise:grandTotal,paymentStatus:"PENDING"};
     });
     // Alert each seller in the order (after commit; never blocks the customer's checkout).

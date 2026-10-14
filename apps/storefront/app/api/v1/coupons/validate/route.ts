@@ -10,7 +10,7 @@ import {
   productVariants,
 } from "@azadimart/database";
 import { AppError, allocateCoupon, couponValidationSchema, toApiError } from "@azadimart/shared";
-import { and, count, eq, ne } from "drizzle-orm";
+import { and, count, eq, inArray, ne } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -68,7 +68,8 @@ export async function POST(request: Request) {
       .from(cartItems)
       .innerJoin(productVariants, eq(cartItems.variantId, productVariants.id))
       .innerJoin(products, eq(productVariants.productId, products.id))
-      .where(eq(cartItems.cartId, cart.id));
+      // Buy now validates the coupon against just the item being bought.
+      .where(input.variantIds ? and(eq(cartItems.cartId, cart.id), inArray(cartItems.variantId, input.variantIds)) : eq(cartItems.cartId, cart.id));
 
     const lines = rows.filter(
       (line) => line.quantity > 0 && line.variantActive && line.productStatus === "LIVE",

@@ -22,6 +22,8 @@ export default function CheckoutView(){
   const [error,setError]=useState("");
   const [newAddress,setNewAddress]=useState({label:"Home",line1:"",line2:"",city:"",state:"",postalCode:""});
   const [showAddressForm,setShowAddressForm]=useState(false);
+  // Buy now (/checkout?buy=<variantId>): order only that item; the rest of the cart stays saved.
+  const [buyOnly,setBuyOnly]=useState<string[]>();
 
   async function load(){
     setBusy(true);setError("");
@@ -31,7 +33,13 @@ export default function CheckoutView(){
       if(cartResponse.status===401) throw new Error("Please sign in before checkout.");
       if(!cartResponse.ok) throw new Error(cartBody?.error?.message??"Unable to load cart.");
       if(!addressResponse.ok) throw new Error(addressBody?.error?.message??"Unable to load addresses.");
-      setCart(cartBody);setAddresses(addressBody.items??[]);
+      const buy=new URLSearchParams(window.location.search).get("buy")?.split(",").filter(Boolean);
+      const chosen=buy?(cartBody.items as CartItem[]).filter(item=>buy.includes(item.variantId)):[];
+      if(buy&&chosen.length){
+        setBuyOnly(chosen.map(item=>item.variantId));
+        setCart({...cartBody,items:chosen,subtotalPaise:chosen.filter(item=>item.isAvailable!==false).reduce((sum,item)=>sum+item.lineTotalPaise,0)});
+      }else setCart(cartBody);
+      setAddresses(addressBody.items??[]);
       const defaultAddress=(addressBody.items??[]).find((v:Address)=>v.isDefault)||addressBody.items?.[0];
       if(defaultAddress)setSelectedAddress(defaultAddress.id);
     }catch(err){setError(err instanceof Error?err.message:"Unable to load checkout.");}
@@ -46,7 +54,7 @@ export default function CheckoutView(){
     if(!coupon.trim()||!cart)return;
     setWorking(true);setCouponMessage("");setError("");
     try{
-      const response=await fetch("/api/v1/coupons/validate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cartId:cart.cartId,code:coupon})});
+      const response=await fetch("/api/v1/coupons/validate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cartId:cart.cartId,code:coupon,variantIds:buyOnly})});
       const body=await response.json();
       if(!response.ok)throw new Error(body?.error?.message??"Coupon could not be applied.");
       setDiscount(body.discountPaise??0);
@@ -71,7 +79,7 @@ export default function CheckoutView(){
     if(!selectedAddress||!cart)return;
     setWorking(true);setError("");
     try{
-      const response=await fetch("/api/v1/checkout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({shippingAddressId:selectedAddress,couponCode:appliedCoupon,paymentMethod:"COD"})});
+      const response=await fetch("/api/v1/checkout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({shippingAddressId:selectedAddress,couponCode:appliedCoupon,paymentMethod:"COD",variantIds:buyOnly})});
       const body=await response.json();if(!response.ok)throw new Error(body?.error?.message??"Unable to place order.");
       window.location.href="/account/orders/"+encodeURIComponent(body.orderId);
     }catch(err){setError(err instanceof Error?err.message:"Unable to place order.");}
@@ -84,8 +92,8 @@ export default function CheckoutView(){
 
   return <main className="min-h-[60vh] bg-canvas px-4 py-8 sm:px-6 sm:py-12">
     <div className="mx-auto max-w-6xl">
-      <div className="flex items-end justify-between gap-3"><div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Secure checkout</p><h1 className="mt-2 text-3xl font-bold tracking-[-0.04em] sm:text-5xl">Finish your order.</h1></div><Link href="/cart" className="text-sm font-semibold text-slate-500">← Cart</Link></div>
-      {error?<div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error} {error.includes("sign in")?<Link href="/login?next=%2Fcheckout" className="font-bold underline">Sign in</Link>:null}</div>:null}
+      <div className="flex items-end justify-between gap-3"><div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Secure checkout</p><h1 className="mt-2 text-3xl font-bold tracking-[-0.04em] sm:text-5xl">Finish your order.</h1>{buyOnly?<p className="mt-2 text-sm text-slate-500">Buying this item now. The rest of your cart is saved for later.</p>:null}</div><Link href="/cart" className="text-sm font-semibold text-slate-500">← Cart</Link></div>
+      {error?<div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error} {error.includes("sign in")?<Link href={"/login?next="+encodeURIComponent("/checkout"+(typeof window!=="undefined"?window.location.search:""))} className="font-bold underline">Sign in</Link>:null}</div>:null}
       {(!cart||cart.items.length===0)?<div className="mt-8 rounded-[2rem] border border-dashed border-slate-300 bg-white p-12 text-center"><p className="text-xl font-bold">Your cart is empty.</p><Link href="/products" className="mt-5 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white">Continue shopping</Link></div>:
       <div className="mt-7 grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
         <div className="space-y-5">

@@ -141,7 +141,7 @@ export async function POST(request: Request) {
       .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.variantId, input.variantId)))
       .limit(1))[0];
 
-    const nextQuantity = (existing?.quantity ?? 0) + input.quantity;
+    const nextQuantity = input.replace ? input.quantity : (existing?.quantity ?? 0) + input.quantity;
     if (nextQuantity > availableQuantity) {
       throw new AppError("UNPROCESSABLE", "Cart quantity exceeds available stock");
     }
