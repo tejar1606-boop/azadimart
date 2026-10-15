@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     await requireStaff(request, "any");
     const db = createDatabase();
     const [rows, counts] = await Promise.all([
-      db.select({ id: categories.id, name: categories.name, slug: categories.slug, parentId: categories.parentId, isActive: categories.isActive, sortOrder: categories.sortOrder, metaTitle: categories.metaTitle, metaDescription: categories.metaDescription, description: categories.description })
+      db.select({ id: categories.id, name: categories.name, slug: categories.slug, parentId: categories.parentId, isActive: categories.isActive, sortOrder: categories.sortOrder, metaTitle: categories.metaTitle, metaDescription: categories.metaDescription, description: categories.description, imageUrl: categories.imageUrl })
         .from(categories).orderBy(asc(categories.sortOrder), asc(categories.name)),
       db.select({ categoryId: products.categoryId, total: count() }).from(products).groupBy(products.categoryId),
     ]);

@@ -42,7 +42,8 @@ type HomeCoupon = {
   minimumOrderPaise: number;
   endsAt: Date | null;
 };
-type HomeCategory = { id: string; name: string; slug: string; imageKey: string | null; productCount: number; minPricePaise: number | null };
+/** imageSrc: the photo uploaded in Admin, else one of the category's product photos. */
+type HomeCategory = { id: string; name: string; slug: string; imageSrc: string | null; productCount: number; minPricePaise: number | null };
 
 const str = (settings: Settings, key: string, fallback = "") => (typeof settings[key] === "string" && String(settings[key]).trim() ? String(settings[key]) : fallback);
 const num = (settings: Settings, key: string, fallback: number) => (typeof settings[key] === "number" && Number.isFinite(settings[key]) ? Number(settings[key]) : fallback);
@@ -96,7 +97,7 @@ async function getHome() {
       // Admin-arranged order first (Arrange products page); unarranged products follow, newest first.
       .orderBy(asc(products.position), desc(products.createdAt), asc(productMedia.sortOrder))
       .limit(400),
-    db.select({ id: categories.id, name: categories.name, slug: categories.slug })
+    db.select({ id: categories.id, name: categories.name, slug: categories.slug, imageUrl: categories.imageUrl })
       .from(categories).where(and(eq(categories.isActive, true), isNull(categories.parentId)))
       .orderBy(asc(categories.sortOrder), asc(categories.name)).limit(24),
   ]);
@@ -112,9 +113,10 @@ async function getHome() {
   const homeCategories: HomeCategory[] = categoryRows.map((category) => {
     const inCategory = allLive.filter((product) => product.categoryId === category.id || parentOf.get(product.categoryId) === category.id);
     const prices = inCategory.map((product) => product.pricePaise);
+    const productPhoto = inCategory.find((product) => product.mediaStorageKey)?.mediaStorageKey;
     return {
-      ...category,
-      imageKey: inCategory.find((product) => product.mediaStorageKey)?.mediaStorageKey ?? null,
+      id: category.id, name: category.name, slug: category.slug,
+      imageSrc: category.imageUrl || (productPhoto ? "/media/" + productPhoto : null),
       productCount: inCategory.length,
       minPricePaise: prices.length ? Math.min(...prices) : null,
     };
@@ -276,7 +278,7 @@ function SectionHeading({ eyebrow, heading, subtitle, actionLabel, actionHref }:
  */
 function CategoryCircles({ categories: all }: { categories: HomeCategory[] }) {
   if (!all.length) return null;
-  const items = [{ id: "all", name: "All", slug: "", imageKey: null as string | null }, ...all.slice(0, 11)];
+  const items = [{ id: "all", name: "All", slug: "", imageSrc: null as string | null }, ...all.slice(0, 11)];
   return (
     <nav aria-label="Shop by category" className="bg-white">
       <ul className="mx-auto flex max-w-[1440px] gap-3 overflow-x-auto px-4 pb-3 pt-3 [scrollbar-width:none] sm:px-6 lg:justify-between lg:gap-2 lg:px-10">
@@ -284,8 +286,8 @@ function CategoryCircles({ categories: all }: { categories: HomeCategory[] }) {
           <li key={c.id} className="shrink-0">
             <Link href={c.slug ? "/c/" + c.slug : "/products"} className="group flex w-[72px] flex-col items-center gap-1.5 lg:w-[96px]">
               <span className="relative grid h-[60px] w-[60px] place-items-center overflow-hidden rounded-full bg-[#F3EDFD] transition group-hover:ring-2 group-hover:ring-[#6A2CD6] lg:h-[68px] lg:w-[68px]">
-                {c.imageKey ? (
-                  <Image src={"/media/" + c.imageKey} alt="" fill sizes="96px" className="scale-[1.3] object-cover" />
+                {c.imageSrc ? (
+                  <Image src={c.imageSrc} alt="" fill sizes="96px" className={"object-cover" + (c.imageSrc.startsWith("/media/product-media/") ? " scale-[1.3]" : "")} unoptimized={c.imageSrc.startsWith("https://")} />
                 ) : (
                   <svg width="26" height="26" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 0 Q23 17 40 20 Q23 23 20 40 Q17 23 0 20 Q17 17 20 0Z" fill="#6A2CD6" /></svg>
                 )}
@@ -498,7 +500,7 @@ function CategoryShowcase({ s, rail, products: byCategory }: { s: Settings; rail
   const tiles: ShowcaseTile[] = (custom.length
     ? custom
     : children.length
-      ? [{ label: "All " + category.name, href: "/c/" + category.slug, imageSrc: category.imageKey ? "/media/" + category.imageKey : null }, ...children.map((c) => ({ label: c.name, href: "/c/" + c.slug, imageSrc: c.imageKey ? "/media/" + c.imageKey : null }))]
+      ? [{ label: "All " + category.name, href: "/c/" + category.slug, imageSrc: category.imageSrc }, ...children.map((c) => ({ label: c.name, href: "/c/" + c.slug, imageSrc: c.imageSrc }))]
       : (byCategory[category.id] ?? []).map((p) => ({ label: p.title, href: "/products/" + p.slug, imageSrc: p.mediaStorageKey ? "/media/" + p.mediaStorageKey : null }))
   ).slice(0, 6);
   const heading = str(s, "heading", category.name);
@@ -618,8 +620,8 @@ function CategoryGrid({ s, categories: all }: { s: Settings; categories: HomeCat
         {tiles.map((category) => (
           <Link key={category.id} href={"/c/" + category.slug} className="group flex w-[calc((100%-20px)/3)] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition hover:-translate-y-0.5 hover:shadow-lift sm:w-[calc((100%-32px)/3)] lg:w-[calc((100%-80px)/6)]">
             <span className="relative block aspect-square overflow-hidden bg-[#F3EDFD]">
-              {category.imageKey ? (
-                <Image src={"/media/" + category.imageKey} alt="" fill sizes="(max-width:1024px) 32vw, 220px" className="object-cover transition duration-500 group-hover:scale-[1.05]" />
+              {category.imageSrc ? (
+                <Image src={category.imageSrc} alt="" unoptimized={category.imageSrc.startsWith("https://")} fill sizes="(max-width:1024px) 32vw, 220px" className="object-cover transition duration-500 group-hover:scale-[1.05]" />
               ) : (
                 <span aria-hidden="true" className="grid h-full place-items-center"><svg width="34" height="34" viewBox="0 0 40 40"><path d="M20 0 Q23 17 40 20 Q23 23 20 40 Q17 23 0 20 Q17 17 20 0Z" fill="#6A2CD6" /></svg></span>
               )}

@@ -1,8 +1,8 @@
 import { categories, createDatabase } from "@azadimart/database";
 import { asc, eq, sql } from "drizzle-orm";
 
-/** A category in the shop pages' left column, with a photo from one of its live products. */
-export type RailCategory = { id: string; name: string; slug: string; parentId: string | null; imageKey: string | null; count: number };
+/** A category in the shop pages' left column. imageSrc: the photo uploaded in Admin, else one from its live products. */
+export type RailCategory = { id: string; name: string; slug: string; parentId: string | null; imageSrc: string | null; count: number };
 
 /**
  * Active categories in admin order, each with a cover photo (the first live
@@ -14,7 +14,7 @@ export async function getCategoryRail(): Promise<RailCategory[]> {
   try {
     const db = createDatabase();
     const [rows, covers, counts] = await Promise.all([
-      db.select({ id: categories.id, name: categories.name, slug: categories.slug, parentId: categories.parentId })
+      db.select({ id: categories.id, name: categories.name, slug: categories.slug, parentId: categories.parentId, imageUrl: categories.imageUrl })
         .from(categories).where(eq(categories.isActive, true)).orderBy(asc(categories.sortOrder), asc(categories.name)),
       db.execute<{ category_id: string; storage_key: string }>(sql`
         select distinct on (p.category_id) p.category_id, ma.storage_key
@@ -32,9 +32,10 @@ export async function getCategoryRail(): Promise<RailCategory[]> {
     const visible = rows.filter((r) => !r.parentId || active.has(r.parentId));
     return visible.map((r) => {
       const children = visible.filter((c) => c.parentId === r.id);
+      const productPhoto = cover.get(r.id) ?? children.map((c) => cover.get(c.id)).find(Boolean);
       return {
-        ...r,
-        imageKey: cover.get(r.id) ?? children.map((c) => cover.get(c.id)).find(Boolean) ?? null,
+        id: r.id, name: r.name, slug: r.slug, parentId: r.parentId,
+        imageSrc: r.imageUrl || (productPhoto ? "/media/" + productPhoto : null),
         count: (count.get(r.id) ?? 0) + children.reduce((sum, c) => sum + (count.get(c.id) ?? 0), 0),
       };
     });

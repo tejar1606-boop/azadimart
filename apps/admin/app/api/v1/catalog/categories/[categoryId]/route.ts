@@ -4,7 +4,7 @@ import { AppError, adminCategoryUpdateSchema, toApiError, uuidSchema } from "@az
 import { and, eq, isNull, max, ne } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-/** Rename, show/hide, or move a category under another parent. */
+/** Rename, show/hide, change the photo of, or move a category under another parent. */
 export async function PATCH(request: Request, { params }: { params: Promise<{ categoryId: string }> }) {
   const requestId = crypto.randomUUID();
   try {
@@ -42,6 +42,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ca
       if (input.metaTitle !== undefined) changes.metaTitle = input.metaTitle || null;
       if (input.metaDescription !== undefined) changes.metaDescription = input.metaDescription || null;
       if (input.description !== undefined) changes.description = input.description || null;
+      if (input.imageUrl !== undefined) changes.imageUrl = input.imageUrl || null;
 
       const row = (await tx.update(categories).set(changes).where(eq(categories.id, categoryId)).returning())[0]!;
       await tx.insert(auditLogs).values({ actorUserId: principal.userId, action: "CATEGORY_UPDATED", entityType: "category", entityId: categoryId, metadata: { before: { name: current.name, isActive: current.isActive, parentId: current.parentId }, after: { name: row.name, isActive: row.isActive, parentId: row.parentId } } });

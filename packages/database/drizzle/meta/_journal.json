@@ -246,6 +246,13 @@
       "when": 1792050863274,
       "tag": "20261015075423_qc_proposed_changes",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792074207830,
+      "tag": "20261015142327_category_image",
+      "breakpoints": true
     }
   ]
 }

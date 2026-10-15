@@ -260,6 +260,8 @@ export const adminCategoryUpdateSchema = z.object({
   metaTitle: z.string().trim().max(70, "Keep the search title under 70 characters").optional(),
   metaDescription: z.string().trim().max(170, "Keep the search description under 170 characters").optional(),
   description: z.string().trim().max(3000).optional(),
+  // Uploaded photo (/media/…) or an https link; "" removes it.
+  imageUrl: z.string().trim().max(2048).refine((v) => v === "" || /^\/media\/[\w\-./]+$/.test(v) || /^https:\/\/[^\s"'<>]+$/i.test(v), "Upload a photo or paste an https link").optional(),
 }).refine((v) => Object.values(v).some((x) => x !== undefined), "Nothing to update");
 /** Sibling categories in their new order. */
 export const adminCategoryOrderSchema = z.object({ ids: z.array(uuidSchema).min(1).max(500).refine((ids) => new Set(ids).size === ids.length, "Duplicate categories") });

@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { DEFAULT_HOME_SECTIONS, SECTION_TYPES, type ThemeSectionDraft } from "@azadimart/shared";
 import BannerRowField, { type RowBanner } from "./banner-row-field";
+import CategoryPhotos from "./category-photos";
 import HeroSlidesField, { SLIDE_SECONDS_DEFAULT, slidesFromSettings } from "./hero-slides-field";
 import MediaField from "./media-field";
 import NavigationEditor from "./navigation-editor";
@@ -64,6 +65,9 @@ export default function OnlineStoreEditor(){
   // Bring the section being edited into view in the preview.
   useEffect(()=>{ if(!activeId) return; previewRef.current?.querySelector(`[data-preview="${activeId}"]`)?.scrollIntoView({block:"nearest",behavior:"smooth"}); },[activeId,device]);
   const [busy,setBusy]=useState(false);
+  // Uploaded category photos (by name) for the preview.
+  const [categoryPhotos,setCategoryPhotos]=useState<Record<string,string>>({});
+  const [topNames,setTopNames]=useState<string[]>([]);
 
   async function load(){
     const r=await fetch("/api/v1/online-store/homepage",{cache:"no-store"});
@@ -106,6 +110,8 @@ export default function OnlineStoreEditor(){
 
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
       <section className="space-y-3">
+        <CategoryPhotos onChange={(photos,names)=>{setCategoryPhotos(photos);setTopNames(names);}}/>
+        <p className="px-1 pt-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Homepage sections, top to bottom</p>
         {sections.map((s,i)=><article key={s.id} onFocusCapture={()=>setActiveId(s.id)} onClick={()=>setActiveId(s.id)} className={"rounded-2xl border bg-white p-4 shadow-sm "+(s.isVisible?"border-slate-200":"border-dashed border-slate-300 opacity-60")+(activeId===s.id?" ring-2 ring-brand":"")}>
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div className="flex items-start gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950 text-xs font-bold text-white">{i+1}</span><div><h2 className="flex flex-wrap items-center gap-2 font-semibold">{LABELS[s.type] ?? s.type}{s.settings.showOn==="desktop"||s.settings.showOn==="mobile" ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">{SHOW_ON_LABEL[String(s.settings.showOn)]}</span> : null}</h2><p className="mt-0.5 max-w-xl text-xs text-slate-500">{HELP[s.type] ?? s.type}</p></div></div>
@@ -130,8 +136,8 @@ export default function OnlineStoreEditor(){
             <div role="radiogroup" aria-label="Preview device" className="inline-flex rounded-full bg-slate-100 p-1">{(["desktop","phone"] as const).map(d=><button key={d} type="button" role="radio" aria-checked={device===d} onClick={()=>setDevice(d)} className={"rounded-full px-3 py-1 text-xs font-semibold "+(device===d?"bg-white shadow-sm":"text-slate-500")}>{d==="desktop"?"Desktop":"Phone"}</button>)}</div>
           </div>
           <div ref={previewRef} className={"mx-auto mt-4 max-h-[75vh] overflow-y-auto overflow-x-hidden rounded-xl border bg-[#f7f7f8] "+(device==="phone"?"w-[260px]":"w-full")}>
-            <AutoTop names={Object.values(categoryNames)}/>
-            {sections.filter(s=>s.isVisible && (s.settings.showOn!==(device==="phone"?"desktop":"mobile"))).map((s)=><div key={s.id} data-preview={s.id} onClick={()=>setActiveId(s.id)} className={"relative cursor-pointer "+(activeId===s.id?"outline outline-2 -outline-offset-2 outline-brand":"")}><Preview section={s} device={device} categoryName={categoryNames[String(s.settings.categoryId??"")]}/></div>)}
+            <AutoTop names={topNames} photos={categoryPhotos}/>
+            {sections.filter(s=>s.isVisible && (s.settings.showOn!==(device==="phone"?"desktop":"mobile"))).map((s)=><div key={s.id} data-preview={s.id} onClick={()=>setActiveId(s.id)} className={"relative cursor-pointer "+(activeId===s.id?"outline outline-2 -outline-offset-2 outline-brand":"")}><Preview section={s} device={device} categoryName={categoryNames[String(s.settings.categoryId??"")]} photos={categoryPhotos} topNames={topNames}/></div>)}
           </div>
           <p className="mt-2 text-center text-[11px] text-slate-500">{device==="phone"?"Phone view: mobile images where added; “Desktop only” sections hidden.":"Desktop view: “Mobile only” sections hidden."}</p>
         </div>
@@ -212,11 +218,11 @@ function PTitle({eyebrow,title,small=false}:{eyebrow?:string;title:string;small?
 }
 
 /** The header and round category photos: always on the homepage, filled automatically. */
-function AutoTop({names}:{names:string[]}){
+function AutoTop({names,photos}:{names:string[];photos:Record<string,string>}){
   return <div className="border-b bg-white">
     <div className="flex items-center gap-2 px-3 py-2"><span className="text-[11px] font-bold text-[#6A2CD6]">loimart</span><span className="h-4 flex-1 rounded border bg-slate-50"/><span className="text-[8px] text-slate-500">Cart · Sign in</span></div>
-    <div className="flex gap-2 overflow-hidden px-3 pb-2">{["All",...names].slice(0,8).map(n=><div key={n} className="flex w-10 shrink-0 flex-col items-center gap-0.5"><span className="h-7 w-7 rounded-full bg-[#F3EDFD]"/><span className="w-full truncate text-center text-[7px] font-semibold text-slate-700">{n}</span></div>)}</div>
-    <p className="bg-slate-50 px-3 py-1 text-center text-[9px] text-slate-500">Header + round category photos · automatic (from your categories)</p>
+    <div className="flex gap-2 overflow-hidden px-3 pb-2">{["All",...names].slice(0,8).map(n=><div key={n} className="flex w-10 shrink-0 flex-col items-center gap-0.5"><span className="h-7 w-7 rounded-full bg-[#F3EDFD] bg-cover bg-center" style={photos[n]?bg(photos[n]):undefined}/><span className="w-full truncate text-center text-[7px] font-semibold text-slate-700">{n}</span></div>)}</div>
+    <p className="bg-slate-50 px-3 py-1 text-center text-[9px] text-slate-500">Header + round category photos · upload them in “Category photos” on the left</p>
   </div>;
 }
 
@@ -241,12 +247,12 @@ function HeroPreview({s,device}:{s:Record<string,unknown>;device:"desktop"|"phon
   </div>;
 }
 
-function Preview({section,device,categoryName}:{section:Row;device:"desktop"|"phone";categoryName?:string}){
+function Preview({section,device,categoryName,photos={},topNames=[]}:{section:Row;device:"desktop"|"phone";categoryName?:string;photos?:Record<string,string>;topNames?:string[]}){
   const s=section.settings; const heading=String(s.heading ?? LABELS[section.type] ?? section.type); const phone=device==="phone";
   if(section.type==="hero") return s.size==="compact" ? <div className="bg-slate-50 px-[8%] py-4"><div className="overflow-hidden rounded-xl"><HeroPreview s={s} device={device}/></div></div> : <HeroPreview s={s} device={device}/>;
   if(section.type==="featured_products"){ const n=phone?4:12; return <div className="p-3"><PTitle eyebrow="Curated" title={heading}/><div className={"mt-2 grid gap-1.5 "+(phone?"grid-cols-2":"grid-cols-6")}>{Array.from({length:n}).map((_,i)=><div key={i} className="overflow-hidden rounded-md border bg-white"><div className="aspect-square bg-slate-100"/><div className="space-y-0.5 p-1"><span className="block h-1 w-4/5 rounded bg-slate-200"/><span className="block h-1.5 w-1/2 rounded bg-slate-300"/></div></div>)}</div></div>; }
   if(section.type==="sponsored_products") return <div className="border-b bg-white p-4"><h3 className="text-sm font-bold">{String(s.heading??"Sponsored picks")}</h3><p className="mt-1 text-[11px] text-slate-500">Shows today&apos;s winning seller ads (Marketing → Ads → “Sponsored products row on the home page”). Hidden when no ad is running.</p><div className={"mt-3 grid gap-2 "+(phone?"grid-cols-2":"grid-cols-5")}>{Array.from({length:phone?2:5}).map((_,k)=><div key={k} className="aspect-square rounded-lg bg-slate-100"/>)}</div></div>;
-  if(section.type==="category_grid"){ const names=(Array.isArray(s.categories)&&s.categories.length?s.categories:["Fashion","Home & Kitchen","Beauty","Electronics","Sports","Travel"]).map(String).slice(0,phone?6:6); return <div className="p-3"><PTitle eyebrow="Explore" title={String(s.heading||"Shop by category")}/><div className={"mt-2 grid gap-1.5 "+(phone?"grid-cols-3":"grid-cols-6")}>{names.map(n=><div key={n} className="overflow-hidden rounded-md border bg-white"><div className="aspect-square bg-[#F3EDFD]"/><p className="truncate px-1 pt-0.5 text-[7px] font-semibold text-[#2A0E5F]">{n}</p><p className="px-1 pb-1 text-[6px] font-semibold text-[#EF5A8A]">From ₹…</p></div>)}</div></div>; }
+  if(section.type==="category_grid"){ const names=(Array.isArray(s.categories)&&s.categories.length?s.categories:topNames.length?topNames:["Fashion","Home & Kitchen","Beauty","Electronics","Sports","Travel"]).map(String).slice(0,12); return <div className="p-3"><PTitle eyebrow="Explore" title={String(s.heading||"Shop by category")}/><div className={"mt-2 grid gap-1.5 "+(phone?"grid-cols-3":"grid-cols-6")}>{names.map(n=><div key={n} className="overflow-hidden rounded-md border bg-white"><div className="aspect-square bg-[#F3EDFD] bg-cover bg-center" style={photos[n]?bg(photos[n]):undefined}/><p className="truncate px-1 pt-0.5 text-[7px] font-semibold text-[#2A0E5F]">{n}</p><p className="px-1 pb-1 text-[6px] font-semibold text-[#EF5A8A]">From ₹…</p></div>)}</div></div>; }
   if(section.type==="promo_banner"){ const img=phone?(str2(s.mobileImageUrl)||str2(s.desktopImageUrl)):str2(s.desktopImageUrl); return img ? <div className="bg-white p-2"><div className={"w-full rounded bg-cover bg-center "+(phone&&s.mobileImageUrl?"aspect-[800/329]":"aspect-[1800/320]")} style={bg(img)}/></div> : <div className="grid aspect-[1800/320] place-items-center bg-slate-100 text-[11px] font-semibold text-slate-400">Promo banner · upload 1800 × 320</div>; }
   if(section.type==="banner_row"){
     const banners=(Array.isArray(s.banners)?s.banners:[]) as RowBanner[];

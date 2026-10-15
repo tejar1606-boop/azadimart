@@ -19,10 +19,10 @@ function GridIcon() {
   return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" /></svg>;
 }
 
-function Thumb({ imageKey, className }: { imageKey: string | null; className: string }) {
+function Thumb({ src, className }: { src: string | null; className: string }) {
   return (
     <span className={"relative grid shrink-0 place-items-center overflow-hidden rounded-xl bg-slate-100 text-slate-500 " + className}>
-      {imageKey ? <Image src={"/media/" + imageKey} alt="" fill sizes="64px" className="object-cover" /> : <GridIcon />}
+      {src ? <Image src={src} alt="" fill sizes="64px" className="object-cover" unoptimized={src.startsWith("https://")} /> : <GridIcon />}
     </span>
   );
 }
@@ -51,7 +51,7 @@ function CategoryRail({ rail, activeId }: { rail: RailCategory[]; activeId: stri
         <li>
           <Link href="/products" aria-current={!activeId ? "page" : undefined} className={item(!activeId)}>
             {bar(!activeId)}
-            <Thumb imageKey={null} className={"h-12 w-12 lg:h-11 lg:w-11 " + (!activeId ? "bg-brand/10 text-brand-600" : "")} />
+            <Thumb src={null} className={"h-12 w-12 lg:h-11 lg:w-11 " + (!activeId ? "bg-brand/10 text-brand-600" : "")} />
             <span className={label(!activeId)}>All products</span>
           </Link>
         </li>
@@ -62,7 +62,7 @@ function CategoryRail({ rail, activeId }: { rail: RailCategory[]; activeId: stri
             <li key={c.id}>
               <Link href={"/c/" + c.slug} aria-current={selected ? "page" : undefined} className={item(selected)}>
                 {bar(selected)}
-                <Thumb imageKey={c.imageKey} className="h-12 w-12 lg:h-11 lg:w-11" />
+                <Thumb src={c.imageSrc} className="h-12 w-12 lg:h-11 lg:w-11" />
                 <span className="min-w-0 lg:flex-1">
                   <span className={label(selected)}>{c.name}</span>
                   <span className="hidden text-xs text-slate-400 lg:block">{c.count} item{c.count === 1 ? "" : "s"}</span>

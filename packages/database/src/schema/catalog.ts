@@ -40,6 +40,8 @@ export const categories = pgTable(
     metaTitle: text("meta_title"),
     metaDescription: text("meta_description"),
     description: text("description"),
+    // Photo for the round category row and the "Shop by category" tiles (uploaded in Admin; else a product photo is used).
+    imageUrl: text("image_url"),
     ...timestamps,
   },
   (table) => [
