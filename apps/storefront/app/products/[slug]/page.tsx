@@ -275,8 +275,11 @@ export default async function ProductDetailPage({ params, searchParams }: { para
             ) : null}
             <p className="mt-2 text-xs text-slate-400">Inclusive of applicable taxes • Final price shown at checkout</p>
             {offers.coupons.length ? (
-              <div className="mt-4 rounded-2xl border border-dashed border-brand/40 bg-white p-3.5">
-                <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-700">Available offers</p>
+              <div className="mt-4 rounded-2xl border border-[#E4D8FB] bg-gradient-to-br from-[#F6F1FE] via-white to-[#FFF1F6] p-3.5 shadow-[0_6px_20px_-12px_rgba(106,44,214,0.45)]">
+                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.12em] text-[#4A1FA8]">
+                  <svg width="14" height="14" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 0 Q23 17 40 20 Q23 23 20 40 Q17 23 0 20 Q17 17 20 0Z" fill="#EF5A8A" /></svg>
+                  Available offers
+                </p>
                 <ul className="mt-2.5 space-y-2.5">
                   {offers.coupons.map((c) => (
                     <li key={c.code}><CouponChip code={c.code} text={c.text} size="offer" /></li>
