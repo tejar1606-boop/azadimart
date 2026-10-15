@@ -39,7 +39,7 @@ export default function CategoryPhotos({ onChange }: { onChange?: (photos: Recor
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="font-semibold">Category photos</h2>
-          <p className="mt-0.5 max-w-xl text-xs text-slate-500">Shown in the round row under the header and in the “Shop by category” tiles. Square photos work best (600 × 600 px, subject in the centre). Saved as soon as you upload, so you don&apos;t need to publish.</p>
+          <p className="mt-0.5 max-w-xl text-xs text-slate-500">Shown in the round row under the header and in the “Shop by category” tiles. Photos must be square (600 × 600 px, subject in the centre). Saved as soon as you upload, so you don&apos;t need to publish.</p>
         </div>
         <span className={"rounded-full px-2.5 py-1 text-[11px] font-semibold " + (missing ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-700")}>{missing ? `${missing} without a photo` : "All have photos"}</span>
       </div>
@@ -62,7 +62,7 @@ function PhotoTile({ category, onSave }: { category: Category; onSave: (url: str
     try {
       const size = await readImageSize(file);
       const ratio = size.width / size.height;
-      if (ratio < 0.8 || ratio > 1.25) throw new Error(`This photo is ${size.width} × ${size.height}. Use a square photo so it isn't cropped.`);
+      if (Math.abs(ratio - 1) > 0.03) throw new Error(`This photo is ${size.width} × ${size.height}. Use a square photo (e.g. 600 × 600) so it isn't cropped.`);
       const result = await directUpload(file, { purpose: "SITE_IMAGE" });
       await onSave(result.url);
       if (size.width < 400) setNote("Saved. A bigger photo (600 × 600) will look sharper.");

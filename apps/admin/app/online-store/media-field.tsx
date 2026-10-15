@@ -3,6 +3,27 @@
 import { directUpload, readImageSize } from "@azadimart/ui";
 import { useRef, useState } from "react";
 
+function readVideoSize(source: File | string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    const url = typeof source === "string" ? source : URL.createObjectURL(source);
+    video.preload = "metadata"; video.muted = true;
+    video.onloadedmetadata = () => { resolve({ width: video.videoWidth, height: video.videoHeight }); if (typeof source !== "string") URL.revokeObjectURL(url); };
+    video.onerror = () => reject(new Error("Couldn't read this video. Use MP4 (H.264), WebM or MOV."));
+    video.src = url;
+  });
+}
+
+function readUrlSize(url: string, kind: "image" | "video"): Promise<{ width: number; height: number }> {
+  if (kind === "video") return readVideoSize(url);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => reject(new Error("Couldn't load an image from this link."));
+    img.src = url;
+  });
+}
+
 /** Upload (or paste a link to) a storefront image or video, with preview. */
 export default function MediaField({
   label,
@@ -27,21 +48,33 @@ export default function MediaField({
   const [warning, setWarning] = useState("");
   const [progress, setProgress] = useState(0);
 
+  /** The frame on the store is fixed, so the file must be the same shape (2% leeway); smaller only warns. */
+  function checkShape(actual: { width: number; height: number }) {
+    if (!size) return;
+    const expectedRatio = size.width / size.height;
+    if (Math.abs(actual.width / actual.height - expectedRatio) / expectedRatio > 0.02) {
+      throw new Error(`This ${kind} is ${actual.width} × ${actual.height}. Use ${size.width} × ${size.height} (or the same shape) so nothing gets cropped or squashed.`);
+    }
+    if (actual.width < size.width * (kind === "video" ? 0.5 : 1)) {
+      setWarning(`Added at ${actual.width} × ${actual.height}. ${size.width} × ${size.height} looks sharper on large screens.`);
+    }
+  }
+
+  /** A pasted link is checked the same way as an upload once it loads. */
+  async function applyLink(url: string) {
+    setError(""); setWarning("");
+    onChange(url);
+    if (!size || !/^https:\/\//i.test(url)) return;
+    try { checkShape(await readUrlSize(url, kind)); }
+    catch (err) { setError(err instanceof Error ? err.message : "Couldn't check this link"); onChange(""); }
+  }
+
   async function upload(file: File) {
     setError("");
     setWarning("");
     setUploading(true);
     try {
-      if (size && kind === "image") {
-        const actual = await readImageSize(file);
-        const expectedRatio = size.width / size.height;
-        if (Math.abs(actual.width / actual.height - expectedRatio) / expectedRatio > 0.02) {
-          throw new Error(`This image is ${actual.width} × ${actual.height}. Upload ${size.width} × ${size.height} (same shape) so nothing gets cropped.`);
-        }
-        if (actual.width < size.width) {
-          setWarning(`Uploaded at ${actual.width} × ${actual.height}. ${size.width} × ${size.height} looks sharper on large screens.`);
-        }
-      }
+      if (size) checkShape(kind === "image" ? await readImageSize(file) : await readVideoSize(file));
       setProgress(0);
       const result = await directUpload(file, { purpose: kind === "image" ? "SITE_IMAGE" : "SITE_VIDEO", onProgress: setProgress });
       onChange(result.url);
@@ -60,7 +93,8 @@ export default function MediaField({
         {hint ? <span className="text-xs font-normal text-slate-400">{hint}</span> : null}
       </div>
       <div className="mt-1.5 flex flex-col gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 sm:flex-row sm:items-center">
-        <div className="grid h-24 w-full shrink-0 place-items-center overflow-hidden rounded-lg bg-white sm:w-40">
+        {/* Preview in the exact shape the store shows (fixed frame), so what you see is what shoppers see. */}
+        <div className="grid w-full shrink-0 place-items-center overflow-hidden rounded-lg bg-white sm:w-40" style={size ? { aspectRatio: `${size.width} / ${size.height}`, maxHeight: 200 } : { height: 96 }}>
           {value ? (
             kind === "image" ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -82,7 +116,7 @@ export default function MediaField({
           </div>
           <p className="text-xs font-normal text-slate-500">{kind === "image" ? "JPG, PNG or WebP (high-quality WebP welcome), up to 50 MB." : "MP4, WebM or MOV, any quality. Plays muted on loop; MP4 (H.264) plays everywhere."}</p>
           {showLink ? (
-            <input className="w-full rounded-lg border bg-white p-2 text-xs font-normal" placeholder="https://…" value={value.startsWith("/media/") ? "" : value} onChange={(event) => onChange(event.target.value.trim())} />
+            <input className="w-full rounded-lg border bg-white p-2 text-xs font-normal" placeholder="https://…" value={value.startsWith("/media/") ? "" : value} onChange={(event) => void applyLink(event.target.value.trim())} />
           ) : null}
           {uploading ? <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-slate-950 transition-[width]" style={{ width: progress + "%" }} /></div> : null}
           {error ? <p className="text-xs font-normal text-red-600">{error}</p> : null}

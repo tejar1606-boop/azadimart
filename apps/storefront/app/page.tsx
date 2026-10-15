@@ -434,13 +434,21 @@ function Hero({ s, sponsored }: { s: Settings; sponsored: HeroSlide[] }) {
 }
 
 /** Banner art for one breakpoint: a muted looping video (image as poster) or an image. */
-function BannerArt({ image, video, alt, className, priority = false }: { image: string; video: string; alt: string; className: string; priority?: boolean }) {
+/** fit="contain": art made for the other frame is shown whole on a blurred copy of itself (never cropped). */
+function BannerArt({ image, video, alt, className, priority = false, fit = "cover" }: { image: string; video: string; alt: string; className: string; priority?: boolean; fit?: "cover" | "contain" }) {
   return (
     <span className={"relative w-full overflow-hidden " + className}>
       {video ? (
-        <video className="absolute inset-0 h-full w-full object-cover" src={video} poster={image || undefined} autoPlay muted loop playsInline preload="metadata" aria-label={alt} />
+        <video className={"absolute inset-0 h-full w-full " + (fit === "contain" ? "object-contain bg-black" : "object-cover")} src={video} poster={image || undefined} autoPlay muted loop playsInline preload="metadata" aria-label={alt} />
       ) : image ? (
-        <Image src={image} alt={alt} fill priority={priority} sizes="100vw" className="object-cover" unoptimized />
+        fit === "contain" ? (
+          <>
+            <Image src={image} alt="" aria-hidden="true" fill sizes="100vw" className="scale-110 object-cover blur-xl brightness-75" unoptimized />
+            <Image src={image} alt={alt} fill priority={priority} sizes="100vw" className="object-contain" unoptimized />
+          </>
+        ) : (
+          <Image src={image} alt={alt} fill priority={priority} sizes="100vw" className="object-cover" unoptimized />
+        )
       ) : null}
     </span>
   );
@@ -457,7 +465,7 @@ function PromoBanner({ s }: { s: Settings }) {
   const href = str(s, "href") ? safeHref(str(s, "href")) : undefined;
   const images = (
     <>
-      <BannerArt image={mobile} video={mobileVideo} alt={alt} className="block aspect-[800/329] sm:hidden" />
+      <BannerArt image={mobile} video={mobileVideo} alt={alt} className="block aspect-[800/329] sm:hidden" fit={str(s, "mobileImageUrl") || str(s, "mobileVideoUrl") ? "cover" : "contain"} />
       <BannerArt image={desktop} video={desktopVideo} alt={alt} className="hidden aspect-[1800/320] sm:block" />
     </>
   );
@@ -706,7 +714,7 @@ function WhyBanner({ s }: { s: Settings }) {
           <div className="mt-8"><PillLink href={str(s, "buttonHref", "/products")} variant="light">{str(s, "buttonLabel", "Start shopping")}<ArrowRightIcon size={16} /></PillLink></div>
         </div>
         {image ? (
-          <div className="relative min-h-72 bg-slate-200"><Image src={image} alt="" fill sizes="(max-width:1024px) 100vw, 50vw" className="object-cover" unoptimized /></div>
+          <div className="relative aspect-[4/3] bg-slate-200 lg:aspect-auto lg:min-h-full"><Image src={image} alt="" fill sizes="(max-width:1024px) 100vw, 50vw" className="object-cover" unoptimized /></div>
         ) : (
           <div className="grid grid-cols-2 gap-px bg-slate-200">
             {WHY_TILES.map(({ icon: Icon, title, text }) => (

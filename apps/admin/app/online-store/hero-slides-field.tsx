@@ -69,8 +69,9 @@ export default function HeroSlidesField({ slides, onChange, slideSeconds, onSeco
             <div className="grid gap-3 md:grid-cols-2">
               <MediaField kind="image" label="Desktop image" hint="2880 × 1080 px" size={{ width: 2880, height: 1080 }} value={slide.desktopImageUrl ?? ""} onChange={(v) => update(index, { desktopImageUrl: v || undefined })} />
               <MediaField kind="image" label="Mobile image (recommended)" hint="1200 × 1500 px" size={{ width: 1200, height: 1500 }} value={slide.mobileImageUrl ?? ""} onChange={(v) => update(index, { mobileImageUrl: v || undefined })} />
-              <MediaField kind="video" label="Desktop video (optional)" hint="Same shape as 2880 × 1080" value={slide.desktopVideoUrl ?? ""} onChange={(v) => update(index, { desktopVideoUrl: v || undefined })} />
-              <MediaField kind="video" label="Mobile video (optional)" hint="Same shape as 1200 × 1500" value={slide.mobileVideoUrl ?? ""} onChange={(v) => update(index, { mobileVideoUrl: v || undefined })} />
+              {(slide.desktopImageUrl || slide.desktopVideoUrl) && !slide.mobileImageUrl && !slide.mobileVideoUrl ? <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">No mobile image: phones show the whole desktop banner, small, on a blurred background. Add a 1200 × 1500 image so it fills the phone screen.</p> : null}
+              <MediaField kind="video" label="Desktop video (optional)" hint="Same shape as 2880 × 1080" size={{ width: 2880, height: 1080 }} value={slide.desktopVideoUrl ?? ""} onChange={(v) => update(index, { desktopVideoUrl: v || undefined })} />
+              <MediaField kind="video" label="Mobile video (optional)" hint="Same shape as 1200 × 1500" size={{ width: 1200, height: 1500 }} value={slide.mobileVideoUrl ?? ""} onChange={(v) => update(index, { mobileVideoUrl: v || undefined })} />
               <label className="text-sm font-medium">Link (where the banner button goes)
                 <input className="mt-1 w-full rounded-lg border p-2.5 text-sm" placeholder="/c/electronics-accessories or https://…" value={slide.href ?? ""} onChange={(e) => update(index, { href: e.target.value || undefined })} />
                 <span className="mt-1 block text-xs font-normal text-slate-500">The whole banner is clickable. Empty = All products.</span>

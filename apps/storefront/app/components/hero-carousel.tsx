@@ -24,7 +24,12 @@ export type HeroSlide = {
 const DEFAULT_SECONDS = 4;
 const MAX_VIDEO_WAIT_MS = 90_000; // if a video never finishes (slow network), move on anyway
 
-function SlideArt({ image, video, alt, active, priority, className, loop = true, restart = false, onEnded }: { image?: string; video?: string; alt: string; active: boolean; priority: boolean; className: string; loop?: boolean; restart?: boolean; onEnded?: () => void }) {
+/**
+ * One slide's art in a fixed frame. fit="contain" is for a banner made for the
+ * other frame (a desktop banner on a phone): the whole banner is shown, centred
+ * on a blurred copy of itself, so its text is never cut off.
+ */
+function SlideArt({ image, video, alt, active, priority, className, loop = true, restart = false, onEnded, fit = "cover" }: { image?: string; video?: string; alt: string; active: boolean; priority: boolean; className: string; loop?: boolean; restart?: boolean; onEnded?: () => void; fit?: "cover" | "contain" }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -37,9 +42,16 @@ function SlideArt({ image, video, alt, active, priority, className, loop = true,
   return (
     <span className={"relative block w-full overflow-hidden " + className}>
       {video ? (
-        <video ref={ref} className="absolute inset-0 h-full w-full object-cover" src={video} poster={image || undefined} muted loop={loop} onEnded={onEnded} playsInline preload={active ? "auto" : "metadata"} aria-label={alt} />
+        <video ref={ref} className={"absolute inset-0 h-full w-full " + (fit === "contain" ? "object-contain bg-black" : "object-cover")} src={video} poster={image || undefined} muted loop={loop} onEnded={onEnded} playsInline preload={active ? "auto" : "metadata"} aria-label={alt} />
       ) : image ? (
-        <Image src={image} alt={alt} fill priority={priority} sizes="100vw" className="object-cover" unoptimized />
+        fit === "contain" ? (
+          <>
+            <Image src={image} alt="" aria-hidden="true" fill sizes="100vw" className="scale-110 object-cover blur-2xl brightness-75" unoptimized />
+            <Image src={image} alt={alt} fill priority={priority} sizes="100vw" className="object-contain" unoptimized />
+          </>
+        ) : (
+          <Image src={image} alt={alt} fill priority={priority} sizes="100vw" className="object-cover" unoptimized />
+        )
       ) : null}
     </span>
   );
@@ -128,7 +140,7 @@ export default function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
             const full = Boolean(slide.playFullVideo && count > 1);
             const art = (
               <>
-                <SlideArt image={mobileImage} video={mobileVideo} alt={slide.alt} active={active} priority={i === 0} className="aspect-[4/5] sm:hidden" loop={!full || paused} restart={full} onEnded={full && !wide ? videoEnded : undefined} />
+                <SlideArt image={mobileImage} video={mobileVideo} alt={slide.alt} active={active} priority={i === 0} className="aspect-[4/5] sm:hidden" fit={slide.mobileImageUrl || slide.mobileVideoUrl ? "cover" : "contain"} loop={!full || paused} restart={full} onEnded={full && !wide ? videoEnded : undefined} />
                 <SlideArt image={slide.desktopImageUrl} video={slide.desktopVideoUrl} alt={slide.alt} active={active} priority={i === 0} className="hidden aspect-[8/3] sm:block" loop={!full || paused} restart={full} onEnded={full && wide ? videoEnded : undefined} />
               </>
             );
