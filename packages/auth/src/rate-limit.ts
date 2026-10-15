@@ -20,6 +20,10 @@ export const RATE_LIMITS = {
   supportReply: { limit: 60, windowSeconds: 60 * 60 },
   liveChatStart: { limit: 8, windowSeconds: 60 * 60 },
   liveChatMessage: { limit: 60, windowSeconds: 5 * 60 },
+  // OTP login: per IP, per phone number (subject) and for code checks.
+  otpRequest: { limit: 10, windowSeconds: 15 * 60 },
+  otpRequestPhone: { limit: 5, windowSeconds: 15 * 60 },
+  otpVerify: { limit: 20, windowSeconds: 15 * 60 },
 } satisfies Record<string, RateLimitRule>;
 
 function retryText(seconds: number) {

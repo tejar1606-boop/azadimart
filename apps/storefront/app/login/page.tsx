@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useRef, useEffect, useState } from "react";
-import { Turnstile, type TurnstileHandle } from "@azadimart/ui";
+import { LoginMethodTabs, OtpLoginForm, Turnstile, type TurnstileHandle, useOtpAvailable } from "@azadimart/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Wordmark } from "../components/site-header";
@@ -20,6 +20,10 @@ export default function CustomerLoginPage() {
   const captchaRef = useRef<TurnstileHandle>(null);
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const [busy, setBusy] = useState(false);
+  const otpAvailable = useOtpAvailable();
+  const [method, setMethod] = useState<"password" | "otp">("password");
+  // Return to the page that asked for sign-in (same-site paths only), else the account page.
+  const goNext = () => { const next = new URLSearchParams(window.location.search).get("next") ?? ""; router.replace(/^\/(?![/\\])/.test(next) ? next : "/account"); };
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -33,9 +37,7 @@ export default function CustomerLoginPage() {
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error?.message ?? "Unable to sign in.");
-      // Return to the page that asked for sign-in (same-site paths only), else the account page.
-      const next = new URLSearchParams(window.location.search).get("next") ?? "";
-      router.replace(/^\/(?![/\\])/.test(next) ? next : "/account");
+      goNext();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in.");
     } finally { setBusy(false); captchaRef.current?.reset(); }
@@ -49,7 +51,11 @@ export default function CustomerLoginPage() {
         <h1 className="mt-2 text-3xl font-bold tracking-[-0.04em]">Sign in to shop</h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">Access your cart, orders, addresses and personalized shopping experience.</p>
         {justRegistered ? <p role="status" className="mt-6 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">Your account is ready. Sign in to continue.</p> : null}
-        <form onSubmit={submit} className="mt-7 space-y-4">
+        {otpAvailable ? <div className="mt-7"><LoginMethodTabs method={method} onChange={(m) => { setMethod(m); setError(""); }} /></div> : null}
+        {otpAvailable && method === "otp" ? (
+          <div className="mt-6"><OtpLoginForm onSuccess={goNext} buttonClassName="w-full rounded-full bg-brand px-5 py-3.5 text-[15px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(229,133,48,0.9)] transition hover:bg-brand-600 disabled:opacity-50" /></div>
+        ) : (
+        <form onSubmit={submit} className={(otpAvailable ? "mt-6" : "mt-7") + " space-y-4"}>
           <AuthField label="Email" icon="email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e)=>setEmail(e.target.value)} required />
           <AuthField label="Password" icon="password" type="password" autoComplete="current-password" placeholder="Your password" value={password} onChange={(e)=>setPassword(e.target.value)} required />
           <Turnstile ref={captchaRef} siteKey={siteKey} onToken={setCaptchaToken} action="login" />
@@ -57,6 +63,7 @@ export default function CustomerLoginPage() {
           <button disabled={busy || Boolean(siteKey && !captchaToken)} className="w-full rounded-full bg-brand px-5 py-3.5 text-[15px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(229,133,48,0.9)] transition hover:bg-brand-600 disabled:opacity-50">{busy ? "Signing in…" : "Sign in"}</button>
           <SecureNote />
         </form>
+        )}
         <p className="mt-6 text-center text-sm text-slate-500">New to LOIMART? <Link href={"/register" + carry} className="font-semibold text-slate-950 underline">Create account</Link></p>
       </div>
     </AuthScene>

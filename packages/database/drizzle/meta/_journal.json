@@ -232,6 +232,13 @@
       "when": 1791790074167,
       "tag": "20261012072754_coupon_deleted_at",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792047876105,
+      "tag": "20261015070436_login_otps",
+      "breakpoints": true
     }
   ]
 }

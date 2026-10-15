@@ -21,6 +21,27 @@ export const users = pgTable(
   ],
 );
 
+/**
+ * One-time login codes sent by SMS (OTP login for shoppers and sellers).
+ * Only an HMAC of the code is stored. A code is single-use, expires after a
+ * few minutes and is locked after too many wrong tries.
+ */
+export const loginOtps = pgTable(
+  "login_otps",
+  {
+    id,
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    phone: text("phone").notNull(),
+    audience: text("audience").notNull(),
+    codeHash: text("code_hash").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [index("login_otps_phone_audience_idx").on(table.phone, table.audience, table.createdAt)],
+);
+
 /** A team role in the admin portal: a named set of areas (see STAFF_PERMISSIONS). */
 export const roles = pgTable("roles", {
   id,

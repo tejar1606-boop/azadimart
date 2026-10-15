@@ -55,11 +55,11 @@ try {
   }
 
   await tx`
-    insert into users (id, email, password_hash, role, status, created_at, updated_at)
+    insert into users (id, email, phone, password_hash, role, status, created_at, updated_at)
     values
-      (${adminUserId}, 'demo.admin@azadimart.test', ${hashPassword(password)}, 'ADMIN', 'ACTIVE', ${now}, ${now}),
-      (${sellerUserId}, 'demo.seller@azadimart.test', ${hashPassword(password)}, 'SELLER', 'ACTIVE', ${now}, ${now}),
-      (${customerUserId}, 'demo.customer@azadimart.test', ${hashPassword(password)}, 'CUSTOMER', 'ACTIVE', ${now}, ${now})
+      (${adminUserId}, 'demo.admin@azadimart.test', null, ${hashPassword(password)}, 'ADMIN', 'ACTIVE', ${now}, ${now}),
+      (${sellerUserId}, 'demo.seller@azadimart.test', '9000000012', ${hashPassword(password)}, 'SELLER', 'ACTIVE', ${now}, ${now}),
+      (${customerUserId}, 'demo.customer@azadimart.test', '9000000011', ${hashPassword(password)}, 'CUSTOMER', 'ACTIVE', ${now}, ${now})
   `;
 
   await tx`
@@ -137,7 +137,7 @@ try {
 
 console.log("LOIMART demo seed completed.");
 console.log("Admin:    demo.admin@azadimart.test");
-console.log("Seller:   demo.seller@azadimart.test");
-console.log("Customer: demo.customer@azadimart.test");
+console.log("Seller:   demo.seller@azadimart.test  (OTP mobile 9000000012)");
+console.log("Customer: demo.customer@azadimart.test  (OTP mobile 9000000011)");
 console.log("Password:", password);
 console.log("Product:  LOIMART Demo Everyday Kitchen Set");

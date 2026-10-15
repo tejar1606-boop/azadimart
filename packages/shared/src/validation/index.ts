@@ -189,6 +189,9 @@ export const shipmentStatusUpdateSchema = z.object({
 });
 
 export const loginSchema = z.object({ email:z.string().trim().email().max(254).transform((value)=>value.toLowerCase()), password:z.string().min(8).max(256), captchaToken:z.string().max(2048).optional() });
+const indianMobileSchema = z.string().trim().regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number");
+export const otpRequestSchema = z.object({ phone: indianMobileSchema });
+export const otpVerifySchema = z.object({ phone: indianMobileSchema, code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code") });
 export const customerRegistrationSchema = z.object({
   fullName: z.string().trim().min(2).max(120),
   email: z.string().trim().email().max(254).transform((value)=>value.toLowerCase()),

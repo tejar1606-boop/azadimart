@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
-import { PortalAuthLayout, Turnstile, type TurnstileHandle } from "@azadimart/ui";
+import { LoginMethodTabs, OtpLoginForm, PortalAuthLayout, Turnstile, type TurnstileHandle, useOtpAvailable } from "@azadimart/ui";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -13,6 +13,9 @@ export default function LoginPage() {
   const captchaRef = useRef<TurnstileHandle>(null);
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const [loading, setLoading] = useState(false);
+  const otpAvailable = useOtpAvailable();
+  const [method, setMethod] = useState<"password" | "otp">("password");
+  const goDashboard = () => { router.replace("/dashboard"); router.refresh(); };
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -29,8 +32,7 @@ export default function LoginPage() {
         setError(body?.error?.message ?? "Login failed. Please check your details.");
         return;
       }
-      router.replace("/dashboard");
-      router.refresh();
+      goDashboard();
     } catch {
       setError("Unable to sign in right now. Please try again.");
     } finally {
@@ -41,9 +43,14 @@ export default function LoginPage() {
 
   return (
     <PortalAuthLayout product="Seller Centre" headline="Grow your business across India." points={["List products with photos, videos and A+ content","Get orders with Cash on Delivery from day one","Track sales, stock and shipments in one place"]}>
-      <form onSubmit={submit} className="rounded-3xl border border-slate-200/80 bg-white p-7 shadow-card sm:p-9">
+      <div className="rounded-3xl border border-slate-200/80 bg-white p-7 shadow-card sm:p-9">
         <h1 className="text-2xl font-semibold tracking-[-0.03em]">Sign in to Seller Centre</h1>
         <p className="mt-1.5 text-sm text-slate-500">Welcome back. Manage your store and orders.</p>
+        {otpAvailable ? <div className="mt-6"><LoginMethodTabs method={method} onChange={(m) => { setMethod(m); setError(""); }} /></div> : null}
+        {otpAvailable && method === "otp" ? (
+          <div className="mt-6"><OtpLoginForm onSuccess={goDashboard} buttonClassName="w-full rounded-full bg-brand px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-60" /></div>
+        ) : (
+        <form onSubmit={submit}>
         <label className="mt-7 block text-sm font-medium">
           Email
           <input className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-900" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -57,8 +64,10 @@ export default function LoginPage() {
         <button className="mt-6 w-full rounded-full bg-brand px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-60" type="submit" disabled={loading || Boolean(siteKey && !captchaToken)}>
           {loading ? "Signing in…" : "Sign in"}
         </button>
+        </form>
+        )}
         <p className="mt-6 text-center text-sm text-slate-500">New to LOIMART? <a href="/register" className="font-semibold text-brand-600 hover:underline">Register as a seller</a></p>
-      </form>
+      </div>
     </PortalAuthLayout>
   );
 }

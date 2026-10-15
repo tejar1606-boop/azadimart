@@ -2,6 +2,7 @@ export * from "./guards";
 export * from "./session";
 export * from "./api";
 export * from "./login";
+export * from "./otp";
 export * from "./login-guard";
 export * from "./captcha";
 export * from "./rate-limit";

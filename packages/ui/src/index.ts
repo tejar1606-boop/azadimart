@@ -10,3 +10,4 @@ export { HelpChat, HELP_CHAT_OPEN_EVENT, OpenHelpChatButton, type HelpChatProps 
 export { SupportStatusPill, SupportTicketList, SupportTicketView } from "./support-tickets";
 export { LIVE_CHAT_STATE_EVENT, LiveChat, type LiveChatProps } from "./live-chat";
 export { BRAND_COLORS, BRAND_TAGLINE, BrandMark, BrandWordmark } from "./brand";
+export { LoginMethodTabs, OtpLoginForm, useOtpAvailable } from "./otp-login";
