@@ -283,7 +283,7 @@ function CategoryCircles({ categories: all }: { categories: HomeCategory[] }) {
         {items.map((c) => (
           <li key={c.id} className="shrink-0">
             <Link href={c.slug ? "/c/" + c.slug : "/products"} className="group flex w-[72px] flex-col items-center gap-1.5 lg:w-[96px]">
-              <span className="relative grid h-[60px] w-[60px] place-items-center overflow-hidden rounded-full bg-[#F3EDFD] ring-2 ring-transparent transition group-hover:ring-[#6A2CD6] lg:h-[68px] lg:w-[68px]">
+              <span className="relative grid h-[60px] w-[60px] place-items-center overflow-hidden rounded-full bg-[#F3EDFD] transition group-hover:ring-2 group-hover:ring-[#6A2CD6] lg:h-[68px] lg:w-[68px]">
                 {c.imageKey ? (
                   <Image src={"/media/" + c.imageKey} alt="" fill sizes="96px" className="scale-[1.3] object-cover" />
                 ) : (
