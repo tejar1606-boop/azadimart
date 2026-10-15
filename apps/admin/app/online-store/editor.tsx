@@ -13,16 +13,34 @@ import SeoFields from "../_components/seo-fields";
 type Row = ThemeSectionDraft & { id:string };
 type HomepageSectionResponse = { id:string; type:string; position:number; isVisible:boolean; settings:Record<string,unknown> };
 
+// Names as they appear on the store, plus one line saying what each section shows.
 const LABELS: Record<string,string> = {
-  hero:"Hero banner", marquee:"Scrolling highlights strip", promo_banner:"Promo banner", banner_row:"Banner row (1–3 banners)", category_showcase:"Top category banner", category_grid:"Category grid", featured_products:"Featured products", sponsored_products:"Sponsored products (seller ads)",
-  sales_coupons:"Sales coupons", image_banner:"Image + text banner", trust_strip:"Trust & value strip", rich_text:"Rich text",
-  video:"Video", seller_cta:"Seller callout", newsletter:"Newsletter",
+  hero:"Main banner", marquee:"Offer bar + 3 promises", promo_banner:"Thin promo banner", banner_row:"Banner row (1–3 banners)", category_showcase:"Category row (product cards)", category_grid:"Shop by category (photo tiles)", featured_products:"Product grid", sponsored_products:"Sponsored products (seller ads)",
+  sales_coupons:"Coupon codes", image_banner:"Why LOIMART banner", trust_strip:"Promise icons", rich_text:"Text block",
+  video:"Video", seller_cta:"Sell on LOIMART banner", newsletter:"Join button (WhatsApp etc.)",
+};
+const HELP: Record<string,string> = {
+  hero:"Big sliding banner at the top. Upload a desktop and a phone image for each slide.",
+  marquee:"Dark bar under the banner (your newest coupon + Cash on Delivery, automatic) and 3 promises with icons.",
+  promo_banner:"One thin clickable banner across the page.",
+  banner_row:"1–3 clickable banners side by side, between product sections.",
+  category_showcase:"A centred title (e.g. FASHION) and a row of cards from one category. Swipes sideways on phones.",
+  category_grid:"Photo tiles of your categories with the lowest price (“From ₹…”). 3 per row on phones, 6 on desktop.",
+  featured_products:"Product cards in full rows: 2 per row on phones, 6 on desktop.",
+  sponsored_products:"Products sellers paid to feature today. Hidden when no ad is running.",
+  sales_coupons:"Your active coupon codes as cards shoppers can copy.",
+  image_banner:"Colour panel with a heading and button, and a photo or 4 icon tiles.",
+  trust_strip:"Up to 4 promises with icons (e.g. Cash on Delivery).",
+  rich_text:"A centred heading and paragraph.",
+  video:"A muted, looping video.",
+  seller_cta:"Invites shoppers to become sellers.",
+  newsletter:"A heading and one button that opens your link (e.g. WhatsApp channel).",
 };
 
 function defaults(type:string){
   // Mid-page banner rows are usually a desktop feature (like Meesho); start them desktop-only with two empty banners.
   if(type==="banner_row") return {heading:"",showOn:"desktop",banners:[{},{}]};
-  if(type==="category_showcase") return {theme:"saffron",buttonLabel:"View all",showOn:"all"};
+  if(type==="category_showcase") return {buttonLabel:"View all",showOn:"all"};
   if(type==="sponsored_products") return {heading:"Sponsored picks",subtitle:"Featured by LOIMART sellers",limit:10};
   return DEFAULT_HOME_SECTIONS.find((s)=>s.type===type)?.settings ?? {heading:LABELS[type] ?? "New section"};
 }
@@ -90,7 +108,7 @@ export default function OnlineStoreEditor(){
       <section className="space-y-3">
         {sections.map((s,i)=><article key={s.id} onFocusCapture={()=>setActiveId(s.id)} onClick={()=>setActiveId(s.id)} className={"rounded-2xl border bg-white p-4 shadow-sm "+(s.isVisible?"border-slate-200":"border-dashed border-slate-300 opacity-60")+(activeId===s.id?" ring-2 ring-brand":"")}>
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div className="flex items-start gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950 text-xs font-bold text-white">{i+1}</span><div><h2 className="flex flex-wrap items-center gap-2 font-semibold">{LABELS[s.type] ?? s.type}{s.settings.showOn==="desktop"||s.settings.showOn==="mobile" ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">{SHOW_ON_LABEL[String(s.settings.showOn)]}</span> : null}</h2><p className="text-xs text-slate-500">{s.type}</p></div></div>
+            <div className="flex items-start gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950 text-xs font-bold text-white">{i+1}</span><div><h2 className="flex flex-wrap items-center gap-2 font-semibold">{LABELS[s.type] ?? s.type}{s.settings.showOn==="desktop"||s.settings.showOn==="mobile" ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">{SHOW_ON_LABEL[String(s.settings.showOn)]}</span> : null}</h2><p className="mt-0.5 max-w-xl text-xs text-slate-500">{HELP[s.type] ?? s.type}</p></div></div>
             <div className="flex flex-wrap gap-2"><button onClick={()=>move(i,-1)} className="rounded-md border px-2.5 py-1.5 text-xs">↑</button><button onClick={()=>move(i,1)} className="rounded-md border px-2.5 py-1.5 text-xs">↓</button><button onClick={()=>setSections(x=>x.map((v,idx)=>idx===i?{...v,isVisible:!v.isVisible}:v))} className="rounded-md border px-2.5 py-1.5 text-xs">{s.isVisible?"Hide":"Show"}</button><button onClick={()=>remove(i)} className="rounded-md border border-red-200 px-2.5 py-1.5 text-xs text-red-600">Remove</button></div>
           </div>
           <label className="mt-4 flex flex-wrap items-center gap-2 text-sm font-medium">Show on
@@ -102,7 +120,7 @@ export default function OnlineStoreEditor(){
           <SectionFields section={s} onChange={(key,value)=>setSections(x=>x.map((v,idx)=>idx===i?setVal(v,key,value):v))}/>
         </article>)}
 
-        <div className="rounded-2xl border border-dashed bg-slate-50 p-5"><p className="text-sm font-semibold">Add section</p><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{SECTION_TYPES.map((t)=><button key={t} onClick={()=>add(t)} className="rounded-lg border bg-white px-3 py-3 text-left text-xs font-semibold">{LABELS[t]}</button>)}</div></div>
+        <div className="rounded-2xl border border-dashed bg-slate-50 p-5"><p className="text-sm font-semibold">Add section</p><p className="mt-0.5 text-xs text-slate-500">It&apos;s added at the bottom. Move it with ↑ ↓, then Save draft or Publish.</p><div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{SECTION_TYPES.map((t)=><button key={t} onClick={()=>add(t)} className="rounded-lg border bg-white px-3 py-2.5 text-left transition hover:border-slate-900"><span className="block text-xs font-semibold">+ {LABELS[t]}</span><span className="mt-0.5 block text-[11px] leading-4 text-slate-500">{HELP[t]}</span></button>)}</div></div>
       </section>
 
       <aside className="xl:sticky xl:top-6 xl:self-start space-y-4">
@@ -111,12 +129,13 @@ export default function OnlineStoreEditor(){
             <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Live preview</p><p className="text-xs text-slate-500">Updates as you edit · click a section to find it</p></div>
             <div role="radiogroup" aria-label="Preview device" className="inline-flex rounded-full bg-slate-100 p-1">{(["desktop","phone"] as const).map(d=><button key={d} type="button" role="radio" aria-checked={device===d} onClick={()=>setDevice(d)} className={"rounded-full px-3 py-1 text-xs font-semibold "+(device===d?"bg-white shadow-sm":"text-slate-500")}>{d==="desktop"?"Desktop":"Phone"}</button>)}</div>
           </div>
-          <div ref={previewRef} className={"mx-auto mt-4 max-h-[75vh] overflow-y-auto overflow-x-hidden rounded-xl border bg-[#fbfaf7] "+(device==="phone"?"w-[260px]":"w-full")}>
+          <div ref={previewRef} className={"mx-auto mt-4 max-h-[75vh] overflow-y-auto overflow-x-hidden rounded-xl border bg-[#f7f7f8] "+(device==="phone"?"w-[260px]":"w-full")}>
+            <AutoTop names={Object.values(categoryNames)}/>
             {sections.filter(s=>s.isVisible && (s.settings.showOn!==(device==="phone"?"desktop":"mobile"))).map((s)=><div key={s.id} data-preview={s.id} onClick={()=>setActiveId(s.id)} className={"relative cursor-pointer "+(activeId===s.id?"outline outline-2 -outline-offset-2 outline-brand":"")}><Preview section={s} device={device} categoryName={categoryNames[String(s.settings.categoryId??"")]}/></div>)}
           </div>
           <p className="mt-2 text-center text-[11px] text-slate-500">{device==="phone"?"Phone view: mobile images where added; “Desktop only” sections hidden.":"Desktop view: “Mobile only” sections hidden."}</p>
         </div>
-        <div className="rounded-2xl border bg-white p-4 shadow-sm"><p className="text-sm font-semibold">Theme settings</p><label className="mt-3 block text-sm font-medium">Brand accent<input className="mt-1 w-full rounded-lg border p-2.5" value={String(themeSettings.accent ?? "#F59E0B")} onChange={e=>setThemeSettings(x=>({...x,accent:e.target.value}))}/></label><label className="mt-3 block text-sm font-medium">Announcement<input className="mt-1 w-full rounded-lg border p-2.5" value={String(themeSettings.announcement ?? "")} onChange={e=>setThemeSettings(x=>({...x,announcement:e.target.value}))}/></label></div>
+        <div className="rounded-2xl border bg-white p-4 shadow-sm"><p className="text-sm font-semibold">Top message bar</p><p className="mt-1 text-xs text-slate-500">The thin line above the logo on every page. Separate messages with | and they take turns.</p><input className="mt-2 w-full rounded-lg border p-2.5 text-sm" placeholder="Cash on Delivery available across India | Easy 7-day returns" value={String(themeSettings.announcement ?? "")} onChange={e=>setThemeSettings(x=>({...x,announcement:e.target.value}))}/></div>
         <HomepageSeo seo={(themeSettings.seo && typeof themeSettings.seo==="object" ? themeSettings.seo : {}) as Record<string,unknown>} onChange={(key,value)=>setThemeSettings(x=>({...x,seo:{...((x.seo && typeof x.seo==="object") ? x.seo as Record<string,unknown> : {}),[key]:value}}))}/>
       </aside>
     </div>
@@ -152,10 +171,11 @@ function SectionFields({section,onChange}:{section:Row;onChange:(key:string,valu
       </details>
     </>}
     {t==="image_banner" && <><Field label="Eyebrow"><input className="w-full rounded-lg border p-2.5" value={val(section,"eyebrow")} onChange={e=>onChange("eyebrow",e.target.value)}/></Field><Field label="Heading"><input className="w-full rounded-lg border p-2.5" value={val(section,"heading")} onChange={e=>onChange("heading",e.target.value)}/></Field><Field label="Description" wide><textarea className="min-h-24 w-full rounded-lg border p-2.5" value={val(section,"description")} onChange={e=>onChange("description",e.target.value)}/></Field><Field label="Button label"><input className="w-full rounded-lg border p-2.5" value={val(section,"buttonLabel")} onChange={e=>onChange("buttonLabel",e.target.value)}/></Field><Field label="Button link"><input className="w-full rounded-lg border p-2.5" value={val(section,"buttonHref")} onChange={e=>onChange("buttonHref",e.target.value)}/></Field><MediaField kind="image" label="Side image (optional)" hint="1600 × 1200 px · replaces the icon tiles" value={val(section,"imageUrl")} onChange={v=>onChange("imageUrl",v)}/></>}
-    {(t==="trust_strip"||t==="marquee") && <Field label={t==="trust_strip"?"Items (one per line: Title | short line)":"Items (one per line)"} wide><textarea className="min-h-28 w-full rounded-lg border p-2.5" value={Array.isArray(section.settings.items)?section.settings.items.filter((v): v is string=>typeof v==="string").join("\n"):""} onChange={e=>onChange("items",e.target.value.split("\n").map(v=>v.trim()).filter(Boolean))}/></Field>}
+    {t==="marquee" && <p className="rounded-lg bg-slate-50 p-2.5 text-xs text-slate-600 md:col-span-2">The dark bar fills itself: it shows your newest active coupon (Marketing → Coupons) and “Cash on Delivery”. Below it, type your 3 promises.</p>}
+    {(t==="trust_strip"||t==="marquee") && <Field label={t==="trust_strip"?"Promises (one per line: Title | short line)":"3 promises (one per line, keep them short)"} wide><textarea className="min-h-28 w-full rounded-lg border p-2.5" value={Array.isArray(section.settings.items)?section.settings.items.filter((v): v is string=>typeof v==="string").join("\n"):""} onChange={e=>onChange("items",e.target.value.split("\n").map(v=>v.trim()).filter(Boolean))}/></Field>}
     {t==="seller_cta" && <><Field label="Eyebrow"><input className="w-full rounded-lg border p-2.5" value={val(section,"eyebrow")} onChange={e=>onChange("eyebrow",e.target.value)}/></Field><Field label="Description"><textarea className="min-h-20 w-full rounded-lg border p-2.5" value={val(section,"description")} onChange={e=>onChange("description",e.target.value)}/></Field><Field label="Primary label"><input className="w-full rounded-lg border p-2.5" value={val(section,"primaryLabel")} onChange={e=>onChange("primaryLabel",e.target.value)}/></Field><Field label="Primary link"><input className="w-full rounded-lg border p-2.5" value={val(section,"primaryHref")} onChange={e=>onChange("primaryHref",e.target.value)}/></Field><Field label="Secondary label"><input className="w-full rounded-lg border p-2.5" value={val(section,"secondaryLabel")} onChange={e=>onChange("secondaryLabel",e.target.value)}/></Field><Field label="Secondary link"><input className="w-full rounded-lg border p-2.5" value={val(section,"secondaryHref")} onChange={e=>onChange("secondaryHref",e.target.value)}/></Field><MediaField kind="image" label="Background image (optional)" hint="2400 × 800 px · subject on the right" value={val(section,"imageUrl")} onChange={v=>onChange("imageUrl",v)}/></>}
-    {t==="category_grid" && <Field label="Categories (one per line)" wide><textarea className="min-h-28 w-full rounded-lg border p-2.5" value={Array.isArray(section.settings.categories)?section.settings.categories.join("\n"):""} onChange={e=>onChange("categories",e.target.value.split("\n").map(v=>v.trim()).filter(Boolean))}/></Field>}
-    {(t==="featured_products"||t==="sponsored_products"||t==="sales_coupons") && <Field label="Items to show"><input type="number" min="1" max="24" className="w-full rounded-lg border p-2.5" value={String(section.settings.limit ?? 8)} onChange={e=>onChange("limit",Number(e.target.value))}/></Field>}
+    {t==="category_grid" && <CategoryPicker value={Array.isArray(section.settings.categories)?section.settings.categories.filter((v): v is string=>typeof v==="string"):[]} onChange={v=>onChange("categories",v)}/>}
+    {(t==="featured_products"||t==="sponsored_products"||t==="sales_coupons") && <Field label={t==="featured_products"?"How many products (6, 12, 18 or 24 fill full rows)":"How many to show"}><input type="number" min="1" max="24" step={t==="featured_products"?6:1} className="w-full rounded-lg border p-2.5" value={String(section.settings.limit ?? (t==="featured_products"?12:8))} onChange={e=>onChange("limit",Number(e.target.value))}/></Field>}
     {t==="newsletter" && <Field label="Button label"><input className="w-full rounded-lg border p-2.5" value={val(section,"buttonLabel")} onChange={e=>onChange("buttonLabel",e.target.value)}/></Field>}
     {t==="promo_banner" && <>
       <MediaField kind="image" label="Desktop banner" hint="1800 × 320 px" size={{width:1800,height:320}} value={val(section,"desktopImageUrl")} onChange={v=>onChange("desktopImageUrl",v)}/>
@@ -170,7 +190,35 @@ function SectionFields({section,onChange}:{section:Row;onChange:(key:string,valu
   </div>
 }
 
-function Field({label,children,wide=false}:{label:string;children:ReactNode;wide?:boolean}){return <label className={"text-sm font-medium "+(wide?"md:col-span-2":"")}>{label}{children}</label>}
+function Field({label,children,wide=false}:{label:string;children:ReactNode;wide?:boolean}){return <label className={"flex flex-col gap-1 text-sm font-medium "+(wide?"md:col-span-2":"")}>{label}{children}</label>}
+
+/** Tick the categories to show; none ticked = all categories. Saved as names (what the store matches on). */
+function CategoryPicker({value,onChange}:{value:string[];onChange:(v:string[])=>void}){
+  const [all,setAll]=useState<Array<{id:string;name:string;parentId:string|null;isActive:boolean}>>([]);
+  useEffect(()=>{ fetch("/api/v1/catalog/categories",{cache:"no-store"}).then(r=>r.json()).then(d=>setAll(d.items??[])).catch(()=>undefined); },[]);
+  const top=all.filter(c=>!c.parentId && c.isActive);
+  const chosen=new Set(value.map(v=>v.toLowerCase()));
+  const toggle=(name:string)=>onChange(chosen.has(name.toLowerCase())?value.filter(v=>v.toLowerCase()!==name.toLowerCase()):[...value,name]);
+  return <div className="text-sm font-medium md:col-span-2">
+    <div className="flex flex-wrap items-baseline justify-between gap-2"><span>Categories to show</span><span className="text-xs font-normal text-slate-500">{value.length?`${value.length} chosen`:"None ticked = all categories"}</span></div>
+    <div className="mt-2 flex flex-wrap gap-2">{top.map(c=>{const on=chosen.has(c.name.toLowerCase()); return <button key={c.id} type="button" aria-pressed={on} onClick={()=>toggle(c.name)} className={"rounded-full border px-3 py-1.5 text-xs font-semibold transition "+(on?"border-slate-900 bg-slate-900 text-white":"border-slate-300 bg-white text-slate-700 hover:border-slate-900")}>{on?"✓ ":""}{c.name}</button>;})}</div>
+    {value.length?<button type="button" onClick={()=>onChange([])} className="mt-2 text-xs font-semibold text-slate-500 underline">Show all categories instead</button>:null}
+  </div>;
+}
+
+/** Store-style centred title used in the previews. */
+function PTitle({eyebrow,title,small=false}:{eyebrow?:string;title:string;small?:boolean}){
+  return <div className="text-center">{eyebrow?<p className="text-[7px] font-semibold uppercase tracking-[0.2em] text-[#EF5A8A]">{eyebrow}</p>:null}<div className="mt-0.5 flex items-center justify-center gap-1.5"><span className="h-px w-5 bg-[#6A2CD6]/70"/><p className={"font-bold uppercase text-[#2A0E5F] "+(small?"text-[10px]":"text-xs")}>{title}</p><span className="h-px w-5 bg-[#6A2CD6]/70"/></div></div>;
+}
+
+/** The header and round category photos: always on the homepage, filled automatically. */
+function AutoTop({names}:{names:string[]}){
+  return <div className="border-b bg-white">
+    <div className="flex items-center gap-2 px-3 py-2"><span className="text-[11px] font-bold text-[#6A2CD6]">loimart</span><span className="h-4 flex-1 rounded border bg-slate-50"/><span className="text-[8px] text-slate-500">Cart · Sign in</span></div>
+    <div className="flex gap-2 overflow-hidden px-3 pb-2">{["All",...names].slice(0,8).map(n=><div key={n} className="flex w-10 shrink-0 flex-col items-center gap-0.5"><span className="h-7 w-7 rounded-full bg-[#F3EDFD]"/><span className="w-full truncate text-center text-[7px] font-semibold text-slate-700">{n}</span></div>)}</div>
+    <p className="bg-slate-50 px-3 py-1 text-center text-[9px] text-slate-500">Header + round category photos · automatic (from your categories)</p>
+  </div>;
+}
 
 const bg=(url:unknown)=>({backgroundImage:`url("${String(url).replace(/"/g,"")}")`});
 const str2=(v:unknown)=>typeof v==="string"?v:"";
@@ -196,8 +244,9 @@ function HeroPreview({s,device}:{s:Record<string,unknown>;device:"desktop"|"phon
 function Preview({section,device,categoryName}:{section:Row;device:"desktop"|"phone";categoryName?:string}){
   const s=section.settings; const heading=String(s.heading ?? LABELS[section.type] ?? section.type); const phone=device==="phone";
   if(section.type==="hero") return s.size==="compact" ? <div className="bg-slate-50 px-[8%] py-4"><div className="overflow-hidden rounded-xl"><HeroPreview s={s} device={device}/></div></div> : <HeroPreview s={s} device={device}/>;
+  if(section.type==="featured_products"){ const n=phone?4:12; return <div className="p-3"><PTitle eyebrow="Curated" title={heading}/><div className={"mt-2 grid gap-1.5 "+(phone?"grid-cols-2":"grid-cols-6")}>{Array.from({length:n}).map((_,i)=><div key={i} className="overflow-hidden rounded-md border bg-white"><div className="aspect-square bg-slate-100"/><div className="space-y-0.5 p-1"><span className="block h-1 w-4/5 rounded bg-slate-200"/><span className="block h-1.5 w-1/2 rounded bg-slate-300"/></div></div>)}</div></div>; }
   if(section.type==="sponsored_products") return <div className="border-b bg-white p-4"><h3 className="text-sm font-bold">{String(s.heading??"Sponsored picks")}</h3><p className="mt-1 text-[11px] text-slate-500">Shows today&apos;s winning seller ads (Marketing → Ads → “Sponsored products row on the home page”). Hidden when no ad is running.</p><div className={"mt-3 grid gap-2 "+(phone?"grid-cols-2":"grid-cols-5")}>{Array.from({length:phone?2:5}).map((_,k)=><div key={k} className="aspect-square rounded-lg bg-slate-100"/>)}</div></div>;
-  if(section.type==="category_grid") return <div className="bg-white p-4"><h3 className="text-sm font-bold">{String(s.heading??"Shop by category")}</h3><p className="text-[11px] text-slate-500">{String(s.subtitle??"")}</p><div className="mt-3 grid grid-cols-2 gap-2">{(Array.isArray(s.categories)?s.categories:[]).slice(0,4).map((c:unknown)=><div key={String(c)} className="rounded-lg bg-slate-100 p-3 text-[11px] font-semibold">{String(c)}</div>)}</div></div>;
+  if(section.type==="category_grid"){ const names=(Array.isArray(s.categories)&&s.categories.length?s.categories:["Fashion","Home & Kitchen","Beauty","Electronics","Sports","Travel"]).map(String).slice(0,phone?6:6); return <div className="p-3"><PTitle eyebrow="Explore" title={String(s.heading||"Shop by category")}/><div className={"mt-2 grid gap-1.5 "+(phone?"grid-cols-3":"grid-cols-6")}>{names.map(n=><div key={n} className="overflow-hidden rounded-md border bg-white"><div className="aspect-square bg-[#F3EDFD]"/><p className="truncate px-1 pt-0.5 text-[7px] font-semibold text-[#2A0E5F]">{n}</p><p className="px-1 pb-1 text-[6px] font-semibold text-[#EF5A8A]">From ₹…</p></div>)}</div></div>; }
   if(section.type==="promo_banner"){ const img=phone?(str2(s.mobileImageUrl)||str2(s.desktopImageUrl)):str2(s.desktopImageUrl); return img ? <div className="bg-white p-2"><div className={"w-full rounded bg-cover bg-center "+(phone&&s.mobileImageUrl?"aspect-[800/329]":"aspect-[1800/320]")} style={bg(img)}/></div> : <div className="grid aspect-[1800/320] place-items-center bg-slate-100 text-[11px] font-semibold text-slate-400">Promo banner · upload 1800 × 320</div>; }
   if(section.type==="banner_row"){
     const banners=(Array.isArray(s.banners)?s.banners:[]) as RowBanner[];
@@ -205,15 +254,14 @@ function Preview({section,device,categoryName}:{section:Row;device:"desktop"|"ph
     return <div className="bg-white p-2">{s.heading?<p className="px-1 pb-1.5 text-xs font-bold">{String(s.heading)}</p>:null}<div className={"grid gap-1.5 "+(phone?"":banners.length===2?"grid-cols-2":banners.length>=3?"grid-cols-3":"")}>{(banners.length?banners:[{}]).slice(0,3).map((b,i)=>b.imageUrl?<div key={i} className={"w-full rounded bg-cover bg-center "+shape} style={bg(b.imageUrl)}/>:<div key={i} className={"grid place-items-center rounded bg-slate-100 text-[10px] font-semibold text-slate-400 "+shape}>Banner {i+1}</div>)}</div></div>;
   }
   if(section.type==="category_showcase"){
-    const img=str2(s.imageUrl);
-    const panel=<div className={"relative overflow-hidden p-3 text-white "+(img?"":"bg-gradient-to-br from-[#ffb366] to-brand-600")+(phone?" aspect-[16/10]":"")} style={img?bg(img):undefined}>{img?<span className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"/>:null}<div className="relative"><p className="text-[8px] uppercase tracking-[0.18em] opacity-80">{str2(s.eyebrow)||"Top category"}</p><p className="mt-1 text-sm font-bold leading-tight">{str2(s.heading)||categoryName||"Choose a category"}</p><span className="mt-2 inline-block rounded-full bg-white px-2 py-0.5 text-[9px] font-semibold text-slate-900">{str2(s.buttonLabel)||"View all"}</span></div></div>;
-    return phone?<div className="bg-white">{panel}<div className="flex gap-1.5 overflow-hidden p-2">{Array.from({length:3}).map((_,i)=><div key={i} className="aspect-square w-1/3 shrink-0 rounded bg-slate-100"/>)}</div></div>:<div className="grid grid-cols-[38%_1fr] bg-white">{panel}<div className="grid grid-cols-3 gap-1.5 p-2">{Array.from({length:6}).map((_,i)=><div key={i} className="aspect-square rounded bg-slate-100"/>)}</div></div>;
+    const n=phone?3:6;
+    return <div className="p-3"><PTitle eyebrow={str2(s.eyebrow)||"Top category"} title={str2(s.heading)||categoryName||"Choose a category"}/><p className="mt-0.5 text-center text-[7px] font-semibold text-[#6A2CD6]">{str2(s.buttonLabel)||"View all"} →</p><div className={"mt-2 flex gap-1.5 "+(phone?"overflow-hidden":"")}>{Array.from({length:n}).map((_,i)=><div key={i} className={"shrink-0 overflow-hidden rounded-md border bg-white "+(phone?"w-[40%]":"flex-1")}><div className="aspect-square bg-[#F3EDFD]"/><p className="px-1 py-1 text-[6px] font-semibold text-[#6A2CD6]">Shop now →</p></div>)}</div></div>;
   }
   if(section.type==="image_banner"){
     const img=str2(s.imageUrl);
     return <div className={"grid "+(phone?"":"grid-cols-2")}><div className="bg-gradient-to-br from-brand-500 to-brand-600 p-3 text-white"><p className="text-[8px] uppercase tracking-[0.16em] opacity-80">{str2(s.eyebrow)||"Why LOIMART"}</p><p className="mt-1 text-sm font-bold leading-tight">{str2(s.heading)||"Shopping you can trust."}</p><span className="mt-2 inline-block rounded-full bg-white px-2 py-0.5 text-[9px] font-semibold text-slate-900">{str2(s.buttonLabel)||"Start shopping"}</span></div>{img?<div className={"bg-cover bg-center "+(phone?"aspect-[4/3]":"min-h-24")} style={bg(img)}/>:<div className="grid grid-cols-2 gap-px bg-slate-200">{Array.from({length:4}).map((_,i)=><div key={i} className="min-h-10 bg-[#eff0f3]"/>)}</div>}</div>;
   }
-  if(section.type==="marquee") return <div className="overflow-hidden bg-black px-4 py-3 text-[11px] font-medium uppercase tracking-[0.12em] text-white">{(Array.isArray(s.items)&&s.items.length?s.items:["Cash on Delivery available","KYC-verified sellers","Easy 7-day returns"]).filter((v):v is string=>typeof v==="string").join("  ✦  ")}</div>;
+  if(section.type==="marquee"){ const items=(Array.isArray(s.items)&&s.items.length>=3?s.items:["Cash on Delivery","Verified sellers","7-day returns"]).filter((v):v is string=>typeof v==="string").slice(0,3); return <div className="bg-white px-3 py-2"><div className="grid grid-cols-2 divide-x divide-white/20 rounded-md bg-[#1B0840] py-1.5 text-center text-white"><p className="text-[8px] font-bold uppercase">Newest coupon<span className="block text-[6px] font-normal text-white/70">automatic</span></p><p className="text-[8px] font-bold uppercase">Cash on Delivery<span className="block text-[6px] font-normal text-white/70">Pay when it arrives</span></p></div><div className="mt-1.5 grid grid-cols-3 divide-x">{items.map(i=><p key={i} className="flex items-center justify-center gap-1 px-1 text-[7px] font-semibold text-slate-800"><span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#2A0E5F]"/>{i.split("|")[0]}</p>)}</div></div>; }
   if(section.type==="trust_strip") return <div className="grid grid-cols-2 border-y bg-white p-3">{(Array.isArray(s.items)?s.items:[]).filter((v):v is string=>typeof v==="string").slice(0,4).map((item)=><div key={item} className="p-2 text-center text-[10px] font-semibold text-slate-700">{item.split("|")[0]}</div>)}</div>;
   if(section.type==="seller_cta"){ const img=str2(s.imageUrl); return <div className="relative overflow-hidden bg-[#0b2a5b] p-5 text-white">{img?<><div className="absolute inset-0 bg-cover bg-right" style={bg(img)}/><span className={"absolute inset-0 "+(phone?"bg-[#0b2a5b]/85":"bg-gradient-to-r from-[#0b2a5b] via-[#0b2a5b]/70 to-[#0b2a5b]/35")}/></>:null}<div className="relative"><p className="text-[10px] uppercase tracking-[0.18em] text-amber-300">{str2(s.eyebrow)||"Built for ambitious sellers"}</p><h3 className="mt-2 text-lg font-bold">{str2(s.heading)||"Take your business online."}</h3><p className="mt-1 text-xs text-slate-300">{str2(s.description)}</p><span className="mt-3 inline-block rounded-full bg-[#e8892b] px-3 py-1 text-[10px] font-semibold">{str2(s.primaryLabel)||"Start selling"}</span></div></div>; }
   if(section.type==="sales_coupons") return <div className="bg-amber-50 p-4"><h3 className="text-sm font-bold">{heading}</h3><div className="mt-3 rounded-xl border border-dashed border-amber-300 bg-white p-3 text-xs"><b>WELCOME10</b><span className="ml-2 text-slate-500">10% off</span></div></div>;
