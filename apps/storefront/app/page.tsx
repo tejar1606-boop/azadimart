@@ -42,7 +42,7 @@ type HomeCoupon = {
   minimumOrderPaise: number;
   endsAt: Date | null;
 };
-type HomeCategory = { id: string; name: string; slug: string; imageKey: string | null; productCount: number };
+type HomeCategory = { id: string; name: string; slug: string; imageKey: string | null; productCount: number; minPricePaise: number | null };
 
 const str = (settings: Settings, key: string, fallback = "") => (typeof settings[key] === "string" && String(settings[key]).trim() ? String(settings[key]) : fallback);
 const num = (settings: Settings, key: string, fallback: number) => (typeof settings[key] === "number" && Number.isFinite(settings[key]) ? Number(settings[key]) : fallback);
@@ -107,10 +107,17 @@ async function getHome() {
   const withBadge = <T extends { id: string }>(p: T) => ({ ...p, badge: badges[p.id] ?? null, coupon: cardCoupons[p.id] ?? null });
   const liveProducts = allLive.slice(0, 24).map(withBadge);
 
-  // Each category tile uses a real product photo from that category when available.
+  // Each category tile uses a real product photo from that category (or its sub-categories) and its lowest price.
+  const parentOf = new Map((await getCategoryRail()).map((c) => [c.id, c.parentId]));
   const homeCategories: HomeCategory[] = categoryRows.map((category) => {
-    const inCategory = liveProducts.filter((product) => product.categoryId === category.id);
-    return { ...category, imageKey: inCategory.find((product) => product.mediaStorageKey)?.mediaStorageKey ?? null, productCount: inCategory.length };
+    const inCategory = allLive.filter((product) => product.categoryId === category.id || parentOf.get(product.categoryId) === category.id);
+    const prices = inCategory.map((product) => product.pricePaise);
+    return {
+      ...category,
+      imageKey: inCategory.find((product) => product.mediaStorageKey)?.mediaStorageKey ?? null,
+      productCount: inCategory.length,
+      minPricePaise: prices.length ? Math.min(...prices) : null,
+    };
   });
 
   const activeCoupons: HomeCoupon[] = couponRows
@@ -210,6 +217,7 @@ export default async function HomePage() {
         { "@context": "https://schema.org", "@type": "Organization", name: SITE_NAME, url: SITE_URL, logo: absoluteUrl("/icon.png") },
         { "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, url: SITE_URL, potentialAction: { "@type": "SearchAction", target: { "@type": "EntryPoint", urlTemplate: SITE_URL + "/products?q={search_term_string}" }, "query-input": "required name=search_term_string" } },
       ])} />
+      <CategoryCircles categories={data.categories} />
       {sections.map((section) => {
         // "Show on": desktop-only sections start at 1024 px; mobile-only ones stop there.
         const showOn = section.settings.showOn;
@@ -242,20 +250,52 @@ function Container({ children, className = "" }: { children: React.ReactNode; cl
   return <div className={"mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10 " + className}>{children}</div>;
 }
 
-function SectionHeading({ eyebrow, heading, subtitle, actionLabel, actionHref, center = false }: { eyebrow?: string; heading: string; subtitle?: string; actionLabel?: string; actionHref?: string; center?: boolean }) {
+/** Centred title with a line either side (small label above, optional View all link below). */
+function SectionHeading({ eyebrow, heading, subtitle, actionLabel, actionHref }: { eyebrow?: string; heading: string; subtitle?: string; actionLabel?: string; actionHref?: string }) {
   return (
-    <div className={"flex flex-col gap-3 sm:flex-row sm:items-end " + (center ? "items-center text-center sm:flex-col sm:items-center" : "sm:justify-between")}>
-      <div>
-        {eyebrow ? <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-600">{eyebrow}</p> : null}
-        <h2 className="mt-1.5 text-[26px] font-semibold leading-tight tracking-[-0.03em] sm:text-[34px]">{heading}</h2>
-        {subtitle ? <p className="mt-1.5 max-w-2xl text-sm text-slate-500 sm:text-[15px]">{subtitle}</p> : null}
+    <div className="flex flex-col items-center text-center">
+      {eyebrow ? <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#EF5A8A]">{eyebrow}</p> : null}
+      <div className="mt-1 flex w-full items-center justify-center gap-3 sm:gap-5">
+        <span aria-hidden="true" className="h-0.5 w-10 shrink-0 rounded-full bg-[#6A2CD6]/70 sm:w-24" />
+        <h2 className="text-[22px] font-bold uppercase leading-tight tracking-[0.02em] text-[#2A0E5F] sm:text-[30px]">{heading}</h2>
+        <span aria-hidden="true" className="h-0.5 w-10 shrink-0 rounded-full bg-[#6A2CD6]/70 sm:w-24" />
       </div>
+      {subtitle ? <p className="mt-1.5 max-w-2xl text-sm text-slate-500">{subtitle}</p> : null}
       {actionLabel && actionHref ? (
-        <Link href={actionHref} className="group inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-slate-900 hover:text-brand-600">
-          {actionLabel}<ArrowRightIcon size={16} className="transition group-hover:translate-x-0.5" />
+        <Link href={actionHref} className="group mt-2 inline-flex items-center gap-1 text-[13px] font-semibold text-[#6A2CD6] hover:text-[#4A1FA8]">
+          {actionLabel}<ArrowRightIcon size={14} className="transition group-hover:translate-x-0.5" />
         </Link>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Round category photos right under the header (first item: everything).
+ * Swipes sideways on phones; spreads across the full width on desktop.
+ */
+function CategoryCircles({ categories: all }: { categories: HomeCategory[] }) {
+  if (!all.length) return null;
+  const items = [{ id: "all", name: "All", slug: "", imageKey: null as string | null }, ...all.slice(0, 11)];
+  return (
+    <nav aria-label="Shop by category" className="bg-white">
+      <ul className="mx-auto flex max-w-[1440px] gap-4 overflow-x-auto px-4 pb-3 pt-3 [scrollbar-width:none] sm:px-6 lg:justify-between lg:gap-2 lg:px-10">
+        {items.map((c) => (
+          <li key={c.id} className="shrink-0">
+            <Link href={c.slug ? "/c/" + c.slug : "/products"} className="group flex w-[68px] flex-col items-center gap-1.5 lg:w-[88px]">
+              <span className="relative grid h-[60px] w-[60px] place-items-center overflow-hidden rounded-full bg-[#F3EDFD] ring-2 ring-transparent transition group-hover:ring-[#6A2CD6] lg:h-[68px] lg:w-[68px]">
+                {c.imageKey ? (
+                  <Image src={"/media/" + c.imageKey} alt="" fill sizes="96px" className="scale-[1.3] object-cover" />
+                ) : (
+                  <svg width="26" height="26" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 0 Q23 17 40 20 Q23 23 20 40 Q17 23 0 20 Q17 17 20 0Z" fill="#6A2CD6" /></svg>
+                )}
+              </span>
+              <span className="line-clamp-1 text-center text-[12px] font-semibold text-slate-800 group-hover:text-[#6A2CD6] lg:text-[13px]">{c.name.split(/\s*[&,]\s*/)[0]}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 
@@ -285,7 +325,7 @@ function StoreSection({ section, data }: { section: HomeSection; data: HomeData 
       const firstHero = (data.sections.length ? data.sections : FALLBACK_SECTIONS).find((x) => x.type === "hero");
       return <Hero s={s} sponsored={firstHero?.id === section.id ? data.sponsored : []} />;
     }
-    case "marquee": return <Marquee s={s} />;
+    case "marquee": return <OfferStrip s={s} coupon={data.coupons[0]} />;
     case "promo_banner": return <PromoBanner s={s} />;
     case "banner_row": return <BannerRow s={s} />;
     case "category_showcase": return <CategoryShowcase s={s} rail={data.rail} products={data.showcaseProducts} />;
@@ -352,7 +392,7 @@ function Hero({ s, sponsored }: { s: Settings; sponsored: HeroSlide[] }) {
       </section>
     );
   }
-  if (slides.length) return <><HeroCarousel slides={slides} /><TricolourRibbon /></>;
+  if (slides.length) return <HeroCarousel slides={slides} />;
 
   // No banner uploaded yet: a designed banner in the same frame (8:3 desktop,
   // 4:5 mobile) so the layout does not change when one is uploaded.
@@ -460,40 +500,28 @@ function CategoryShowcase({ s, rail, products: byCategory }: { s: Settings; rail
       : (byCategory[category.id] ?? []).map((p) => ({ label: p.title, href: "/products/" + p.slug, imageSrc: p.mediaStorageKey ? "/media/" + p.mediaStorageKey : null }))
   ).slice(0, 6);
   const heading = str(s, "heading", category.name);
-  const image = str(s, "imageUrl");
 
   return (
-    <Container className="py-4 sm:py-6">
-      <div className="grid overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
-        <div className={"relative flex min-h-[200px] flex-col justify-between overflow-hidden p-6 sm:p-7 " + style.panel}>
-          {image ? <Image src={image} alt="" fill sizes="(max-width:1024px) 100vw, 380px" className="object-cover opacity-90" unoptimized /> : null}
-          {image ? <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" /> : null}
-          <div className={"relative " + (image ? "text-white" : style.text)}>
-            <p className={"text-[11px] font-semibold uppercase tracking-[0.18em] " + (image ? "text-white/80" : style.sub)}>{str(s, "eyebrow", "Top category")}</p>
-            <h2 className="mt-2 text-[28px] font-semibold leading-[1.05] tracking-[-0.035em] sm:text-[34px]">{heading}</h2>
-            {str(s, "subtitle") ? <p className={"mt-2 max-w-xs text-sm leading-6 " + (image ? "text-white/85" : style.sub)}>{str(s, "subtitle")}</p> : null}
-          </div>
-          <Link href={"/c/" + category.slug} className={"relative mt-6 inline-flex w-fit items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm transition " + (image ? "bg-white text-navy hover:bg-brand-50" : style.button)}>
-            {str(s, "buttonLabel", "View all")}<ArrowRightIcon size={16} />
-          </Link>
-        </div>
-        {tiles.length ? (
-          <ul className="flex snap-x gap-3 overflow-x-auto p-4 [scrollbar-width:none] sm:grid sm:grid-cols-4 sm:gap-4 sm:overflow-visible sm:p-6 lg:grid-cols-6 lg:content-center">
-            {tiles.map((tile) => (
-              <li key={tile.href + tile.label} className="w-[36%] shrink-0 snap-start sm:w-auto">
-                <Link href={tile.href} className="group block">
-                  <span className={"relative block aspect-square overflow-hidden rounded-xl " + style.tile}>
-                    {tile.imageSrc ? <Image src={tile.imageSrc} alt="" fill sizes="(max-width:640px) 36vw, (max-width:1024px) 22vw, 140px" className="object-cover transition duration-500 group-hover:scale-[1.05]" /> : null}
-                  </span>
-                  <span className="mt-2 line-clamp-2 block text-center text-[12.5px] font-semibold leading-snug text-slate-800 group-hover:text-brand-600">{tile.label}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="grid place-items-center p-8 text-sm text-slate-500">Products for this category are coming soon.</div>
-        )}
-      </div>
+    <Container className="py-6 sm:py-8">
+      <SectionHeading eyebrow={str(s, "eyebrow", "Top category")} heading={heading} subtitle={str(s, "subtitle")} actionLabel={str(s, "buttonLabel", "View all")} actionHref={"/c/" + category.slug} />
+      {tiles.length ? (
+        <ul className="-mx-4 mt-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:justify-center sm:gap-4 sm:overflow-visible sm:px-0">
+          {tiles.map((tile) => (
+            <li key={tile.href + tile.label} className="w-[44%] shrink-0 snap-start sm:w-[calc((100%-48px)/4)] lg:w-[calc((100%-80px)/6)]">
+              <Link href={tile.href} className="group relative block aspect-[3/4] overflow-hidden rounded-2xl bg-[#F3EDFD]">
+                {tile.imageSrc ? <Image src={tile.imageSrc} alt="" fill sizes="(max-width:640px) 44vw, (max-width:1024px) 24vw, 220px" className="object-cover transition duration-500 group-hover:scale-[1.04]" /> : null}
+                <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[#1B0840]/85 via-[#1B0840]/10 to-transparent" />
+                <span className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 p-3 text-center">
+                  <span className="line-clamp-2 text-[14px] font-semibold leading-snug text-white sm:text-[15px]">{tile.label}</span>
+                  <span className="rounded-full border border-white/40 bg-white/15 px-3.5 py-1 text-[12px] font-medium text-white backdrop-blur transition group-hover:bg-white group-hover:text-[#2A0E5F]">Shop now</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="mt-4 grid place-items-center rounded-2xl bg-white p-8 text-sm text-slate-500">Products for this category are coming soon.</div>
+      )}
     </Container>
   );
 }
@@ -530,52 +558,72 @@ function BannerRow({ s }: { s: Settings }) {
   );
 }
 
-function Marquee({ s }: { s: Settings }) {
+const STRIP_ICONS = [CashIcon, BadgeIcon, ReturnIcon];
+
+/**
+ * Under the banner: a dark offer bar (the newest coupon + Cash on Delivery)
+ * and three promises with icons. The promises are the admin's highlight items.
+ */
+function OfferStrip({ s, coupon }: { s: Settings; coupon?: HomeCoupon }) {
   const items = list(s, "items");
-  const messages = items.length ? items : ["Cash on Delivery available", "KYC-verified sellers", "Quality-checked products", "Easy 7-day returns", "Secure checkout"];
-  const row = [...messages, ...messages];
+  const promises = (items.length >= 3 ? items : ["Cash on Delivery", "Verified sellers", "7-day returns"]).slice(0, 3);
+  const offer = coupon
+    ? coupon.discountType === "PERCENTAGE" ? `Extra ${coupon.discountValue}% off` : coupon.discountType === "FIXED" ? `Flat ₹${Math.round(coupon.discountValue / 100)} off` : "Free delivery"
+    : null;
   return (
-    <section aria-label="Highlights" className="overflow-hidden bg-navy py-3 text-white">
-      <div className="flex w-max animate-marquee gap-10 whitespace-nowrap motion-reduce:animate-none">
-        {[...row, ...row].map((item, index) => (
-          <span key={index} aria-hidden={index >= messages.length} className="flex items-center gap-10 text-[13px] font-medium uppercase tracking-[0.12em]">
-            {item}<span className={index % 2 ? "text-[#5fd35a]" : "text-tiranga-saffron"}>✦</span>
-          </span>
-        ))}
-      </div>
+    <section aria-label="Offers" className="bg-white">
+      <Container className="pb-2 pt-4 sm:pt-5">
+        <div className="mx-auto grid max-w-[1080px] grid-cols-2 items-center divide-x divide-white/20 overflow-hidden rounded-xl bg-[#1B0840] px-2 py-3 text-white sm:rounded-2xl sm:py-3.5">
+          <div className="px-3 text-center sm:px-6">
+            <p className="text-[14px] font-extrabold uppercase leading-tight tracking-[0.02em] sm:text-[18px]">{offer ?? "Shop & save"}</p>
+            <p className="mt-0.5 text-[11px] text-white/70 sm:text-[12px]">{coupon ? <>Use code <b className="font-mono font-bold text-[#F9CB5B]">{coupon.code}</b></> : "New deals every day"}</p>
+          </div>
+          <div className="px-3 text-center sm:px-6">
+            <p className="text-[14px] font-extrabold uppercase leading-tight tracking-[0.02em] sm:text-[18px]">Cash on Delivery</p>
+            <p className="mt-0.5 text-[11px] text-white/70 sm:text-[12px]">Pay at your door, across India</p>
+          </div>
+        </div>
+        <ul className="mx-auto mt-3 flex max-w-[640px] items-center justify-center divide-x divide-slate-300">
+          {promises.map((item, i) => {
+            const Icon = STRIP_ICONS[i]!;
+            return (
+              <li key={item} className="flex flex-1 items-center justify-center gap-1.5 px-2 sm:gap-2">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#2A0E5F] text-white sm:h-8 sm:w-8"><Icon size={15} /></span>
+                <span className="text-[11.5px] font-semibold leading-tight text-slate-900 sm:text-[13px]">{item.split("|")[0]!.trim()}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </Container>
     </section>
   );
 }
 
-const TILE_TINTS = ["from-brand-100 to-brand-50", "from-india-light to-white", "from-slate-200 to-slate-50", "from-amber-100 to-white", "from-rose-100 to-white", "from-sky-100 to-white"];
+const rupees = (paise: number) => "₹" + Math.round(paise / 100).toLocaleString("en-IN");
 
+/** Photo tiles, 3 across on phones and 6 on desktop: name top-left, "From ₹" price tag bottom-left. */
 function CategoryGrid({ s, categories: all }: { s: Settings; categories: HomeCategory[] }) {
   // Show the categories named in the admin (matched to real ones), else every active category.
   const wanted = list(s, "categories").map((name) => name.toLowerCase());
   const matched = wanted.length ? all.filter((category) => wanted.includes(category.name.toLowerCase())) : [];
-  const tiles = (matched.length ? matched : all).slice(0, 8);
+  const tiles = (matched.length ? matched : all).slice(0, 12);
   if (!tiles.length) return null;
   return (
-    <Container className="py-10 sm:py-14">
-      <SectionHeading eyebrow="Explore" heading={str(s, "heading", "Shop by category")} subtitle={str(s, "subtitle")} actionLabel="All products" actionHref="/products" />
-      <div className={"mt-6 grid gap-3 sm:gap-4 " + (tiles.length >= 4 ? "grid-cols-2 md:grid-cols-4" : tiles.length === 3 ? "grid-cols-2 md:grid-cols-3" : "grid-cols-1 sm:grid-cols-2")}>
-        {tiles.map((category, index) => (
-          <Link key={category.id} href={"/c/" + category.slug} className={"group relative flex flex-col " + (tiles.length >= 3 ? "aspect-[4/5]" : "aspect-[16/9] sm:aspect-[2/1]") + " justify-end overflow-hidden bg-gradient-to-br p-4 sm:p-5 " + TILE_TINTS[index % TILE_TINTS.length]}>
-            {category.imageKey ? (
-              <>
-                <Image src={"/media/" + category.imageKey} alt="" fill sizes="(max-width:768px) 46vw, 24vw" className="object-cover transition duration-500 group-hover:scale-[1.04]" />
-                <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-              </>
-            ) : (
-              <span aria-hidden className="absolute right-3 top-2 text-[88px] font-semibold leading-none tracking-[-0.06em] text-black/[0.06] sm:text-[120px]">{category.name.slice(0, 1)}</span>
-            )}
-            <span className={"relative flex items-end justify-between gap-2 " + (category.imageKey ? "text-white" : "text-slate-950")}>
-              <span>
-                <span className="block text-base font-semibold leading-tight sm:text-xl">{category.name}</span>
-                {category.productCount ? <span className={"mt-1 block text-xs " + (category.imageKey ? "text-white/80" : "text-slate-500")}>{category.productCount}+ products</span> : null}
+    <Container className="py-6 sm:py-8">
+      <SectionHeading eyebrow="Explore" heading={str(s, "heading", "Shop by category")} subtitle={str(s, "subtitle")} />
+      <div className="mt-4 flex flex-wrap justify-center gap-2.5 sm:gap-4">
+        {tiles.map((category) => (
+          <Link key={category.id} href={"/c/" + category.slug} className="group relative block aspect-[4/5] w-[calc((100%-20px)/3)] sm:w-[calc((100%-32px)/3)] lg:w-[calc((100%-80px)/6)] overflow-hidden rounded-2xl bg-gradient-to-br from-[#2A0E5F] to-[#6A2CD6]">
+            {category.imageKey ? <Image src={"/media/" + category.imageKey} alt="" fill sizes="(max-width:1024px) 32vw, 220px" className="object-cover transition duration-500 group-hover:scale-[1.05]" /> : null}
+            <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/45" />
+            <span className="absolute left-2.5 right-2.5 top-2.5 line-clamp-2 text-[13px] font-semibold leading-tight text-white sm:left-3.5 sm:top-3.5 sm:text-[17px]">{category.name}</span>
+            {category.minPricePaise !== null ? (
+              <span className="absolute bottom-2.5 left-2.5 rounded-md bg-[#EF5A8A] px-1.5 py-1 leading-none text-white sm:bottom-3.5 sm:left-3.5 sm:px-2">
+                <span className="block text-[9px] font-medium uppercase sm:text-[10px]">From</span>
+                <span className="block text-[13px] font-bold sm:text-[16px]">{rupees(category.minPricePaise)}</span>
               </span>
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-slate-950 transition group-hover:translate-x-0.5"><ArrowRightIcon size={15} /></span>
-            </span>
+            ) : null}
+            <span aria-hidden="true" className="absolute bottom-2.5 right-2.5 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-[#2A0E5F] sm:bottom-3.5 sm:right-3.5 sm:h-7 sm:w-7"><ArrowRightIcon size={13} /></span>
           </Link>
         ))}
       </div>
@@ -586,7 +634,7 @@ function CategoryGrid({ s, categories: all }: { s: Settings; categories: HomeCat
 function FeaturedProducts({ s, products }: { s: Settings; products: ProductCardData[] }) {
   const limit = Math.max(1, Math.min(20, Math.floor(num(s, "limit", 10))));
   return (
-    <Container className="py-10 sm:py-14">
+    <Container className="py-6 sm:py-8">
       <SectionHeading eyebrow="Curated" heading={str(s, "heading", "Trending on LOIMART")} subtitle={str(s, "subtitle", "Handpicked products from verified sellers")} actionLabel="View all" actionHref="/products" />
       {products.length ? (
         <ProductGrid products={products.slice(0, limit)} />

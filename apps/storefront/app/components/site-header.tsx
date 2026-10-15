@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 import { BrandMark, BrandWordmark } from "@azadimart/ui";
 import type { StoreChrome } from "../lib/chrome";
-import { BagIcon, CloseIcon, HeartIcon, MenuIcon, SearchIcon, UserIcon } from "./icons";
+import { BagIcon, CloseIcon, GridIcon, HeartIcon, MenuIcon, SearchIcon, UserIcon } from "./icons";
 
 /** The LOIMART logo: bag icon + "loimart" in the logo colours. Icon scales with the font size. */
 export function Wordmark({ className = "", onDark = false }: { className?: string; onDark?: boolean }) {
@@ -53,7 +53,7 @@ function SearchForm({ className = "", autoFocus = false }: { className?: string;
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Search for products, brands and more"
-        className="h-11 w-full rounded-full border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:bg-white"
+        className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-[#6A2CD6]"
       />
       <SearchIcon size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
     </form>
@@ -91,6 +91,11 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
   }, [menuOpen]);
 
   const iconButton = "relative grid h-10 w-10 place-items-center rounded-full text-slate-900 transition hover:bg-slate-100";
+  // Desktop: icon + label side by side (Categories, Wishlist, Cart, Sign in); phones: icon only.
+  const navLink = "relative flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full text-slate-900 transition hover:bg-slate-100 lg:px-2.5 lg:hover:bg-transparent lg:hover:text-[#6A2CD6]";
+  const navLabel = "hidden text-sm font-medium lg:inline";
+  // The homepage shows round category photos under the header instead of the text menu.
+  const isHome = pathname === "/";
 
   return (
     <>
@@ -105,21 +110,24 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
             </button>
             <Link href="/" className="text-[22px] leading-none lg:text-[26px]" aria-label="LOIMART home"><Wordmark /></Link>
           </div>
-          <SearchForm className="hidden w-full max-w-2xl md:block" />
-          <nav aria-label="Account" className="ml-auto flex items-center justify-end gap-0.5 sm:gap-1">
-            <Link href={me === null ? "/login" : "/account"} className="relative flex h-10 min-w-10 items-center justify-center gap-2 rounded-full text-slate-900 transition hover:bg-slate-100 lg:px-3" aria-label={me ? `Account (signed in as ${me.email ?? firstName})` : "Sign in"}>
-              <UserIcon /><span className="hidden max-w-[140px] truncate text-sm font-medium lg:inline">{me ? `Hi, ${firstName}` : me === null ? "Sign in" : "Account"}</span>
-              {me ? <span aria-hidden="true" className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-india ring-2 ring-white lg:hidden" /> : null}
+          <SearchForm className="hidden w-full max-w-xl md:block" />
+          <nav aria-label="Account" className="ml-auto flex items-center justify-end gap-0.5 sm:gap-1 lg:gap-2">
+            <Link href="/products" className={navLink + " hidden lg:flex"}><GridIcon size={20} /><span className={navLabel}>Categories</span></Link>
+            <Link href="/wishlist" className={navLink} aria-label="Wishlist"><HeartIcon size={20} /><span className={navLabel}>Wishlist</span></Link>
+            <Link href="/cart" className={navLink} aria-label={cartCount ? `Cart, ${cartCount} items` : "Cart"}>
+              <span className="relative"><BagIcon size={20} />
+                {cartCount > 0 ? <span className="absolute -right-2 -top-2 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[#EF5A8A] px-1 text-[10px] font-semibold text-white">{cartCount > 99 ? "99+" : cartCount}</span> : null}
+              </span>
+              <span className={navLabel}>Cart</span>
             </Link>
-            <Link href="/wishlist" className={iconButton} aria-label="Wishlist"><HeartIcon /></Link>
-            <Link href="/cart" className={iconButton} aria-label={cartCount ? `Cart, ${cartCount} items` : "Cart"}>
-              <BagIcon />
-              {cartCount > 0 ? <span className="absolute right-0.5 top-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-brand px-1 text-[10px] font-semibold text-white">{cartCount > 99 ? "99+" : cartCount}</span> : null}
+            <Link href={me === null ? "/login" : "/account"} className={navLink} aria-label={me ? `Account (signed in as ${me.email ?? firstName})` : "Sign in"}>
+              <UserIcon size={20} /><span className={navLabel + " max-w-[140px] truncate"}>{me ? `Hi, ${firstName}` : me === null ? "Sign in" : "Account"}</span>
+              {me ? <span aria-hidden="true" className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-india ring-2 ring-white lg:hidden" /> : null}
             </Link>
           </nav>
         </div>
         <div className="border-t border-slate-100 px-4 pb-3 pt-2 md:hidden"><SearchForm autoFocus /></div>
-        {chrome.navigation.length ? (
+        {chrome.navigation.length && !isHome ? (
           <nav aria-label="Categories" className="hidden border-t border-slate-100 lg:block">
             <div className="flex items-center gap-1 overflow-x-auto px-4 sm:px-6 lg:px-7 2xl:px-11">
               <Link href="/products" className={"relative shrink-0 px-3 py-3 text-[13px] font-semibold uppercase tracking-[0.06em] transition " + (pathname === "/products" ? "text-brand-600 after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand" : "text-navy hover:text-brand-600")}>All products</Link>
