@@ -315,25 +315,29 @@ export default async function ProductDetailPage({ params, searchParams }: { para
               <p className="mt-1 text-xs text-slate-400">SKU {selectedVariant.sku}</p>
             </div>
 
-            {/* Trust markers: icon badges in the tricolour palette (saffron, green, navy). */}
-            <ul aria-label="Why shop with confidence" className="mt-5 grid grid-cols-4 gap-2 rounded-2xl border border-slate-200 bg-slate-50/60 p-3 sm:gap-3 sm:p-4">
-              {[
-                { Icon: BadgeIcon, label: "Verified seller", tint: "bg-brand-50 text-brand-600 ring-brand-100" },
-                { Icon: ShieldIcon, label: "Quality checked", tint: "bg-india-light text-india ring-india/15" },
-                { Icon: LockIcon, label: "Secure checkout", tint: "bg-navy/5 text-navy ring-navy/10" },
-                { Icon: SupportIcon, label: "Customer support", tint: "bg-brand-50 text-brand-600 ring-brand-100" },
-              ].map(({ Icon, label, tint }) => (
-                <li key={label} className="flex flex-col items-center gap-1.5 text-center">
-                  <span className={"grid h-11 w-11 place-items-center rounded-full ring-1 sm:h-12 sm:w-12 " + tint}><Icon size={22} /></span>
-                  <span className="text-[11px] font-semibold leading-tight text-slate-700 sm:text-xs">{label}</span>
-                </li>
-              ))}
-            </ul>
 
             {/* Buttons first, so Buy now is reached without scrolling past the description. */}
             <div className="mt-7">
               <AddToCart key={selectedVariant.variantId} variantId={selectedVariant.variantId} availableQuantity={availableQuantity} />
             </div>
+            {/* Trust markers, highlighted right under the buttons where shoppers decide to buy. */}
+            <section aria-label="The loimart promise" className="mt-4 rounded-2xl bg-gradient-to-br from-[#F1E8FF] via-[#FBF0FF] to-[#FFE8F0] p-3.5 ring-1 ring-[#E3D3FF] sm:p-4">
+              <p className="text-center text-[11px] font-bold uppercase tracking-[0.16em] text-[#6A2CD6]">The loimart promise</p>
+              <ul className="mt-3 grid grid-cols-4 gap-2 sm:gap-3">
+                {[
+                  { Icon: BadgeIcon, label: "Verified seller", note: "KYC-checked", tint: "bg-[#6A2CD6]" },
+                  { Icon: ShieldIcon, label: "Quality checked", note: "Before listing", tint: "bg-india" },
+                  { Icon: LockIcon, label: "Secure checkout", note: "COD available", tint: "bg-navy" },
+                  { Icon: SupportIcon, label: "Customer support", note: "Live chat help", tint: "bg-[#EF5A8A]" },
+                ].map(({ Icon, label, note, tint }) => (
+                  <li key={label} className="flex flex-col items-center gap-1.5 text-center">
+                    <span className={"grid h-11 w-11 place-items-center rounded-full text-white shadow-md sm:h-12 sm:w-12 " + tint}><Icon size={22} /></span>
+                    <span className="text-[11px] font-bold leading-tight text-slate-900 sm:text-xs">{label}</span>
+                    <span className="-mt-0.5 text-[10px] leading-tight text-slate-500 sm:text-[11px]">{note}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
 
             {first.description ? <div className="mt-6"><p className="text-sm font-semibold">About this product</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-500">{first.description}</p></div> : null}
             {first.specifications?.length ? (
