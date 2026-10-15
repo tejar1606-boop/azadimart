@@ -330,6 +330,11 @@ export default async function ProductDetailPage({ params, searchParams }: { para
               ))}
             </ul>
 
+            {/* Buttons first, so Buy now is reached without scrolling past the description. */}
+            <div className="mt-7">
+              <AddToCart key={selectedVariant.variantId} variantId={selectedVariant.variantId} availableQuantity={availableQuantity} />
+            </div>
+
             {first.description ? <div className="mt-6"><p className="text-sm font-semibold">About this product</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-500">{first.description}</p></div> : null}
             {first.specifications?.length ? (
               <div className="mt-6">
@@ -348,9 +353,6 @@ export default async function ProductDetailPage({ params, searchParams }: { para
               </div>
             ) : null}
 
-            <div className="mt-7">
-              <AddToCart key={selectedVariant.variantId} variantId={selectedVariant.variantId} availableQuantity={availableQuantity} />
-            </div>
           </section>
         </div>
 
