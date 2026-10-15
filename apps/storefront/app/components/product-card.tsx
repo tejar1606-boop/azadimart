@@ -59,14 +59,13 @@ export default function ProductCard({ product, priority = false, sizes = "(max-w
         {product.sellerName ? <p className="truncate text-[10.5px] font-medium uppercase tracking-[0.06em] text-slate-400">{product.sellerName}</p> : null}
         <p className="mt-0.5 line-clamp-2 min-h-10 text-[13px] leading-5 text-slate-800 sm:text-sm">{product.title}</p>
         {product.reviewCount ? <span className="mt-1.5"><RatingPill average={(product.ratingTotal ?? 0) / product.reviewCount} count={product.reviewCount} compact /></span> : null}
-        <div className="mt-auto flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 pt-1.5">
-          <span className="text-base font-semibold text-slate-950 sm:text-lg">{formatPrice(product.pricePaise)}</span>
-          {off > 0 ? (
-            <>
-              <span className="text-xs text-slate-500">MRP <span className="line-through">{formatPrice(product.compareAtPaise!)}</span></span>
-              <span className="text-xs font-semibold text-save">{off}% off</span>
-            </>
-          ) : null}
+        {/* Always two lines (price + % off, then MRP) so prices line up across a row, however narrow the card. */}
+        <div className="mt-auto pt-1.5">
+          <p className="flex items-baseline gap-1.5 whitespace-nowrap">
+            <span className="text-base font-semibold text-slate-950 sm:text-lg">{formatPrice(product.pricePaise)}</span>
+            {off > 0 ? <span className="text-xs font-semibold text-save">{off}% off</span> : null}
+          </p>
+          <p className="h-4 text-xs leading-4 text-slate-500">{off > 0 ? <>MRP <span className="line-through">{formatPrice(product.compareAtPaise!)}</span></> : null}</p>
         </div>
         {product.coupon ? <span className="mt-2 block"><CouponChip code={product.coupon.code} text={product.coupon.text} /></span> : null}
       </div>

@@ -229,7 +229,7 @@ export default async function HomePage() {
       {!showsProducts && data.products.length ? (
         <Container className="py-10 sm:py-14">
           <SectionHeading eyebrow="Just in" heading="Fresh from our sellers" actionLabel="Shop all" actionHref="/products" />
-          <ProductGrid products={data.products.slice(0, 10)} />
+          <ProductGrid products={data.products.slice(0, 12)} />
         </Container>
       ) : null}
     </main>
@@ -279,10 +279,10 @@ function CategoryCircles({ categories: all }: { categories: HomeCategory[] }) {
   const items = [{ id: "all", name: "All", slug: "", imageKey: null as string | null }, ...all.slice(0, 11)];
   return (
     <nav aria-label="Shop by category" className="bg-white">
-      <ul className="mx-auto flex max-w-[1440px] gap-4 overflow-x-auto px-4 pb-3 pt-3 [scrollbar-width:none] sm:px-6 lg:justify-between lg:gap-2 lg:px-10">
+      <ul className="mx-auto flex max-w-[1440px] gap-3 overflow-x-auto px-4 pb-3 pt-3 [scrollbar-width:none] sm:px-6 lg:justify-between lg:gap-2 lg:px-10">
         {items.map((c) => (
           <li key={c.id} className="shrink-0">
-            <Link href={c.slug ? "/c/" + c.slug : "/products"} className="group flex w-[68px] flex-col items-center gap-1.5 lg:w-[88px]">
+            <Link href={c.slug ? "/c/" + c.slug : "/products"} className="group flex w-[72px] flex-col items-center gap-1.5 lg:w-[96px]">
               <span className="relative grid h-[60px] w-[60px] place-items-center overflow-hidden rounded-full bg-[#F3EDFD] ring-2 ring-transparent transition group-hover:ring-[#6A2CD6] lg:h-[68px] lg:w-[68px]">
                 {c.imageKey ? (
                   <Image src={"/media/" + c.imageKey} alt="" fill sizes="96px" className="scale-[1.3] object-cover" />
@@ -290,7 +290,7 @@ function CategoryCircles({ categories: all }: { categories: HomeCategory[] }) {
                   <svg width="26" height="26" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 0 Q23 17 40 20 Q23 23 20 40 Q17 23 0 20 Q17 17 20 0Z" fill="#6A2CD6" /></svg>
                 )}
               </span>
-              <span className="line-clamp-1 text-center text-[12px] font-semibold text-slate-800 group-hover:text-[#6A2CD6] lg:text-[13px]">{c.name.split(/\s*[&,]\s*/)[0]}</span>
+              <span className="line-clamp-2 min-h-[30px] text-center text-[11.5px] font-semibold leading-[15px] text-slate-800 group-hover:text-[#6A2CD6] lg:text-[12.5px] lg:leading-4">{c.name}</span>
             </Link>
           </li>
         ))}
@@ -299,10 +299,12 @@ function CategoryCircles({ categories: all }: { categories: HomeCategory[] }) {
   );
 }
 
+/** 2 / 3 / 6 across. Trimmed to a multiple of 6 (when there are 6+) so every row is full at every size. */
 function ProductGrid({ products }: { products: ProductCardData[] }) {
+  const shown = products.length >= 6 ? products.slice(0, products.length - (products.length % 6)) : products;
   return (
-    <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
-      {products.map((product) => <ProductCard key={product.id} product={product} />)}
+    <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
+      {shown.map((product) => <ProductCard key={product.id} product={product} sizes="(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 16vw" />)}
     </div>
   );
 }
@@ -385,11 +387,11 @@ function Hero({ s, sponsored }: { s: Settings; sponsored: HeroSlide[] }) {
   if (slides.length && str(s, "size") === "compact") {
     // Compact: a smaller, rounded banner card with space around it (e.g. lower down the page).
     return (
-      <section className="py-8 sm:py-12">
-        <div className="mx-auto max-w-[1100px] px-4 sm:px-6">
-          <div className="overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/5 sm:rounded-3xl"><HeroCarousel slides={slides} /></div>
+      <Container className="py-6 sm:py-8">
+        <div className="overflow-hidden rounded-2xl">
+          <HeroCarousel slides={slides} />
         </div>
-      </section>
+      </Container>
     );
   }
   if (slides.length) return <HeroCarousel slides={slides} />;
@@ -505,15 +507,16 @@ function CategoryShowcase({ s, rail, products: byCategory }: { s: Settings; rail
     <Container className="py-6 sm:py-8">
       <SectionHeading eyebrow={str(s, "eyebrow", "Top category")} heading={heading} subtitle={str(s, "subtitle")} actionLabel={str(s, "buttonLabel", "View all")} actionHref={"/c/" + category.slug} />
       {tiles.length ? (
-        <ul className="-mx-4 mt-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:justify-center sm:gap-4 sm:overflow-visible sm:px-0">
+        <ul className="-mx-4 mt-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:justify-center sm:gap-4 sm:overflow-visible sm:px-0">
           {tiles.map((tile) => (
             <li key={tile.href + tile.label} className="w-[44%] shrink-0 snap-start sm:w-[calc((100%-48px)/4)] lg:w-[calc((100%-80px)/6)]">
-              <Link href={tile.href} className="group relative block aspect-[3/4] overflow-hidden rounded-2xl bg-[#F3EDFD]">
-                {tile.imageSrc ? <Image src={tile.imageSrc} alt="" fill sizes="(max-width:640px) 44vw, (max-width:1024px) 24vw, 220px" className="object-cover transition duration-500 group-hover:scale-[1.04]" /> : null}
-                <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[#1B0840]/85 via-[#1B0840]/10 to-transparent" />
-                <span className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 p-3 text-center">
-                  <span className="line-clamp-2 text-[14px] font-semibold leading-snug text-white sm:text-[15px]">{tile.label}</span>
-                  <span className="rounded-full border border-white/40 bg-white/15 px-3.5 py-1 text-[12px] font-medium text-white backdrop-blur transition group-hover:bg-white group-hover:text-[#2A0E5F]">Shop now</span>
+              <Link href={tile.href} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition hover:-translate-y-0.5 hover:shadow-lift">
+                <span className="relative block aspect-square overflow-hidden bg-[#F3EDFD]">
+                  {tile.imageSrc ? <Image src={tile.imageSrc} alt="" fill sizes="(max-width:640px) 44vw, (max-width:1024px) 24vw, 220px" className="object-cover transition duration-500 group-hover:scale-[1.04]" /> : null}
+                </span>
+                <span className="flex flex-1 flex-col justify-between gap-2 p-2.5 sm:p-3">
+                  <span className="line-clamp-2 min-h-[2.5em] text-[13px] font-semibold leading-tight text-slate-900 sm:text-[14px]">{tile.label}</span>
+                  <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-[#6A2CD6]">Shop now<ArrowRightIcon size={13} className="transition group-hover:translate-x-0.5" /></span>
                 </span>
               </Link>
             </li>
@@ -573,22 +576,22 @@ function OfferStrip({ s, coupon }: { s: Settings; coupon?: HomeCoupon }) {
   return (
     <section aria-label="Offers" className="bg-white">
       <Container className="pb-2 pt-4 sm:pt-5">
-        <div className="mx-auto grid max-w-[1080px] grid-cols-2 items-center divide-x divide-white/20 overflow-hidden rounded-xl bg-[#1B0840] px-2 py-3 text-white sm:rounded-2xl sm:py-3.5">
+        <div className="grid grid-cols-2 items-center divide-x divide-white/20 overflow-hidden rounded-xl bg-[#1B0840] px-2 py-3 text-white sm:rounded-2xl sm:py-4">
           <div className="px-3 text-center sm:px-6">
             <p className="text-[14px] font-extrabold uppercase leading-tight tracking-[0.02em] sm:text-[18px]">{offer ?? "Shop & save"}</p>
             <p className="mt-0.5 text-[11px] text-white/70 sm:text-[12px]">{coupon ? <>Use code <b className="font-mono font-bold text-[#F9CB5B]">{coupon.code}</b></> : "New deals every day"}</p>
           </div>
           <div className="px-3 text-center sm:px-6">
             <p className="text-[14px] font-extrabold uppercase leading-tight tracking-[0.02em] sm:text-[18px]">Cash on Delivery</p>
-            <p className="mt-0.5 text-[11px] text-white/70 sm:text-[12px]">Pay at your door, across India</p>
+            <p className="mt-0.5 text-[11px] text-white/70 sm:text-[12px]">Pay when it arrives</p>
           </div>
         </div>
-        <ul className="mx-auto mt-3 flex max-w-[640px] items-center justify-center divide-x divide-slate-300">
+        <ul className="mx-auto mt-3 grid max-w-[720px] grid-cols-3 divide-x divide-slate-200">
           {promises.map((item, i) => {
             const Icon = STRIP_ICONS[i]!;
             return (
-              <li key={item} className="flex flex-1 items-center justify-center gap-1.5 px-2 sm:gap-2">
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#2A0E5F] text-white sm:h-8 sm:w-8"><Icon size={15} /></span>
+              <li key={item} className="flex flex-col items-center justify-center gap-1 px-2 text-center sm:flex-row sm:gap-2 sm:text-left">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#2A0E5F] text-white"><Icon size={15} /></span>
                 <span className="text-[11.5px] font-semibold leading-tight text-slate-900 sm:text-[13px]">{item.split("|")[0]!.trim()}</span>
               </li>
             );
@@ -613,17 +616,21 @@ function CategoryGrid({ s, categories: all }: { s: Settings; categories: HomeCat
       <SectionHeading eyebrow="Explore" heading={str(s, "heading", "Shop by category")} subtitle={str(s, "subtitle")} />
       <div className="mt-4 flex flex-wrap justify-center gap-2.5 sm:gap-4">
         {tiles.map((category) => (
-          <Link key={category.id} href={"/c/" + category.slug} className="group relative block aspect-[4/5] w-[calc((100%-20px)/3)] sm:w-[calc((100%-32px)/3)] lg:w-[calc((100%-80px)/6)] overflow-hidden rounded-2xl bg-gradient-to-br from-[#2A0E5F] to-[#6A2CD6]">
-            {category.imageKey ? <Image src={"/media/" + category.imageKey} alt="" fill sizes="(max-width:1024px) 32vw, 220px" className="object-cover transition duration-500 group-hover:scale-[1.05]" /> : null}
-            <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/45" />
-            <span className="absolute left-2.5 right-2.5 top-2.5 line-clamp-2 text-[13px] font-semibold leading-tight text-white sm:left-3.5 sm:top-3.5 sm:text-[17px]">{category.name}</span>
-            {category.minPricePaise !== null ? (
-              <span className="absolute bottom-2.5 left-2.5 rounded-md bg-[#EF5A8A] px-1.5 py-1 leading-none text-white sm:bottom-3.5 sm:left-3.5 sm:px-2">
-                <span className="block text-[9px] font-medium uppercase sm:text-[10px]">From</span>
-                <span className="block text-[13px] font-bold sm:text-[16px]">{rupees(category.minPricePaise)}</span>
+          <Link key={category.id} href={"/c/" + category.slug} className="group flex w-[calc((100%-20px)/3)] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition hover:-translate-y-0.5 hover:shadow-lift sm:w-[calc((100%-32px)/3)] lg:w-[calc((100%-80px)/6)]">
+            <span className="relative block aspect-square overflow-hidden bg-[#F3EDFD]">
+              {category.imageKey ? (
+                <Image src={"/media/" + category.imageKey} alt="" fill sizes="(max-width:1024px) 32vw, 220px" className="object-cover transition duration-500 group-hover:scale-[1.05]" />
+              ) : (
+                <span aria-hidden="true" className="grid h-full place-items-center"><svg width="34" height="34" viewBox="0 0 40 40"><path d="M20 0 Q23 17 40 20 Q23 23 20 40 Q17 23 0 20 Q17 17 20 0Z" fill="#6A2CD6" /></svg></span>
+              )}
+            </span>
+            <span className="flex flex-1 flex-col justify-between gap-1 px-2.5 py-2 sm:px-3.5 sm:py-3">
+              <span className="line-clamp-2 min-h-[2.5em] text-[12.5px] font-semibold leading-tight text-[#2A0E5F] sm:text-[15px]">{category.name}</span>
+              <span className="flex items-center justify-between gap-1">
+                <span className="text-[11px] font-semibold text-[#EF5A8A] sm:text-[13px]">{category.minPricePaise !== null ? <>From {rupees(category.minPricePaise)}</> : "Coming soon"}</span>
+                <ArrowRightIcon size={14} className="hidden shrink-0 text-[#6A2CD6] transition group-hover:translate-x-0.5 sm:block" />
               </span>
-            ) : null}
-            <span aria-hidden="true" className="absolute bottom-2.5 right-2.5 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-[#2A0E5F] sm:bottom-3.5 sm:right-3.5 sm:h-7 sm:w-7"><ArrowRightIcon size={13} /></span>
+            </span>
           </Link>
         ))}
       </div>
@@ -632,7 +639,7 @@ function CategoryGrid({ s, categories: all }: { s: Settings; categories: HomeCat
 }
 
 function FeaturedProducts({ s, products }: { s: Settings; products: ProductCardData[] }) {
-  const limit = Math.max(1, Math.min(20, Math.floor(num(s, "limit", 10))));
+  const limit = Math.max(1, Math.min(24, Math.floor(num(s, "limit", 12))));
   return (
     <Container className="py-6 sm:py-8">
       <SectionHeading eyebrow="Curated" heading={str(s, "heading", "Trending on LOIMART")} subtitle={str(s, "subtitle", "Handpicked products from verified sellers")} actionLabel="View all" actionHref="/products" />
