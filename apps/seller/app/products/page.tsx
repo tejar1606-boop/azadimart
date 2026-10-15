@@ -7,7 +7,7 @@ export default function ProductsPage() {
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Seller catalog</p>
           <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">Your products</h1>
-          <p className="mt-2 text-sm text-slate-500">Manage drafts, QC submissions and live listings. To change or remove an approved product, contact LOIMART support.</p>
+          <p className="mt-2 text-sm text-slate-500">Manage drafts, QC submissions and live listings. Edit any product at any time; changes to live products go to QC before they appear on the store. To remove a product, contact LOIMART support.</p>
         </div>
         <a href="/products/new" className="rounded-full bg-slate-950 px-5 py-3 text-center text-sm font-black text-white">Create product</a>
       </div>

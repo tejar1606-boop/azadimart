@@ -8,7 +8,11 @@ type Upload = { id: string; fileName: string; kind: "IMAGE" | "VIDEO"; url: stri
 const RECOMMENDED_PX = 1000;
 const steps = ["Basics", "Media", "Pricing", "Review"];
 
-export default function ProductBuilder() {
+type EditInfo = { status: string; pendingSince: string | null; rejectedNote: string | null; rejectedAt: string | null };
+const LIVE_STATUSES = ["LIVE", "UNLISTED"];
+
+/** Creates a product, or with productId edits an existing one (see PATCH /api/v1/products/[productId]). */
+export default function ProductBuilder({ productId }: { productId?: string } = {}) {
   const router = useRouter();
   const [step,setStep] = useState(0);
   const [form,setForm] = useState({title:"",description:"",categoryId:"",sku:"",variantTitle:"Default",price:"",compareAt:"",weightGrams:"",onHand:"0"});
@@ -24,10 +28,35 @@ export default function ProductBuilder() {
   const [message,setMessage] = useState("");
   const [categories,setCategories] = useState<Array<{id:string;name:string}>>([]);
   const [categoryLoading,setCategoryLoading] = useState(true);
+  const [editInfo,setEditInfo] = useState<EditInfo|null>(null);
+  const [loaded,setLoaded] = useState(!productId);
+  const isLive = Boolean(editInfo && LIVE_STATUSES.includes(editInfo.status));
   const set=(key:keyof typeof form,value:string)=>setForm(v=>({...v,[key]:value}));
   useEffect(()=>{
     void fetch("/api/v1/categories",{cache:"no-store"}).then(async response=>response.ok?response.json():Promise.reject(new Error("Unable to load categories."))).then(body=>setCategories(body.items??[])).catch(()=>setError("Unable to load categories. Please refresh and try again.")).finally(()=>setCategoryLoading(false));
   },[]);
+
+  // Edit mode: start from the edit waiting in QC if there is one, else the product as it is now.
+  useEffect(()=>{
+    if(!productId)return;
+    type Media={id:string;kind:"IMAGE"|"VIDEO";url:string};
+    void fetch(`/api/v1/products/${productId}`,{cache:"no-store"}).then(async response=>{const body=await response.json();if(!response.ok)throw new Error(body?.error?.message??"Unable to load this product.");return body;}).then(body=>{
+      const pending=body.pendingEdit;
+      const source=pending?.changes??{...body.product,variant:body.variant};
+      const media:Media[]=pending?pending.media:body.media;
+      const v=source.variant??{};
+      setForm({title:source.title??"",description:source.description??"",categoryId:source.categoryId??"",sku:v.sku??"",variantTitle:v.title??"Default",price:v.pricePaise!=null?String(v.pricePaise/100):"",compareAt:v.compareAtPaise!=null?String(v.compareAtPaise/100):"",weightGrams:v.weightGrams!=null?String(v.weightGrams):"",onHand:String(body.variant?.onHand??0)});
+      setCouponPct(source.couponMaxDiscountPct??0);
+      const rows:SpecRow[]=(source.specifications??[]).map((row:{label:string;value:string})=>({label:row.label,value:row.value}));
+      setSpecs(rows);setDetailStyle(!source.description&&rows.length?"table":"text");
+      const byId=new Map(media.map(m=>[m.id,m]));
+      const imageIds:string[]=pending?pending.changes.imageAssetIds:media.filter(m=>m.kind==="IMAGE").map(m=>m.id);
+      setImages(imageIds.map(id=>byId.get(id)).filter((m):m is Media=>Boolean(m)).map(m=>({id:m.id,fileName:"Current photo",kind:"IMAGE" as const,url:m.url})));
+      const videoId:string|null=pending?pending.changes.videoAssetId:(media.find(m=>m.kind==="VIDEO")?.id??null);
+      const vid=videoId?byId.get(videoId):undefined;setVideo(vid?{id:vid.id,fileName:"Current video",kind:"VIDEO",url:vid.url}:null);
+      setEditInfo({status:body.product.status,pendingSince:pending?.submittedAt??null,rejectedNote:pending?null:(body.lastRejectedEdit?.notes??null),rejectedAt:pending?null:(body.lastRejectedEdit?.at??null)});
+    }).catch(err=>setError(err instanceof Error?err.message:"Unable to load this product.")).finally(()=>setLoaded(true));
+  },[productId]);
 
   async function upload(file:File,kind:"IMAGE"|"VIDEO"){
     setBusy(true);setError("");setMessage("");setProgress(0);
@@ -66,6 +95,21 @@ export default function ProductBuilder() {
     const problem=validate();if(problem){setError(problem);return;}
     setBusy(true);setError("");setMessage("");
     try{
+      if(productId){
+        const response=await fetch(`/api/v1/products/${productId}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+          title:form.title.trim(),categoryId:form.categoryId.trim(),
+          description:detailStyle==="text"?form.description.trim():"",
+          couponMaxDiscountPct:couponPct,
+          specifications:detailStyle==="table"?specs.filter(r=>r.label.trim()&&r.value.trim()).map(r=>({label:r.label.trim(),value:r.value.trim()})):[],
+          imageAssetIds:images.map(v=>v.id),videoAssetId:video?.id??null,
+          variant:{sku:form.sku.trim(),title:form.variantTitle.trim()||"Default",pricePaise:Math.round(Number(form.price)*100),compareAtPaise:form.compareAt?Math.round(Number(form.compareAt)*100):null,weightGrams:Math.max(0,Math.floor(Number(form.weightGrams)||0))},
+          onHand:Math.max(0,Math.floor(Number(form.onHand)||0)),
+        })});
+        const json=await response.json();if(!response.ok)throw new Error(json?.error?.message??"Couldn't save your changes.");
+        setMessage(json.message??"Changes saved.");
+        setTimeout(()=>router.push("/products"),1600);
+        return;
+      }
       const response=await fetch("/api/v1/products",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         title:form.title.trim(),categoryId:form.categoryId.trim(),
         description:detailStyle==="text"?form.description.trim():"",
@@ -88,7 +132,11 @@ export default function ProductBuilder() {
       {steps.map((label,index)=><button key={label} type="button" disabled={index>step} onClick={()=>setStep(index)} className={index===step?active:index<step?done:todo}>{index+1}. {label}</button>)}
     </div></div>
     <div className="p-5 sm:p-8">
-      {step===0?<div className="grid gap-5 sm:grid-cols-2">
+      {!loaded?<p className="text-sm text-slate-500">Loading product…</p>:null}
+      {editInfo?.pendingSince?<p className="mb-5 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900"><b>Changes waiting in QC</b> since {new Date(editInfo.pendingSince).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}. You&apos;re editing that version; saving again replaces it. Your live listing is unchanged until QC approves.</p>
+        :isLive?<p className="mb-5 rounded-2xl bg-sky-50 p-4 text-sm text-sky-900">This product is on the store. Changes go to QC first and your current listing stays live meanwhile. <b>Stock</b> updates instantly.</p>:null}
+      {editInfo?.rejectedNote?<p className="mb-5 rounded-2xl bg-red-50 p-4 text-sm text-red-800"><b>QC didn&apos;t approve your last changes:</b> {editInfo.rejectedNote}</p>:null}
+      {loaded&&step===0?<div className="grid gap-5 sm:grid-cols-2">
         <Field label="Product title" value={form.title} onChange={v=>set("title",v)} wide/>
         <label className="text-sm font-semibold">Category<select className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm" value={form.categoryId} onChange={e=>set("categoryId",e.target.value)} disabled={categoryLoading} required><option value="">{categoryLoading?"Loading categories…":"Select category"}</option>{categories.map(category=><option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
         <Field label="SKU" value={form.sku} onChange={v=>set("sku",v)}/>
@@ -114,13 +162,13 @@ export default function ProductBuilder() {
         <Field label="Selling price (₹)" value={form.price} onChange={v=>set("price",v)} inputMode="decimal"/>
         <Field label="Compare-at price (₹)" value={form.compareAt} onChange={v=>set("compareAt",v)} inputMode="decimal"/>
         <Field label="Package weight (grams)" value={form.weightGrams} onChange={v=>set("weightGrams",v)} inputMode="numeric"/>
-        <Field label="Opening inventory" value={form.onHand} onChange={v=>set("onHand",v)} inputMode="numeric"/>
+        <Field label={productId?"Stock in hand":"Opening inventory"} value={form.onHand} onChange={v=>set("onHand",v)} inputMode="numeric"/>
         <div className="text-sm font-semibold sm:col-span-2"><label htmlFor="coupon-limit">LOIMART coupons</label><CouponLimitSelect id="coupon-limit" value={couponPct} onChange={setCouponPct}/><CouponLimitHelp pct={couponPct} pricePaise={form.price?Math.round(Number(form.price)*100):null}/></div>
       </div>:null}
-      {step===3?<div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Ready for QC</p><h2 className="mt-2 text-2xl font-black">Review before creating your draft.</h2><div className="mt-5 grid gap-3 sm:grid-cols-2"><Summary label="Product" value={form.title||"—"}/><Summary label="Category" value={categories.find(category=>category.id===form.categoryId)?.name||"—"}/><Summary label="Product details" value={detailStyle==="table"?`Specification table · ${specs.filter(r=>r.label.trim()&&r.value.trim()).length} rows`:"Text description"}/><Summary label="Images" value={String(images.length)}/><Summary label="Price" value={form.price?"₹"+form.price:"—"}/><Summary label="Package weight" value={form.weightGrams+" g"}/><Summary label="Opening stock" value={form.onHand}/></div><p className="mt-5 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">Draft products remain hidden from customers until they pass QC and are published by LOIMART.</p></div>:null}
+      {step===3?<div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Ready for QC</p><h2 className="mt-2 text-2xl font-black">{productId?"Review your changes.":"Review before creating your draft."}</h2><div className="mt-5 grid gap-3 sm:grid-cols-2"><Summary label="Product" value={form.title||"—"}/><Summary label="Category" value={categories.find(category=>category.id===form.categoryId)?.name||"—"}/><Summary label="Product details" value={detailStyle==="table"?`Specification table · ${specs.filter(r=>r.label.trim()&&r.value.trim()).length} rows`:"Text description"}/><Summary label="Images" value={String(images.length)}/><Summary label="Price" value={form.price?"₹"+form.price:"—"}/><Summary label="Package weight" value={form.weightGrams+" g"}/><Summary label={productId?"Stock in hand":"Opening stock"} value={form.onHand}/></div><p className="mt-5 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">{isLive?"Your changes go to LOIMART QC. Your current listing stays on the store until they're approved; stock updates straight away.":productId?"Saving updates this product. If it's in QC review, it goes back to QC with your changes.":"Draft products remain hidden from customers until they pass QC and are published by LOIMART."}</p></div>:null}
       {busy&&step===1?<div className="mt-5"><p className="text-xs font-semibold text-slate-500">Uploading… {progress}%</p><div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-slate-950 transition-[width]" style={{width:progress+"%"}}/></div></div>:null}
       {error?<p className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>:null}{message?<p className="mt-5 rounded-xl bg-green-50 p-3 text-sm text-green-700">{message}</p>:null}
-      <div className="mt-7 flex justify-between border-t border-slate-100 pt-5"><button type="button" disabled={step===0||busy} onClick={()=>setStep(v=>Math.max(0,v-1))} className="rounded-full border px-5 py-3 text-sm font-bold disabled:opacity-40">Back</button>{step<3?<button type="button" disabled={busy} onClick={()=>{const p=validate();if(p)setError(p);else setStep(v=>v+1)}} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:opacity-50">Continue</button>:<button type="button" disabled={busy} onClick={()=>void create()} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:opacity-50">{busy?"Creating…":"Create draft product"}</button>}</div>
+      <div className="mt-7 flex justify-between border-t border-slate-100 pt-5"><button type="button" disabled={step===0||busy} onClick={()=>setStep(v=>Math.max(0,v-1))} className="rounded-full border px-5 py-3 text-sm font-bold disabled:opacity-40">Back</button>{step<3?<button type="button" disabled={busy} onClick={()=>{const p=validate();if(p)setError(p);else setStep(v=>v+1)}} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:opacity-50">Continue</button>:<button type="button" disabled={busy} onClick={()=>void create()} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:opacity-50">{busy?(productId?"Saving…":"Creating…"):productId?(isLive?"Send changes to QC":"Save changes"):"Create draft product"}</button>}</div>
     </div>
   </section>;
 }

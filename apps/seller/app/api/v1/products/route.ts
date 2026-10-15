@@ -1,7 +1,7 @@
 import { requireApiAccess, enforceRateLimit } from "@azadimart/auth";
-import { categories, createDatabase, inventory, mediaAssets, productMedia, productVariants, products, sellers } from "@azadimart/database";
+import { categories, createDatabase, inventory, mediaAssets, productMedia, productVariants, products, qcSubmissions, sellers } from "@azadimart/database";
 import { AppError, productDraftSchema, toApiError } from "@azadimart/shared";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 function slugify(value: string): string {
@@ -106,14 +106,18 @@ export async function GET(request: Request) {
 
     // Cover image (first image by sort order), cheapest variant and stock for the list view.
     const productIds = rows.map((row) => row.id);
-    const [mediaRows, variantRows] = productIds.length ? await Promise.all([
+    const [mediaRows, variantRows, editRows] = productIds.length ? await Promise.all([
       db.select({ productId: productMedia.productId, storageKey: mediaAssets.storageKey, sortOrder: productMedia.sortOrder })
         .from(productMedia).innerJoin(mediaAssets, eq(mediaAssets.id, productMedia.mediaAssetId))
         .where(and(inArray(productMedia.productId, productIds), eq(productMedia.kind, "IMAGE"))),
       db.select({ productId: productVariants.productId, pricePaise: productVariants.pricePaise, onHand: inventory.onHand, reserved: inventory.reserved })
         .from(productVariants).leftJoin(inventory, eq(inventory.variantId, productVariants.id))
         .where(inArray(productVariants.productId, productIds)),
-    ]) : [[], []];
+      // Edits to live products still waiting in QC.
+      db.select({ productId: qcSubmissions.productId }).from(qcSubmissions)
+        .where(and(inArray(qcSubmissions.productId, productIds), isNotNull(qcSubmissions.proposedChanges), inArray(qcSubmissions.status, ["PENDING", "IN_REVIEW"]))),
+    ]) : [[], [], []];
+    const pendingEdit = new Set(editRows.map((row) => row.productId));
     const cover = new Map<string, { key: string; order: number }>();
     for (const media of mediaRows) {
       const current = cover.get(media.productId);
@@ -128,6 +132,7 @@ export async function GET(request: Request) {
           coverImageUrl: cover.has(row.id) ? "/media/" + cover.get(row.id)!.key : null,
           pricePaise: variants.length ? Math.min(...variants.map((variant) => variant.pricePaise)) : null,
           available: variants.reduce((sum, variant) => sum + Math.max(0, (variant.onHand ?? 0) - (variant.reserved ?? 0)), 0),
+          hasPendingEdit: pendingEdit.has(row.id),
         };
       }),
     });

@@ -10,6 +10,18 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { id, timestamps } from "./columns";
+
+/** A seller's pending edit to a live product (see qcSubmissions.proposedChanges). Prices in paise. */
+export type ProductEditChanges = {
+  title: string;
+  categoryId: string;
+  description: string | null;
+  specifications: Array<{ label: string; value: string }>;
+  couponMaxDiscountPct: number;
+  imageAssetIds: string[];
+  videoAssetId: string | null;
+  variant: { sku: string; title: string; pricePaise: number; compareAtPaise: number | null; weightGrams: number };
+};
 import { aplusStatusEnum, mediaKindEnum, productStatusEnum, verificationStatusEnum } from "./enums";
 import { users } from "./identity";
 import { sellers } from "./sellers";
@@ -226,6 +238,11 @@ export const qcSubmissions = pgTable(
     status: verificationStatusEnum("status").notNull().default("PENDING"),
     notes: text("notes"),
     reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id),
+    /**
+     * Set for an edit to a product that is already live (or hidden): the seller's
+     * new details, applied only when QC approves. Null = review of a new listing.
+     */
+    proposedChanges: jsonb("proposed_changes").$type<ProductEditChanges>(),
     ...timestamps,
   },
   (table) => [

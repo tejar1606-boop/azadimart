@@ -239,6 +239,13 @@
       "when": 1792047876105,
       "tag": "20261015070436_login_otps",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792050863274,
+      "tag": "20261015075423_qc_proposed_changes",
+      "breakpoints": true
     }
   ]
 }

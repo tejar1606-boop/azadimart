@@ -14,7 +14,7 @@ type Status = typeof products.$inferSelect.status;
 const ACTIONS: Record<Action, { from: Status[]; to: Status; audit: string }> = {
   // Hide a live product from the storefront (orders and history stay intact).
   unlist: { from: ["LIVE"], to: "UNLISTED", audit: "PRODUCT_UNLISTED" },
-  // Put an unlisted product back; it was already approved and sellers cannot edit approved content.
+  // Put an unlisted product back; it was already approved (edits to it go through QC separately).
   relist: { from: ["UNLISTED"], to: "LIVE", audit: "PRODUCT_RELISTED" },
   // Pull a product out of review back to an editable draft.
   withdraw: { from: ["PENDING_QC", "PENDING_ADMIN_APPROVAL"], to: "DRAFT", audit: "PRODUCT_WITHDRAWN" },

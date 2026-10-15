@@ -14,7 +14,11 @@ export async function GET(request: Request) {
         createdAt: qcSubmissions.createdAt,
         productTitle: products.title,
         productSlug: products.slug,
+        productStatus: products.status,
         sellerName: sellers.storeName,
+        // Edit requests for live products carry the new details; current values come from the product.
+        proposedChanges: qcSubmissions.proposedChanges,
+        current: { categoryId: products.categoryId, description: products.description, specifications: products.specifications, couponMaxDiscountPct: products.couponMaxDiscountPct },
       })
       .from(qcSubmissions)
       .innerJoin(products, eq(products.id, qcSubmissions.productId))
@@ -32,6 +36,7 @@ export async function GET(request: Request) {
         sku: productVariants.sku,
         title: productVariants.title,
         pricePaise: productVariants.pricePaise,
+        compareAtPaise: productVariants.compareAtPaise,
         weightGrams: productVariants.weightGrams,
       }).from(productVariants).where(inArray(productVariants.productId, productIds)),
       db.select({
@@ -65,9 +70,24 @@ export async function GET(request: Request) {
     }
     const aplusMap = new Map(aplus.map((item) => [item.productId, item.blocks]));
 
+    // Names and previews for edit requests: categories (current and proposed) and the proposed media.
+    const edits = submissions.filter((item) => item.proposedChanges);
+    const categoryIds = [...new Set(submissions.flatMap((item) => [item.current.categoryId, item.proposedChanges?.categoryId]).filter((id): id is string => Boolean(id)))];
+    const proposedMediaIds = [...new Set(edits.flatMap((item) => [...item.proposedChanges!.imageAssetIds, ...(item.proposedChanges!.videoAssetId ? [item.proposedChanges!.videoAssetId] : [])]))];
+    const [categoryRows, proposedMedia] = await Promise.all([
+      categoryIds.length ? db.select({ id: categories.id, name: categories.name }).from(categories).where(inArray(categories.id, categoryIds)) : [],
+      proposedMediaIds.length ? db.select({ id: mediaAssets.id, kind: mediaAssets.kind, storageKey: mediaAssets.storageKey }).from(mediaAssets).where(inArray(mediaAssets.id, proposedMediaIds)) : [],
+    ]);
+    const categoryName = new Map(categoryRows.map((c) => [c.id, c.name]));
+    const mediaById = new Map(proposedMedia.map((m) => [m.id, m]));
+
     return NextResponse.json({
       items: submissions.map((item) => ({
         ...item,
+        kind: item.proposedChanges ? "EDIT" : "NEW_LISTING",
+        currentCategoryName: categoryName.get(item.current.categoryId) ?? null,
+        proposedCategoryName: item.proposedChanges ? categoryName.get(item.proposedChanges.categoryId) ?? null : null,
+        proposedMedia: item.proposedChanges ? [...item.proposedChanges.imageAssetIds, ...(item.proposedChanges.videoAssetId ? [item.proposedChanges.videoAssetId] : [])].map((id) => mediaById.get(id)).filter(Boolean) : [],
         variants: variantMap.get(item.productId) ?? [],
         media: mediaMap.get(item.productId) ?? [],
         aplusBlocks: aplusMap.get(item.productId) ?? [],
@@ -81,7 +101,8 @@ export async function GET(request: Request) {
 }
 
 import { requireStaff } from "@azadimart/auth";
-import { auditLogs, createDatabase, mediaAssets, productAplusContent, productMedia, productVariants, products, qcSubmissions, sellers } from "@azadimart/database";
+import { applyProductEdit, auditLogs, categories, createDatabase, mediaAssets, productAplusContent, productMedia, productVariants, products, qcSubmissions, sellers } from "@azadimart/database";
+import { notifySeller } from "@azadimart/notify";
 import { AppError, qcDecisionSchema, toApiError } from "@azadimart/shared";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -100,6 +121,7 @@ export async function POST(request: Request) {
         productId: qcSubmissions.productId,
         sellerId: qcSubmissions.sellerId,
         status: qcSubmissions.status,
+        proposedChanges: qcSubmissions.proposedChanges,
       })
       .from(qcSubmissions)
       .where(eq(qcSubmissions.id, input.qcSubmissionId))
@@ -111,6 +133,40 @@ export async function POST(request: Request) {
     }
     if (!["PENDING", "IN_REVIEW"].includes(submission.status)) {
       throw new AppError("CONFLICT", "QC submission is already finalized");
+    }
+
+    // An edit to a live product: approving applies the new details in one step (the product
+    // keeps its status); rejecting discards them and the current listing stays as it is.
+    if (submission.proposedChanges) {
+      const changes = submission.proposedChanges;
+      await db.transaction(async (tx) => {
+        const updated = await tx.update(qcSubmissions)
+          .set({ status: input.decision, notes: input.notes ?? null, reviewedByUserId: principal.userId, updatedAt: new Date() })
+          .where(and(eq(qcSubmissions.id, submission.id), inArray(qcSubmissions.status, ["PENDING", "IN_REVIEW"])))
+          .returning({ id: qcSubmissions.id });
+        if (!updated[0]) throw new AppError("CONFLICT", "QC submission is no longer awaiting review");
+        if (input.decision === "APPROVED") {
+          const product = (await tx.select({ status: products.status }).from(products).where(eq(products.id, submission.productId)).limit(1))[0];
+          if (!product || product.status === "ARCHIVED") throw new AppError("CONFLICT", "This product was removed, so the edit can't be applied");
+          await applyProductEdit(tx, submission.productId, submission.sellerId, changes);
+        }
+        await tx.insert(auditLogs).values({
+          actorUserId: principal.userId,
+          action: `PRODUCT_EDIT_${input.decision}`,
+          entityType: "qc_submission",
+          entityId: submission.id,
+          metadata: { productId: submission.productId, sellerId: submission.sellerId, notes: input.notes ?? null },
+        });
+      });
+      await notifySeller(db, {
+        sellerId: submission.sellerId,
+        kind: "PRODUCT_REVIEWED",
+        title: input.decision === "APPROVED" ? `Changes approved: ${changes.title}` : `Changes not approved: ${changes.title}`,
+        body: input.decision === "APPROVED" ? "Your updated details are now live." : (input.notes ? `QC note: ${input.notes}` : "Your current listing is unchanged. Edit and resubmit any time."),
+        href: `/products/${submission.productId}/edit`,
+        dedupeKey: `PRODUCT_EDIT:${submission.id}`,
+      }).catch(() => false);
+      return NextResponse.json({ ok: true, qcSubmissionId: submission.id, productId: submission.productId, status: input.decision, kind: "EDIT" });
     }
 
     const nextProductStatus = input.decision === "APPROVED" ? "PENDING_ADMIN_APPROVAL" : "QC_REJECTED";

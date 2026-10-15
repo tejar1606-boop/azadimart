@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CouponLimitSelect } from "./coupon-limit";
 
-type Product = { id: string; title: string; status: string; slug: string; createdAt: string; coverImageUrl: string | null; pricePaise: number | null; available: number; couponMaxDiscountPct: number };
+type Product = { id: string; title: string; status: string; slug: string; createdAt: string; coverImageUrl: string | null; pricePaise: number | null; available: number; couponMaxDiscountPct: number; hasPendingEdit?: boolean };
 type Action = "submit" | "unlist" | "relist" | "withdraw";
 
 const money = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -137,11 +137,13 @@ export default function ProductList() {
                       </p>
                       <span className="mt-1.5 flex flex-wrap items-center gap-2">
                         <span className={"inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold " + status.tone}>{status.label}</span>
+                        {product.hasPendingEdit ? <span className="inline-block rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">Changes in QC</span> : null}
                         {!removed ? <CouponLimitSelect compact value={product.couponMaxDiscountPct ?? 0} disabled={busy === product.id + ":coupon"} onChange={(pct) => void setCouponLimit(product, pct)} /> : null}
                       </span>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
+                    {!removed ? <Link href={"/products/" + product.id + "/edit"} className="rounded-full bg-chrome px-3.5 py-2 text-xs font-semibold text-white hover:opacity-90">Edit</Link> : null}
                     {!removed ? <Link href={"/products/" + product.id + "/aplus"} className="rounded-full px-3 py-2 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 hover:text-slate-950">A+ content</Link> : null}
                     {removed ? <span className="text-xs text-slate-500">Contact LOIMART support to restore</span> : null}
                     {actionsFor(product.status).map(({ action, label, primary }) => (

@@ -71,6 +71,24 @@ export const productDraftSchema = z.object({
     onHand:z.number().int().nonnegative().default(0),
   }).optional(),
 });
+/** A seller's edit of an existing product. Stock (onHand) applies at once; the rest goes through QC once a product is live. */
+export const productEditSchema = z.object({
+  title:z.string().trim().min(3).max(200),
+  couponMaxDiscountPct: couponMaxDiscountPct.optional().default(0),
+  description:z.string().trim().max(20000).optional(),
+  specifications:specRowsSchema.optional(),
+  categoryId:uuidSchema,
+  imageAssetIds:z.array(uuidSchema).min(1).max(PRODUCT_MEDIA_LIMITS.maxImages).refine((ids)=>new Set(ids).size===ids.length,"Duplicate image assets are not allowed"),
+  videoAssetId:uuidSchema.nullable().optional(),
+  variant:z.object({
+    sku:z.string().trim().min(3).max(64),
+    title:z.string().trim().min(1).max(120).default("Default"),
+    pricePaise:z.number().int().nonnegative(),
+    compareAtPaise:z.number().int().nonnegative().nullable().optional(),
+    weightGrams:z.number().int().positive("Enter the package weight in grams").max(1000000),
+  }),
+  onHand:z.number().int().nonnegative().max(1000000),
+});
 export const qcSubmissionSchema = z.object({ productId:uuidSchema, notes:z.string().trim().max(2000).optional() });
 export const qcDecisionSchema = z.object({ qcSubmissionId:uuidSchema, decision:z.enum(["APPROVED","REJECTED"]), notes:z.string().trim().max(2000).optional() });
 export const inventoryAdjustSchema = z.object({ variantId:uuidSchema, onHand:z.number().int().nonnegative() });
