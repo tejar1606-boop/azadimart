@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { DEFAULT_HOME_SECTIONS, SECTION_TYPES, type ThemeSectionDraft } from "@azadimart/shared";
 import BannerRowField, { type RowBanner } from "./banner-row-field";
 import CategoryPhotos from "./category-photos";
+import IntroField, { type IntroSettings } from "./intro-field";
 import HeroSlidesField, { SLIDE_SECONDS_DEFAULT, slidesFromSettings } from "./hero-slides-field";
 import MediaField from "./media-field";
 import NavigationEditor from "./navigation-editor";
@@ -141,6 +142,7 @@ export default function OnlineStoreEditor(){
           </div>
           <p className="mt-2 text-center text-[11px] text-slate-500">{device==="phone"?"Phone view: mobile images where added; “Desktop only” sections hidden.":"Desktop view: “Mobile only” sections hidden."}</p>
         </div>
+        <IntroField value={(themeSettings.intro && typeof themeSettings.intro==="object" ? themeSettings.intro : {}) as IntroSettings} onChange={(intro)=>setThemeSettings(x=>({...x,intro}))}/>
         <div className="rounded-2xl border bg-white p-4 shadow-sm"><p className="text-sm font-semibold">Top message bar</p><p className="mt-1 text-xs text-slate-500">The thin line above the logo on every page. Separate messages with | and they take turns.</p><input className="mt-2 w-full rounded-lg border p-2.5 text-sm" placeholder="Cash on Delivery available across India | Easy 7-day returns" value={String(themeSettings.announcement ?? "")} onChange={e=>setThemeSettings(x=>({...x,announcement:e.target.value}))}/></div>
         <HomepageSeo seo={(themeSettings.seo && typeof themeSettings.seo==="object" ? themeSettings.seo : {}) as Record<string,unknown>} onChange={(key,value)=>setThemeSettings(x=>({...x,seo:{...((x.seo && typeof x.seo==="object") ? x.seo as Record<string,unknown> : {}),[key]:value}}))}/>
       </aside>
