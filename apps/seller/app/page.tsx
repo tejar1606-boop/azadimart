@@ -17,7 +17,7 @@ const STEPS = [
 export default function SellerHomePage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
-      <p className="text-sm uppercase tracking-wide text-ink-muted">seller.azadimart.com</p>
+      <p className="text-sm uppercase tracking-wide text-ink-muted">seller.loimart.com</p>
       <h1 className="mt-2 text-4xl font-semibold">Seller portal</h1>
       <ol className="mt-8 list-decimal space-y-1 pl-5 text-ink-muted">
         {STEPS.map((step) => (

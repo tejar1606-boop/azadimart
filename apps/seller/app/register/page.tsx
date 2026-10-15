@@ -81,7 +81,7 @@ export default function RegisterPage() {
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-12">
       <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-saffron">seller.azadimart.com</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-saffron">seller.loimart.com</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">Create seller account</h1>
         <p className="mt-2 text-sm leading-6 text-ink-muted">
           Choose the tax identity route that applies to your business. KYC and admin approval are required before selling.

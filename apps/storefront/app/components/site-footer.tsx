@@ -4,7 +4,7 @@ import FooterBackdrop from "./footer-backdrop";
 import { BRAND_TAGLINE, OpenHelpChatButton } from "@azadimart/ui";
 import { TricolourRibbon, Wordmark } from "./site-header";
 
-const SELLER_URL = process.env.NEXT_PUBLIC_SELLER_URL || "https://seller.azadimart.com";
+const SELLER_URL = process.env.NEXT_PUBLIC_SELLER_URL || "https://seller.loimart.com";
 // Customer support contact, shown once set (Vercel / .env).
 const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "";
 const SUPPORT_PHONE = process.env.NEXT_PUBLIC_SUPPORT_PHONE || "";

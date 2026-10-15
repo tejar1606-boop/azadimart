@@ -1,5 +1,5 @@
 /** Public address of the store, used for canonical links, the sitemap and link previews. */
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || process.env.AUTH_URL_STOREFRONT || "https://azadimart.com").replace(/\/$/, "");
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || process.env.AUTH_URL_STOREFRONT || "https://loimart.com").replace(/\/$/, "");
 export const SITE_NAME = "LOIMART";
 
 /** Absolute URL for a path on the store. */

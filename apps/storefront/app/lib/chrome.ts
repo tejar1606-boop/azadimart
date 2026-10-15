@@ -8,7 +8,7 @@ export type StoreChrome = {
   categories: Array<{ id: string; name: string; href: string }>;
 };
 
-const SELLER_URL = process.env.NEXT_PUBLIC_SELLER_URL || "https://seller.azadimart.com";
+const SELLER_URL = process.env.NEXT_PUBLIC_SELLER_URL || "https://seller.loimart.com";
 /** Admin menu links may point at /seller; the seller portal is a separate host. */
 export const resolveStoreHref = (href: string) => (href === "/seller" || href.startsWith("/seller/") ? SELLER_URL + href.slice("/seller".length) : href);
 

@@ -1,19 +1,19 @@
 export const APPS = {
   storefront: {
     name: "storefront",
-    host: "azadimart.com",
+    host: "loimart.com",
     localPort: 3000,
     audience: "storefront" as const,
   },
   seller: {
     name: "seller",
-    host: "seller.azadimart.com",
+    host: "seller.loimart.com",
     localPort: 3001,
     audience: "seller" as const,
   },
   admin: {
     name: "admin",
-    host: "admin.azadimart.com",
+    host: "admin.loimart.com",
     localPort: 3002,
     audience: "admin" as const,
   },

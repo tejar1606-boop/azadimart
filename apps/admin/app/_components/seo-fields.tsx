@@ -38,7 +38,7 @@ export default function SeoFields({ title, description, onTitle, onDescription, 
       </label>
       <div className="rounded-xl border border-slate-200 bg-white p-4" aria-label="Google preview">
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Google preview</p>
-        <p className="mt-2 truncate text-xs text-slate-600">azadimart.com{path}</p>
+        <p className="mt-2 truncate text-xs text-slate-600">loimart.com{path}</p>
         <p className="mt-0.5 line-clamp-1 text-[17px] leading-snug text-[#1a0dab]">{shownTitle}</p>
         <p className="mt-0.5 line-clamp-2 text-[13px] leading-5 text-slate-600">{shownDescription}</p>
       </div>

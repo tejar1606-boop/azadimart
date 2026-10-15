@@ -44,7 +44,7 @@ function pushConfigured(): boolean {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   vapidReady = Boolean(publicKey && privateKey);
-  if (vapidReady) webpush.setVapidDetails(process.env.VAPID_SUBJECT || "mailto:support@azadimart.com", publicKey!, privateKey!);
+  if (vapidReady) webpush.setVapidDetails(process.env.VAPID_SUBJECT || "mailto:support@loimart.com", publicKey!, privateKey!);
   return vapidReady;
 }
 

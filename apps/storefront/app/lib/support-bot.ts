@@ -193,7 +193,7 @@ export function customerBot(request: Request, who: { customerId: string | null }
     {
       id: "seller",
       match: kw("sell on", "become a seller", "seller registration", "register as seller", "start selling"),
-      run: async () => ({ text: "Great! You can register as a seller in a few minutes. You'll need your PAN, bank details, and a GSTIN or free GST Enrolment ID.", links: [{ label: "Register as a seller", href: (process.env.NEXT_PUBLIC_SELLER_URL || "https://seller.azadimart.com") + "/register" }] }),
+      run: async () => ({ text: "Great! You can register as a seller in a few minutes. You'll need your PAN, bank details, and a GSTIN or free GST Enrolment ID.", links: [{ label: "Register as a seller", href: (process.env.NEXT_PUBLIC_SELLER_URL || "https://seller.loimart.com") + "/register" }] }),
     },
     {
       id: "product",

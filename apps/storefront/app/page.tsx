@@ -29,7 +29,7 @@ import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
-const SELLER_URL = process.env.NEXT_PUBLIC_SELLER_URL || "https://seller.azadimart.com";
+const SELLER_URL = process.env.NEXT_PUBLIC_SELLER_URL || "https://seller.loimart.com";
 
 type Settings = Record<string, unknown>;
 type HomeSection = { id: string; type: string; settings: Settings };
