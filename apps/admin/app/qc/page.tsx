@@ -7,6 +7,7 @@ type Changes = {
   title: string; categoryId: string; description: string | null; specifications: Array<{ label: string; value: string }>; couponMaxDiscountPct: number;
   imageAssetIds: string[]; videoAssetId: string | null;
   variant: { sku: string; title: string; pricePaise: number; compareAtPaise: number | null; weightGrams: number };
+  variants?: Array<{ id?: string; sku: string; title: string; pricePaise: number; compareAtPaise: number | null; onHand?: number; attributes: Record<string, string> }>;
 };
 type Item = {
   id: string;
@@ -23,8 +24,8 @@ type Item = {
   createdAt: string;
   productTitle: string;
   sellerName: string;
-  variants: Array<{ id: string; sku: string; title: string; pricePaise: number; compareAtPaise: number | null; weightGrams: number; onHand: number | null }>;
-  media: Array<{ id: string; kind: string; storageKey: string; altText: string | null }>;
+  variants: Array<{ id: string; sku: string; title: string; pricePaise: number; compareAtPaise: number | null; weightGrams: number; onHand: number | null; attributes: Record<string, string> }>;
+  media: Array<{ id: string; kind: string; storageKey: string; altText: string | null; color: string | null }>;
   aplusBlocks: unknown[];
 };
 
@@ -168,7 +169,7 @@ export default function QCPage() {
                       ) : media.kind === "VIDEO" ? (
                         <video className="mb-2 block aspect-square w-full rounded-lg bg-black object-cover" src={"/media/" + media.storageKey} muted playsInline preload="metadata" />
                       ) : null}
-                      <span className="font-medium">{media.kind}</span>
+                      <span className="font-medium">{media.kind}</span>{media.color ? <span className="ml-2 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-800">{media.color}</span> : null}
                       <span className="mt-1 block truncate text-xs text-ink-muted">{media.altText ?? media.storageKey}</span>
                       <span className="mt-2 block text-xs font-medium text-saffron">Open media</span>
                     </a>
@@ -205,6 +206,13 @@ export default function QCPage() {
 const rupees = (paise: number | null | undefined) => (paise == null ? "—" : "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 }));
 const sellerOff = (v: { pricePaise: number; compareAtPaise: number | null }) => (v.compareAtPaise && v.compareAtPaise > v.pricePaise ? Math.round(((v.compareAtPaise - v.pricePaise) / v.compareAtPaise) * 100) : 0);
 const couponPct = (item: Item) => (item.kind === "EDIT" && item.proposedChanges ? item.proposedChanges.couponMaxDiscountPct : item.current.couponMaxDiscountPct);
+const variantLines = (list: Array<{ title: string; sku: string; pricePaise: number }>) => (list.length ? list.map((v) => `${v.title} · ${v.sku} · ${rupees(v.pricePaise)}`).join("\n") : "—");
+/** "Red, Blue · S, M, L" from variant attributes. */
+const optionSummary = (list: Array<{ attributes?: Record<string, string> }>) => {
+  const colors = [...new Set(list.map((v) => v.attributes?.color).filter(Boolean))];
+  const sizes = [...new Set(list.map((v) => v.attributes?.size).filter(Boolean))];
+  return [colors.length ? `Colours: ${colors.join(", ")}` : "", sizes.length ? `Sizes: ${sizes.join(", ")}` : ""].filter(Boolean).join(" · ");
+};
 const specText = (rows: Array<{ label: string; value: string }>) => (rows.length ? rows.map((row) => `${row.label}: ${row.value}`).join("\n") : "—");
 
 /** Before → after for an edit to a live product. Changed rows are highlighted. */
@@ -219,6 +227,7 @@ function EditDiff({ item, changes }: { item: Item; changes: Changes }) {
     ["Variant name", before?.title ?? "—", changes.variant.title],
     ["Package weight", before ? before.weightGrams + " g" : "—", changes.variant.weightGrams + " g"],
     ["Coupon limit", item.current.couponMaxDiscountPct + "%", changes.couponMaxDiscountPct + "%"],
+    ["Colours / sizes", variantLines(item.variants), variantLines(changes.variants ?? [changes.variant])],
     ["Description", item.current.description || "—", changes.description || "—"],
     ["Specifications", specText(item.current.specifications), specText(changes.specifications)],
   ];
@@ -275,6 +284,7 @@ function ListingDetails({ item }: { item: Item }) {
         <h3 className="font-semibold">Listing details</h3>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <Row label="Category" hint="Check the product really belongs here; ask the seller to change it if not.">{item.currentCategoryName ?? <span className="text-red-700">No category</span>}</Row>
+          {optionSummary(item.variants) ? <div className="sm:col-span-2"><Row label="Colours & sizes" hint="Check each colour's photos match, and that sizes suit the category.">{optionSummary(item.variants)} <span className="font-normal text-ink-muted">({item.variants.length} options)</span></Row></div> : null}
           <Row label="LOIMART coupon limit" hint={pct ? `Seller agreed that LOIMART coupons can take up to ${pct}% off; the coupon cost comes from the seller's payout.` : "Seller opted out: their payout isn't reduced by LOIMART coupons."}>
             {pct ? <span className="text-emerald-700">Up to {pct}% off</span> : "Not in LOIMART coupons"}
           </Row>
@@ -291,7 +301,7 @@ function ListingDetails({ item }: { item: Item }) {
                 const off = sellerOff(v);
                 return (
                   <tr key={v.id} className="border-t border-slate-100">
-                    <td className="py-2.5 pr-3 font-medium">{v.title}</td>
+                    <td className="py-2.5 pr-3 font-medium">{v.attributes?.colorHex ? <span className="mr-1.5 inline-block h-3 w-3 rounded-full align-middle ring-1 ring-black/15" style={{ background: v.attributes.colorHex === "multi" ? "conic-gradient(#ef4444,#f59e0b,#22c55e,#3b82f6,#a855f7,#ef4444)" : v.attributes.colorHex }} /> : null}{v.title}</td>
                     <td className="pr-3 text-ink-muted">{v.sku}</td>
                     <td className="pr-3 text-right text-ink-muted">{v.compareAtPaise ? rupees(v.compareAtPaise) : "—"}</td>
                     <td className="pr-3 text-right font-semibold">{rupees(v.pricePaise)}</td>

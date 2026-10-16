@@ -20,7 +20,12 @@ export type ProductEditChanges = {
   couponMaxDiscountPct: number;
   imageAssetIds: string[];
   videoAssetId: string | null;
+  /** The main (first) variant. Kept for older edits; `variants` is the full list when set. */
   variant: { sku: string; title: string; pricePaise: number; compareAtPaise: number | null; weightGrams: number };
+  /** Every variant (colour/size). `id` = an existing variant; without it a new one is created with `onHand` stock. */
+  variants?: Array<{ id?: string; sku: string; title: string; pricePaise: number; compareAtPaise: number | null; weightGrams: number; onHand?: number; attributes: Record<string, string> }>;
+  /** Which colour each photo shows (media asset id → colour name). */
+  imageColors?: Record<string, string>;
 };
 import { aplusStatusEnum, mediaKindEnum, productStatusEnum, verificationStatusEnum } from "./enums";
 import { users } from "./identity";
@@ -159,6 +164,8 @@ export const productMedia = pgTable(
       .references(() => mediaAssets.id),
     kind: mediaKindEnum("kind").notNull(),
     sortOrder: integer("sort_order").notNull().default(0),
+    /** Colour this photo shows (matches a variant's attributes.color); null = all colours. */
+    color: text("color"),
     ...timestamps,
   },
   (table) => [index("product_media_product_id_idx").on(table.productId)],

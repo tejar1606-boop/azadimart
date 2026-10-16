@@ -3,10 +3,28 @@ import { useEffect, useState } from "react";
 import { CouponLimitHelp, CouponLimitSelect } from "../coupon-limit";
 import { useRouter } from "next/navigation";
 import { DescriptionStyleToggle, SpecTableEditor, directUpload, readImageSize, type SpecRow } from "@azadimart/ui";
+import { compareSizes } from "@azadimart/shared";
+import VariantEditor, { autoSku, type VariantState } from "./variant-editor";
+
+type LoadedVariant = { id?: string; sku: string; title?: string; pricePaise: number; compareAtPaise: number | null; onHand?: number | null; attributes?: Record<string, string> };
+const rupeeText = (paise: number | null | undefined) => (paise != null ? String(paise / 100) : "");
+const toPaise = (v: string) => Math.round(Number(v) * 100);
+
+/** Colours, sizes and rows from saved variants (edit mode). */
+function stateFromVariants(list: LoadedVariant[]): VariantState {
+  const colors: VariantState["colors"] = [];
+  const sizes: string[] = [];
+  for (const v of list) {
+    const a = v.attributes ?? {};
+    if (a.color && !colors.some((c) => c.name === a.color)) colors.push({ name: a.color, hex: a.colorHex ?? "" });
+    if (a.size && !sizes.includes(a.size)) sizes.push(a.size);
+  }
+  return { colors, sizes: sizes.sort(compareSizes), rows: list.map((v) => ({ id: v.id, color: v.attributes?.color, colorHex: v.attributes?.colorHex, size: v.attributes?.size, sku: v.sku, price: rupeeText(v.pricePaise), compareAt: rupeeText(v.compareAtPaise), onHand: String(v.onHand ?? 0), enabled: true })) };
+}
 
 type Upload = { id: string; fileName: string; kind: "IMAGE" | "VIDEO"; url: string };
 const RECOMMENDED_PX = 1000;
-const steps = ["Basics", "Media", "Pricing", "Review"];
+const steps = ["Basics", "Media", "Price & sizes", "Review"];
 
 type EditInfo = { status: string; pendingSince: string | null; rejectedNote: string | null; rejectedAt: string | null };
 const LIVE_STATUSES = ["LIVE", "UNLISTED"];
@@ -17,6 +35,10 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
   const [step,setStep] = useState(0);
   const [form,setForm] = useState({title:"",description:"",categoryId:"",sku:"",variantTitle:"Default",price:"",compareAt:"",weightGrams:"",onHand:"0"});
   const [couponPct,setCouponPct] = useState(0);
+  // Colours / sizes (fashion etc.): each combination is a variant with its own SKU, price and stock.
+  const [hasOptions,setHasOptions] = useState(false);
+  const [options,setOptions] = useState<VariantState>({colors:[],sizes:[],rows:[]});
+  const [imageColors,setImageColors] = useState<Record<string,string>>({});
   // Product details: a normal text description or a specification table; only the chosen style is saved.
   const [detailStyle,setDetailStyle] = useState<"text"|"table">("text");
   const [specs,setSpecs] = useState<SpecRow[]>([]);
@@ -47,6 +69,10 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
       const v=source.variant??{};
       setForm({title:source.title??"",description:source.description??"",categoryId:source.categoryId??"",sku:v.sku??"",variantTitle:v.title??"Default",price:v.pricePaise!=null?String(v.pricePaise/100):"",compareAt:v.compareAtPaise!=null?String(v.compareAtPaise/100):"",weightGrams:v.weightGrams!=null?String(v.weightGrams):"",onHand:String(body.variant?.onHand??0)});
       setCouponPct(source.couponMaxDiscountPct??0);
+      // Colours/sizes: from the edit waiting in QC if there is one, else the saved variants.
+      const list:LoadedVariant[]=pending?(source.variants??[]).map((x:LoadedVariant)=>({...x,onHand:x.id?(body.variants??[]).find((b:LoadedVariant)=>b.id===x.id)?.onHand??0:x.onHand})):(body.variants??[]);
+      if(list.some(x=>x.attributes?.color||x.attributes?.size)){setHasOptions(true);setOptions(stateFromVariants(list));}
+      setImageColors(pending?(source.imageColors??{}):Object.fromEntries((body.media??[]).filter((m:{color?:string|null})=>m.color).map((m:{id:string;color:string})=>[m.id,m.color])));
       const rows:SpecRow[]=(source.specifications??[]).map((row:{label:string;value:string})=>({label:row.label,value:row.value}));
       setSpecs(rows);setDetailStyle(!source.description&&rows.length?"table":"text");
       const byId=new Map(media.map(m=>[m.id,m]));
@@ -87,8 +113,35 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
       }
     }
     if(step===1&&images.length===0)return "Add at least one product image.";
+    if(step===2&&hasOptions){
+      const on=options.rows.filter(r=>r.enabled);
+      if(!options.colors.length&&!options.sizes.length)return "Add at least one colour or size, or choose \"One option\".";
+      if(!on.length)return "Tick at least one option to sell.";
+      const bad=on.find(r=>r.sku.trim().length<3||!(Number(r.price)>0)||(r.compareAt!==""&&!(Number(r.compareAt)>=0))||!/^\d+$/.test(r.onHand.trim()||"0"));
+      if(bad)return `Check ${[bad.color,bad.size].filter(Boolean).join(" / ")}: it needs a SKU (3+ characters), a selling price and whole-number stock.`;
+      if(new Set(on.map(r=>r.sku.trim().toLowerCase())).size!==on.length)return "Each option needs its own SKU.";
+      if(!(Number(form.weightGrams)>0))return "Enter the package weight in grams.";
+      return "";
+    }
     if(step===2&&(!form.sku.trim()||!form.price||Number(form.price)<0))return "Enter SKU and a valid selling price.";
     return "";
+  }
+
+  /** Colours/sizes payload: every ticked option, plus which photos show which colour. */
+  function optionPayload(){
+    if(!hasOptions)return {};
+    const on=options.rows.filter(r=>r.enabled);
+    const imageIds=new Set(images.map(v=>v.id));
+    return {
+      variants:on.map(r=>({id:r.id,sku:r.sku.trim(),pricePaise:toPaise(r.price),compareAtPaise:r.compareAt?toPaise(r.compareAt):null,onHand:Math.max(0,Math.floor(Number(r.onHand)||0)),color:r.color,colorHex:r.color?r.colorHex||undefined:undefined,size:r.size})),
+      imageColors:Object.fromEntries(Object.entries(imageColors).filter(([id,c])=>imageIds.has(id)&&options.colors.some(x=>x.name===c))),
+    };
+  }
+  /** The main variant: for colours/sizes, the first ticked option (it also carries the package weight). */
+  function mainVariant(){
+    const first=hasOptions?options.rows.find(r=>r.enabled):undefined;
+    if(first)return {sku:first.sku.trim(),title:[first.color,first.size].filter(Boolean).join(" / ")||"Default",price:first.price,compareAt:first.compareAt};
+    return {sku:form.sku.trim(),title:form.variantTitle.trim()||"Default",price:form.price,compareAt:form.compareAt};
   }
 
   async function create(){
@@ -102,8 +155,9 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
           couponMaxDiscountPct:couponPct,
           specifications:detailStyle==="table"?specs.filter(r=>r.label.trim()&&r.value.trim()).map(r=>({label:r.label.trim(),value:r.value.trim()})):[],
           imageAssetIds:images.map(v=>v.id),videoAssetId:video?.id??null,
-          variant:{sku:form.sku.trim(),title:form.variantTitle.trim()||"Default",pricePaise:Math.round(Number(form.price)*100),compareAtPaise:form.compareAt?Math.round(Number(form.compareAt)*100):null,weightGrams:Math.max(0,Math.floor(Number(form.weightGrams)||0))},
+          variant:(m=>({sku:m.sku,title:m.title,pricePaise:toPaise(m.price),compareAtPaise:m.compareAt?toPaise(m.compareAt):null,weightGrams:Math.max(0,Math.floor(Number(form.weightGrams)||0))}))(mainVariant()),
           onHand:Math.max(0,Math.floor(Number(form.onHand)||0)),
+          ...optionPayload(),
         })});
         const json=await response.json();if(!response.ok)throw new Error(json?.error?.message??"Couldn't save your changes.");
         setMessage(json.message??"Changes saved.");
@@ -116,7 +170,8 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
         couponMaxDiscountPct:couponPct,
         specifications:detailStyle==="table"?specs.filter(r=>r.label.trim()&&r.value.trim()).map(r=>({label:r.label.trim(),value:r.value.trim()})):[],
         imageAssetIds:images.map(v=>v.id),videoAssetId:video?.id,
-        variant:{sku:form.sku.trim(),title:form.variantTitle.trim()||"Default",pricePaise:Math.round(Number(form.price)*100),compareAtPaise:form.compareAt?Math.round(Number(form.compareAt)*100):undefined,weightGrams:Math.max(0,Math.floor(Number(form.weightGrams)||0)),onHand:Math.max(0,Math.floor(Number(form.onHand)||0))}
+        variant:(m=>({sku:m.sku,title:m.title,pricePaise:toPaise(m.price),compareAtPaise:m.compareAt?toPaise(m.compareAt):undefined,weightGrams:Math.max(0,Math.floor(Number(form.weightGrams)||0)),onHand:Math.max(0,Math.floor(Number(form.onHand)||0))}))(mainVariant()),
+        ...optionPayload()
       })});
       const json=await response.json();if(!response.ok)throw new Error(json?.error?.message??"Product creation failed.");
       setMessage("Product draft created.");
@@ -156,7 +211,16 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
         </div>
         <div className="mt-6 rounded-2xl border p-4"><p className="text-sm font-semibold">Product video <span className="font-normal text-slate-400">(optional)</span></p>{video?<div className="mt-3 flex flex-wrap items-center gap-3"><video src={video.url} className="h-28 w-28 rounded-xl bg-black object-cover" muted playsInline controls/><div><p className="text-sm font-semibold">{video.fileName}</p><button type="button" onClick={()=>setVideo(null)} className="mt-1 text-xs font-semibold text-red-600">Remove</button></div></div>:<label className="mt-3 inline-flex cursor-pointer rounded-full border px-4 py-2 text-xs font-bold">Add video<input className="hidden" type="file" accept="video/mp4,video/webm,video/quicktime" disabled={busy} onChange={e=>{const f=e.target.files?.[0];if(f)void upload(f,"VIDEO");e.currentTarget.value=""}}/></label>}</div>
       </div>:null}
-      {step===2?<div className="grid gap-5 sm:grid-cols-2">
+      {step===2?<div>
+        <p className="text-sm font-semibold">Does this product come in different colours or sizes?</p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          {([[false,"One option","A single version, e.g. a mixer grinder or a book."],[true,"Colours and/or sizes","e.g. a kurta in Red and Blue, sizes S to XXL."]] as const).map(([v,label,hint])=><button key={label} type="button" aria-pressed={hasOptions===v} onClick={()=>{setHasOptions(v);if(v&&!options.rows.length)setOptions(o=>({...o}));}} className={"rounded-2xl border p-4 text-left transition "+(hasOptions===v?"border-slate-950 bg-slate-50":"border-slate-200 hover:border-slate-900")}><span className="block text-sm font-bold">{label}</span><span className="block text-xs text-slate-500">{hint}</span></button>)}
+        </div>
+        {hasOptions?<div className="mt-6 grid gap-5">
+          <VariantEditor value={options} onChange={setOptions} baseSku={form.sku||autoSku(form.title.split(" ").slice(0,2).join(""))} defaultPrice={form.price} defaultCompareAt={form.compareAt} images={images.map(i=>({id:i.id,url:i.url}))} imageColors={imageColors} onImageColors={setImageColors}/>
+          <div className="grid gap-5 sm:grid-cols-2"><Field label="Package weight (grams)" value={form.weightGrams} onChange={v=>set("weightGrams",v)} inputMode="numeric"/></div>
+          <div className="text-sm font-semibold"><label htmlFor="coupon-limit">LOIMART coupons</label><CouponLimitSelect id="coupon-limit" value={couponPct} onChange={setCouponPct}/><CouponLimitHelp pct={couponPct} pricePaise={options.rows.find(r=>r.enabled&&r.price)?toPaise(options.rows.find(r=>r.enabled&&r.price)!.price):null}/></div>
+        </div>:<div className="mt-6 grid gap-5 sm:grid-cols-2">
         <Field label="Variant title" value={form.variantTitle} onChange={v=>set("variantTitle",v)}/>
         <Field label="SKU" value={form.sku} onChange={v=>set("sku",v)}/>
         <Field label="Selling price (₹)" value={form.price} onChange={v=>set("price",v)} inputMode="decimal"/>
@@ -164,8 +228,9 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
         <Field label="Package weight (grams)" value={form.weightGrams} onChange={v=>set("weightGrams",v)} inputMode="numeric"/>
         <Field label={productId?"Stock in hand":"Opening inventory"} value={form.onHand} onChange={v=>set("onHand",v)} inputMode="numeric"/>
         <div className="text-sm font-semibold sm:col-span-2"><label htmlFor="coupon-limit">LOIMART coupons</label><CouponLimitSelect id="coupon-limit" value={couponPct} onChange={setCouponPct}/><CouponLimitHelp pct={couponPct} pricePaise={form.price?Math.round(Number(form.price)*100):null}/></div>
+      </div>}
       </div>:null}
-      {step===3?<div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Ready for QC</p><h2 className="mt-2 text-2xl font-black">{productId?"Review your changes.":"Review before creating your draft."}</h2><div className="mt-5 grid gap-3 sm:grid-cols-2"><Summary label="Product" value={form.title||"—"}/><Summary label="Category" value={categories.find(category=>category.id===form.categoryId)?.name||"—"}/><Summary label="Product details" value={detailStyle==="table"?`Specification table · ${specs.filter(r=>r.label.trim()&&r.value.trim()).length} rows`:"Text description"}/><Summary label="Images" value={String(images.length)}/><Summary label="Price" value={form.price?"₹"+form.price:"—"}/><Summary label="Package weight" value={form.weightGrams+" g"}/><Summary label={productId?"Stock in hand":"Opening stock"} value={form.onHand}/></div><p className="mt-5 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">{isLive?"Your changes go to LOIMART QC. Your current listing stays on the store until they're approved; stock updates straight away.":productId?"Saving updates this product. If it's in QC review, it goes back to QC with your changes.":"Draft products remain hidden from customers until they pass QC and are published by LOIMART."}</p></div>:null}
+      {step===3?<div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Ready for QC</p><h2 className="mt-2 text-2xl font-black">{productId?"Review your changes.":"Review before creating your draft."}</h2><div className="mt-5 grid gap-3 sm:grid-cols-2"><Summary label="Product" value={form.title||"—"}/><Summary label="Category" value={categories.find(category=>category.id===form.categoryId)?.name||"—"}/><Summary label="Product details" value={detailStyle==="table"?`Specification table · ${specs.filter(r=>r.label.trim()&&r.value.trim()).length} rows`:"Text description"}/><Summary label="Images" value={String(images.length)}/>{hasOptions?<Summary label="Options" value={`${options.colors.length?options.colors.map(c=>c.name).join(", "):"—"}${options.sizes.length?" · "+options.sizes.join(", "):""} (${options.rows.filter(r=>r.enabled).length} on sale)`}/>:<Summary label="Price" value={form.price?"₹"+form.price:"—"}/>}<Summary label="Package weight" value={form.weightGrams+" g"}/><Summary label={productId?"Stock in hand":"Opening stock"} value={hasOptions?String(options.rows.filter(r=>r.enabled).reduce((n,r)=>n+(Number(r.onHand)||0),0))+" (all options)":form.onHand}/></div><p className="mt-5 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">{isLive?"Your changes go to LOIMART QC. Your current listing stays on the store until they're approved; stock updates straight away.":productId?"Saving updates this product. If it's in QC review, it goes back to QC with your changes.":"Draft products remain hidden from customers until they pass QC and are published by LOIMART."}</p></div>:null}
       {busy&&step===1?<div className="mt-5"><p className="text-xs font-semibold text-slate-500">Uploading… {progress}%</p><div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-slate-950 transition-[width]" style={{width:progress+"%"}}/></div></div>:null}
       {error?<p className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>:null}{message?<p className="mt-5 rounded-xl bg-green-50 p-3 text-sm text-green-700">{message}</p>:null}
       <div className="mt-7 flex justify-between border-t border-slate-100 pt-5"><button type="button" disabled={step===0||busy} onClick={()=>setStep(v=>Math.max(0,v-1))} className="rounded-full border px-5 py-3 text-sm font-bold disabled:opacity-40">Back</button>{step<3?<button type="button" disabled={busy} onClick={()=>{const p=validate();if(p)setError(p);else setStep(v=>v+1)}} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:opacity-50">Continue</button>:<button type="button" disabled={busy} onClick={()=>void create()} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:opacity-50">{busy?(productId?"Saving…":"Creating…"):productId?(isLive?"Send changes to QC":"Save changes"):"Create draft product"}</button>}</div>

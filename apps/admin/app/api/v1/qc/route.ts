@@ -45,12 +45,15 @@ export async function GET(request: Request) {
         compareAtPaise: productVariants.compareAtPaise,
         weightGrams: productVariants.weightGrams,
         onHand: inventory.onHand,
-      }).from(productVariants).leftJoin(inventory, eq(inventory.variantId, productVariants.id)).where(inArray(productVariants.productId, productIds)),
+        attributes: productVariants.attributes,
+      }).from(productVariants).leftJoin(inventory, eq(inventory.variantId, productVariants.id))
+        .where(and(inArray(productVariants.productId, productIds), eq(productVariants.isActive, true))).orderBy(asc(productVariants.createdAt)),
       db.select({
         productId: productMedia.productId,
         id: productMedia.id,
         kind: productMedia.kind,
         sortOrder: productMedia.sortOrder,
+        color: productMedia.color,
         storageKey: mediaAssets.storageKey,
         altText: mediaAssets.altText,
       }).from(productMedia)

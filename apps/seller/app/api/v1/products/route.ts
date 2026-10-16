@@ -20,6 +20,8 @@ export async function POST(request: Request) {
     const category = (await db.select({ id: categories.id }).from(categories)
       .where(and(eq(categories.id, input.categoryId), eq(categories.isActive, true))).limit(1))[0];
     if (!category) throw new AppError("VALIDATION_ERROR", "Choose an active category");
+    if (input.variants?.length && !input.variant) throw new AppError("VALIDATION_ERROR", "Enter the package weight");
+    if (input.imageColors && Object.keys(input.imageColors).some((id) => !input.imageAssetIds.includes(id))) throw new AppError("VALIDATION_ERROR", "A colour was set for a photo that isn't on this product");
     const assetIds = [...input.imageAssetIds, ...(input.videoAssetId ? [input.videoAssetId] : [])];
     const assets = await db.select({ id: mediaAssets.id, kind: mediaAssets.kind, uploadedByUserId: mediaAssets.uploadedByUserId })
       .from(mediaAssets).where(and(inArray(mediaAssets.id, assetIds), eq(mediaAssets.uploadedByUserId, principal.userId)));
@@ -28,6 +30,10 @@ export async function POST(request: Request) {
     const assetById = new Map(assets.map((asset) => [asset.id, asset]));
     if (input.imageAssetIds.some((id) => assetById.get(id)?.kind !== "IMAGE")) throw new AppError("VALIDATION_ERROR", "All imageAssetIds must reference image media");
     if (input.videoAssetId && assetById.get(input.videoAssetId)?.kind !== "VIDEO") throw new AppError("VALIDATION_ERROR", "videoAssetId must reference video media");
+
+    const skus = input.variants?.length ? input.variants.map((v) => v.sku) : input.variant ? [input.variant.sku] : [];
+    const taken = skus.length ? await db.select({ sku: productVariants.sku }).from(productVariants).where(inArray(productVariants.sku, skus)).limit(5) : [];
+    if (taken.length) throw new AppError("CONFLICT", `SKU ${taken.map((t) => t.sku).join(", ")} is already used on LOIMART. Use a different SKU.`);
 
     const inserted = await db.transaction((tx) => insertSellerProduct(tx, principal.sellerId!, input));
 

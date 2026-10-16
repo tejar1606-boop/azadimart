@@ -1,3 +1,4 @@
+import { imageColorsSchema, productVariantListSchema } from "../variants";
 import { z } from "zod";
 import { ROLES } from "../roles";
 import { PRODUCT_MEDIA_LIMITS } from "../routes";
@@ -70,6 +71,9 @@ export const productDraftSchema = z.object({
     weightGrams:z.number().int().positive("Enter the package weight in grams").max(1000000),
     onHand:z.number().int().nonnegative().default(0),
   }).optional(),
+  /** Colour/size combinations. When set, `variant` only supplies the package weight. */
+  variants:productVariantListSchema.optional(),
+  imageColors:imageColorsSchema.optional(),
 });
 /** A seller's edit of an existing product. Stock (onHand) applies at once; the rest goes through QC once a product is live. */
 export const productEditSchema = z.object({
@@ -88,6 +92,9 @@ export const productEditSchema = z.object({
     weightGrams:z.number().int().positive("Enter the package weight in grams").max(1000000),
   }),
   onHand:z.number().int().nonnegative().max(1000000),
+  /** Colour/size combinations (with `id` for existing ones). When set, `onHand` is ignored and each variant's stock is used. */
+  variants:productVariantListSchema.optional(),
+  imageColors:imageColorsSchema.optional(),
 });
 export const qcSubmissionSchema = z.object({ productId:uuidSchema, notes:z.string().trim().max(2000).optional() });
 export const qcDecisionSchema = z.object({ qcSubmissionId:uuidSchema, decision:z.enum(["APPROVED","REJECTED"]), notes:z.string().trim().max(2000).optional() });

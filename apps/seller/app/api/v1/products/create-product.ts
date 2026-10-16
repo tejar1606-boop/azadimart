@@ -1,5 +1,5 @@
 import { inventory, productMedia, productVariants, products, qcSubmissions, type createDatabase } from "@azadimart/database";
-import { AppError, type ProductDraftInput } from "@azadimart/shared";
+import { AppError, variantAttributes, variantTitleOf, type ProductDraftInput } from "@azadimart/shared";
 
 type Tx = Parameters<Parameters<ReturnType<typeof createDatabase>["transaction"]>[0]>[0];
 type ProductDraft = ProductDraftInput;
@@ -29,11 +29,24 @@ export async function insertSellerProduct(tx: Tx, sellerId: string, input: Produ
   if (!product) throw new AppError("INTERNAL", "Product creation failed", undefined, false);
 
   await tx.insert(productMedia).values([
-    ...input.imageAssetIds.map((mediaAssetId, index) => ({ productId: product.id, mediaAssetId, kind: "IMAGE" as const, sortOrder: index })),
+    ...input.imageAssetIds.map((mediaAssetId, index) => ({ productId: product.id, mediaAssetId, kind: "IMAGE" as const, sortOrder: index, color: input.imageColors?.[mediaAssetId] ?? null })),
     ...(input.videoAssetId ? [{ productId: product.id, mediaAssetId: input.videoAssetId, kind: "VIDEO" as const, sortOrder: input.imageAssetIds.length }] : []),
   ]);
 
-  if (input.variant) {
+  if (input.variants?.length) {
+    // Colours/sizes: one variant (with its own SKU, price and stock) per combination.
+    const weightGrams = input.variant?.weightGrams ?? 0;
+    const start = Date.now();
+    for (const [i, v] of input.variants.entries()) {
+      const variant = (await tx.insert(productVariants).values({
+        createdAt: new Date(start + i), // keeps the seller's colour/size order (one transaction = one clock time otherwise)
+        productId: product.id, sku: v.sku, title: variantTitleOf(v), pricePaise: v.pricePaise, compareAtPaise: v.compareAtPaise ?? null,
+        weightGrams, attributes: variantAttributes(v), isActive: true,
+      }).returning({ id: productVariants.id }))[0];
+      if (!variant) throw new AppError("INTERNAL", "Product variant creation failed", undefined, false);
+      await tx.insert(inventory).values({ variantId: variant.id, sellerId, onHand: v.onHand, reserved: 0 });
+    }
+  } else if (input.variant) {
     const variant = (await tx.insert(productVariants).values({
       productId: product.id,
       sku: input.variant.sku,

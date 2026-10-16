@@ -1,7 +1,7 @@
 import { enforceRateLimit } from "@azadimart/auth";
-import { applyProductEdit, auditLogs, categories, loadProductForEdit, mediaAssets, productMedia, products, qcSubmissions, setProductStock, type ProductEditChanges } from "@azadimart/database";
-import { AppError, productEditSchema, toApiError } from "@azadimart/shared";
-import { and, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
+import { applyProductEdit, auditLogs, categories, loadProductForEdit, mediaAssets, productMedia, productVariants, products, qcSubmissions, setProductStock, setVariantStocks, type ProductEditChanges } from "@azadimart/database";
+import { AppError, productEditSchema, toApiError, variantAttributes, variantTitleOf } from "@azadimart/shared";
+import { and, eq, inArray, isNotNull, isNull, ne, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { requireOwnedProduct } from "./aplus/shared";
 
@@ -52,6 +52,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pr
     if (input.imageAssetIds.some((id) => kindById.get(id) !== "IMAGE")) throw new AppError("VALIDATION_ERROR", "Product photos must be images");
     if (input.videoAssetId && kindById.get(input.videoAssetId) !== "VIDEO") throw new AppError("VALIDATION_ERROR", "The product video must be a video");
 
+    if (input.imageColors && Object.keys(input.imageColors).some((id) => !input.imageAssetIds.includes(id))) throw new AppError("VALIDATION_ERROR", "A colour was set for a photo that isn't on this product");
+    // Colours/sizes: ids must be this product's variants; SKUs must not belong to another product.
+    const ownVariantIds = new Set((await db.select({ id: productVariants.id }).from(productVariants).where(eq(productVariants.productId, productId))).map((v) => v.id));
+    const variants = input.variants?.map((v) => ({ ...v, id: v.id && ownVariantIds.has(v.id) ? v.id : undefined }));
+    const skus = variants?.map((v) => v.sku) ?? [input.variant.sku];
+    const taken = await db.select({ sku: productVariants.sku }).from(productVariants).where(and(inArray(productVariants.sku, skus), ne(productVariants.productId, productId))).limit(5);
+    if (taken.length) throw new AppError("CONFLICT", `SKU ${taken.map((t) => t.sku).join(", ")} is already used on LOIMART. Use a different SKU.`);
+
     const changes: ProductEditChanges = {
       title: input.title,
       categoryId: input.categoryId,
@@ -60,11 +68,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pr
       couponMaxDiscountPct: input.couponMaxDiscountPct,
       imageAssetIds: input.imageAssetIds,
       videoAssetId: input.videoAssetId ?? null,
-      variant: { sku: input.variant.sku, title: input.variant.title, pricePaise: input.variant.pricePaise, compareAtPaise: input.variant.compareAtPaise ?? null, weightGrams: input.variant.weightGrams },
+      variant: variants?.length
+        ? { sku: variants[0]!.sku, title: variantTitleOf(variants[0]!), pricePaise: variants[0]!.pricePaise, compareAtPaise: variants[0]!.compareAtPaise ?? null, weightGrams: input.variant.weightGrams }
+        : { sku: input.variant.sku, title: input.variant.title, pricePaise: input.variant.pricePaise, compareAtPaise: input.variant.compareAtPaise ?? null, weightGrams: input.variant.weightGrams },
+      ...(variants?.length ? {
+        variants: variants.map((v) => ({ id: v.id, sku: v.sku, title: variantTitleOf(v), pricePaise: v.pricePaise, compareAtPaise: v.compareAtPaise ?? null, weightGrams: input.variant.weightGrams, onHand: v.id ? undefined : v.onHand, attributes: variantAttributes(v) })),
+        imageColors: input.imageColors ?? {},
+      } : input.imageColors ? { imageColors: input.imageColors } : {}),
     };
 
     const mode = await db.transaction(async (tx) => {
-      await setProductStock(tx, productId, input.onHand);
+      // Stock never waits for QC. New colours/sizes get their stock when they're created.
+      if (variants?.length) await setVariantStocks(tx, productId, variants.filter((v) => v.id).map((v) => ({ id: v.id!, onHand: v.onHand })));
+      else await setProductStock(tx, productId, input.onHand);
 
       if (status === "LIVE" || status === "UNLISTED") {
         // One open edit per product: a newer edit replaces the one waiting in QC.

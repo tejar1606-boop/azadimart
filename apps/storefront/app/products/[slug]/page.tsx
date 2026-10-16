@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ProductGallery from "./product-gallery";
+import VariantPicker from "./variant-picker";
 import { notFound } from "next/navigation";
 import { createDatabase, inventory, mediaAssets, productMedia, productVariants, products, sellers, categories, productAplusContent, productSummaries } from "@azadimart/database";
 import { and, asc, desc, eq, inArray, ne, notInArray, or, type SQL } from "drizzle-orm";
@@ -139,10 +140,13 @@ export default async function ProductDetailPage({ params, searchParams }: { para
     sku: productVariants.sku,
     pricePaise: productVariants.pricePaise,
     compareAtPaise: productVariants.compareAtPaise,
+    attributes: productVariants.attributes,
+    variantCreatedAt: productVariants.createdAt,
     onHand: inventory.onHand,
     reserved: inventory.reserved,
     mediaAssetId: productMedia.mediaAssetId,
     mediaKind: productMedia.kind,
+    mediaColor: productMedia.color,
     mediaStorageKey: mediaAssets.storageKey,
     altText: mediaAssets.altText,
   }).from(products)
@@ -168,6 +172,13 @@ export default async function ProductDetailPage({ params, searchParams }: { para
     ?? variants[0];
   if (!selectedVariant) notFound();
   const availableQuantity = Math.max(0, (selectedVariant.onHand ?? 0) - (selectedVariant.reserved ?? 0));
+  // Colours/sizes: the picker lists options in the seller's order; the gallery shows the chosen colour's photos.
+  const hasOptions = variants.some((v) => v.attributes?.color || v.attributes?.size);
+  const pickerVariants = [...variants].sort((a, b) => a.variantCreatedAt.getTime() - b.variantCreatedAt.getTime()).map((v) => ({ id: v.variantId, title: v.variantTitle, color: v.attributes?.color, colorHex: v.attributes?.colorHex, size: v.attributes?.size, stock: stockOf(v), pricePaise: v.pricePaise }));
+  const selectedColor = selectedVariant.attributes?.color;
+  const galleryMedia = selectedColor && media.some((m) => m.mediaColor === selectedColor)
+    ? [...media.filter((m) => m.mediaColor === selectedColor), ...media.filter((m) => !m.mediaColor)]
+    : media;
   const hasDiscount = Boolean(selectedVariant.compareAtPaise && selectedVariant.compareAtPaise > selectedVariant.pricePaise);
   const discountPercent = hasDiscount ? Math.round((1 - selectedVariant.pricePaise / (selectedVariant.compareAtPaise ?? selectedVariant.pricePaise)) * 100) : 0;
   const relatedRows = await moreToExplore(db, first);
@@ -241,8 +252,9 @@ export default async function ProductDetailPage({ params, searchParams }: { para
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10 [&>*]:min-w-0">
           <div className="relative"><ProductGallery
-            title={first.title}
-            media={media.filter((item) => Boolean(item.mediaAssetId && item.mediaStorageKey && (item.mediaKind === "IMAGE" || item.mediaKind === "VIDEO"))).map((item) => ({ mediaAssetId: String(item.mediaAssetId), mediaStorageKey: String(item.mediaStorageKey), altText: item.altText, kind: item.mediaKind as "IMAGE" | "VIDEO" }))}
+            key={selectedColor ?? "all"}
+            title={selectedColor ? `${first.title} (${selectedColor})` : first.title}
+            media={galleryMedia.filter((item) => Boolean(item.mediaAssetId && item.mediaStorageKey && (item.mediaKind === "IMAGE" || item.mediaKind === "VIDEO"))).map((item) => ({ mediaAssetId: String(item.mediaAssetId), mediaStorageKey: String(item.mediaStorageKey), altText: item.altText, kind: item.mediaKind as "IMAGE" | "VIDEO" }))}
           />
           <div className="absolute right-3 top-3 z-10"><WishlistButton productId={first.id} /></div>
           </div>
@@ -291,6 +303,9 @@ export default async function ProductDetailPage({ params, searchParams }: { para
             <div className="mt-6 rounded-2xl bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Availability</p>
               <p className={`mt-1 font-bold ${availableQuantity > 0 ? "text-emerald-700" : "text-red-600"}`}>{availableQuantity > 0 ? availableQuantity < 5 ? `Only ${availableQuantity} left` : "In stock" : "Currently out of stock"}</p>
+              {hasOptions ? (
+                <div className="mt-4"><VariantPicker variants={pickerVariants} selectedId={selectedVariant.variantId} /></div>
+              ) : (<>
               <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Variant</p>
               {variants.length > 1 ? (
                 <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Choose a variant">
@@ -315,6 +330,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
               ) : (
                 <p className="mt-1 font-semibold">{selectedVariant.variantTitle}</p>
               )}
+              </>)}
               <p className="mt-1 text-xs text-slate-400">SKU {selectedVariant.sku}</p>
             </div>
 
