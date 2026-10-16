@@ -1,4 +1,5 @@
-import { bigint, index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import type { LiveChatAttachment } from "@azadimart/shared";
+import { bigint, index, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { id } from "./columns";
 import { customers, users } from "./identity";
 import { sellers } from "./sellers";
@@ -57,6 +58,8 @@ export const liveChatMessages = pgTable(
     author: text("author").$type<"REQUESTER" | "AGENT" | "SYSTEM">().notNull(),
     agentUserId: uuid("agent_user_id").references(() => users.id),
     body: text("body").notNull(),
+    /** A photo or PDF sent with the message (body is then an optional caption). */
+    attachment: jsonb("attachment").$type<LiveChatAttachment>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("live_chat_messages_chat_idx").on(table.chatId, table.seq)],

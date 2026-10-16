@@ -1,15 +1,18 @@
 import { requireStaff } from "@azadimart/auth";
 import {
-  agentConsole, agentLiveChat, agentLiveEnd, agentLiveSend, agentLiveTake, agentLiveToTicket, agentLiveTransfer, agentLiveTyping,
+  agentCanSend, agentConsole, agentLiveChat, agentLiveEnd, agentLiveSend, agentLiveTake, agentLiveToTicket, agentLiveTransfer, agentLiveTyping,
   auditLogs, createDatabase, liveChatHistory, orders, products, sellers, setAgentPresence, supportCannedReplies,
 } from "@azadimart/database";
-import { AppError, liveAgentPresenceSchema, liveChatMessageSchema, liveChatTransferSchema, toApiError, uuidSchema } from "@azadimart/shared";
+import { AppError, LIVE_CHAT_FILE_MAX_BYTES, liveAgentPresenceSchema, liveChatMessageSchema, liveChatTransferSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { and, count, desc, eq } from "drizzle-orm";
+import { ChatFileError, assertUploadsAvailable, getObjectStore, saveChatUpload, serveChatFile, withChatFileLinks } from "@azadimart/storage";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ path?: string[] }> };
 const fail = (error: unknown) => { const { status, body } = toApiError(error, crypto.randomUUID()); return NextResponse.json(body, { status, headers: { "cache-control": "no-store" } }); };
+/** Chat photos/PDFs open through signed links on this path. */
+const FILES = "/api/v1/live-chat/files";
 const ok = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "cache-control": "no-store" } });
 
 /**
@@ -24,6 +27,7 @@ export async function GET(request: Request, { params }: Params) {
     const me = await requireStaff(request, "livechat", db);
     const [section, chatId] = (await params).path ?? [];
     const url = new URL(request.url);
+    if (section === "files") return await serveChatFile(getObjectStore(), url.searchParams);
     if (!section) return ok(await agentConsole(db, me.userId));
     if (section === "history") return ok({ items: await liveChatHistory(db, url.searchParams.get("q") ?? "") });
     if (section === "chats" && chatId) {
@@ -42,7 +46,7 @@ export async function GET(request: Request, { params }: Params) {
         }
         (data.context as Record<string, unknown>).canned = await db.select({ id: supportCannedReplies.id, title: supportCannedReplies.title, body: supportCannedReplies.body }).from(supportCannedReplies).orderBy(supportCannedReplies.title);
       }
-      return ok(data);
+      return ok(withChatFileLinks(data, FILES));
     }
     throw new AppError("NOT_FOUND", "Unknown live chat path");
   } catch (error) { return fail(error); }
@@ -50,7 +54,7 @@ export async function GET(request: Request, { params }: Params) {
 
 /**
  * POST /live-chat/presence {status, maxChats?}
- * POST /live-chat/chats/{id}/messages|typing|take|transfer|end|ticket
+ * POST /live-chat/chats/{id}/messages|attachments|typing|take|transfer|end|ticket
  */
 export async function POST(request: Request, { params }: Params) {
   try {
@@ -66,7 +70,16 @@ export async function POST(request: Request, { params }: Params) {
     if (section !== "chats" || !chatId) throw new AppError("NOT_FOUND", "Unknown live chat path");
     const id = uuidSchema.parse(chatId);
     const after = Number(new URL(request.url).searchParams.get("after") ?? 0) || 0;
-    if (action === "messages") { await agentLiveSend(db, me.userId, id, liveChatMessageSchema.parse(await json()).body); return ok(await agentLiveChat(db, me.userId, id, after, false), 201); }
+    if (action === "messages") { await agentLiveSend(db, me.userId, id, liveChatMessageSchema.parse(await json()).body); return ok(withChatFileLinks(await agentLiveChat(db, me.userId, id, after, false), FILES), 201); }
+    if (action === "attachments") {
+      // A photo or PDF for the shopper/seller (multipart "file", optional "caption").
+      await agentCanSend(db, me.userId, id);
+      try { assertUploadsAvailable(); } catch { throw new AppError("UNPROCESSABLE", "File uploads are unavailable: object storage is not configured."); }
+      const { file, caption } = await saveChatUpload(getObjectStore(), request, id, LIVE_CHAT_FILE_MAX_BYTES)
+        .catch((e) => { throw e instanceof ChatFileError ? new AppError("VALIDATION_ERROR", e.message) : e; });
+      await agentLiveSend(db, me.userId, id, caption, file);
+      return ok(withChatFileLinks(await agentLiveChat(db, me.userId, id, after, false), FILES), 201);
+    }
     if (action === "typing") { await agentLiveTyping(db, me.userId, id); return ok({ ok: true }); }
     if (action === "take") { await agentLiveTake(db, me.userId, id); await db.insert(auditLogs).values({ actorUserId: me.userId, action: "LIVE_CHAT_TAKEN", entityType: "live_chat", entityId: id, metadata: {} }); return ok({ ok: true }); }
     if (action === "transfer") { const { agentUserId } = liveChatTransferSchema.parse(await json()); await agentLiveTransfer(db, me.userId, id, agentUserId); await db.insert(auditLogs).values({ actorUserId: me.userId, action: "LIVE_CHAT_TRANSFERRED", entityType: "live_chat", entityId: id, metadata: { to: agentUserId } }); return ok({ ok: true }); }

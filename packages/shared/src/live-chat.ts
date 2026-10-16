@@ -62,6 +62,13 @@ export const liveChatStartSchema = z.object({
   page: z.string().trim().max(300).optional().default(""),
 });
 export const liveChatMessageSchema = z.object({ body });
+
+/** A photo or PDF sent in a live chat. Stored privately; opened through a signed, expiring link. */
+export type LiveChatAttachment = { key: string; name: string; mimeType: string; size: number; kind: "IMAGE" | "DOCUMENT" };
+/** Largest photo or PDF a chat accepts. */
+export const LIVE_CHAT_FILE_MAX_BYTES = 10 * 1024 * 1024;
+/** Optional text sent with a file. */
+export const liveChatCaptionSchema = z.string().trim().max(2000).default("");
 export const liveChatRateSchema = z.object({ rating: z.number().int().min(1).max(5), note: z.string().trim().max(500).optional() });
 export const liveAgentPresenceSchema = z.object({ status: z.enum(LIVE_AGENT_STATUSES), maxChats: z.number().int().min(1).max(10).optional() });
 export const liveChatTransferSchema = z.object({ agentUserId: z.string().uuid() });

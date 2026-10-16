@@ -253,6 +253,13 @@
       "when": 1792074207830,
       "tag": "20261015142327_category_image",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792136687601,
+      "tag": "20261016074447_live_chat_attachments",
+      "breakpoints": true
     }
   ]
 }

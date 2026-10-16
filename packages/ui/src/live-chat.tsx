@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ChatAttachmentView, ChatFileButton, type ChatAttachment } from "./chat-attachment";
 
-type Msg = { seq: number; author: "REQUESTER" | "AGENT" | "SYSTEM"; body: string; createdAt: string; agentName: string | null };
+type Msg = { seq: number; author: "REQUESTER" | "AGENT" | "SYSTEM"; body: string; attachment?: ChatAttachment | null; createdAt: string; agentName: string | null };
 type ChatState = {
   id: string; status: "WAITING" | "ACTIVE" | "ENDED"; agentName: string | null; agentTyping: boolean; agentReadSeq: number;
   position: number | null; waitSeconds: number | null; waited: number; offerMessage: boolean; endReason: string | null; rating: number | null; ticketId: string | null;
@@ -37,7 +38,7 @@ function chime() {
 /**
  * Live chat with the support team: start form (with who's online and the
  * expected wait), queue position while waiting, agent name and typing while
- * chatting, "leave a message instead" when it takes too long, and a rating.
+ * chatting, photos and PDFs (📎) for faster help, "leave a message instead" when it takes too long, and a rating.
  */
 export function LiveChat({ apiBase, topics, ticketsPath, storageKey, onBack }: LiveChatProps) {
   const [avail, setAvail] = useState<Availability | null>(null);
@@ -148,6 +149,33 @@ export function LiveChat({ apiBase, topics, ticketsPath, storageKey, onBack }: L
     catch (e) { setMessages((m) => m.filter((x) => x.seq !== temp.seq)); setText(body); setError(e instanceof Error ? e.message : "Message not sent"); }
   }
 
+  /** Sends a photo or PDF, with whatever is typed as its caption. */
+  async function sendFile(file: File) {
+    if (!chatId) return;
+    const caption = text.trim();
+    setText(""); setError("");
+    const preview = file.type.startsWith("image/") ? URL.createObjectURL(file) : "";
+    const temp: Msg = { seq: -Date.now(), author: "REQUESTER", body: caption, createdAt: new Date().toISOString(), agentName: null,
+      attachment: { url: preview, name: file.name, mimeType: file.type, size: file.size, kind: file.type === "application/pdf" ? "DOCUMENT" : "IMAGE" } };
+    setMessages((m) => [...m, temp]);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      if (caption) form.append("caption", caption);
+      const r = await fetch(`${apiBase}/${chatId}/attachments?after=${lastSeq.current}`, { method: "POST", headers: key ? { "x-live-chat-key": key } : {}, body: form });
+      const data = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(data?.error?.message ?? "File not sent");
+      apply(data);
+      setMessages((m) => m.filter((x) => x.seq !== temp.seq));
+    } catch (e) {
+      setMessages((m) => m.filter((x) => x.seq !== temp.seq));
+      setText(caption);
+      setError(e instanceof Error ? e.message : "File not sent");
+    } finally {
+      if (preview) URL.revokeObjectURL(preview);
+    }
+  }
+
   function typing() {
     if (!chatId || Date.now() - typingSent.current < 3000) return;
     typingSent.current = Date.now();
@@ -231,7 +259,8 @@ export function LiveChat({ apiBase, topics, ticketsPath, storageKey, onBack }: L
           <div key={m.seq} className={"flex " + (m.author === "REQUESTER" ? "justify-end" : "justify-start")}>
             <div className={"max-w-[85%] rounded-2xl px-3.5 py-2 text-sm leading-6 " + (m.author === "REQUESTER" ? "rounded-br-md bg-navy text-white" : "rounded-bl-md border border-slate-200 bg-white text-slate-800 shadow-sm")}>
               {m.author === "AGENT" ? <p className="text-[11px] font-semibold text-brand-700">{m.agentName}</p> : null}
-              <p className="whitespace-pre-wrap">{m.body}</p>
+              {m.attachment ? <div className="my-1">{m.attachment.url ? <ChatAttachmentView file={m.attachment} mine={m.author === "REQUESTER"} /> : <p className="text-xs opacity-80">📄 {m.attachment.name}</p>}</div> : null}
+              {m.body ? <p className="whitespace-pre-wrap">{m.body}</p> : null}
               <p className={"mt-0.5 text-right text-[10px] " + (m.author === "REQUESTER" ? "text-white/60" : "text-slate-400")}>{m.seq < 0 ? "Sending…" : time(m.createdAt)}{m.author === "REQUESTER" && m.seq > 0 && m.seq === lastMine?.seq && (chat?.agentReadSeq ?? 0) >= m.seq ? " · Seen" : ""}</p>
             </div>
           </div>
@@ -270,6 +299,7 @@ export function LiveChat({ apiBase, topics, ticketsPath, storageKey, onBack }: L
 
       {status !== "ENDED" && !ticket ? (
         <form onSubmit={(e) => { e.preventDefault(); void send(); }} className="flex items-end gap-2 border-t border-slate-100 bg-white p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+          <ChatFileButton onFile={(f) => void sendFile(f)} onError={setError} />
           <label className="sr-only" htmlFor="live-chat-input">Message</label>
           <textarea id="live-chat-input" value={text} rows={1} maxLength={2000} onChange={(e) => { setText(e.target.value); typing(); }} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
             placeholder={status === "WAITING" ? "Add more details while you wait…" : "Type a message…"} className="max-h-28 min-h-[42px] flex-1 resize-none rounded-2xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-navy" />

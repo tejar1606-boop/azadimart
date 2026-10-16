@@ -1,6 +1,7 @@
 "use client";
 
 import { LIVE_CHAT_TIMING } from "@azadimart/shared";
+import { ChatAttachmentView, ChatFileButton, type ChatAttachment } from "@azadimart/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Row = {
@@ -13,7 +14,7 @@ type Console = {
   queue: Row[]; mine: Row[]; others: Row[]; agents: Agent[];
   today: { chats: number; missed: number; avgWaitSeconds: number | null; avgFirstReplySeconds: number | null; rating: number | null; rated: number };
 };
-type Msg = { seq: number; author: "REQUESTER" | "AGENT" | "SYSTEM"; body: string; createdAt: string; agentName: string | null };
+type Msg = { seq: number; author: "REQUESTER" | "AGENT" | "SYSTEM"; body: string; attachment?: ChatAttachment | null; createdAt: string; agentName: string | null };
 type ChatInfo = { id: string; status: string; assignedAgentId: string | null; agentName: string | null; requesterTyping: boolean; requesterReadSeq: number; requesterOnline: boolean; createdAt: string; endedAt: string | null; endReason: string | null; rating: number | null; ratingNote: string | null; ticketId: string | null };
 type Context = { name: string; requesterType: string; email: string | null; phone: string | null; guestContact: string | null; page: string | null; topic: string; recentOrders?: Array<{ id: string; number: string; status: string; total: number; createdAt: string }>; seller?: { storeName: string; status: string; holdReason: string | null; liveProducts: number }; canned?: Array<{ id: string; title: string; body: string }> };
 type History = { id: string; name: string; requesterType: string; topic: string; agentName: string | null; createdAt: string; endedAt: string | null; endReason: string | null; rating: number | null; ticketId: string | null; waitSeconds: number | null };
@@ -138,6 +139,27 @@ export default function LiveConsole({ meId }: { meId: string }) {
       setMessages((m) => { const rest = m.filter((x) => x.seq !== temp.seq); const seen = new Set(rest.map((x) => x.seq)); return [...rest, ...res.messages.filter((x: Msg) => !seen.has(x.seq))]; });
       lastSeq.current = Math.max(lastSeq.current, res.lastSeq);
     } catch (e) { setMessages((m) => m.filter((x) => x.seq !== temp.seq)); setText(body); setError(e instanceof Error ? e.message : "Not sent"); }
+  }
+  /** Sends a photo or PDF to the shopper/seller, with whatever is typed as its caption. */
+  async function sendFile(file: File) {
+    if (!selected) return;
+    const caption = text.trim();
+    setText(""); setError("");
+    const preview = file.type.startsWith("image/") ? URL.createObjectURL(file) : "";
+    const temp: Msg = { seq: -Date.now(), author: "AGENT", body: caption, createdAt: new Date().toISOString(), agentName: "You",
+      attachment: { url: preview, name: file.name, mimeType: file.type, size: file.size, kind: file.type === "application/pdf" ? "DOCUMENT" : "IMAGE" } };
+    setMessages((m) => [...m, temp]);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      if (caption) form.append("caption", caption);
+      const r = await fetch(`/api/v1/live-chat/chats/${selected}/attachments?after=${lastSeq.current}`, { method: "POST", body: form });
+      const res = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(res?.error?.message ?? "File not sent");
+      setMessages((m) => { const rest = m.filter((x) => x.seq !== temp.seq); const seen = new Set(rest.map((x) => x.seq)); return [...rest, ...res.messages.filter((x: Msg) => !seen.has(x.seq))]; });
+      lastSeq.current = Math.max(lastSeq.current, res.lastSeq);
+    } catch (e) { setMessages((m) => m.filter((x) => x.seq !== temp.seq)); setText(caption); setError(e instanceof Error ? e.message : "File not sent"); }
+    finally { if (preview) URL.revokeObjectURL(preview); }
   }
   function typing() {
     if (!selected || Date.now() - typingSent.current < 3000) return;
@@ -290,7 +312,8 @@ export default function LiveConsole({ meId }: { meId: string }) {
                   <div key={m.seq} className={"flex " + (m.author === "AGENT" ? "justify-end" : "justify-start")}>
                     <div className={"max-w-[80%] rounded-2xl px-3.5 py-2 text-sm leading-6 " + (m.author === "AGENT" ? "rounded-br-md bg-navy text-white" : "rounded-bl-md border border-slate-200 bg-white shadow-sm")}>
                       {m.author === "AGENT" && m.agentName && m.agentName !== "You" && chat?.assignedAgentId !== meId ? <p className="text-[11px] font-semibold text-white/70">{m.agentName}</p> : null}
-                      <p className="whitespace-pre-wrap">{m.body}</p>
+                      {m.attachment ? <div className="my-1">{m.attachment.url ? <ChatAttachmentView file={m.attachment} mine={m.author === "AGENT"} /> : <p className="text-xs opacity-80">📄 {m.attachment.name}</p>}</div> : null}
+                      {m.body ? <p className="whitespace-pre-wrap">{m.body}</p> : null}
                       <p className={"mt-0.5 text-right text-[10px] " + (m.author === "AGENT" ? "text-white/60" : "text-slate-400")}>{m.seq < 0 ? "Sending…" : time(m.createdAt)}{m.author === "AGENT" && m.seq > 0 && (chat?.requesterReadSeq ?? 0) >= m.seq ? " · Seen" : ""}</p>
                     </div>
                   </div>
@@ -305,6 +328,7 @@ export default function LiveConsole({ meId }: { meId: string }) {
                     </div>
                   ) : null}
                   <div className="flex items-end gap-2">
+                    <ChatFileButton onFile={(f) => void sendFile(f)} onError={setError} className="mb-1" />
                     <textarea value={text} rows={2} maxLength={2000} onChange={(e) => { setText(e.target.value); typing(); }} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }} placeholder="Type a reply… (Enter to send, Shift+Enter for a new line)" className="min-h-[52px] flex-1 resize-none rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-navy" />
                     <button type="submit" disabled={!text.trim()} className="rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50">Send</button>
                   </div>

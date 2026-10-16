@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { AppError, LIVE_CHAT_TIMING, estimateLiveWait, isStaffPermission, supportCategoryLabel } from "@azadimart/shared";
+import { AppError, LIVE_CHAT_TIMING, estimateLiveWait, isStaffPermission, supportCategoryLabel, type LiveChatAttachment } from "@azadimart/shared";
 import { and, asc, desc, eq, gt, inArray, lt, sql, type SQL } from "drizzle-orm";
 import type { Database } from "./client";
 import { customers, roles, staffMembers, users } from "./schema/identity";
@@ -151,7 +151,7 @@ export async function requesterLiveView(db: Database, who: LiveRequester, chatId
   if (afterSeq >= 0) await db.update(liveChats).set({ requesterSeenAt: new Date() }).where(and(eq(liveChats.id, chatId), inArray(liveChats.status, ["WAITING", "ACTIVE"])));
   await sweepLiveChats(db);
   const chat = await ownChat(db, who, chatId);
-  const messages = await db.select({ seq: liveChatMessages.seq, author: liveChatMessages.author, body: liveChatMessages.body, createdAt: liveChatMessages.createdAt, agentUserId: liveChatMessages.agentUserId })
+  const messages = await db.select({ seq: liveChatMessages.seq, author: liveChatMessages.author, body: liveChatMessages.body, attachment: liveChatMessages.attachment, createdAt: liveChatMessages.createdAt, agentUserId: liveChatMessages.agentUserId })
     .from(liveChatMessages).where(and(eq(liveChatMessages.chatId, chatId), gt(liveChatMessages.seq, Math.max(0, afterSeq)))).orderBy(asc(liveChatMessages.seq)).limit(200);
   const lastSeq = messages.at(-1)?.seq ?? afterSeq;
   if (lastSeq > chat.requesterReadSeq) await db.update(liveChats).set({ requesterReadSeq: lastSeq }).where(eq(liveChats.id, chatId));
@@ -175,15 +175,22 @@ export async function requesterLiveView(db: Database, who: LiveRequester, chatId
       // Waited too long, or nobody online: offer to leave a message instead.
       offerMessage: chat.status === "WAITING" && (waitSeconds === null || waited >= LIVE_CHAT_TIMING.offerMessageAfter),
     },
-    messages: messages.map((m) => ({ seq: m.seq, author: m.author, body: m.body, createdAt: m.createdAt, agentName: m.agentUserId ? names.get(m.agentUserId) ?? "Support" : null })),
+    messages: messages.map((m) => ({ seq: m.seq, author: m.author, body: m.body, attachment: m.attachment ?? null, createdAt: m.createdAt, agentName: m.agentUserId ? names.get(m.agentUserId) ?? "Support" : null })),
     lastSeq,
   };
 }
 
-export async function requesterLiveSend(db: Database, who: LiveRequester, chatId: string, body: string) {
+/** Checks the requester can still send in this chat (e.g. before saving an uploaded file). */
+export async function requesterCanSend(db: Database, who: LiveRequester, chatId: string) {
   const chat = await ownChat(db, who, chatId);
   if (chat.status === "ENDED") throw new AppError("CONFLICT", "This chat has ended. Start a new one if you need more help.");
-  await db.insert(liveChatMessages).values({ chatId, author: "REQUESTER", body });
+}
+
+/** A text message, or a photo/PDF with an optional caption. */
+export async function requesterLiveSend(db: Database, who: LiveRequester, chatId: string, body: string, attachment?: LiveChatAttachment) {
+  const chat = await ownChat(db, who, chatId);
+  if (chat.status === "ENDED") throw new AppError("CONFLICT", "This chat has ended. Start a new one if you need more help.");
+  await db.insert(liveChatMessages).values({ chatId, author: "REQUESTER", body, attachment: attachment ?? null });
   await db.update(liveChats).set({ requesterTypingAt: null, requesterSeenAt: new Date(), updatedAt: new Date() }).where(eq(liveChats.id, chatId));
 }
 
@@ -207,7 +214,8 @@ export async function requesterLiveRate(db: Database, who: LiveRequester, chatId
 
 /** Turns a chat into a support request (the team replies there), with the conversation attached. */
 async function chatToTicket(db: Database, chat: typeof liveChats.$inferSelect, extra: string, byAgentId: string | null) {
-  const lines = await db.select({ author: liveChatMessages.author, body: liveChatMessages.body }).from(liveChatMessages).where(eq(liveChatMessages.chatId, chat.id)).orderBy(asc(liveChatMessages.seq));
+  const lines = (await db.select({ author: liveChatMessages.author, body: liveChatMessages.body, attachment: liveChatMessages.attachment }).from(liveChatMessages).where(eq(liveChatMessages.chatId, chat.id)).orderBy(asc(liveChatMessages.seq)))
+    .map((l) => ({ author: l.author, body: [l.body, l.attachment ? `[${l.attachment.kind === "IMAGE" ? "Photo" : "Document"}: ${l.attachment.name}]` : ""].filter(Boolean).join(" ") }));
   const name = await requesterName(db, chat);
   const firstAsk = lines.find((l) => l.author === "REQUESTER")?.body ?? "Live chat";
   const guestNote = chat.requesterType === "GUEST" ? `Guest: ${chat.guestName ?? "—"}${chat.guestContact ? ` · ${chat.guestContact}` : " · no contact given"}\n\n` : "";
@@ -251,7 +259,7 @@ export async function agentConsole(db: Database, agentUserId: string) {
   const open = await db.select().from(liveChats).where(inArray(liveChats.status, ["WAITING", "ACTIVE"])).orderBy(asc(liveChats.queuedAt));
   const ids = open.map((c) => c.id);
   const [lastMsgs, unread] = ids.length ? await Promise.all([
-    db.execute<{ chat_id: string; author: string; body: string; created_at: string; seq: number }>(sql`select distinct on (chat_id) chat_id, author, body, created_at, seq from live_chat_messages where chat_id in (${sql.join(ids.map((i) => sql`${i}::uuid`), sql`, `)}) and author <> 'SYSTEM' order by chat_id, seq desc`),
+    db.execute<{ chat_id: string; author: string; body: string; created_at: string; seq: number }>(sql`select distinct on (chat_id) chat_id, author, coalesce(nullif(body, ''), case when attachment is not null then (case when attachment->>'kind' = 'IMAGE' then '📷 Photo' else '📄 ' || (attachment->>'name') end) else '' end) as body, created_at, seq from live_chat_messages where chat_id in (${sql.join(ids.map((i) => sql`${i}::uuid`), sql`, `)}) and author <> 'SYSTEM' order by chat_id, seq desc`),
     db.execute<{ chat_id: string; n: number }>(sql`select m.chat_id, count(*)::int n from live_chat_messages m join live_chats c on c.id = m.chat_id where m.chat_id in (${sql.join(ids.map((i) => sql`${i}::uuid`), sql`, `)}) and m.author = 'REQUESTER' and m.seq > c.agent_read_seq group by m.chat_id`),
   ]) : [{ rows: [] }, { rows: [] }];
   const last = new Map(lastMsgs.rows.map((r) => [r.chat_id, r]));
@@ -303,7 +311,7 @@ export async function agentConsole(db: Database, agentUserId: string) {
 export async function agentLiveChat(db: Database, agentUserId: string, chatId: string, afterSeq: number, withContext: boolean) {
   const chat = (await db.select().from(liveChats).where(eq(liveChats.id, chatId)).limit(1))[0];
   if (!chat) throw new AppError("NOT_FOUND", "Chat not found");
-  const messages = await db.select({ seq: liveChatMessages.seq, author: liveChatMessages.author, body: liveChatMessages.body, createdAt: liveChatMessages.createdAt, agentUserId: liveChatMessages.agentUserId })
+  const messages = await db.select({ seq: liveChatMessages.seq, author: liveChatMessages.author, body: liveChatMessages.body, attachment: liveChatMessages.attachment, createdAt: liveChatMessages.createdAt, agentUserId: liveChatMessages.agentUserId })
     .from(liveChatMessages).where(and(eq(liveChatMessages.chatId, chatId), gt(liveChatMessages.seq, Math.max(0, afterSeq)))).orderBy(asc(liveChatMessages.seq)).limit(300);
   const lastSeq = messages.at(-1)?.seq ?? afterSeq;
   if (chat.assignedAgentId === agentUserId && lastSeq > chat.agentReadSeq) await db.update(liveChats).set({ agentReadSeq: lastSeq }).where(eq(liveChats.id, chatId));
@@ -320,7 +328,7 @@ export async function agentLiveChat(db: Database, agentUserId: string, chatId: s
       requesterReadSeq: chat.requesterReadSeq, requesterOnline: Date.now() - chat.requesterSeenAt.getTime() < 30_000,
       createdAt: chat.createdAt, acceptedAt: chat.acceptedAt, endedAt: chat.endedAt, endReason: chat.endReason, rating: chat.rating, ratingNote: chat.ratingNote, ticketId: chat.ticketId,
     },
-    messages: messages.map((m) => ({ seq: m.seq, author: m.author, body: m.body, createdAt: m.createdAt, agentName: m.agentUserId ? names.get(m.agentUserId) ?? "Support" : null })),
+    messages: messages.map((m) => ({ seq: m.seq, author: m.author, body: m.body, attachment: m.attachment ?? null, createdAt: m.createdAt, agentName: m.agentUserId ? names.get(m.agentUserId) ?? "Support" : null })),
     lastSeq, context,
   };
 }
@@ -332,9 +340,15 @@ async function assignedChat(db: Database, agentUserId: string, chatId: string) {
   return chat;
 }
 
-export async function agentLiveSend(db: Database, agentUserId: string, chatId: string, body: string) {
+/** Checks the agent can reply in this chat (e.g. before saving an uploaded file). */
+export async function agentCanSend(db: Database, agentUserId: string, chatId: string) {
+  await assignedChat(db, agentUserId, chatId);
+}
+
+/** A reply, or a photo/PDF with an optional caption. */
+export async function agentLiveSend(db: Database, agentUserId: string, chatId: string, body: string, attachment?: LiveChatAttachment) {
   const chat = await assignedChat(db, agentUserId, chatId);
-  const [msg] = await db.insert(liveChatMessages).values({ chatId, author: "AGENT", agentUserId, body }).returning({ seq: liveChatMessages.seq });
+  const [msg] = await db.insert(liveChatMessages).values({ chatId, author: "AGENT", agentUserId, body, attachment: attachment ?? null }).returning({ seq: liveChatMessages.seq });
   await db.update(liveChats).set({ agentTypingAt: null, agentReadSeq: msg!.seq, firstAgentReplyAt: chat.firstAgentReplyAt ?? new Date(), updatedAt: new Date() }).where(eq(liveChats.id, chatId));
 }
 
