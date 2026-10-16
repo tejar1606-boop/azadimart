@@ -58,6 +58,7 @@ export default function SellerChrome({ counts, children }: { counts: SellerCount
       { href: "/reviews", label: "Customer reviews", icon: "star", tone: "amber", badge: badge(counts?.newReviews ?? 0) },
       { href: "/ads", label: "Advertise", icon: "marketing", tone: "saffron" },
       { href: "/products/new", label: "Add a product", icon: "sparkle", tone: "rose" },
+      { href: "/products/bulk", label: "Bulk upload", icon: "arrange", tone: "sky" },
     ] },
     { title: "Account", items: [
       { href: "/kyc", label: "KYC & business", icon: "kyc", tone: "teal" },

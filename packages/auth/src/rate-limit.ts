@@ -15,6 +15,10 @@ export const RATE_LIMITS = {
   upload: { limit: 60, windowSeconds: 10 * 60 },
   kycSubmit: { limit: 10, windowSeconds: 60 * 60 },
   productCreate: { limit: 60, windowSeconds: 60 * 60 },
+  // Bulk upload: each call carries up to 10 products, so 100 calls = 1,000 products an hour.
+  productBulk: { limit: 100, windowSeconds: 60 * 60 },
+  // Product photos: a bulk upload sends many at once.
+  productImageUpload: { limit: 1500, windowSeconds: 60 * 60 },
   supportChat: { limit: 40, windowSeconds: 10 * 60 },
   supportTicket: { limit: 10, windowSeconds: 60 * 60 },
   supportReply: { limit: 60, windowSeconds: 60 * 60 },

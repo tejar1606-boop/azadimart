@@ -10,8 +10,9 @@ export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
     const seller = await requireActiveSeller(request);
-    await enforceRateLimit(createDatabase(), request, "upload", { subject: seller.userId });
     const input = mediaUploadRequestSchema.parse(await request.json());
+    // Product photos get a bigger allowance so a bulk upload of many products fits.
+    await enforceRateLimit(createDatabase(), request, input.purpose === "PRODUCT_IMAGE" ? "productImageUpload" : "upload", { subject: seller.userId });
     if (input.purpose !== "PRODUCT_IMAGE" && input.purpose !== "PRODUCT_VIDEO" && input.purpose !== "APLUS_IMAGE" && input.purpose !== "AD_IMAGE") throw new AppError("VALIDATION_ERROR", "Unsupported upload purpose");
     const ticket = await createUpload(getObjectStore(), {
       purpose: input.purpose,

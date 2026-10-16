@@ -9,7 +9,10 @@ export default function ProductsPage() {
           <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">Your products</h1>
           <p className="mt-2 text-sm text-slate-500">Manage drafts, QC submissions and live listings. Edit any product at any time; changes to live products go to QC before they appear on the store. To remove a product, contact LOIMART support.</p>
         </div>
-        <a href="/products/new" className="rounded-full bg-slate-950 px-5 py-3 text-center text-sm font-black text-white">Create product</a>
+        <div className="flex flex-wrap gap-2">
+          <a href="/products/bulk" className="rounded-full border border-slate-300 bg-white px-5 py-3 text-center text-sm font-black text-slate-900 hover:border-slate-900">Bulk upload</a>
+          <a href="/products/new" className="rounded-full bg-slate-950 px-5 py-3 text-center text-sm font-black text-white">Create product</a>
+        </div>
       </div>
       <ProductList />
     </main>
