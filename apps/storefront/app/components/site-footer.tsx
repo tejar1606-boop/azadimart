@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { StoreChrome } from "../lib/chrome";
+import FooterAccountLink from "./footer-account-link";
 import FooterBackdrop from "./footer-backdrop";
 import { BRAND_TAGLINE, OpenHelpChatButton } from "@azadimart/ui";
 import { TricolourRibbon, Wordmark } from "./site-header";
@@ -36,9 +37,10 @@ export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
             </div>
 
             <nav aria-label="Footer" className="grid grid-cols-2 content-start gap-x-8 gap-y-4 text-[15px] text-white/80">
-              {[...shopLinks, { label: "My orders", href: "/account" }, { label: "Wishlist", href: "/wishlist" }, { label: "Cart", href: "/cart" }, { label: "Sign in", href: "/login" }].map((link) => (
+              {[...shopLinks, { label: "My orders", href: "/account" }, { label: "Wishlist", href: "/wishlist" }, { label: "Cart", href: "/cart" }].map((link) => (
                 <Link key={link.href + link.label} href={link.href} className="transition hover:text-white">{link.label}</Link>
               ))}
+              <FooterAccountLink className="transition hover:text-white" />
             </nav>
 
             <div className="text-[15px] leading-6 text-white/80">
