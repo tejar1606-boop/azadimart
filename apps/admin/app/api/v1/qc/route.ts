@@ -38,7 +38,8 @@ export async function GET(request: Request) {
         pricePaise: productVariants.pricePaise,
         compareAtPaise: productVariants.compareAtPaise,
         weightGrams: productVariants.weightGrams,
-      }).from(productVariants).where(inArray(productVariants.productId, productIds)),
+        onHand: inventory.onHand,
+      }).from(productVariants).leftJoin(inventory, eq(inventory.variantId, productVariants.id)).where(inArray(productVariants.productId, productIds)),
       db.select({
         productId: productMedia.productId,
         id: productMedia.id,
@@ -75,10 +76,16 @@ export async function GET(request: Request) {
     const categoryIds = [...new Set(submissions.flatMap((item) => [item.current.categoryId, item.proposedChanges?.categoryId]).filter((id): id is string => Boolean(id)))];
     const proposedMediaIds = [...new Set(edits.flatMap((item) => [...item.proposedChanges!.imageAssetIds, ...(item.proposedChanges!.videoAssetId ? [item.proposedChanges!.videoAssetId] : [])]))];
     const [categoryRows, proposedMedia] = await Promise.all([
-      categoryIds.length ? db.select({ id: categories.id, name: categories.name }).from(categories).where(inArray(categories.id, categoryIds)) : [],
+      // All categories (a small table) so names can show their full path, e.g. "Fashion › Men › T-shirts".
+      categoryIds.length ? db.select({ id: categories.id, name: categories.name, parentId: categories.parentId, isActive: categories.isActive }).from(categories) : [],
       proposedMediaIds.length ? db.select({ id: mediaAssets.id, kind: mediaAssets.kind, storageKey: mediaAssets.storageKey }).from(mediaAssets).where(inArray(mediaAssets.id, proposedMediaIds)) : [],
     ]);
-    const categoryName = new Map(categoryRows.map((c) => [c.id, c.name]));
+    const byId = new Map(categoryRows.map((c) => [c.id, c]));
+    const categoryName = new Map(categoryRows.map((c) => {
+      const path: string[] = [];
+      for (let at: typeof c | undefined = c, depth = 0; at && depth < 6; at = at.parentId ? byId.get(at.parentId) : undefined, depth++) path.unshift(at.name);
+      return [c.id, path.join(" › ") + (c.isActive ? "" : " (hidden category)")];
+    }));
     const mediaById = new Map(proposedMedia.map((m) => [m.id, m]));
 
     return NextResponse.json({
@@ -101,7 +108,7 @@ export async function GET(request: Request) {
 }
 
 import { requireStaff } from "@azadimart/auth";
-import { applyProductEdit, auditLogs, categories, createDatabase, mediaAssets, productAplusContent, productMedia, productVariants, products, qcSubmissions, sellers } from "@azadimart/database";
+import { applyProductEdit, auditLogs, categories, createDatabase, inventory, mediaAssets, productAplusContent, productMedia, productVariants, products, qcSubmissions, sellers } from "@azadimart/database";
 import { notifySeller } from "@azadimart/notify";
 import { AppError, qcDecisionSchema, toApiError } from "@azadimart/shared";
 import { and, asc, eq, inArray } from "drizzle-orm";

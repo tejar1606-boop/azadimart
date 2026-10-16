@@ -22,7 +22,7 @@ type Item = {
   createdAt: string;
   productTitle: string;
   sellerName: string;
-  variants: Array<{ id: string; sku: string; title: string; pricePaise: number; compareAtPaise: number | null; weightGrams: number }>;
+  variants: Array<{ id: string; sku: string; title: string; pricePaise: number; compareAtPaise: number | null; weightGrams: number; onHand: number | null }>;
   media: Array<{ id: string; kind: string; storageKey: string; altText: string | null }>;
   aplusBlocks: unknown[];
 };
@@ -108,7 +108,12 @@ export default function QCPage() {
                 <button key={entry.id} type="button" onClick={() => { setSelected(entry.id); setNotes(entry.notes ?? ""); }} className={"block w-full px-4 py-4 text-left hover:bg-slate-50 " + (selected === entry.id ? "bg-slate-50" : "")}>
                   <p className="font-medium">{entry.kind === "EDIT" ? <span className="mr-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Edit request</span> : null}{entry.productTitle}</p>
                   <p className="mt-1 text-sm text-ink-muted">{entry.sellerName}</p>
-                  <p className="mt-2 text-xs text-ink-muted">{entry.variants.length} variant(s) · {entry.media.length} media item(s)</p>
+                  <p className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+                    <span className="rounded-full bg-violet-50 px-2 py-0.5 font-semibold text-violet-800">{(entry.kind === "EDIT" ? entry.proposedCategoryName : entry.currentCategoryName) ?? "No category"}</span>
+                    {entry.variants[0] ? <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-700">{rupees(entry.variants[0].pricePaise)}{sellerOff(entry.variants[0]) ? ` · ${sellerOff(entry.variants[0])}% off MRP` : ""}</span> : null}
+                    <span className={"rounded-full px-2 py-0.5 font-semibold " + (couponPct(entry) ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-500")}>{couponPct(entry) ? `Coupons up to ${couponPct(entry)}%` : "Coupons off"}</span>
+                  </p>
+                  <p className="mt-1.5 text-xs text-ink-muted">{entry.variants.length} variant(s) · {entry.media.length} media item(s) · sent {new Date(entry.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
                 </button>
               ))}
             </div>
@@ -128,10 +133,10 @@ export default function QCPage() {
                 <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-medium">{item.status}</span>
               </div>
 
-              {item.kind === "EDIT" && item.proposedChanges ? <EditDiff item={item} changes={item.proposedChanges} /> : null}
+              {item.kind === "EDIT" && item.proposedChanges ? <EditDiff item={item} changes={item.proposedChanges} /> : <ListingDetails item={item} />}
 
-              <div className="mt-6">
-                <h3 className="font-semibold">{item.kind === "EDIT" ? "Current variant (live)" : "Variants"}</h3>
+              <div className={"mt-6 " + (item.kind === "EDIT" ? "" : "hidden")}>
+                <h3 className="font-semibold">Current variant (live)</h3>
                 <div className="mt-3 space-y-2">
                   {item.variants.map((variant) => (
                     <div key={variant.id} className="rounded-lg bg-slate-50 px-3 py-3 text-sm">
@@ -186,6 +191,8 @@ export default function QCPage() {
 }
 
 const rupees = (paise: number | null | undefined) => (paise == null ? "—" : "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 }));
+const sellerOff = (v: { pricePaise: number; compareAtPaise: number | null }) => (v.compareAtPaise && v.compareAtPaise > v.pricePaise ? Math.round(((v.compareAtPaise - v.pricePaise) / v.compareAtPaise) * 100) : 0);
+const couponPct = (item: Item) => (item.kind === "EDIT" && item.proposedChanges ? item.proposedChanges.couponMaxDiscountPct : item.current.couponMaxDiscountPct);
 const specText = (rows: Array<{ label: string; value: string }>) => (rows.length ? rows.map((row) => `${row.label}: ${row.value}`).join("\n") : "—");
 
 /** Before → after for an edit to a live product. Changed rows are highlighted. */
@@ -235,6 +242,73 @@ function EditDiff({ item, changes }: { item: Item; changes: Changes }) {
               : <span className="block aspect-square w-full bg-slate-100 bg-cover bg-center" style={{ backgroundImage: `url("/media/${media.storageKey}")` }} />}
           </a>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/** Everything the seller filled in for a new listing: category, prices and both kinds of discount, stock and details. */
+function ListingDetails({ item }: { item: Item }) {
+  const pct = item.current.couponMaxDiscountPct;
+  const Row = ({ label, children, hint }: { label: string; children: React.ReactNode; hint?: React.ReactNode }) => (
+    <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{label}</p>
+      <div className="mt-0.5 text-sm font-semibold">{children}</div>
+      {hint ? <p className="mt-0.5 text-[11px] text-ink-muted">{hint}</p> : null}
+    </div>
+  );
+  return (
+    <div className="mt-6 space-y-5">
+      <div>
+        <h3 className="font-semibold">Listing details</h3>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <Row label="Category" hint="Check the product really belongs here; ask the seller to change it if not.">{item.currentCategoryName ?? <span className="text-red-700">No category</span>}</Row>
+          <Row label="LOIMART coupon limit" hint={pct ? `Seller agreed that LOIMART coupons can take up to ${pct}% off; the coupon cost comes from the seller's payout.` : "Seller opted out: their payout isn't reduced by LOIMART coupons."}>
+            {pct ? <span className="text-emerald-700">Up to {pct}% off</span> : "Not in LOIMART coupons"}
+          </Row>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-semibold">Price, discount &amp; stock</h3>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[620px] text-sm">
+            <thead><tr className="text-left text-[11px] uppercase tracking-wide text-ink-muted"><th className="py-2 pr-3">Variant</th><th className="pr-3">SKU</th><th className="pr-3 text-right">MRP</th><th className="pr-3 text-right">Selling price</th><th className="pr-3 text-right">Seller discount</th><th className="pr-3 text-right">Lowest with coupon</th><th className="pr-3 text-right">Weight</th><th className="text-right">Stock</th></tr></thead>
+            <tbody>
+              {item.variants.map((v) => {
+                const off = sellerOff(v);
+                return (
+                  <tr key={v.id} className="border-t border-slate-100">
+                    <td className="py-2.5 pr-3 font-medium">{v.title}</td>
+                    <td className="pr-3 text-ink-muted">{v.sku}</td>
+                    <td className="pr-3 text-right text-ink-muted">{v.compareAtPaise ? rupees(v.compareAtPaise) : "—"}</td>
+                    <td className="pr-3 text-right font-semibold">{rupees(v.pricePaise)}</td>
+                    <td className={"pr-3 text-right font-semibold " + (off >= 70 ? "text-red-700" : off ? "text-emerald-700" : "text-ink-muted")}>{off ? `${off}% off` : "None"}{off >= 70 ? " ⚠" : ""}</td>
+                    <td className="pr-3 text-right">{pct ? rupees(v.pricePaise - Math.floor((v.pricePaise * pct) / 100)) : "—"}</td>
+                    <td className="pr-3 text-right">{v.weightGrams} g</td>
+                    <td className="text-right">{v.onHand ?? "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-2 text-[11px] text-ink-muted">Seller discount = MRP vs selling price, set by the seller (⚠ 70% or more: check the MRP is genuine). Lowest with coupon = selling price after the biggest LOIMART coupon the seller allowed.</p>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div>
+          <h3 className="font-semibold">Description</h3>
+          <p className="mt-2 max-h-60 overflow-y-auto whitespace-pre-line rounded-xl bg-slate-50 p-3 text-sm text-slate-700">{item.current.description || "—"}</p>
+        </div>
+        <div>
+          <h3 className="font-semibold">Specifications</h3>
+          {item.current.specifications.length ? (
+            <dl className="mt-2 max-h-60 divide-y divide-slate-200 overflow-y-auto rounded-xl bg-slate-50 px-3 text-sm">
+              {item.current.specifications.map((r, i) => <div key={i} className="flex gap-3 py-2"><dt className="w-2/5 shrink-0 text-ink-muted">{r.label}</dt><dd className="font-medium">{r.value}</dd></div>)}
+            </dl>
+          ) : <p className="mt-2 rounded-xl bg-slate-50 p-3 text-sm text-ink-muted">—</p>}
+        </div>
       </div>
     </div>
   );
