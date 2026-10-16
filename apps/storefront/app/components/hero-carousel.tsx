@@ -34,7 +34,8 @@ function SlideArt({ image, video, alt, active, priority, className, loop = true,
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (active) {
+    // Only the copy for this screen size plays; the hidden phone/desktop copy never downloads.
+    if (active && el.getClientRects().length > 0) {
       if (restart) el.currentTime = 0; // "play the whole video" starts from the beginning each time
       void el.play().catch(() => undefined);
     } else el.pause();
@@ -42,7 +43,7 @@ function SlideArt({ image, video, alt, active, priority, className, loop = true,
   return (
     <span className={"relative block w-full overflow-hidden " + className}>
       {video ? (
-        <video ref={ref} className={"absolute inset-0 h-full w-full " + (fit === "contain" ? "object-contain bg-black" : "object-cover")} src={video} poster={image || undefined} muted loop={loop} onEnded={onEnded} playsInline preload={active ? "auto" : "metadata"} aria-label={alt} />
+        <video ref={ref} className={"absolute inset-0 h-full w-full " + (fit === "contain" ? "object-contain bg-black" : "object-cover")} src={video} poster={image || undefined} muted loop={loop} onEnded={onEnded} playsInline preload="none" aria-label={alt} />
       ) : image ? (
         fit === "contain" ? (
           <>

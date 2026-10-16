@@ -70,16 +70,23 @@ export default function IntroSplash({ intro }: { intro: StoreIntro }) {
     window.setTimeout(() => setOpen(false), 350);
   }, []);
 
+  // The store stays visible and usable while the animation downloads; the
+  // intro only covers it once it's actually playing (or gives up after 3 s).
   useEffect(() => {
     if (!open) return;
+    const slow = window.setTimeout(() => { if (!readyRef.current) setOpen(false); }, LOAD_TIMEOUT_MS);
+    return () => window.clearTimeout(slow);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !ready) return;
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
     window.addEventListener("keydown", onKey);
     const safety = window.setTimeout(close, SAFETY_SECONDS * 1000);
-    const slow = window.setTimeout(() => { if (!readyRef.current) close(); }, LOAD_TIMEOUT_MS);
-    return () => { document.body.style.overflow = overflow; window.removeEventListener("keydown", onKey); window.clearTimeout(safety); window.clearTimeout(slow); };
-  }, [open, close]);
+    return () => { document.body.style.overflow = overflow; window.removeEventListener("keydown", onKey); window.clearTimeout(safety); };
+  }, [open, ready, close]);
 
   const onReady = useCallback(() => {
     readyRef.current = true;
@@ -94,16 +101,17 @@ export default function IntroSplash({ intro }: { intro: StoreIntro }) {
   return (
     <div
       role="dialog"
+      aria-hidden={!ready}
       aria-modal="true"
       aria-label={intro.name ? `${intro.name} greeting` : "Festival greeting"}
-      className={"fixed inset-0 z-[100] grid place-items-center transition-opacity duration-300 " + (leaving ? "opacity-0" : "opacity-100")}
+      className={"fixed inset-0 z-[100] grid place-items-center transition-opacity duration-300 " + (leaving || !ready ? "pointer-events-none opacity-0" : "opacity-100")}
       style={{ background: intro.background }}
     >
       <button type="button" onClick={go} disabled={!go} aria-label={go ? "Open the offer" : undefined} className={"absolute inset-0 h-full w-full " + (go ? "cursor-pointer" : "cursor-default")}>
         {intro.kind === "video" ? (
           <video
             src={src}
-            className={"h-full w-full object-contain transition-opacity duration-300 " + (ready ? "opacity-100" : "opacity-0")}
+            className="h-full w-full object-contain"
             autoPlay
             muted
             playsInline
@@ -114,7 +122,7 @@ export default function IntroSplash({ intro }: { intro: StoreIntro }) {
           />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt="" className={"h-full w-full object-contain transition-opacity duration-300 " + (ready ? "opacity-100" : "opacity-0")} onLoad={onReady} onError={close} />
+          <img src={src} alt="" className="h-full w-full object-contain" onLoad={onReady} onError={close} />
         )}
       </button>
       <button

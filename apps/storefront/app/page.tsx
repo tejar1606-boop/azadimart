@@ -26,6 +26,7 @@ import { getCategoryRail, type RailCategory } from "./lib/category-rail";
 import { loadCardBadges, loadCardCoupons } from "./lib/offers";
 import { SITE_NAME, SITE_URL, absoluteUrl, clip, jsonLd } from "./lib/seo";
 import type { Metadata } from "next";
+import LazyVideo from "./components/lazy-video";
 
 export const dynamic = "force-dynamic";
 
@@ -439,7 +440,7 @@ function BannerArt({ image, video, alt, className, priority = false, fit = "cove
   return (
     <span className={"relative w-full overflow-hidden " + className}>
       {video ? (
-        <video className={"absolute inset-0 h-full w-full " + (fit === "contain" ? "object-contain bg-black" : "object-cover")} src={video} poster={image || undefined} autoPlay muted loop playsInline preload="metadata" aria-label={alt} />
+        <LazyVideo className={"absolute inset-0 h-full w-full " + (fit === "contain" ? "object-contain bg-black" : "object-cover")} src={video} poster={image || undefined} label={alt} />
       ) : image ? (
         fit === "contain" ? (
           <>
@@ -818,7 +819,7 @@ function VideoSection({ s }: { s: Settings }) {
   return (
     <Container className="py-10 sm:py-14">
       {str(s, "heading") ? <SectionHeading heading={str(s, "heading")} subtitle={str(s, "subtitle")} /> : null}
-      <video className="mt-6 aspect-video w-full rounded-2xl bg-black object-cover" src={url} autoPlay muted loop playsInline controls={false} />
+      <LazyVideo className="mt-6 aspect-video w-full rounded-2xl bg-black object-cover" src={url} />
     </Container>
   );
 }
