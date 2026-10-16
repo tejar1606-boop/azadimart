@@ -1,6 +1,6 @@
 import Link from "next/link";
 import ProductGallery from "./product-gallery";
-import VariantPicker from "./variant-picker";
+import { ColorGallery, SelectedAddToCart, SelectedPrice, SelectedStock, VariantProvider } from "./variant-state";
 import { notFound } from "next/navigation";
 import { createDatabase, inventory, mediaAssets, productMedia, productVariants, products, sellers, categories, productAplusContent, productSummaries } from "@azadimart/database";
 import { and, asc, desc, eq, inArray, ne, notInArray, or, type SQL } from "drizzle-orm";
@@ -174,11 +174,9 @@ export default async function ProductDetailPage({ params, searchParams }: { para
   const availableQuantity = Math.max(0, (selectedVariant.onHand ?? 0) - (selectedVariant.reserved ?? 0));
   // Colours/sizes: the picker lists options in the seller's order; the gallery shows the chosen colour's photos.
   const hasOptions = variants.some((v) => v.attributes?.color || v.attributes?.size);
-  const pickerVariants = [...variants].sort((a, b) => a.variantCreatedAt.getTime() - b.variantCreatedAt.getTime()).map((v) => ({ id: v.variantId, title: v.variantTitle, color: v.attributes?.color, colorHex: v.attributes?.colorHex, size: v.attributes?.size, stock: stockOf(v), pricePaise: v.pricePaise }));
-  const selectedColor = selectedVariant.attributes?.color;
-  const galleryMedia = selectedColor && media.some((m) => m.mediaColor === selectedColor)
-    ? [...media.filter((m) => m.mediaColor === selectedColor), ...media.filter((m) => !m.mediaColor)]
-    : media;
+  const pickerVariants = [...variants].sort((a, b) => (hasOptions ? a.variantCreatedAt.getTime() - b.variantCreatedAt.getTime() : 0) || a.pricePaise - b.pricePaise || a.variantId.localeCompare(b.variantId))
+    .map((v) => ({ id: v.variantId, title: v.variantTitle, sku: v.sku, pricePaise: v.pricePaise, compareAtPaise: v.compareAtPaise, stock: stockOf(v), color: v.attributes?.color, colorHex: v.attributes?.colorHex, size: v.attributes?.size }));
+
   const hasDiscount = Boolean(selectedVariant.compareAtPaise && selectedVariant.compareAtPaise > selectedVariant.pricePaise);
   const discountPercent = hasDiscount ? Math.round((1 - selectedVariant.pricePaise / (selectedVariant.compareAtPaise ?? selectedVariant.pricePaise)) * 100) : 0;
   const relatedRows = await moreToExplore(db, first);
@@ -250,11 +248,11 @@ export default async function ProductDetailPage({ params, searchParams }: { para
           },
         ])} />
 
+        <VariantProvider variants={pickerVariants} initialId={selectedVariant.variantId}>
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10 [&>*]:min-w-0">
-          <div className="relative"><ProductGallery
-            key={selectedColor ?? "all"}
-            title={selectedColor ? `${first.title} (${selectedColor})` : first.title}
-            media={galleryMedia.filter((item) => Boolean(item.mediaAssetId && item.mediaStorageKey && (item.mediaKind === "IMAGE" || item.mediaKind === "VIDEO"))).map((item) => ({ mediaAssetId: String(item.mediaAssetId), mediaStorageKey: String(item.mediaStorageKey), altText: item.altText, kind: item.mediaKind as "IMAGE" | "VIDEO" }))}
+          <div className="relative"><ColorGallery
+            title={first.title}
+            media={media.filter((item) => Boolean(item.mediaAssetId && item.mediaStorageKey && (item.mediaKind === "IMAGE" || item.mediaKind === "VIDEO"))).map((item) => ({ mediaAssetId: String(item.mediaAssetId), mediaStorageKey: String(item.mediaStorageKey), altText: item.altText, kind: item.mediaKind as "IMAGE" | "VIDEO", color: item.mediaColor }))}
           />
           <div className="absolute right-3 top-3 z-10"><WishlistButton productId={first.id} /></div>
           </div>
@@ -274,17 +272,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
               <ShareButton path={"/products/" + first.slug} title={first.title} pricePaise={selectedVariant.pricePaise} />
             </div>
 
-            <div className="mt-6 flex flex-wrap items-end gap-3">
-              <span className="text-3xl font-bold">{money(selectedVariant.pricePaise)}</span>
-              {hasDiscount ? <span className="text-base text-slate-500">MRP <span className="line-through">{money(selectedVariant.compareAtPaise!)}</span></span> : null}
-              {hasDiscount ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{discountPercent}% off</span> : null}
-            </div>
-            {offers.priceDrop && selectedVariant.pricePaise === lowestPrice ? (
-              <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-india-light px-2.5 py-1 text-sm font-semibold text-india">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7" /></svg>
-                Price dropped by {money(offers.priceDrop.savedPaise)} <span className="font-normal text-india/80">(was {money(offers.priceDrop.beforePaise)})</span>
-              </p>
-            ) : null}
+            <SelectedPrice lowestPrice={lowestPrice} priceDrop={offers.priceDrop ? { savedPaise: offers.priceDrop.savedPaise, beforePaise: offers.priceDrop.beforePaise } : null} />
             <p className="mt-2 text-xs text-slate-400">Inclusive of applicable taxes • Final price shown at checkout</p>
             {offers.coupons.length ? (
               <div className="mt-4 rounded-2xl border border-[#E4D8FB] bg-white p-3.5">
@@ -300,44 +288,11 @@ export default async function ProductDetailPage({ params, searchParams }: { para
               </div>
             ) : null}
 
-            <div className="mt-6 rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Availability</p>
-              <p className={`mt-1 font-bold ${availableQuantity > 0 ? "text-emerald-700" : "text-red-600"}`}>{availableQuantity > 0 ? availableQuantity < 5 ? `Only ${availableQuantity} left` : "In stock" : "Currently out of stock"}</p>
-              {hasOptions ? (
-                <div className="mt-4"><VariantPicker variants={pickerVariants} selectedId={selectedVariant.variantId} /></div>
-              ) : (<>
-              <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Variant</p>
-              {variants.length > 1 ? (
-                <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Choose a variant">
-                  {variants.map((variant) => {
-                    const selected = variant.variantId === selectedVariant.variantId;
-                    const inStock = stockOf(variant) > 0;
-                    return (
-                      <Link
-                        key={variant.variantId}
-                        href={"?variant=" + variant.variantId}
-                        replace
-                        scroll={false}
-                        role="radio"
-                        aria-checked={selected}
-                        className={"rounded-full border px-3 py-1.5 text-xs font-bold " + (selected ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700") + (inStock ? "" : " line-through opacity-60")}
-                      >
-                        {variant.variantTitle} · {money(variant.pricePaise)}
-                      </Link>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="mt-1 font-semibold">{selectedVariant.variantTitle}</p>
-              )}
-              </>)}
-              <p className="mt-1 text-xs text-slate-400">SKU {selectedVariant.sku}</p>
-            </div>
-
+            <SelectedStock hasOptions={hasOptions} />
 
             {/* Buttons first, so Buy now is reached without scrolling past the description. */}
             <div className="mt-7">
-              <AddToCart key={selectedVariant.variantId} variantId={selectedVariant.variantId} availableQuantity={availableQuantity} />
+              <SelectedAddToCart />
             </div>
             {/* Trust markers, highlighted right under the buttons where shoppers decide to buy. */}
             <section aria-label="The loimart promise" className="mt-4 rounded-2xl bg-gradient-to-br from-[#F1E8FF] via-[#FBF0FF] to-[#FFE8F0] p-3.5 ring-1 ring-[#E3D3FF] sm:p-4">
@@ -378,6 +333,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
 
           </section>
         </div>
+        </VariantProvider>
 
         {aplusBlocks.length ? (
           <section aria-label="From the seller" className="mt-12 border-t border-slate-200 pt-10">

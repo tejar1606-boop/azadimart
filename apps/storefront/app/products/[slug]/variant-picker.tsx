@@ -1,5 +1,6 @@
+"use client";
+
 import { compareSizes, swatchBackground } from "@azadimart/shared";
-import Link from "next/link";
 
 export type PickerVariant = { id: string; title: string; color?: string; colorHex?: string; size?: string; stock: number; pricePaise: number };
 
@@ -8,10 +9,10 @@ const money = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", {
 /**
  * Colour circles and size buttons (fashion), like Myntra/Ajio: pick a colour,
  * then a size. Sold-out sizes are crossed out, low stock shows "2 left", and a
- * colour with nothing in stock is struck through. Links keep the page
- * server-rendered (and shareable) with ?variant=.
+ * colour with nothing in stock is struck through. Choosing is instant
+ * (handled in the browser by VariantProvider).
  */
-export default function VariantPicker({ variants, selectedId }: { variants: PickerVariant[]; selectedId: string }) {
+export default function VariantPicker({ variants, selectedId, onSelect }: { variants: PickerVariant[]; selectedId: string; onSelect: (id: string) => void }) {
   const selected = variants.find((v) => v.id === selectedId) ?? variants[0]!;
   const colors: Array<{ name: string; hex?: string }> = [];
   for (const v of variants) if (v.color && !colors.some((c) => c.name === v.color)) colors.push({ name: v.color, hex: v.colorHex });
@@ -36,11 +37,11 @@ export default function VariantPicker({ variants, selectedId }: { variants: Pick
               const active = c.name === selected.color;
               const soldOut = forColor(c.name).every((v) => v.stock <= 0);
               return (
-                <Link key={c.name} href={"?variant=" + target.id} replace scroll={false} role="radio" aria-checked={active} aria-label={c.name + (soldOut ? " (sold out)" : "")} title={c.name}
+                <button key={c.name} type="button" onClick={() => onSelect(target.id)} role="radio" aria-checked={active} aria-label={c.name + (soldOut ? " (sold out)" : "")} title={c.name}
                   className={"relative grid h-10 w-10 place-items-center rounded-full transition " + (active ? "ring-2 ring-slate-950 ring-offset-2" : "ring-1 ring-slate-200 hover:ring-slate-400")}>
                   <span className="h-8 w-8 rounded-full ring-1 ring-black/10" style={{ background: swatchBackground(c.hex) }} />
                   {soldOut ? <span className="absolute inset-0 m-auto h-[2px] w-10 rotate-45 bg-slate-500/80" aria-hidden="true" /> : null}
-                </Link>
+                </button>
               );
             })}
           </div>
@@ -58,12 +59,12 @@ export default function VariantPicker({ variants, selectedId }: { variants: Pick
               if (!target) return <span key={size} className={base + " cursor-not-allowed border-dashed border-slate-200 text-slate-300"} title={`Not made in ${selected.color}`}>{size}</span>;
               const out = target.stock <= 0;
               return (
-                <Link key={size} href={"?variant=" + target.id} replace scroll={false} role="radio" aria-checked={active} aria-label={size + (out ? " (sold out)" : "")}
+                <button key={size} type="button" onClick={() => onSelect(target.id)} role="radio" aria-checked={active} aria-label={size + (out ? " (sold out)" : "")}
                   className={base + " " + (active ? "border-slate-950 bg-slate-950 text-white" : out ? "border-slate-200 bg-slate-50 text-slate-400 line-through" : "border-slate-300 bg-white text-slate-900 hover:border-slate-950")}>
                   {size}
                   {!samePrice ? <span className={"text-[10px] font-semibold no-underline " + (active ? "text-white/75" : "text-slate-500")}>{money(target.pricePaise)}</span> : null}
                   {!out && target.stock <= 3 ? <span className={"absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-1.5 text-[9px] font-bold " + (active ? "bg-amber-400 text-slate-950" : "bg-amber-100 text-amber-800")}>{target.stock} left</span> : null}
-                </Link>
+                </button>
               );
             })}
           </div>
