@@ -209,6 +209,7 @@ export default function LiveConsole({ meId }: { meId: string }) {
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-600">Support</p>
           <h1 className="text-2xl font-semibold tracking-tight">Live chat</h1>
         </div>
+        <a href="/live-chat/reports" className="order-last inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm font-semibold shadow-card ring-1 ring-slate-200 hover:ring-slate-400 sm:order-none">📊 Reports &amp; download</a>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-full bg-white p-1 shadow-card ring-1 ring-slate-200" role="radiogroup" aria-label="My status">
             {(["ONLINE", "AWAY", "OFFLINE"] as const).map((s) => (

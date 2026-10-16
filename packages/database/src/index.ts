@@ -9,4 +9,5 @@ export * from "./settlements";
 export * from "./ads";
 export * from "./support";
 export * from "./live-chat";
+export * from "./live-chat-report";
 export * from "./product-edit";

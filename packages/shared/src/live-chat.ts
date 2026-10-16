@@ -63,6 +63,15 @@ export const liveChatStartSchema = z.object({
 });
 export const liveChatMessageSchema = z.object({ body });
 
+const reportDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 2026-10-01");
+/** Admin → Live chat → Reports filters (query string). */
+export const liveChatReportQuerySchema = z.object({
+  from: reportDay.optional(), to: reportDay.optional(), agent: z.string().uuid().optional(),
+  source: z.enum(["STOREFRONT", "SELLER"]).optional(),
+  rating: z.union([z.enum(["1", "2", "3", "4", "5"]).transform(Number), z.literal("none")]).optional(),
+  outcome: z.enum(["RESOLVED", "ABANDONED", "IDLE", "TICKET", "MISSED"]).optional(),
+});
+
 /** A photo or PDF sent in a live chat. Stored privately; opened through a signed, expiring link. */
 export type LiveChatAttachment = { key: string; name: string; mimeType: string; size: number; kind: "IMAGE" | "DOCUMENT" };
 /** Largest photo or PDF a chat accepts. */

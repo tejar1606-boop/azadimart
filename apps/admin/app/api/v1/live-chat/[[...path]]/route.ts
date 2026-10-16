@@ -1,9 +1,9 @@
 import { requireStaff } from "@azadimart/auth";
 import {
   agentCanSend, agentConsole, agentLiveChat, agentLiveEnd, agentLiveSend, agentLiveTake, agentLiveToTicket, agentLiveTransfer, agentLiveTyping,
-  auditLogs, createDatabase, liveChatHistory, orders, products, sellers, setAgentPresence, supportCannedReplies,
+  auditLogs, createDatabase, liveChatHistory, liveChatReport, liveChatReportCsv, liveChatReportRows, orders, products, sellers, setAgentPresence, supportCannedReplies,
 } from "@azadimart/database";
-import { AppError, LIVE_CHAT_FILE_MAX_BYTES, liveAgentPresenceSchema, liveChatMessageSchema, liveChatTransferSchema, toApiError, uuidSchema } from "@azadimart/shared";
+import { AppError, LIVE_CHAT_FILE_MAX_BYTES, liveAgentPresenceSchema, liveChatReportQuerySchema, liveChatMessageSchema, liveChatTransferSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { and, count, desc, eq } from "drizzle-orm";
 import { ChatFileError, assertUploadsAvailable, getObjectStore, saveChatUpload, serveChatFile, withChatFileLinks } from "@azadimart/storage";
 import { NextResponse } from "next/server";
@@ -15,10 +15,23 @@ const fail = (error: unknown) => { const { status, body } = toApiError(error, cr
 const FILES = "/api/v1/live-chat/files";
 const ok = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "cache-control": "no-store" } });
 
+const istToday = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
+
+/** Report filters from the query string: India-time days, last 30 days by default, at most a year. */
+function reportFilter(url: URL) {
+  const q = liveChatReportQuerySchema.parse(Object.fromEntries([...url.searchParams].filter(([, v]) => v !== "")));
+  const to = q.to ?? istToday();
+  const from = q.from ?? new Date(new Date(to + "T00:00:00Z").getTime() - 29 * 86_400_000).toISOString().slice(0, 10);
+  if (from > to) throw new AppError("VALIDATION_ERROR", "The start date is after the end date");
+  if ((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000 > 366) throw new AppError("VALIDATION_ERROR", "Choose a range of up to one year");
+  return { from, to, agentId: q.agent, source: q.source, rating: q.rating, outcome: q.outcome };
+}
+
 /**
  * Live chat console (team members whose role includes Live chat).
  * GET  /live-chat                      console state; also the agent's heartbeat
  * GET  /live-chat/history?q=           ended chats
+ * GET  /live-chat/report?from&to&agent&source&rating&outcome[&format=csv]   tracking + download
  * GET  /live-chat/chats/{id}?after=N[&context=1]
  */
 export async function GET(request: Request, { params }: Params) {
@@ -30,6 +43,16 @@ export async function GET(request: Request, { params }: Params) {
     if (section === "files") return await serveChatFile(getObjectStore(), url.searchParams);
     if (!section) return ok(await agentConsole(db, me.userId));
     if (section === "history") return ok({ items: await liveChatHistory(db, url.searchParams.get("q") ?? "") });
+    if (section === "report") {
+      const filter = reportFilter(url);
+      if (url.searchParams.get("format") === "csv") {
+        const rows = await liveChatReportRows(db, filter, 20_000);
+        await db.insert(auditLogs).values({ actorUserId: me.userId, action: "LIVE_CHAT_REPORT_EXPORTED", entityType: "live_chat", entityId: null, metadata: { ...filter, rows: rows.length } });
+        return new NextResponse(liveChatReportCsv(rows), { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="loimart-live-chats-${filter.from}-to-${filter.to}.csv"`, "cache-control": "no-store" } });
+      }
+      const [report, rows] = await Promise.all([liveChatReport(db, filter), liveChatReportRows(db, filter, 200)]);
+      return ok({ filter, ...report, rows });
+    }
     if (section === "chats" && chatId) {
       const withContext = url.searchParams.get("context") === "1";
       const data = await agentLiveChat(db, me.userId, uuidSchema.parse(chatId), Number(url.searchParams.get("after") ?? 0) || 0, withContext);
