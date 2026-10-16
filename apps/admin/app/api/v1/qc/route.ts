@@ -3,6 +3,8 @@ export async function GET(request: Request) {
   try {
     await requireStaff(request, "catalog");
     const db = createDatabase();
+    const url = new URL(request.url);
+    if (url.searchParams.get("view") === "history") return NextResponse.json({ items: await qcHistory(db, url.searchParams), requestId });
 
     const submissions = await db
       .select({
@@ -108,10 +110,10 @@ export async function GET(request: Request) {
 }
 
 import { requireStaff } from "@azadimart/auth";
-import { applyProductEdit, auditLogs, categories, createDatabase, inventory, mediaAssets, productAplusContent, productMedia, productVariants, products, qcSubmissions, sellers } from "@azadimart/database";
+import { applyProductEdit, auditLogs, categories, createDatabase, inventory, mediaAssets, productAplusContent, productMedia, productVariants, products, qcSubmissions, sellers, staffMembers, users } from "@azadimart/database";
 import { notifySeller } from "@azadimart/notify";
 import { AppError, qcDecisionSchema, toApiError } from "@azadimart/shared";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -238,4 +240,46 @@ export async function POST(request: Request) {
     const { status, body } = toApiError(error, requestId);
     return NextResponse.json(body, { status });
   }
+}
+
+const HISTORY_DAYS = [7, 30, 90, 365];
+
+/**
+ * Decided QC reviews (newest first): who approved or rejected what, when, and
+ * the note sent to the seller. Each resubmission is its own row, so earlier
+ * rejections stay visible after the seller fixes a product.
+ */
+async function qcHistory(db: ReturnType<typeof createDatabase>, params: URLSearchParams) {
+  const decision = params.get("decision");
+  const days = HISTORY_DAYS.includes(Number(params.get("days"))) ? Number(params.get("days")) : 30;
+  const q = (params.get("q") ?? "").trim().slice(0, 100);
+  const filters = [
+    decision === "APPROVED" || decision === "REJECTED" ? eq(qcSubmissions.status, decision) : inArray(qcSubmissions.status, ["APPROVED", "REJECTED"]),
+    gte(qcSubmissions.updatedAt, new Date(Date.now() - days * 86_400_000)),
+  ];
+  if (q) {
+    const like = `%${q.replace(/[\\%_]/g, (m) => "\\" + m)}%`;
+    filters.push(or(ilike(products.title, like), ilike(sellers.storeName, like), sql`exists (select 1 from product_variants v where v.product_id = ${products.id} and v.sku ilike ${like})`)!);
+  }
+  const rows = await db.select({
+    id: qcSubmissions.id,
+    productId: qcSubmissions.productId,
+    decision: qcSubmissions.status,
+    notes: qcSubmissions.notes,
+    submittedAt: qcSubmissions.createdAt,
+    decidedAt: qcSubmissions.updatedAt,
+    isEdit: sql<boolean>`${qcSubmissions.proposedChanges} is not null`,
+    productTitle: products.title,
+    productStatus: products.status,
+    sellerName: sellers.storeName,
+    reviewer: sql<string | null>`coalesce(${staffMembers.displayName}, split_part(${users.email}, '@', 1))`,
+  }).from(qcSubmissions)
+    .innerJoin(products, eq(products.id, qcSubmissions.productId))
+    .innerJoin(sellers, eq(sellers.id, qcSubmissions.sellerId))
+    .leftJoin(users, eq(users.id, qcSubmissions.reviewedByUserId))
+    .leftJoin(staffMembers, eq(staffMembers.userId, qcSubmissions.reviewedByUserId))
+    .where(and(...filters))
+    .orderBy(desc(qcSubmissions.updatedAt))
+    .limit(500);
+  return rows;
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { toCsv } from "@azadimart/shared";
+import { useCallback, useEffect, useState } from "react";
 
 type Changes = {
   title: string; categoryId: string; description: string | null; specifications: Array<{ label: string; value: string }>; couponMaxDiscountPct: number;
@@ -28,6 +29,7 @@ type Item = {
 };
 
 export default function QCPage() {
+  const [tab, setTab] = useState<"waiting" | "history">("waiting");
   const [items, setItems] = useState<Item[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
@@ -90,6 +92,13 @@ export default function QCPage() {
         Review product media, variants and listing content before sending the product to final admin approval.
       </p>
 
+      <div className="mt-5 inline-flex rounded-full border border-slate-200 bg-white p-1 text-sm font-semibold">
+        {([["waiting", `Waiting for review (${items.length})`], ["history", "History: approved & rejected"]] as const).map(([k, label]) => (
+          <button key={k} type="button" aria-pressed={tab === k} onClick={() => setTab(k)} className={"rounded-full px-4 py-2 transition " + (tab === k ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900")}>{label}</button>
+        ))}
+      </div>
+
+      {tab === "history" ? <QcHistory /> : <>
       {error ? <p className="mt-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
       {message ? <p className="mt-5 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">{message}</p> : null}
 
@@ -186,6 +195,7 @@ export default function QCPage() {
           )}
         </section>
       </div>
+      </>}
     </main>
   );
 }
@@ -311,5 +321,78 @@ function ListingDetails({ item }: { item: Item }) {
         </div>
       </div>
     </div>
+  );
+}
+
+type HistoryRow = { id: string; productId: string; decision: "APPROVED" | "REJECTED"; notes: string | null; submittedAt: string; decidedAt: string; isEdit: boolean; productTitle: string; productStatus: string; sellerName: string; reviewer: string | null };
+const STATUS_LABEL: Record<string, string> = { LIVE: "Live", UNLISTED: "Hidden", PENDING_QC: "Back in QC", PENDING_ADMIN_APPROVAL: "Awaiting final approval", DRAFT: "Draft (seller editing)", QC_REJECTED: "Needs changes", ARCHIVED: "Archived" };
+const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+/** Past QC decisions: what was rejected or approved, by whom, when and why, and where the product is now. */
+function QcHistory() {
+  const [decision, setDecision] = useState<"REJECTED" | "APPROVED" | "">("REJECTED");
+  const [days, setDays] = useState(30);
+  const [q, setQ] = useState("");
+  const [rows, setRows] = useState<HistoryRow[] | null>(null);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    setError("");
+    try {
+      const params = new URLSearchParams({ view: "history", decision, days: String(days), q: q.trim() });
+      const response = await fetch(`/api/v1/qc?${params}`, { cache: "no-store" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body?.error?.message ?? "Unable to load QC history.");
+      setRows(body.items ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load QC history.");
+    }
+  }, [decision, days, q]);
+  useEffect(() => { const t = setTimeout(() => void load(), q ? 300 : 0); return () => clearTimeout(t); }, [load, q]);
+
+  function downloadCsv() {
+    if (!rows) return;
+    const csv = toCsv([["Decided", "Decision", "Type", "Product", "Seller", "Reviewed by", "Note to seller", "Sent for QC", "Product now"],
+      ...rows.map((r) => [when(r.decidedAt), r.decision === "REJECTED" ? "Rejected" : "Approved", r.isEdit ? "Edit request" : "New listing", r.productTitle, r.sellerName, r.reviewer ?? "", r.notes ?? "", when(r.submittedAt), STATUS_LABEL[r.productStatus] ?? r.productStatus])]);
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a"); a.href = url; a.download = `qc-history-${decision.toLowerCase() || "all"}-${days}d.csv`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  const pill = (on: boolean) => "rounded-full border px-3 py-1.5 text-xs font-semibold transition " + (on ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white hover:border-slate-900");
+  return (
+    <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        {([["REJECTED", "Rejected"], ["APPROVED", "Approved"], ["", "All"]] as const).map(([v, label]) => <button key={label} type="button" onClick={() => setDecision(v)} className={pill(decision === v)}>{label}</button>)}
+        <span className="mx-1 h-5 w-px bg-slate-200" />
+        <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold">
+          {[7, 30, 90, 365].map((d) => <option key={d} value={d}>Last {d === 365 ? "12 months" : `${d} days`}</option>)}
+        </select>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search product, seller or SKU" className="min-w-0 flex-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs sm:max-w-xs" />
+        <button type="button" disabled={!rows?.length} onClick={downloadCsv} className="ml-auto rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold hover:border-slate-900 disabled:opacity-40">Download CSV</button>
+      </div>
+      {error ? <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
+      {!rows ? <p className="py-8 text-sm text-ink-muted">Loading…</p> : !rows.length ? <p className="py-8 text-sm text-ink-muted">No {decision === "REJECTED" ? "rejected" : decision === "APPROVED" ? "approved" : ""} reviews in this period.</p> : (
+        <div className="mt-4 overflow-x-auto">
+          <p className="mb-2 text-xs text-ink-muted">{rows.length}{rows.length === 500 ? "+ (showing the newest 500)" : ""} review{rows.length === 1 ? "" : "s"}</p>
+          <table className="w-full min-w-[860px] text-sm">
+            <thead><tr className="text-left text-[11px] uppercase tracking-wide text-ink-muted"><th className="py-2 pr-3">Decided</th><th className="pr-3">Decision</th><th className="pr-3">Product</th><th className="pr-3">Seller</th><th className="pr-3">Reviewed by</th><th className="pr-3">Note to seller</th><th>Product now</th></tr></thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} className="border-t border-slate-100 align-top">
+                  <td className="whitespace-nowrap py-2.5 pr-3 text-xs text-ink-muted">{when(r.decidedAt)}</td>
+                  <td className="pr-3"><span className={"rounded-full px-2 py-0.5 text-[11px] font-semibold " + (r.decision === "REJECTED" ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700")}>{r.decision === "REJECTED" ? "Rejected" : "Approved"}</span>{r.isEdit ? <span className="mt-1 block text-[10px] text-ink-muted">Edit request</span> : null}</td>
+                  <td className="max-w-[240px] pr-3"><a href={`/catalog/${r.productId}`} className="font-medium hover:underline">{r.productTitle}</a></td>
+                  <td className="pr-3 text-ink-muted">{r.sellerName}</td>
+                  <td className="pr-3">{r.reviewer ?? "—"}</td>
+                  <td className="max-w-[280px] whitespace-pre-line pr-3 text-xs">{r.notes || <span className="text-ink-muted">No note</span>}</td>
+                  <td className="text-xs">{STATUS_LABEL[r.productStatus] ?? r.productStatus}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
