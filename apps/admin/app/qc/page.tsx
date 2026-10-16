@@ -30,6 +30,7 @@ type Item = {
 
 export default function QCPage() {
   const [tab, setTab] = useState<"waiting" | "history">("waiting");
+  const [canSeeHistory, setCanSeeHistory] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
@@ -46,6 +47,7 @@ export default function QCPage() {
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error?.message ?? "Unable to load QC submissions.");
       setItems(body.items ?? []);
+      setCanSeeHistory(body.canSeeHistory === true);
       setSelected((current) => current && (body.items ?? []).some((item: Item) => item.id === current) ? current : body.items?.[0]?.id ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load QC submissions.");
@@ -92,13 +94,13 @@ export default function QCPage() {
         Review product media, variants and listing content before sending the product to final admin approval.
       </p>
 
-      <div className="mt-5 inline-flex rounded-full border border-slate-200 bg-white p-1 text-sm font-semibold">
+      {canSeeHistory ? <div className="mt-5 inline-flex rounded-full border border-slate-200 bg-white p-1 text-sm font-semibold">
         {([["waiting", `Waiting for review (${items.length})`], ["history", "History: approved & rejected"]] as const).map(([k, label]) => (
           <button key={k} type="button" aria-pressed={tab === k} onClick={() => setTab(k)} className={"rounded-full px-4 py-2 transition " + (tab === k ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900")}>{label}</button>
         ))}
-      </div>
+      </div> : null}
 
-      {tab === "history" ? <QcHistory /> : <>
+      {tab === "history" && canSeeHistory ? <QcHistory /> : <>
       {error ? <p className="mt-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
       {message ? <p className="mt-5 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">{message}</p> : null}
 
@@ -371,6 +373,7 @@ function QcHistory() {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search product, seller or SKU" className="min-w-0 flex-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs sm:max-w-xs" />
         <button type="button" disabled={!rows?.length} onClick={downloadCsv} className="ml-auto rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold hover:border-slate-900 disabled:opacity-40">Download CSV</button>
       </div>
+      <p className="mt-3 text-[11px] text-ink-muted">🔒 Only admins see this history. QC team members see just the products waiting for review.</p>
       {error ? <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
       {!rows ? <p className="py-8 text-sm text-ink-muted">Loading…</p> : !rows.length ? <p className="py-8 text-sm text-ink-muted">No {decision === "REJECTED" ? "rejected" : decision === "APPROVED" ? "approved" : ""} reviews in this period.</p> : (
         <div className="mt-4 overflow-x-auto">

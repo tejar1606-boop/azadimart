@@ -1,10 +1,14 @@
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    await requireStaff(request, "catalog");
+    const access = await requireStaff(request, "catalog");
     const db = createDatabase();
     const url = new URL(request.url);
-    if (url.searchParams.get("view") === "history") return NextResponse.json({ items: await qcHistory(db, url.searchParams), requestId });
+    // Past decisions (who rejected what, and why) are for admins only, not the whole QC team.
+    if (url.searchParams.get("view") === "history") {
+      if (!access.fullAccess) throw new AppError("FORBIDDEN", "Only admins can see QC history");
+      return NextResponse.json({ items: await qcHistory(db, url.searchParams), requestId });
+    }
 
     const submissions = await db
       .select({
@@ -29,7 +33,7 @@ export async function GET(request: Request) {
       .orderBy(asc(qcSubmissions.createdAt));
 
     const productIds = submissions.map((item) => item.productId);
-    if (!productIds.length) return NextResponse.json({ items: [] });
+    if (!productIds.length) return NextResponse.json({ items: [], canSeeHistory: access.fullAccess });
 
     const [variants, media, aplus] = await Promise.all([
       db.select({
@@ -101,6 +105,7 @@ export async function GET(request: Request) {
         media: mediaMap.get(item.productId) ?? [],
         aplusBlocks: aplusMap.get(item.productId) ?? [],
       })),
+      canSeeHistory: access.fullAccess,
       requestId,
     });
   } catch (error) {
