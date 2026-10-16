@@ -50,7 +50,7 @@ export function verifyChatFileLink(params: URLSearchParams): string | null {
 }
 
 /** Replaces each message's stored file key with a signed link the viewer can open. */
-export function withChatFileLinks<T extends { messages: Array<{ attachment?: ChatFile | null }> }>(data: T, filesPath: string): T {
+export function withChatFileLinks<M extends { attachment?: ChatFile | null }, T extends { messages: M[] }>(data: T, filesPath: string): Omit<T, "messages"> & { messages: Array<Omit<M, "attachment"> & { attachment: ChatFileView | null }> } {
   return {
     ...data,
     messages: data.messages.map((m) => {

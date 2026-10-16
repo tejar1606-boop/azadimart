@@ -26,7 +26,7 @@ describe("chat files", () => {
   it("never sends the storage key to the browser", () => {
     const out = withChatFileLinks({ messages: [{ attachment: { key: "chat-files/a/b.pdf", name: "b.pdf", mimeType: "application/pdf", size: 10, kind: "DOCUMENT" as const } }, { attachment: null }] }, "/api/v1/live-chat/files");
     expect(out.messages[0]!.attachment).not.toHaveProperty("key");
-    expect((out.messages[0]!.attachment as { url: string }).url).toMatch(/^\/api\/v1\/live-chat\/files\?k=/);
+    expect(out.messages[0]!.attachment?.url).toMatch(/^\/api\/v1\/live-chat\/files\?k=/);
     expect(out.messages[1]!.attachment).toBeNull();
   });
 });
