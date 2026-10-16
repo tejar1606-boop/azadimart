@@ -101,8 +101,9 @@ export default function AuthScene({ headline, sub, children }: { headline: React
         ))}
       </div>
 
-      <div className="mx-auto grid max-w-6xl items-center gap-6 lg:grid-cols-[minmax(0,1fr)_440px] lg:gap-12">
-        <section className="text-white">
+      {/* minmax(0,1fr): the column never grows past the screen, even with large phone text sizes. */}
+      <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] items-center gap-6 lg:grid-cols-[minmax(0,1fr)_440px] lg:gap-12">
+        <section className="min-w-0 text-white">
           {/* phone: a smaller ring above the form */}
           <div className="relative mx-auto h-[150px] w-full max-w-sm lg:hidden">{ring(150, "h-[96px] w-[74px]")}</div>
           <div className="hidden lg:block">
@@ -122,7 +123,7 @@ export default function AuthScene({ headline, sub, children }: { headline: React
             </div>
           </div>
         </section>
-        <div className="relative">
+        <div className="relative min-w-0">
           <Link href="/" className="sr-only">LOIMART home</Link>
           {children}
         </div>

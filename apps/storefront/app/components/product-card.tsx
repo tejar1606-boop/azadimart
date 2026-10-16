@@ -59,9 +59,9 @@ export default function ProductCard({ product, priority = false, sizes = "(max-w
         {product.sellerName ? <p className="truncate text-[10.5px] font-medium uppercase tracking-[0.06em] text-slate-400">{product.sellerName}</p> : null}
         <p className="mt-0.5 line-clamp-2 min-h-10 text-[13px] leading-5 text-slate-800 sm:text-sm">{product.title}</p>
         {product.reviewCount ? <span className="mt-1.5"><RatingPill average={(product.ratingTotal ?? 0) / product.reviewCount} count={product.reviewCount} compact /></span> : null}
-        {/* Always two lines (price + % off, then MRP) so prices line up across a row, however narrow the card. */}
+        {/* Price + % off, then MRP: two lines so prices line up across a row (% off wraps only with very large phone text). */}
         <div className="mt-auto pt-1.5">
-          <p className="flex items-baseline gap-1.5 whitespace-nowrap">
+          <p className="flex flex-wrap items-baseline gap-x-1.5">
             <span className="text-base font-semibold text-slate-950 sm:text-lg">{formatPrice(product.pricePaise)}</span>
             {off > 0 ? <span className="text-xs font-semibold text-save">{off}% off</span> : null}
           </p>
