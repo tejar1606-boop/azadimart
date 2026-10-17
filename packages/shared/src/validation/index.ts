@@ -32,6 +32,8 @@ export const kycDocumentSchema = z.object({ type:z.enum(["GST","GST_ENROLMENT","
 export const sellerKycSubmissionSchema = z.object({ documents:z.array(kycDocumentSchema).min(1).max(5).refine((documents)=>new Set(documents.map((document)=>document.type)).size===documents.length,"Each KYC document type may only be submitted once") });
 export const sellerApprovalSchema = z.object({ sellerId:uuidSchema, decision:z.enum(["APPROVED","REJECTED"]), notes:z.string().trim().max(2000).optional() });
 export const sellerShippingSettingsSchema = z.object({
+  /** LOIMART = LOIMART books the courier (fee from payout); SELF = the seller uses their own courier. */
+  shipWith: z.enum(["LOIMART","SELF"]).default("LOIMART"),
   preferredProvider: z.enum(["MANUAL","SHIPROCKET","DELHIVERY","SHADOWFAX"]).default("MANUAL"),
   pickup: z.object({
     name: z.string().trim().min(2).max(120),

@@ -34,6 +34,8 @@ export type SettlementInput = {
   orderedAt: Date;
   sellerApprovedAt: Date | null;
   gstRegistered: boolean;
+  /** LOIMART shipping fee for the parcel (on its first item), when LOIMART shipped it. */
+  shippingFeePaise?: number;
 };
 export type SettlementBreakdown = {
   grossPaise: number;
@@ -45,6 +47,8 @@ export type SettlementBreakdown = {
   gstOnCommissionPaise: number;
   tcsPaise: number;
   tdsPaise: number;
+  /** LOIMART shipping fee (incl. GST) taken from the payout. */
+  shippingFeePaise: number;
   netPaise: number;
 };
 
@@ -60,7 +64,8 @@ export function calculateSettlement(input: SettlementInput): SettlementBreakdown
   const gstOnCommissionPaise = bps(commissionPaise, GST_ON_FEES_BPS);
   const tcsPaise = input.gstRegistered ? bps(input.taxableValuePaise ?? sold, TCS_RATE_BPS) : 0;
   const tdsPaise = bps(sold, TDS_RATE_BPS);
-  return { grossPaise: gross, sellerDiscountPaise: sellerDiscount, commissionFree, commissionRateBps, commissionPaise, gstOnCommissionPaise, tcsPaise, tdsPaise, netPaise: sold - commissionPaise - gstOnCommissionPaise - tcsPaise - tdsPaise };
+  const shippingFeePaise = Math.max(0, Math.round(input.shippingFeePaise ?? 0));
+  return { grossPaise: gross, sellerDiscountPaise: sellerDiscount, commissionFree, commissionRateBps, commissionPaise, gstOnCommissionPaise, tcsPaise, tdsPaise, shippingFeePaise, netPaise: sold - commissionPaise - gstOnCommissionPaise - tcsPaise - tdsPaise - shippingFeePaise };
 }
 
 /** When a delivered item's money can be paid out. */

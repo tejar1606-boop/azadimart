@@ -16,3 +16,4 @@ export * from "./live-chat";
 export * from "./coupon-allocation";
 export * from "./bulk-products";
 export * from "./variants";
+export * from "./shipping-rates";

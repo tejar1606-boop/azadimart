@@ -12,13 +12,16 @@ export async function GET(request:Request){
     const rows=await db.select({
       id:shipments.id,orderId:shipments.orderId,orderNumber:orders.orderNumber,
       sellerId:shipments.sellerId,sellerName:sellers.storeName,status:shipments.status,
-      awb:shipments.awb,providerShipmentId:shipments.providerShipmentId,
+      awb:shipments.awb,providerShipmentId:shipments.providerShipmentId,courierName:shipments.courierName,
+      shippedBy:shipments.shippedBy,shippingFeePaise:shipments.shippingFeePaise,
+      destination:orders.shippingAddressSnapshot,orderStatus:orders.status,
       createdAt:shipments.createdAt,updatedAt:shipments.updatedAt,
     }).from(shipments)
       .innerJoin(orders,eq(orders.id,shipments.orderId))
       .innerJoin(sellers,eq(sellers.id,shipments.sellerId))
       .orderBy(desc(shipments.updatedAt));
-    return NextResponse.json({items:rows});
+    // City/PIN only: operations doesn't need the customer's full address here.
+    return NextResponse.json({items:rows.map(({destination,...r})=>({...r,destination:{city:destination.city,state:destination.state,postalCode:destination.postalCode}}))});
   }catch(error){
     const {status,body}=toApiError(error,requestId);
     return NextResponse.json(body,{status});

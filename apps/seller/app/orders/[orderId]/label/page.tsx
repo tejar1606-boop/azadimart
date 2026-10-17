@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import Barcode from "./barcode";
 
 type Addr = { name: string; phone: string | null; line1: string; line2: string | null; city: string; state: string; postalCode: string };
 type Label = {
@@ -9,7 +10,7 @@ type Label = {
   shipFrom: (Addr & { storeName: string; gstin: string | null }) | null;
   items: Array<{ title: string; variant: string | null; sku: string; quantity: number; unitPricePaise: number }>;
   weightGrams: number; payment: { mode: "COD" | "PREPAID"; collectPaise: number };
-  shipment: { courierName: string | null; awb: string | null; status: string } | null;
+  shipment: { courierName: string | null; awb: string | null; status: string; shippedBy: string } | null;
 };
 
 const money = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
@@ -82,6 +83,12 @@ export default function ShippingLabelPage() {
               </dl>
             </div>
           </div>
+          {label.shipment?.awb ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-slate-950 px-4 py-3">
+              <div className="min-w-[220px] flex-1"><Barcode value={label.shipment.awb} /><p className="mt-1 font-mono text-sm font-bold tracking-widest">{label.shipment.awb}</p></div>
+              <p className="text-right text-xs"><span className="block font-black">{label.shipment.courierName}</span>{label.shipment.shippedBy === "LOIMART" ? <span className="text-slate-600">Booked by LOIMART · pickup from seller</span> : null}</p>
+            </div>
+          ) : null}
           <div className="border-t-2 border-slate-950 px-4 py-3 text-xs">
             <p className="font-bold uppercase tracking-widest text-slate-500">If undelivered, return to</p>
             {label.shipFrom ? <p className="mt-1 leading-5"><b>{label.shipFrom.storeName}</b> ({label.shipFrom.name}), {addr(label.shipFrom)}, {label.shipFrom.city}, {label.shipFrom.state} {label.shipFrom.postalCode} · 📞 {label.shipFrom.phone}{label.shipFrom.gstin ? ` · GSTIN ${label.shipFrom.gstin}` : ""}</p> : <p className="mt-1 text-amber-700">Pickup address not set</p>}

@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { StatCard } from "@azadimart/ui";
 
 type Bank = { accountHolderName: string; last4: string; ifsc: string; status: "PENDING" | "VERIFIED" | "REJECTED"; rejectionReason: string | null } | null;
-type Breakdown = { grossPaise: number; sellerDiscountPaise?: number; commissionRateBps: number; commissionPaise: number; gstOnCommissionPaise: number; tcsPaise: number; tdsPaise: number; netPaise: number };
+type Breakdown = { grossPaise: number; sellerDiscountPaise?: number; shippingFeePaise?: number; commissionRateBps: number; commissionPaise: number; gstOnCommissionPaise: number; tcsPaise: number; tdsPaise: number; netPaise: number };
 type Upcoming = Breakdown & { orderNumber: string; title: string; quantity: number; deliveredAt: string; eligibleAt: string; openReturn: boolean };
 type Payout = { id: string; status: string; amountPaise: number; grossPaise: number; deductionsPaise: number; itemCount: number; utr: string | null; mode: string; failureReason: string | null; paidAt: string | null; createdAt: string };
 type Item = Breakdown & { orderNumber: string; title: string; quantity: number };
@@ -17,7 +17,7 @@ type Data = {
 
 const money = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { minimumFractionDigits: p % 100 ? 2 : 0, maximumFractionDigits: 2 });
 const date = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-const deductions = (b: Breakdown) => (b.sellerDiscountPaise ?? 0) + b.commissionPaise + b.gstOnCommissionPaise + b.tcsPaise + b.tdsPaise;
+const deductions = (b: Breakdown) => (b.sellerDiscountPaise ?? 0) + (b.shippingFeePaise ?? 0) + b.commissionPaise + b.gstOnCommissionPaise + b.tcsPaise + b.tdsPaise;
 const STATUS: Record<string, { label: string; tone: string }> = {
   PAID: { label: "Sent", tone: "bg-green-50 text-green-700" },
   PROCESSING: { label: "On its way", tone: "bg-sky-50 text-sky-700" },
@@ -63,6 +63,7 @@ function BreakdownRows({ b }: { b: Breakdown }) {
       {b.sellerDiscountPaise ? <span className="text-brand-700">LOIMART coupon (your share) {money(b.sellerDiscountPaise)} · </span> : null}
       {b.commissionRateBps ? `Commission ${b.commissionRateBps / 100}% ${money(b.commissionPaise)} + GST ${money(b.gstOnCommissionPaise)}` : "No commission"}
       {b.tcsPaise ? ` · TCS ${money(b.tcsPaise)}` : ""}{b.tdsPaise ? ` · TDS ${money(b.tdsPaise)}` : ""}
+      {b.shippingFeePaise ? <span className="text-slate-700"> · LOIMART shipping {money(b.shippingFeePaise)}</span> : null}
     </span>
   );
 }

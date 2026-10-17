@@ -1,4 +1,4 @@
-export type LogisticsProviderCode = "SHIPROCKET" | "DELHIVERY" | "SHADOWFAX" | "MANUAL";
+export type LogisticsProviderCode = "SHIPROCKET" | "DELHIVERY" | "SHADOWFAX" | "MANUAL" | "LOIMART_TEST";
 
 export type Address = {
   name: string;
@@ -69,6 +69,33 @@ export class ManualLogisticsProvider implements LogisticsProvider {
   }
 }
 
+/**
+ * Stand-in for LOIMART's own courier account until a real one (Shiprocket,
+ * Delhivery…) is connected: books instantly with a test tracking number so
+ * the whole LOIMART-shipping flow can be used end to end. Status changes are
+ * made by the LOIMART team in Admin → Logistics (a real courier sends them).
+ */
+export class LoimartTestCourier implements LogisticsProvider {
+  readonly code = "LOIMART_TEST" as const;
+  readonly isConfigured = true;
+  readonly displayName = "LOIMART Test Courier";
+
+  async quote(): Promise<ShipmentQuote[]> {
+    return [{ provider: "LOIMART_TEST", service: "surface", amountPaise: 0, estimatedDays: 4 }];
+  }
+
+  async createShipment(input: CreateShipmentInput): Promise<CreatedShipment> {
+    const digits = Array.from(crypto.getRandomValues(new Uint8Array(10)), (b) => String(b % 10)).join("");
+    return { provider: "LOIMART_TEST", providerShipmentId: `lmt_${input.orderId.slice(0, 8)}_${digits.slice(0, 4)}`, awb: `LMT${digits}` };
+  }
+
+  async cancelShipment(): Promise<void> {}
+
+  async track(): Promise<TrackingEvent[]> {
+    return [];
+  }
+}
+
 class UnconfiguredLogisticsProvider implements LogisticsProvider {
   readonly isConfigured = false;
   constructor(readonly code: Exclude<LogisticsProviderCode, "MANUAL">) {}
@@ -92,7 +119,22 @@ const registry = new Map<LogisticsProviderCode, LogisticsProvider>([
   ["SHIPROCKET", new UnconfiguredLogisticsProvider("SHIPROCKET")],
   ["DELHIVERY", new UnconfiguredLogisticsProvider("DELHIVERY")],
   ["SHADOWFAX", new UnconfiguredLogisticsProvider("SHADOWFAX")],
+  ["LOIMART_TEST", new LoimartTestCourier()],
 ]);
+
+const COURIER_NAMES: Record<LogisticsProviderCode, string> = { MANUAL: "Seller's courier", SHIPROCKET: "Shiprocket", DELHIVERY: "Delhivery", SHADOWFAX: "Shadowfax", LOIMART_TEST: "LOIMART Test Courier" };
+export const courierDisplayName = (code: LogisticsProviderCode) => COURIER_NAMES[code];
+
+/**
+ * The courier account LOIMART ships with ("LOIMART shipping"). Set
+ * LOIMART_COURIER to SHIPROCKET / DELHIVERY / SHADOWFAX once that account is
+ * connected; until then the test courier is used.
+ */
+export function getPlatformCourier(): LogisticsProvider {
+  const wanted = (process.env.LOIMART_COURIER ?? "").toUpperCase() as LogisticsProviderCode;
+  const provider = registry.get(wanted);
+  return provider && provider.isConfigured && provider.code !== "MANUAL" ? provider : registry.get("LOIMART_TEST")!;
+}
 
 export function registerLogisticsProvider(provider: LogisticsProvider): void {
   registry.set(provider.code, provider);
@@ -116,7 +158,7 @@ export async function createShipmentForOrder(
 
 
 export function getLogisticsProviderReadiness(): Array<{ code: LogisticsProviderCode; isConfigured: boolean }> {
-  return Array.from(registry.values()).map((provider) => ({
+  return Array.from(registry.values()).filter((provider) => provider.code !== "LOIMART_TEST").map((provider) => ({
     code: provider.code,
     isConfigured: provider.isConfigured,
   }));

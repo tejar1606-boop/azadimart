@@ -8,7 +8,7 @@ export default function Page() {
   return (
     <AdminScreen
       title="Logistics"
-      description="Carrier integrations stay behind @azadimart/logistics. Manual fulfillment is available for testing."
+      description="Every parcel in one place. Sellers choose LOIMART shipping (LOIMART books the courier, fee from their payout) or their own courier. Until a courier account is connected, LOIMART parcels use a test courier and you move them along here."
     >
       <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {providers.map((provider) => (

@@ -13,7 +13,7 @@ describe("seller settlement", () => {
   it("after 3 months: 5% commission + 18% GST on it, TCS 0.5%, TDS 0.1%", () => {
     const s = calculateSettlement({ grossPaise: 100_000, orderedAt: new Date("2026-04-16T00:00:00Z"), sellerApprovedAt: approved, gstRegistered: true });
     // ₹1,000 order: commission ₹50, GST ₹9, TCS ₹5, TDS ₹1 → seller gets ₹935
-    expect(s).toEqual({ grossPaise: 100_000, sellerDiscountPaise: 0, commissionFree: false, commissionRateBps: 500, commissionPaise: 5_000, gstOnCommissionPaise: 900, tcsPaise: 500, tdsPaise: 100, netPaise: 93_500 });
+    expect(s).toEqual({ grossPaise: 100_000, sellerDiscountPaise: 0, commissionFree: false, commissionRateBps: 500, commissionPaise: 5_000, gstOnCommissionPaise: 900, tcsPaise: 500, tdsPaise: 100, shippingFeePaise: 0, netPaise: 93_500 });
   });
   it("a coupon the seller pays comes off first; commission and taxes are on the price after it", () => {
     const s = calculateSettlement({ grossPaise: 100_000, sellerDiscountPaise: 10_000, orderedAt: new Date("2026-04-16T00:00:00Z"), sellerApprovedAt: approved, gstRegistered: true });
@@ -47,5 +47,9 @@ describe("bank account details", () => {
     expect(sellerBankAccountSchema.safeParse({ ...ok, ifsc: "HDFC1001234" }).success).toBe(false);
     expect(sellerBankAccountSchema.safeParse({ ...ok, accountNumber: "12345678", confirmAccountNumber: "12345678" }).success).toBe(false);
     expect(sellerBankAccountSchema.safeParse({ ...ok, confirmAccountNumber: "50100123456780" }).success).toBe(false);
+  });
+  it("takes the LOIMART shipping fee off the payout", () => {
+    const s = calculateSettlement({ grossPaise: 100_000, orderedAt: new Date("2026-01-01"), sellerApprovedAt: new Date("2026-01-01"), gstRegistered: false, shippingFeePaise: 6_000 });
+    expect(s).toMatchObject({ commissionPaise: 0, shippingFeePaise: 6_000, netPaise: 100_000 - 100 - 6_000 });
   });
 });

@@ -50,6 +50,8 @@ type Shipment = {
   status: string;
   courierName?: string | null;
   awb?: string | null;
+  shippedBy?: string;
+  shippingFeePaise?: number;
   providerShipmentId: string | null;
 };
 
@@ -98,6 +100,8 @@ export default function OrderList() {
   const [working, setWorking] = useState<string | null>(null);
   const [tracking, setTracking] = useState<{ shipmentId: string; courierName: string; awb: string; error: string } | null>(null);
   const [copied, setCopied] = useState("");
+  const [shipWith, setShipWith] = useState<"LOIMART" | "SELF" | null>(null);
+  useEffect(() => { void fetch("/api/v1/shipping-settings", { cache: "no-store" }).then((r) => r.json()).then((b) => setShipWith(b?.settings ? (b.settings.shipWith ?? "LOIMART") : null)).catch(() => undefined); }, []);
   const [tab, setTab] = useState<Tab>("toShip");
   const [cancelling, setCancelling] = useState<Order | null>(null);
   const [cancelReason, setCancelReason] = useState<(typeof CANCEL_REASONS)[number]>("Out of stock");
@@ -382,13 +386,18 @@ export default function OrderList() {
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">
                       Shipment: {shipment.status.replaceAll("_", " ")}
                     </span>
-                    {shipment.providerShipmentId?.startsWith("manual_") && ["CREATED", "PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(shipment.status) ? (
+                    {shipment.shippedBy !== "LOIMART" && shipment.providerShipmentId?.startsWith("manual_") && ["CREATED", "PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(shipment.status) ? (
                       <button type="button" onClick={() => setTracking({ shipmentId: shipment.id, courierName: shipment.courierName ?? "", awb: shipment.awb ?? "", error: "" })} className={"rounded-full px-4 py-2 text-xs font-bold " + (shipment.awb ? "border border-slate-200 bg-white text-slate-700" : "bg-amber-400 text-slate-950")}>
                         {shipment.awb ? "Edit tracking" : "Add courier & tracking no."}
                       </button>
                     ) : null}
                     {["CONFIRMED", "PAID", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY"].includes(item.status) ? <a href={`/orders/${item.id}/label`} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:border-slate-900">🖨 Print label</a> : null}
-                    {nextStatus ? (
+                    {shipment.shippedBy === "LOIMART" ? (
+                      <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-800">
+                        Shipped by LOIMART{shipment.shippingFeePaise ? ` · fee ${money(shipment.shippingFeePaise)}` : ""}{shipment.status === "CREATED" ? " · courier will pick up" : ""}
+                      </span>
+                    ) : null}
+                    {nextStatus && shipment.shippedBy !== "LOIMART" ? (
                       <button
                         type="button"
                         disabled={working === shipment.id}
@@ -423,7 +432,7 @@ export default function OrderList() {
                       onClick={() => void createShipment(item.id)}
                       className="rounded-full bg-slate-950 px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
                     >
-                      {working === item.id ? "Creating…" : "Create shipment"}
+                      {working === item.id ? (shipWith === "LOIMART" ? "Booking courier…" : "Creating…") : shipWith === "LOIMART" ? "Ready to ship · LOIMART books courier" : "Create shipment"}
                     </button>
                     {item.cancelRequestedByMe ? (
                       <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">Cancellation requested · awaiting LOIMART</span>

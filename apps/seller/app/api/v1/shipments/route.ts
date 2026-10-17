@@ -1,7 +1,7 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { auditLogs, createDatabase, orderItems, orders, productVariants, sellerSettings, shipmentEvents, shipments, sellers } from "@azadimart/database";
-import { createShipmentForOrder, getLogisticsProvider, type Address } from "@azadimart/logistics";
-import { AppError, sellerShippingSettingsSchema, toApiError } from "@azadimart/shared";
+import { auditLogs, createDatabase, orderItems, orders, payments, productVariants, sellerSettings, shipmentEvents, shipments, sellers } from "@azadimart/database";
+import { courierDisplayName, createShipmentForOrder, getLogisticsProvider, getPlatformCourier, type Address } from "@azadimart/logistics";
+import { AppError, loimartShippingFee, sellerShippingSettingsSchema, shippingZone, toApiError } from "@azadimart/shared";
 import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { syncOrderFulfillmentStatus } from "./order-fulfillment";
@@ -44,7 +44,9 @@ export async function POST(request: Request) {
       throw new AppError("CONFLICT", "Configure your pickup address before creating shipments");
     }
     const settings = parsedSettings.data;
-    const provider = getLogisticsProvider(settings.preferredProvider);
+    // LOIMART shipping: LOIMART's courier account books the parcel and the fee comes off the payout.
+    const viaLoimart = settings.shipWith === "LOIMART";
+    const provider = viaLoimart ? getPlatformCourier() : getLogisticsProvider(settings.preferredProvider);
     if (!provider.isConfigured) {
       throw new AppError("CONFLICT", settings.preferredProvider + " logistics is not configured yet");
     }
@@ -162,15 +164,8 @@ export async function POST(request: Request) {
 
     let created: Awaited<ReturnType<typeof createShipmentForOrder>>;
     try {
-      created = await createShipmentForOrder(settings.preferredProvider, {
-        orderId,
-        sellerId,
-        pickup: settings.pickup,
-        delivery,
-        weightGrams,
-        declaredValuePaise,
-        idempotencyKey: orderId + ":" + sellerId,
-      });
+      const input = { orderId, sellerId, pickup: settings.pickup, delivery, weightGrams, declaredValuePaise, idempotencyKey: orderId + ":" + sellerId };
+      created = viaLoimart ? await provider.createShipment(input) : await createShipmentForOrder(settings.preferredProvider, input);
     } catch (error) {
       await db.update(shipments)
         .set({ status: "FAILED", updatedAt: new Date() })
@@ -183,27 +178,36 @@ export async function POST(request: Request) {
       throw error;
     }
 
+    const payment = (await db.select({ provider: payments.provider, status: payments.status }).from(payments).where(eq(payments.orderId, orderId)).limit(1))[0];
+    const cod = payment?.provider === "COD" && payment.status === "PENDING";
+    const shippingFeePaise = viaLoimart ? loimartShippingFee({ weightGrams, zone: shippingZone(settings.pickup, delivery), cod }) : 0;
     const shipment = (await db.update(shipments).set({
       status: "CREATED",
       providerShipmentId: created.providerShipmentId,
       awb: created.awb ?? null,
+      shippedBy: viaLoimart ? "LOIMART" : "SELLER",
+      shippingFeePaise,
+      courierName: viaLoimart ? courierDisplayName(created.provider) : null,
       updatedAt: new Date(),
     }).where(and(eq(shipments.id, reserved.id), eq(shipments.sellerId, sellerId))).returning({
       id: shipments.id,
       status: shipments.status,
       providerShipmentId: shipments.providerShipmentId,
       awb: shipments.awb,
+      courierName: shipments.courierName,
+      shippedBy: shipments.shippedBy,
+      shippingFeePaise: shipments.shippingFeePaise,
     }))[0];
     if (!shipment) throw new AppError("INTERNAL", "Shipment finalization failed", undefined, false);
 
-    await db.insert(shipmentEvents).values({ shipmentId: shipment.id, status: "CREATED", description: "Shipment created through " + created.provider });
+    await db.insert(shipmentEvents).values({ shipmentId: shipment.id, status: "CREATED", description: viaLoimart ? `Booked by LOIMART with ${shipment.courierName}, tracking no. ${shipment.awb ?? "pending"}. Courier will pick up from the seller.` : "Shipment created through " + created.provider });
 
     await db.insert(auditLogs).values({
       actorUserId: principal.userId,
       action: "SHIPMENT_CREATED",
       entityType: "shipment",
       entityId: shipment.id,
-      metadata: { orderId, sellerId, provider: created.provider },
+      metadata: { orderId, sellerId, provider: created.provider, shippedBy: viaLoimart ? "LOIMART" : "SELLER", shippingFeePaise },
     });
 
     await syncOrderFulfillmentStatus(db, orderId);
@@ -224,6 +228,7 @@ export async function GET(request: Request) {
     const items = await db.select({
       id: shipments.id, orderId: shipments.orderId, status: shipments.status,
       providerShipmentId: shipments.providerShipmentId, awb: shipments.awb, courierName: shipments.courierName,
+      shippedBy: shipments.shippedBy, shippingFeePaise: shipments.shippingFeePaise,
       createdAt: shipments.createdAt, updatedAt: shipments.updatedAt,
     }).from(shipments).where(eq(shipments.sellerId, principal.sellerId));
     return NextResponse.json({ items });

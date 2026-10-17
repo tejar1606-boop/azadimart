@@ -35,7 +35,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     const [settingsRow, others, shipment] = await Promise.all([
       db.select({ shippingSettings: sellerSettings.shippingSettings }).from(sellerSettings).where(eq(sellerSettings.sellerId, seller.id)).limit(1).then((r) => r[0]),
       db.select({ quantity: orderItems.quantity, unitPricePaise: orderItems.unitPricePaise }).from(orderItems).where(and(eq(orderItems.orderId, orderId), ne(orderItems.sellerId, seller.id))),
-      db.select({ courierName: shipments.courierName, awb: shipments.awb, status: shipments.status }).from(shipments).where(and(eq(shipments.orderId, orderId), eq(shipments.sellerId, seller.id))).limit(1).then((r) => r[0] ?? null),
+      db.select({ courierName: shipments.courierName, awb: shipments.awb, status: shipments.status, shippedBy: shipments.shippedBy }).from(shipments).where(and(eq(shipments.orderId, orderId), eq(shipments.sellerId, seller.id))).limit(1).then((r) => r[0] ?? null),
     ]);
     const pickup = sellerShippingSettingsSchema.safeParse(settingsRow?.shippingSettings);
     const mine = items.reduce((n, i) => n + i.quantity * i.unitPricePaise, 0);

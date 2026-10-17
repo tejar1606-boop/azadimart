@@ -274,6 +274,13 @@
       "when": 1792213186527,
       "tag": "20261017045946_shipment_courier",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1792214688397,
+      "tag": "20261017052448_loimart_shipping",
+      "breakpoints": true
     }
   ]
 }

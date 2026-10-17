@@ -34,6 +34,10 @@ export const shipments = pgTable(
     providerShipmentId: text("provider_shipment_id"),
     /** Courier the seller used for a manual shipment (e.g. "DTDC", "India Post"); AWB = its tracking number. */
     courierName: text("courier_name"),
+    /** LOIMART = booked on LOIMART's courier account (fee taken from the seller's payout); SELLER = seller's own courier. */
+    shippedBy: text("shipped_by").notNull().default("SELLER"),
+    /** LOIMART shipping fee charged to the seller for this parcel (0 when the seller ships). */
+    shippingFeePaise: integer("shipping_fee_paise").notNull().default(0),
     ...timestamps,
   },
   (table) => [
@@ -99,6 +103,8 @@ export const payoutItems = pgTable(
     tdsPaise: integer("tds_paise").notNull().default(0),
     /** The seller's share of coupon discounts on these items. */
     sellerDiscountPaise: integer("seller_discount_paise").notNull().default(0),
+    /** LOIMART shipping fee for the parcel, charged on the parcel's first item. */
+    shippingFeePaise: integer("shipping_fee_paise").notNull().default(0),
     ...timestamps,
   },
   (table) => [

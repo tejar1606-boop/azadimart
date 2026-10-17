@@ -46,3 +46,13 @@ it("reports logistics readiness without exposing credentials", () => {
     { code: "SHADOWFAX", isConfigured: false },
   ]);
 });
+
+describe("LOIMART platform courier", () => {
+  it("uses the test courier until a real one is connected", async () => {
+    const { getPlatformCourier } = await import("./index");
+    const courier = getPlatformCourier();
+    expect(courier.code).toBe("LOIMART_TEST");
+    const created = await courier.createShipment({ orderId: "11111111-2222-4333-8444-555555555555", sellerId: "s", pickup: {} as never, delivery: {} as never, weightGrams: 400, declaredValuePaise: 1000, idempotencyKey: "k" });
+    expect(created.awb).toMatch(/^LMT\d{10}$/);
+  });
+});
