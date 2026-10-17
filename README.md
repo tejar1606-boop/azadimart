@@ -1,4 +1,4 @@
-# AzadiMart
+# LOIMART
 
 Production-grade Indian multi-vendor marketplace. This repository is a **pnpm + Turborepo** monorepo.
 

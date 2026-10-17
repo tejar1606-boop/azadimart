@@ -1,7 +1,7 @@
-# AzadiMart — System Architecture
+# LOIMART — System Architecture
 
 ## Product
-AzadiMart is an India-focused multi-vendor commerce platform with three experiences:
+LOIMART is an India-focused multi-vendor commerce platform with three experiences:
 - Customer: azadimart.com
 - Seller: seller.azadimart.com
 - Admin: admin.azadimart.com

@@ -1,0 +1,1 @@
+ALTER TABLE "products" ADD COLUMN "related_product_ids" uuid[] DEFAULT '{}' NOT NULL;

@@ -53,11 +53,12 @@ export function createLogger(defaultFields: LogFields = {}) {
     if (LEVEL_ORDER[level] < LEVEL_ORDER[minLevel]) {
       return;
     }
+    const safeFields = redact({ ...defaultFields, ...fields }) as LogFields;
     const payload = {
       ts: new Date().toISOString(),
       level,
       message,
-      ...redact({ ...defaultFields, ...fields }),
+      ...safeFields,
     };
     const line = JSON.stringify(payload);
     if (level === "error") {

@@ -16,6 +16,7 @@ export type PaymentIntent = {
 };
 
 export type PaymentWebhookEvent = {
+  eventId: string;
   provider: PaymentProviderCode;
   providerPaymentId: string;
   status: "CAPTURED" | "FAILED" | "REFUNDED";
@@ -24,23 +25,26 @@ export type PaymentWebhookEvent = {
 
 export interface PaymentProvider {
   readonly code: PaymentProviderCode;
+  readonly isConfigured: boolean;
   createPayment(input: CreatePaymentInput): Promise<PaymentIntent>;
-  refund(providerPaymentId: string, amountPaise: number): Promise<{ providerRefundId: string }>;
-  parseWebhook(headers: Headers, body: unknown): Promise<PaymentWebhookEvent>;
+  refund(providerPaymentId: string, amountPaise: number, idempotencyKey: string): Promise<{ providerRefundId: string }>;
+  /**
+   * Verify and parse a provider webhook. Receives the exact raw request body:
+   * Razorpay and Cashfree sign the raw bytes, so signatures must be checked
+   * before (and independently of) JSON parsing.
+   */
+  parseWebhook(headers: Headers, rawBody: string): Promise<PaymentWebhookEvent>;
 }
 
 export class CodPaymentProvider implements PaymentProvider {
   readonly code = "COD" as const;
+  readonly isConfigured = true;
 
   async createPayment(input: CreatePaymentInput): Promise<PaymentIntent> {
-    return {
-      provider: "COD",
-      providerPaymentId: `cod_${input.orderId}`,
-      status: "PENDING",
-    };
+    return { provider: "COD", providerPaymentId: `cod_${input.orderId}`, status: "PENDING" };
   }
 
-  async refund(): Promise<{ providerRefundId: string }> {
+  async refund(_providerPaymentId: string, _amountPaise: number, _idempotencyKey: string): Promise<{ providerRefundId: string }> {
     throw new Error("COD refunds are processed as order adjustments, not PSP refunds");
   }
 
@@ -50,13 +54,14 @@ export class CodPaymentProvider implements PaymentProvider {
 }
 
 export class UnconfiguredPaymentProvider implements PaymentProvider {
+  readonly isConfigured = false;
   constructor(readonly code: Exclude<PaymentProviderCode, "COD">) {}
 
   async createPayment(): Promise<PaymentIntent> {
     throw new Error(`${this.code} is not configured`);
   }
 
-  async refund(): Promise<{ providerRefundId: string }> {
+  async refund(_providerPaymentId: string, _amountPaise: number, _idempotencyKey: string): Promise<{ providerRefundId: string }> {
     throw new Error(`${this.code} is not configured`);
   }
 
@@ -77,8 +82,10 @@ export function registerPaymentProvider(provider: PaymentProvider): void {
 
 export function getPaymentProvider(code: PaymentProviderCode): PaymentProvider {
   const provider = registry.get(code);
-  if (!provider) {
-    throw new Error(`Unknown payment provider: ${code}`);
-  }
+  if (!provider) throw new Error(`Unknown payment provider: ${code}`);
   return provider;
+}
+
+export function getPaymentProviderReadiness(): Array<{ code: PaymentProviderCode; isConfigured: boolean }> {
+  return Array.from(registry.values()).map((provider) => ({ code: provider.code, isConfigured: provider.isConfigured }));
 }

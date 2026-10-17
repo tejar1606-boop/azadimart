@@ -1,2 +1,14 @@
 export { cn } from "./cn";
 export { Button, type ButtonProps } from "./button";
+export { Turnstile, type TurnstileHandle, type TurnstileProps } from "./turnstile";
+export { directUpload, readImageSize, type DirectUploadPurpose, type DirectUploadResult } from "./direct-upload";
+export { AplusContent, type AplusProductSummary } from "./aplus-content";
+export { PortalIcons, type PortalIconName } from "./portal-icons";
+export { ComingSoon, PortalAuthLayout, PortalPageHeader, PortalShell, StatCard, type PortalNavItem, type PortalNavSection, type PortalTone } from "./portal-shell";
+export { DescriptionStyleToggle, SpecTableEditor, parseSpecPaste, type SpecRow } from "./spec-table-editor";
+export { HelpChat, HELP_CHAT_OPEN_EVENT, OpenHelpChatButton, type HelpChatProps } from "./help-chat";
+export { SupportStatusPill, SupportTicketList, SupportTicketView } from "./support-tickets";
+export { LIVE_CHAT_STATE_EVENT, LiveChat, type LiveChatProps } from "./live-chat";
+export { CHAT_FILE_ACCEPT, CHAT_FILE_MAX_BYTES, ChatAttachmentView, ChatFileButton, type ChatAttachment } from "./chat-attachment";
+export { BRAND_COLORS, BRAND_TAGLINE, BrandMark, BrandWordmark } from "./brand";
+export { LoginMethodTabs, OtpLoginForm, useOtpAvailable } from "./otp-login";
