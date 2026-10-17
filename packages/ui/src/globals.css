@@ -56,3 +56,39 @@ body {
   .azm-glow, .azm-spark, .azm-ring, .azm-float { animation: none; }
   .azm-ring { transform: rotateX(-9deg) rotateY(20deg); }
 }
+
+/* Homepage section headings (storefront components/section-heading.tsx). */
+.azm-sh-line { background: linear-gradient(90deg, rgba(106,44,214,0.15), #6A2CD6 55%, #EF5A8A); position: relative; overflow: hidden; }
+.azm-sh-line-l { background: linear-gradient(90deg, #EF5A8A, #6A2CD6 45%, rgba(106,44,214,0.15)); transform-origin: right center; }
+.azm-sh-line-r { background: linear-gradient(90deg, rgba(106,44,214,0.15), #6A2CD6 55%, #EF5A8A); transform-origin: left center; }
+/* A light glint that runs along each line now and then. */
+.azm-sh-line::after { content: ""; position: absolute; inset: 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.95), transparent); transform: translateX(-120%); }
+.azm-sh-in .azm-sh-line::after { animation: azm-sh-glint 4.5s ease-in-out 1.4s infinite; }
+.azm-sh-line-l::after { animation-direction: reverse !important; }
+@keyframes azm-sh-glint { 0%, 55% { transform: translateX(-120%); } 85%, 100% { transform: translateX(320%); } }
+
+/* Soft shine across the title: a lighter copy masked by a moving band. */
+.azm-sh-shine { position: relative; display: inline-block; }
+.azm-sh-shine::after { content: attr(data-text); position: absolute; inset: 0; color: transparent; pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, #B48CFF 45%, #FFD6E5 50%, #B48CFF 55%, transparent 65%) no-repeat; background-size: 250% 100%; background-position: 130% 0;
+  -webkit-background-clip: text; background-clip: text; }
+.azm-sh-in .azm-sh-shine::after { animation: azm-sh-shine 5s ease-in-out 1.1s infinite; }
+@keyframes azm-sh-shine { 0%, 50% { background-position: 130% 0; } 80%, 100% { background-position: -30% 0; } }
+
+/* Entrance (only for headings below the fold when the page opened). */
+.azm-sh-armed .azm-sh-eyebrow, .azm-sh-armed .azm-sh-title, .azm-sh-armed .azm-sh-sub, .azm-sh-armed .azm-sh-action { opacity: 0; transform: translateY(14px); }
+.azm-sh-armed .azm-sh-eyebrow { letter-spacing: 0.5em; }
+.azm-sh-armed .azm-sh-line { transform: scaleX(0); }
+.azm-sh-eyebrow, .azm-sh-title, .azm-sh-sub, .azm-sh-action { transition: opacity 0.6s ease, transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1), letter-spacing 0.8s ease; }
+.azm-sh-line { transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.25s; }
+.azm-sh-title { transition-delay: 0.1s; }
+.azm-sh-sub { transition-delay: 0.35s; }
+.azm-sh-action { transition-delay: 0.5s; }
+.azm-sh-in .azm-sh-arrow { animation: azm-sh-nudge 2.4s ease-in-out 1.6s infinite; }
+@keyframes azm-sh-nudge { 0%, 70%, 100% { transform: translateX(0); } 80% { transform: translateX(4px); } 90% { transform: translateX(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .azm-sh-armed .azm-sh-eyebrow, .azm-sh-armed .azm-sh-title, .azm-sh-armed .azm-sh-sub, .azm-sh-armed .azm-sh-action { opacity: 1; transform: none; letter-spacing: 0.2em; }
+  .azm-sh-armed .azm-sh-line { transform: none; }
+  .azm-sh-line::after, .azm-sh-shine::after, .azm-sh-arrow { animation: none !important; }
+}

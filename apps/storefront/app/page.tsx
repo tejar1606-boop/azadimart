@@ -27,6 +27,7 @@ import { loadCardBadges, loadCardCoupons } from "./lib/offers";
 import { SITE_NAME, SITE_URL, absoluteUrl, clip, jsonLd } from "./lib/seo";
 import type { Metadata } from "next";
 import LazyVideo from "./components/lazy-video";
+import SectionHeading from "./components/section-heading";
 
 export const dynamic = "force-dynamic";
 
@@ -254,25 +255,6 @@ function Container({ children, className = "" }: { children: React.ReactNode; cl
 }
 
 /** Centred title with a line either side (small label above, optional View all link below). */
-function SectionHeading({ eyebrow, heading, subtitle, actionLabel, actionHref }: { eyebrow?: string; heading: string; subtitle?: string; actionLabel?: string; actionHref?: string }) {
-  return (
-    <div className="flex flex-col items-center text-center">
-      {eyebrow ? <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#EF5A8A]">{eyebrow}</p> : null}
-      <div className="mt-1 flex w-full items-center justify-center gap-3 sm:gap-5">
-        <span aria-hidden="true" className="h-0.5 w-10 shrink-0 rounded-full bg-[#6A2CD6]/70 sm:w-24" />
-        <h2 className="text-[22px] font-bold uppercase leading-tight tracking-[0.02em] text-[#2A0E5F] sm:text-[30px]">{heading}</h2>
-        <span aria-hidden="true" className="h-0.5 w-10 shrink-0 rounded-full bg-[#6A2CD6]/70 sm:w-24" />
-      </div>
-      {subtitle ? <p className="mt-1.5 max-w-2xl text-sm text-slate-500">{subtitle}</p> : null}
-      {actionLabel && actionHref ? (
-        <Link href={actionHref} className="group mt-2 inline-flex items-center gap-1 text-[13px] font-semibold text-[#6A2CD6] hover:text-[#4A1FA8]">
-          {actionLabel}<ArrowRightIcon size={14} className="transition group-hover:translate-x-0.5" />
-        </Link>
-      ) : null}
-    </div>
-  );
-}
-
 /**
  * Round category photos right under the header (first item: everything).
  * Swipes sideways on phones; spreads across the full width on desktop.
