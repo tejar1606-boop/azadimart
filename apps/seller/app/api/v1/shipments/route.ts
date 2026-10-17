@@ -87,6 +87,7 @@ export async function POST(request: Request) {
       name: deliverySnapshot.name ?? "Customer",
       phone: deliverySnapshot.phone ?? "",
       line1: deliverySnapshot.line1,
+      ...(deliverySnapshot.line2 ? { line2: deliverySnapshot.line2 } : {}),
       city: deliverySnapshot.city,
       state: deliverySnapshot.state,
       postalCode: deliverySnapshot.postalCode,
@@ -222,7 +223,7 @@ export async function GET(request: Request) {
     const db = createDatabase();
     const items = await db.select({
       id: shipments.id, orderId: shipments.orderId, status: shipments.status,
-      providerShipmentId: shipments.providerShipmentId, awb: shipments.awb,
+      providerShipmentId: shipments.providerShipmentId, awb: shipments.awb, courierName: shipments.courierName,
       createdAt: shipments.createdAt, updatedAt: shipments.updatedAt,
     }).from(shipments).where(eq(shipments.sellerId, principal.sellerId));
     return NextResponse.json({ items });

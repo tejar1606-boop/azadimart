@@ -32,6 +32,8 @@ export const shipments = pgTable(
     status: shipmentStatusEnum("status").notNull().default("PENDING"),
     awb: text("awb"),
     providerShipmentId: text("provider_shipment_id"),
+    /** Courier the seller used for a manual shipment (e.g. "DTDC", "India Post"); AWB = its tracking number. */
+    courierName: text("courier_name"),
     ...timestamps,
   },
   (table) => [

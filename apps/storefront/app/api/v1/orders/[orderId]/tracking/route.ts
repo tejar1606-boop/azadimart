@@ -22,16 +22,16 @@ export async function GET(request:Request,{params}:{params:Promise<{orderId:stri
 
     const rows=await db.select({
       shipmentId:shipments.id,sellerId:shipments.sellerId,shipmentStatus:shipments.status,
-      awb:shipments.awb,providerShipmentId:shipments.providerShipmentId,
+      awb:shipments.awb,courierName:shipments.courierName,providerShipmentId:shipments.providerShipmentId,
       eventId:shipmentEvents.id,eventStatus:shipmentEvents.status,eventDescription:shipmentEvents.description,
       eventCreatedAt:shipmentEvents.createdAt,
     }).from(shipments).leftJoin(shipmentEvents,eq(shipmentEvents.shipmentId,shipments.id))
       .where(eq(shipments.orderId,orderId)).orderBy(asc(shipmentEvents.createdAt));
 
-    const byShipment=new Map<string,{shipmentId:string;sellerId:string;status:string;awb:string|null;providerShipmentId:string|null;events:{id:string;status:string;description:string|null;createdAt:Date}[]}>();
+    const byShipment=new Map<string,{shipmentId:string;sellerId:string;status:string;awb:string|null;courierName:string|null;providerShipmentId:string|null;events:{id:string;status:string;description:string|null;createdAt:Date}[]}>();
     for(const row of rows){
       let entry=byShipment.get(row.shipmentId);
-      if(!entry){entry={shipmentId:row.shipmentId,sellerId:row.sellerId,status:row.shipmentStatus,awb:row.awb,providerShipmentId:row.providerShipmentId,events:[]};byShipment.set(row.shipmentId,entry);}
+      if(!entry){entry={shipmentId:row.shipmentId,sellerId:row.sellerId,status:row.shipmentStatus,awb:row.awb,courierName:row.courierName,providerShipmentId:row.providerShipmentId,events:[]};byShipment.set(row.shipmentId,entry);}
       if(row.eventId&&row.eventCreatedAt&&row.eventStatus){
         entry.events.push({id:row.eventId,status:row.eventStatus,description:row.eventDescription,createdAt:row.eventCreatedAt});
       }

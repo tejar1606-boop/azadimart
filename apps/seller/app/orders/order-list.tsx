@@ -24,6 +24,11 @@ type Order = {
   cancelRequestReason: string | null;
   cancelRequestedByMe: boolean;
   sharedWithOtherSellers: boolean;
+  paymentMethod: string | null;
+  /** Full details only while the parcel still has to be shipped; afterwards just city/PIN. */
+  shipTo: { full: boolean; name: string | null; phone: string | null; line1: string | null; line2: string | null; city: string; state: string; postalCode: string };
+  /** Cash on Delivery: what the courier collects for this seller's parcel; null = prepaid. */
+  codCollectPaise: number | null;
 };
 
 const CANCEL_REASONS = ["Out of stock", "Product damaged or defective", "Can't ship to this address", "Price or listing error", "Other"] as const;
@@ -43,6 +48,8 @@ type Shipment = {
   id: string;
   orderId: string;
   status: string;
+  courierName?: string | null;
+  awb?: string | null;
   providerShipmentId: string | null;
 };
 
@@ -89,6 +96,8 @@ export default function OrderList() {
   const [error, setError] = useState("");
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [working, setWorking] = useState<string | null>(null);
+  const [tracking, setTracking] = useState<{ shipmentId: string; courierName: string; awb: string; error: string } | null>(null);
+  const [copied, setCopied] = useState("");
   const [tab, setTab] = useState<Tab>("toShip");
   const [cancelling, setCancelling] = useState<Order | null>(null);
   const [cancelReason, setCancelReason] = useState<(typeof CANCEL_REASONS)[number]>("Out of stock");
@@ -179,6 +188,22 @@ export default function OrderList() {
     }
   }
 
+  async function saveTracking() {
+    if (!tracking) return;
+    setWorking(tracking.shipmentId);
+    try {
+      const response = await fetch("/api/v1/shipments/" + tracking.shipmentId, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ courierName: tracking.courierName, awb: tracking.awb }) });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body?.error?.message ?? "Couldn't save the tracking number.");
+      setShipments((current) => current.map((s) => (s.id === tracking.shipmentId ? { ...s, courierName: body.shipment.courierName, awb: body.shipment.awb } : s)));
+      setTracking(null);
+    } catch (err) {
+      setTracking((t) => (t ? { ...t, error: err instanceof Error ? err.message : "Couldn't save." } : t));
+    } finally {
+      setWorking(null);
+    }
+  }
+
   async function updateShipment(shipmentId: string, status: string) {
     setWorking(shipmentId);
     setError("");
@@ -232,7 +257,10 @@ export default function OrderList() {
   const withBucket = items.map((item) => ({ item, bucket: bucketOf(item, shipments.find((entry) => entry.orderId === item.id)) }));
   const counts = Object.fromEntries(TABS.map(([key]) => [key, key === "all" ? items.length : withBucket.filter((x) => x.bucket === key).length])) as Record<Tab, number>;
   const q = query.trim().toLowerCase();
-  const shown = withBucket.filter((x) => (tab === "all" || x.bucket === tab) && (!q || x.item.orderNumber.toLowerCase().includes(q) || x.item.sku.toLowerCase().includes(q) || x.item.productTitle.toLowerCase().includes(q))).map((x) => x.item);
+  const shownAll = withBucket.filter((x) => (tab === "all" || x.bucket === tab) && (!q || x.item.orderNumber.toLowerCase().includes(q) || x.item.sku.toLowerCase().includes(q) || x.item.productTitle.toLowerCase().includes(q))).map((x) => x.item);
+  const shown = shownAll;
+  // An order with several of this seller's products has one row per product: show the address once.
+  const firstOfOrder = new Set(shown.filter((o, i) => shown.findIndex((x) => x.id === o.id) === i).map((o) => o.orderItemId));
 
   return (
     <div className="mt-6">
@@ -251,6 +279,26 @@ export default function OrderList() {
       </div>
       {notice ? <p className="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">{notice}</p> : null}
       {actionError ? <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</p> : null}
+      {tracking ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="tracking-title" onClick={() => setTracking(null)}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 id="tracking-title" className="text-lg font-black">Courier &amp; tracking number</h2>
+            <p className="mt-1 text-xs text-slate-500">From the receipt the courier gave you. The customer sees it on their order to track the parcel.</p>
+            <label className="mt-4 block text-sm font-semibold">Courier
+              <input list="courier-list" value={tracking.courierName} onChange={(e) => setTracking({ ...tracking, courierName: e.target.value, error: "" })} placeholder="e.g. DTDC" className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal" />
+              <datalist id="courier-list">{["India Post", "DTDC", "Delhivery", "Blue Dart", "Ekart", "Xpressbees", "Shadowfax", "Ecom Express", "Professional Couriers", "Trackon"].map((c) => <option key={c} value={c} />)}</datalist>
+            </label>
+            <label className="mt-3 block text-sm font-semibold">Tracking (AWB) number
+              <input value={tracking.awb} onChange={(e) => setTracking({ ...tracking, awb: e.target.value.toUpperCase().replace(/\s+/g, ""), error: "" })} placeholder="e.g. D12345678" className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 font-mono text-sm font-normal" />
+            </label>
+            {tracking.error ? <p className="mt-3 rounded-lg bg-red-50 p-2.5 text-xs text-red-700">{tracking.error}</p> : null}
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setTracking(null)} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-bold">Cancel</button>
+              <button type="button" disabled={working === tracking.shipmentId || tracking.courierName.trim().length < 2 || tracking.awb.length < 4} onClick={() => void saveTracking()} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">{working === tracking.shipmentId ? "Saving…" : "Save"}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {cancelling ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="cancel-title">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-lift">
@@ -278,7 +326,7 @@ export default function OrderList() {
       ) : (
     <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card">
       <div className="divide-y divide-slate-100">
-        {shown.map((item) => {
+        {shown.map((item, index) => {
           const shipment = shipments.find((entry) => entry.orderId === item.id);
           const nextStatus = shipment
             ? NEXT_SHIPMENT_STATUS[shipment.status] ?? null
@@ -319,6 +367,8 @@ export default function OrderList() {
                 </p>
               </div>
 
+              {firstOfOrder.has(item.orderItemId) ? <ShipToBox item={item} shipment={shipment} copied={copied === item.id} onCopy={(text) => { void navigator.clipboard?.writeText(text); setCopied(item.id); setTimeout(() => setCopied(""), 1500); }} /> : null}
+
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <span className="text-xs text-slate-400">
                   {item.couponCode
@@ -332,6 +382,12 @@ export default function OrderList() {
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">
                       Shipment: {shipment.status.replaceAll("_", " ")}
                     </span>
+                    {shipment.providerShipmentId?.startsWith("manual_") && ["CREATED", "PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(shipment.status) ? (
+                      <button type="button" onClick={() => setTracking({ shipmentId: shipment.id, courierName: shipment.courierName ?? "", awb: shipment.awb ?? "", error: "" })} className={"rounded-full px-4 py-2 text-xs font-bold " + (shipment.awb ? "border border-slate-200 bg-white text-slate-700" : "bg-amber-400 text-slate-950")}>
+                        {shipment.awb ? "Edit tracking" : "Add courier & tracking no."}
+                      </button>
+                    ) : null}
+                    {["CONFIRMED", "PAID", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY"].includes(item.status) ? <a href={`/orders/${item.id}/label`} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:border-slate-900">🖨 Print label</a> : null}
                     {nextStatus ? (
                       <button
                         type="button"
@@ -357,6 +413,7 @@ export default function OrderList() {
                   </>
                 ) : ["CONFIRMED", "PACKED"].includes(item.status) ? (
                   <>
+                    <a href={`/orders/${item.id}/label`} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:border-slate-900">🖨 Print label</a>
                     {item.status === "CONFIRMED" && !item.sharedWithOtherSellers ? (
                       <button type="button" disabled={working === item.id} onClick={() => void markPacked(item)} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:border-slate-900 disabled:opacity-50">Mark as packed</button>
                     ) : null}
@@ -387,6 +444,32 @@ export default function OrderList() {
       </div>
     </div>
       )}
+    </div>
+  );
+}
+
+/** Where to send the parcel: name, phone, full address (copyable) and the cash to collect. */
+function ShipToBox({ item, shipment, copied, onCopy }: { item: Order; shipment: Shipment | undefined; copied: boolean; onCopy: (text: string) => void }) {
+  const a = item.shipTo;
+  if (!a) return null;
+  if (!a.full) return <p className="mt-4 text-xs text-slate-500">Delivered to {a.city}, {a.state} {a.postalCode}</p>;
+  const text = [a.name, [a.line1, a.line2].filter(Boolean).join(", "), `${a.city}, ${a.state} - ${a.postalCode}`, a.phone ? `Phone: ${a.phone}` : ""].filter(Boolean).join("\n");
+  return (
+    <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-[1fr_auto]">
+      <div className="min-w-0">
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">Ship to</p>
+        <p className="mt-1 font-bold">{a.name}</p>
+        <p className="text-sm leading-6 text-slate-700">{[a.line1, a.line2].filter(Boolean).join(", ")}</p>
+        <p className="text-sm leading-6 text-slate-700">{a.city}, {a.state} – <b>{a.postalCode}</b></p>
+        {a.phone ? <a href={`tel:${a.phone}`} className="mt-1 inline-block text-sm font-semibold text-slate-900 underline-offset-2 hover:underline">📞 {a.phone}</a> : null}
+        {shipment?.awb ? <p className="mt-2 text-xs text-slate-600">Shipped with <b>{shipment.courierName}</b> · Tracking no. <b className="font-mono">{shipment.awb}</b></p> : null}
+      </div>
+      <div className="flex flex-row flex-wrap items-start gap-2 sm:flex-col sm:items-end">
+        <span className={"rounded-full px-3 py-1 text-xs font-black " + (item.codCollectPaise !== null ? "bg-slate-950 text-white" : "bg-emerald-50 text-emerald-800")}>
+          {item.codCollectPaise !== null ? `COD · collect ${money(item.codCollectPaise)}` : "Prepaid · don't collect"}
+        </span>
+        <button type="button" onClick={() => onCopy(text)} className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold hover:border-slate-900">{copied ? "Copied ✓" : "Copy address"}</button>
+      </div>
     </div>
   );
 }

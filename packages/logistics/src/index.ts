@@ -4,6 +4,8 @@ export type Address = {
   name: string;
   phone: string;
   line1: string;
+  /** Flat/house no., landmark: couriers print it on the label. */
+  line2?: string;
   city: string;
   state: string;
   postalCode: string;

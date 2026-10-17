@@ -208,6 +208,11 @@ export const orderStatusUpdateSchema = z.object({
   status:z.enum(["PAID","CONFIRMED","PACKED","CANCELLED"]),
   notes:z.string().trim().max(500).optional(),
 });
+/** Courier and tracking number for a shipment the seller books themselves (manual shipping). */
+export const shipmentTrackingSchema = z.object({
+  courierName:z.string().trim().min(2,"Enter the courier name").max(60),
+  awb:z.string().trim().min(4,"Enter the tracking (AWB) number").max(40).regex(/^[A-Za-z0-9-]+$/,"Tracking number can only have letters, numbers and -"),
+});
 export const shipmentStatusUpdateSchema = z.object({
   status:z.enum(["PICKED_UP","IN_TRANSIT","OUT_FOR_DELIVERY","DELIVERED","FAILED","RETURNED","CANCELLED"]),
   notes:z.string().trim().max(500).optional(),
