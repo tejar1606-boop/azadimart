@@ -37,6 +37,11 @@ export default function CancelOrder({ orderId, cod, onCancelled }: { orderId: st
       const text = reason === "Other" ? note.trim() || "Other" : [reason, note.trim()].filter(Boolean).join(": ");
       const response = await fetch(`/api/v1/orders/${orderId}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: text }) });
       const body = await response.json().catch(() => null);
+      if (response.status === 409) {
+        // The seller shipped it meanwhile: explain, then show the order as it is now.
+        setTimeout(onCancelled, 3500);
+        throw new Error("The seller has already shipped this order, so it can't be cancelled now. You can refuse it at delivery or return it after it arrives.");
+      }
       if (!response.ok) throw new Error(body?.error?.message ?? "Couldn't cancel the order. Please try again.");
       setOpen(false);
       onCancelled();

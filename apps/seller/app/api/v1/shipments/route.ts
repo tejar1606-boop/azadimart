@@ -33,8 +33,12 @@ export async function POST(request: Request) {
       .where(and(eq(orders.id, orderId), eq(orderItems.sellerId, sellerId)))
       .limit(1))[0];
     if (!orderRow) throw new AppError("NOT_FOUND", "Order not found for this seller");
+    // Already booked (double tap, or the same order's other product row): return that shipment instead of an error.
+    const booked = (await db.select({ id: shipments.id, status: shipments.status, providerShipmentId: shipments.providerShipmentId, awb: shipments.awb, courierName: shipments.courierName, shippedBy: shipments.shippedBy, shippingFeePaise: shipments.shippingFeePaise })
+      .from(shipments).where(and(eq(shipments.orderId, orderId), eq(shipments.sellerId, sellerId))).limit(1))[0];
+    if (booked && !["FAILED", "CANCELLED", "PENDING"].includes(booked.status)) return NextResponse.json({ shipment: booked });
     if (!["CONFIRMED", "PACKED"].includes(orderRow.status)) {
-      throw new AppError("CONFLICT", "Order is not ready for seller fulfillment");
+      throw new AppError("CONFLICT", orderRow.status === "CANCELLED" ? "This order was cancelled, so it can't be shipped. Refresh the page." : "This order has already moved on (" + orderRow.status.replaceAll("_", " ").toLowerCase() + "). Refresh the page.");
     }
 
     const rawSettings = (await db.select({ shippingSettings: sellerSettings.shippingSettings })

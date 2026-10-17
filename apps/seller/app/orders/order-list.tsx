@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Order = {
   id: string;
@@ -110,9 +110,15 @@ export default function OrderList() {
   const [actionError, setActionError] = useState("");
 
   async function reload() {
-    const body = await fetch("/api/v1/orders", { cache: "no-store" }).then((r) => r.json()).catch(() => null);
+    const [body, ship] = await Promise.all([
+      fetch("/api/v1/orders", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+      fetch("/api/v1/shipments", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+    ]);
     if (body?.items) setItems(body.items);
+    if (ship?.items) setShipments(ship.items);
   }
+  // Blocks a second tap immediately (state updates arrive a moment later).
+  const busyRef = useRef(false);
 
   async function markPacked(item: Order) {
     setWorking(item.id); setActionError(""); setNotice("");
@@ -168,8 +174,10 @@ export default function OrderList() {
   }, []);
 
   async function createShipment(orderId: string) {
+    if (busyRef.current) return; // ignore a second tap while booking
+    busyRef.current = true;
     setWorking(orderId);
-    setError("");
+    setActionError("");
     try {
       const response = await fetch("/api/v1/shipments", {
         method: "POST",
@@ -186,8 +194,10 @@ export default function OrderList() {
           : [body.shipment, ...current],
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to create shipment.");
+      setActionError(err instanceof Error ? err.message : "Unable to create shipment.");
     } finally {
+      await reload();
+      busyRef.current = false;
       setWorking(null);
     }
   }
@@ -209,8 +219,10 @@ export default function OrderList() {
   }
 
   async function updateShipment(shipmentId: string, status: string) {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setWorking(shipmentId);
-    setError("");
+    setActionError("");
     try {
       const response = await fetch("/api/v1/shipments/" + shipmentId, {
         method: "PATCH",
@@ -229,8 +241,10 @@ export default function OrderList() {
         ),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update shipment.");
+      setActionError(err instanceof Error ? err.message : "Unable to update shipment.");
     } finally {
+      await reload();
+      busyRef.current = false;
       setWorking(null);
     }
   }
