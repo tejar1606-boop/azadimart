@@ -154,7 +154,7 @@ export default function CategoriesPage() {
         eyebrow="Catalogue"
         title="Categories"
         description="Create categories and sub-categories, set the order they appear in on the store, and hide the ones you don't need."
-        actions={<Link href="/catalog/arrange" className="rounded-full px-4 py-2 text-sm font-semibold ring-1 ring-slate-300 hover:ring-slate-900">Arrange products</Link>}
+        actions={<div className="flex flex-wrap gap-2"><Link href="/catalog/photos" className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Upload category photos</Link><Link href="/catalog/arrange" className="rounded-full px-4 py-2 text-sm font-semibold ring-1 ring-slate-300 hover:ring-slate-900">Arrange products</Link></div>}
       />
 
       <form

@@ -41,6 +41,7 @@ export default function AdminChrome({ counts, children }: { counts: AdminCounts 
       { href: "/catalog", label: "All products", icon: "inventory" },
       { href: "/catalog/arrange", label: "Arrange products", icon: "arrange" },
       { href: "/catalog/categories", label: "Categories", icon: "categories" },
+      { href: "/catalog/photos", label: "Category photos", icon: "categories" },
       { href: "/products", label: "Product approvals", icon: "products", badge: badge(counts.approvals) },
       { href: "/qc", label: "Quality control", icon: "qc", badge: badge(counts.qc) },
       { href: "/aplus", label: "A+ review", icon: "aplus", badge: badge(counts.aplus) },
