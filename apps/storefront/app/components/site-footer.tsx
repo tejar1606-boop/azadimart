@@ -16,7 +16,7 @@ export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
     <footer className="mt-12 pb-20 lg:pb-0">
       <TricolourRibbon />
       {/* Editorial footer: cinematic flag footage behind, big wordmark, plain links, brand story, legal line. */}
-      <div className="relative overflow-hidden bg-[#060b1a] text-white">
+      <div className="relative overflow-hidden bg-[#2A0E5F] text-white">
         <FooterBackdrop />
         <div className="relative mx-auto max-w-[1440px] px-5 pb-8 pt-14 sm:px-8 lg:px-20 lg:pt-20">
           <div className="grid gap-12 lg:grid-cols-[1.25fr_1fr_1.35fr_1.15fr] lg:gap-10">
