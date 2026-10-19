@@ -17,7 +17,7 @@ const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "";
 const SUPPORT_PHONE = process.env.NEXT_PUBLIC_SUPPORT_PHONE || "";
 
 /** Founder card. Name and title as they should appear on the page. */
-const FOUNDER = { name: "Ravi", title: "CEO & Director, LOIMART", photo: "/about/founder.webp" };
+const FOUNDER = { name: "Ravi", title: "CEO & Director, LOIMART", photo: "/about/founder-portrait.webp" };
 
 const PROMISES = [
   { icon: ShieldIcon, title: "Verified sellers", text: "Every seller completes KYC (identity, business and bank details) before they can sell on LOIMART." },
