@@ -32,7 +32,8 @@ export default function CategoryPhotos({ onChange }: { onChange?: (photos: Recor
   }
 
   const top = categories.filter((c) => !c.parentId && c.isActive);
-  const missing = top.filter((c) => !c.imageUrl).length;
+  const subsOf = (id: string) => categories.filter((c) => c.parentId === id && c.isActive);
+  const missing = [...top, ...top.flatMap((c) => subsOf(c.id))].filter((c) => !c.imageUrl).length;
 
   return (
     <section className="rounded-2xl border bg-white p-4 shadow-sm">
@@ -47,7 +48,21 @@ export default function CategoryPhotos({ onChange }: { onChange?: (photos: Recor
       <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {top.map((c) => <PhotoTile key={c.id} category={c} onSave={(url) => save(c.id, url)} />)}
       </ul>
-      <p className="mt-3 text-[11px] text-slate-500">No photo? The store uses one of the category&apos;s product photos. Sub-categories and hidden categories don&apos;t appear in the row. Change the order in Catalogue → Categories.</p>
+      {top.some((c) => subsOf(c.id).length) ? (
+        <div className="mt-6 border-t pt-4">
+          <h3 className="text-sm font-semibold">Sub-category photos</h3>
+          <p className="mt-0.5 max-w-xl text-xs text-slate-500">Shown in the “Top category” tiles on the home page and the category column on shop pages. Same size: square, 600 × 600 px.</p>
+          {top.filter((c) => subsOf(c.id).length).map((parent) => (
+            <div key={parent.id} className="mt-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">{parent.name}</p>
+              <ul className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {subsOf(parent.id).map((c) => <PhotoTile key={c.id} category={c} onSave={(url) => save(c.id, url)} />)}
+              </ul>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <p className="mt-3 text-[11px] text-slate-500">No photo? The store uses one of the category&apos;s product photos. Sub-categories don&apos;t appear in the round row; hidden categories don&apos;t appear anywhere. Add sub-categories and change the order in Catalogue → Categories.</p>
     </section>
   );
 }

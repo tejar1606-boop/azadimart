@@ -40,6 +40,11 @@ export default function VariantEditor({ value, onChange, baseSku, defaultPrice, 
 }) {
   const [customColor, setCustomColor] = useState({ name: "", hex: "#6A2CD6" });
   const [customSize, setCustomSize] = useState("");
+  // The size list the seller opened; they tick only the sizes they actually sell.
+  const [openPreset, setOpenPreset] = useState<string | null>(null);
+  const preset = SIZE_PRESETS.find((p) => p.label === openPreset);
+  const hasSize = (s: string) => value.sizes.some((x) => x.toLowerCase() === s.toLowerCase());
+  const toggleSize = (s: string) => (hasSize(s) ? update(value.colors, value.sizes.filter((x) => x.toLowerCase() !== s.toLowerCase())) : addSizes([s], openPreset ?? undefined));
   const [bulk, setBulk] = useState({ price: "", compareAt: "", onHand: "" });
   const defaults = { baseSku, price: defaultPrice, compareAt: defaultCompareAt };
   const update = (colors: ColorOption[], sizes: string[], sizeLabel = value.sizeLabel) => onChange({ colors, sizes, sizeLabel, rows: buildRows(colors, sizes, value.rows, defaults) });
@@ -92,15 +97,23 @@ export default function VariantEditor({ value, onChange, baseSku, defaultPrice, 
 
       <div>
         <p className="text-sm font-semibold">{label === "Size" ? "Sizes" : label} <span className="font-normal text-slate-400">(optional)</span></p>
-        <p className="mt-0.5 text-xs text-slate-500">Add a ready-made set, then tap one to remove it. You can type your own too, e.g. &ldquo;Cabin (55 cm)&rdquo; or &ldquo;Set of 3&rdquo;.</p>
+        <p className="mt-0.5 text-xs text-slate-500">Open a ready-made list and tap the ones you sell. You can type your own too, e.g. &ldquo;Cabin (55 cm)&rdquo; or &ldquo;Set of 3&rdquo;.</p>
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
           <span className="font-semibold text-slate-600">Shoppers see it as:</span>
           {OPTION_LABEL_PRESETS.map((l) => <button key={l} type="button" aria-pressed={label === l} onClick={() => onChange({ ...value, sizeLabel: l })} className={"rounded-full border px-2.5 py-1 font-semibold " + (label === l ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white hover:border-slate-900")}>{l}</button>)}
           <input aria-label="Other name for this option" maxLength={20} placeholder="Other…" value={OPTION_LABEL_PRESETS.includes(label as (typeof OPTION_LABEL_PRESETS)[number]) ? "" : label} onChange={(e) => onChange({ ...value, sizeLabel: e.target.value || "Size" })} className="w-24 rounded-full border border-slate-200 px-2.5 py-1" />
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          {SIZE_PRESETS.map((p) => <button key={p.label} type="button" onClick={() => addSizes(p.sizes, p.label)} className="rounded-full border border-dashed border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 hover:border-slate-900">+ {p.label}</button>)}
+          {SIZE_PRESETS.map((p) => <button key={p.label} type="button" aria-expanded={openPreset === p.label} onClick={() => setOpenPreset(openPreset === p.label ? null : p.label)} className={"rounded-full border border-dashed px-3 py-1.5 text-xs font-bold hover:border-slate-900 " + (openPreset === p.label ? "border-slate-900 bg-slate-100 text-slate-900" : "border-slate-300 text-slate-600")}>{openPreset === p.label ? "▾" : "+"} {p.label}</button>)}
         </div>
+        {preset ? (
+          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-semibold text-slate-600">Tap only the {label === "Size" ? "sizes" : label.toLowerCase() + " options"} you sell. Shoppers see just these.</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {preset.sizes.map((s) => <button key={s} type="button" aria-pressed={hasSize(s)} onClick={() => toggleSize(s)} className={chip(hasSize(s))}>{hasSize(s) ? "✓ " : ""}{s}</button>)}
+            </div>
+          </div>
+        ) : null}
         {value.sizes.length ? (
           <div className="mt-3 flex flex-wrap gap-2">
             {value.sizes.map((s) => <button key={s} type="button" onClick={() => update(value.colors, value.sizes.filter((x) => x !== s))} className={chip(true)} title="Remove">{s} ×</button>)}
