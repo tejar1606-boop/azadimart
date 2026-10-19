@@ -12,3 +12,4 @@ export * from "./live-chat";
 export * from "./live-chat-report";
 export * from "./product-edit";
 export * from "./shipment-status";
+export * from "./homepage";

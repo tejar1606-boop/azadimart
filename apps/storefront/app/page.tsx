@@ -347,7 +347,14 @@ function heroSlides(s: Settings): HeroSlide[] {
   const fromLegacy: Settings[] = !Array.isArray(s.slides) && (str(s, "desktopImageUrl") || str(s, "desktopVideoUrl"))
     ? [{ desktopImageUrl: s.desktopImageUrl, mobileImageUrl: s.mobileImageUrl, desktopVideoUrl: s.desktopVideoUrl, mobileVideoUrl: s.mobileVideoUrl, href: s.primaryHref, alt: s.heading }]
     : [];
+  // Scheduled slides (Banner Studio): only between their start and end time.
+  const now = Date.now();
+  const inWindow = (slide: Settings) => {
+    const from = Date.parse(str(slide, "startsAt")), until = Date.parse(str(slide, "endsAt"));
+    return !(from > now) && !(until <= now);
+  };
   return [...raw, ...fromLegacy]
+    .filter(inWindow)
     .map((slide) => ({
       desktopImageUrl: str(slide, "desktopImageUrl") || undefined,
       mobileImageUrl: str(slide, "mobileImageUrl") || undefined,

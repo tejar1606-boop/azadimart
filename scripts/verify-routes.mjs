@@ -68,6 +68,17 @@ const catalog = {
     "/api/v1/orders",
     "/api/v1/shipments",
   ],
+  studio: [
+    "/",
+    "/login",
+    "/home-banners",
+    "/page-banners",
+    "/seller-ads",
+    "/api/health",
+    "/api/v1/home-banners",
+    "/api/v1/page-banners",
+    "/api/v1/ads/slots",
+  ],
 };
 
 function fileFor(app, route) {

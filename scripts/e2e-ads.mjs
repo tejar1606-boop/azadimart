@@ -14,6 +14,8 @@ if (process.env.ALLOW_E2E !== "YES") throw new Error("Set ALLOW_E2E=YES to run t
 
 const SE = process.env.SELLER_URL ?? "http://localhost:3001";
 const AD = process.env.ADMIN_URL ?? "http://localhost:3002";
+// Seller ad approvals live in the Banner Studio app.
+const ST = process.env.STUDIO_URL ?? "http://localhost:3003";
 const SF = process.env.STOREFRONT_URL ?? "http://localhost:3000";
 const PW = process.env.DEMO_PASSWORD || "AzadiDemo2026!";
 const sql = neon(process.env.DATABASE_URL);
@@ -37,12 +39,13 @@ function client(base) {
     return { status: res.status, json, text, location: res.headers.get("location") };
   };
 }
-const shop = client(SF), admin = client(AD), sellerA = client(SE), sellerB = client(SE), anon = client(AD);
+const shop = client(SF), admin = client(AD), studio = client(ST), sellerA = client(SE), sellerB = client(SE), anon = client(AD);
 const [me] = await sql`select s.id, s.store_name, s.payout_hold_reason from sellers s join users u on u.id = s.user_id where u.email = 'demo.seller@azadimart.test'`;
 const [rival] = await sql`select s.id, u.email from sellers s join users u on u.id = s.user_id where s.status = 'ACTIVE' and s.id <> ${me.id} and u.email like 'e2e.seller.%' and s.gstin is not null order by s.created_at desc limit 1`;
 if (!rival) throw new Error("Run pnpm e2e:seller first (needs an active E2E seller).");
 await shop("/api/auth/login", { method: "POST", body: { email: "demo.customer@azadimart.test", password: PW } });
 await admin("/api/auth/login", { method: "POST", body: { email: "demo.admin@azadimart.test", password: PW } });
+await studio("/api/auth/login", { method: "POST", body: { email: "demo.admin@azadimart.test", password: PW } });
 await sellerA("/api/auth/login", { method: "POST", body: { email: "demo.seller@azadimart.test", password: PW } });
 const loginB = await sellerB("/api/auth/login", { method: "POST", body: { email: rival.email, password: PW } });
 if (loginB.status !== 200) throw new Error("Rival seller login failed: " + loginB.status);
@@ -99,12 +102,12 @@ async function uploadBanner(c, width, height) {
 
 // --- admin: ad space and prices
 const slotBody = { name: `Home banner ${RUN}`, placement: "HOME_HERO", description: "E2E", basePricePaise: 50000, buyNowPricePaise: 200000, bidIncrementPaise: 10000, closeHoursBefore: 1, isActive: true };
-let r = await admin("/api/v1/ads/slots", { method: "POST", body: { ...slotBody, buyNowPricePaise: 40000 } });
+let r = await studio("/api/v1/ads/slots", { method: "POST", body: { ...slotBody, buyNowPricePaise: 40000 } });
 check("book-now price below starting price rejected", r.status === 400, String(r.status));
-r = await admin("/api/v1/ads/slots", { method: "POST", body: slotBody });
+r = await studio("/api/v1/ads/slots", { method: "POST", body: slotBody });
 slotId = r.json?.slot?.id;
 check("admin creates an ad space with prices", r.status === 201 && slotId, r.status + " " + JSON.stringify(r.json?.error ?? ""));
-check("sellers can't create ad spaces", [401, 403].includes((await sellerA(`${AD}/api/v1/ads/slots`, { method: "POST", body: slotBody })).status));
+check("sellers can't create ad spaces", [401, 403].includes((await sellerA(`${ST}/api/v1/ads/slots`, { method: "POST", body: slotBody })).status));
 
 // --- seller ads: banner upload, content rules, review
 r = await uploadBanner(sellerA, 1440, 540);
@@ -158,11 +161,11 @@ check("no book-now once bids pass the book-now price", /above the book-now price
 check("can't bid more than 60 days ahead", /within the next 60 days/.test((await bid(sellerA, campA, [istDay(70)], "BID", 600)).json?.results?.[0]?.reason ?? ""));
 
 // --- admin closes days
-r = await admin(`/api/v1/ads/slots/${slotId}/closed-days`, { method: "POST", body: { days: [d5], closed: true } });
+r = await studio(`/api/v1/ads/slots/${slotId}/closed-days`, { method: "POST", body: { days: [d5], closed: true } });
 check("admin closes a day", r.status === 200 && (await dayOf(sellerA, d5)).status === "CLOSED");
 check("closed day can't be bid on", /Not available/.test((await bid(sellerA, campA, [d5], "BID", 600)).json?.results?.[0]?.reason ?? ""));
-check("days with bids can't be closed", (await admin(`/api/v1/ads/slots/${slotId}/closed-days`, { method: "POST", body: { days: [d1], closed: true } })).status === 409);
-await admin(`/api/v1/ads/slots/${slotId}/closed-days`, { method: "POST", body: { days: [d5], closed: false } });
+check("days with bids can't be closed", (await studio(`/api/v1/ads/slots/${slotId}/closed-days`, { method: "POST", body: { days: [d1], closed: true } })).status === 409);
+await studio(`/api/v1/ads/slots/${slotId}/closed-days`, { method: "POST", body: { days: [d5], closed: false } });
 
 // --- bidding closes: highest bid wins
 await sql`update ad_slots set close_hours_before = 160 where id = ${slotId}`;
@@ -174,13 +177,13 @@ check("winner alerted", (await alerts(sellerB, "AD_WON")).length >= 1 && (await 
 await sql`update ad_slots set close_hours_before = 1 where id = ${slotId}`;
 
 // --- review
-r = await admin(`/api/v1/ads/campaigns/${campB}`, { method: "POST", body: { decision: "REJECTED" } });
+r = await studio(`/api/v1/ads/campaigns/${campB}`, { method: "POST", body: { decision: "REJECTED" } });
 check("rejecting an ad needs a note", r.status === 400);
-await admin(`/api/v1/ads/campaigns/${campB}`, { method: "POST", body: { decision: "REJECTED", note: "Banner text too small" } });
+await studio(`/api/v1/ads/campaigns/${campB}`, { method: "POST", body: { decision: "REJECTED", note: "Banner text too small" } });
 check("seller told what to change", (await alerts(sellerB, "AD_REVIEWED")).some((n) => n.body.includes("Banner text too small")));
 r = await sellerB(`/api/v1/ads/campaigns/${campB}`, { method: "PUT", body: { slotId, productId: lent.product_id, headline: `Rival deal v2 ${RUN}`, desktopImageAssetId: desktopB } });
 check("edited ad goes back to review", r.status === 200 && r.json.campaign.status === "PENDING_REVIEW");
-r = await admin(`/api/v1/ads/campaigns/${campA}`, { method: "POST", body: { decision: "APPROVED" } });
+r = await studio(`/api/v1/ads/campaigns/${campA}`, { method: "POST", body: { decision: "APPROVED" } });
 check("admin approves an ad", r.status === 200);
 
 // --- live on the home page
@@ -225,12 +228,12 @@ check("payout breakdown lists the ad charge", (await sellerA(`/api/v1/payouts/${
 // --- admin withdraws a booking
 await bid(sellerA, campA, [d6], "BUY_NOW");
 const [b6] = await sql`select id from ad_bids where slot_id = ${slotId} and day = ${d6} and status = 'WON'`;
-check("withdrawing needs a reason", (await admin(`/api/v1/ads/bids/${b6.id}`, { method: "DELETE", body: {} })).status === 400);
-r = await admin(`/api/v1/ads/bids/${b6.id}`, { method: "DELETE", body: { reason: "Product listing under review" } });
+check("withdrawing needs a reason", (await studio(`/api/v1/ads/bids/${b6.id}`, { method: "DELETE", body: {} })).status === 400);
+r = await studio(`/api/v1/ads/bids/${b6.id}`, { method: "DELETE", body: { reason: "Product listing under review" } });
 check("admin withdraws a booking; the day opens again", r.status === 200 && (await dayOf(sellerA, d6)).status === "OPEN");
 
 // --- sponsored products: search and category placements
-const productSlot = async (body) => { const res = await admin("/api/v1/ads/slots", { method: "POST", body: { basePricePaise: 10000, buyNowPricePaise: 20000, bidIncrementPaise: 1000, closeHoursBefore: 1, isActive: true, ...body } }); if (res.json?.slot?.id) extraSlots.push(res.json.slot.id); return res; };
+const productSlot = async (body) => { const res = await studio("/api/v1/ads/slots", { method: "POST", body: { basePricePaise: 10000, buyNowPricePaise: 20000, bidIncrementPaise: 1000, closeHoursBefore: 1, isActive: true, ...body } }); if (res.json?.slot?.id) extraSlots.push(res.json.slot.id); return res; };
 r = await productSlot({ name: `Category top ${RUN}`, placement: "CATEGORY_TOP" });
 check("category placement needs a category", r.status === 400);
 const catSlot = (await productSlot({ name: `Category top ${RUN}`, placement: "CATEGORY_TOP", categoryId: mine.category_id })).json?.slot?.id;
@@ -245,8 +248,8 @@ await bid(sellerA, campSearch, [d4], "BUY_NOW");
 await bid(sellerA, campCat, [d4], "BUY_NOW");
 await sql`update ad_bids set day = ${istDay(0)} where slot_id in (${searchSlot}, ${catSlot}) and status = 'WON'`;
 check("not shown before the ad is approved", !((await shop("/api/v1/ads/sponsored")).json?.items ?? []).some((i) => i.product.id === mine.product_id));
-await admin(`/api/v1/ads/campaigns/${campSearch}`, { method: "POST", body: { decision: "APPROVED" } });
-await admin(`/api/v1/ads/campaigns/${campCat}`, { method: "POST", body: { decision: "APPROVED" } });
+await studio(`/api/v1/ads/campaigns/${campSearch}`, { method: "POST", body: { decision: "APPROVED" } });
+await studio(`/api/v1/ads/campaigns/${campCat}`, { method: "POST", body: { decision: "APPROVED" } });
 const [searchBid] = await sql`select id from ad_bids where slot_id = ${searchSlot} and status = 'WON'`;
 let sp = (await shop("/api/v1/ads/sponsored")).json?.items ?? [];
 check("sponsored product first on All products", sp.some((i) => i.bidId === searchBid.id && i.product.id === mine.product_id && i.product.variants?.length), JSON.stringify(sp.map((i) => i.bidId)));
@@ -270,17 +273,17 @@ await bid(sellerA, campHome, [d4], "BUY_NOW");
 await sql`update ad_bids set day = ${istDay(0)} where slot_id = ${homeSlot} and status = 'WON'`;
 const [homeBid] = await sql`select id from ad_bids where slot_id = ${homeSlot} and status = 'WON'`;
 check("home product ad hidden until approved", !(await shop("/")).text.includes(`/api/v1/ads/click/${homeBid.id}`));
-await admin(`/api/v1/ads/campaigns/${campHome}`, { method: "POST", body: { decision: "APPROVED" } });
+await studio(`/api/v1/ads/campaigns/${campHome}`, { method: "POST", body: { decision: "APPROVED" } });
 const homePage = await shop("/");
 check("approved product shows in the home Sponsored picks row", homePage.text.includes(`/api/v1/ads/click/${homeBid.id}`) && homePage.text.includes("Sponsored picks"));
 r = await shop(`/api/v1/ads/click/${homeBid.id}`, { redirect: "manual" });
 check("home sponsored card click opens the product", r.location?.endsWith(`/products/${mine.slug}`));
 
 // --- reports and access
-const adminView = (await admin("/api/v1/ads/slots")).json;
+const adminView = (await studio("/api/v1/ads/slots")).json;
 check("admin sees bookings with seller names", adminView?.bookings?.some((b) => b.storeName === me.store_name));
-check("admin calendar shows who booked", (await admin(`/api/v1/ads/slots/${slotId}/calendar`)).json?.days?.some((d) => d.holder));
-check("sellers can't approve ads or see the admin calendar", [401, 403].includes((await sellerA(`${AD}/api/v1/ads/campaigns/${campA}`, { method: "POST", body: { decision: "APPROVED" } })).status) && [401, 403].includes((await sellerA(`${AD}/api/v1/ads/slots/${slotId}/calendar`)).status));
+check("admin calendar shows who booked", (await studio(`/api/v1/ads/slots/${slotId}/calendar`)).json?.days?.some((d) => d.holder));
+check("sellers can't approve ads or see the admin calendar", [401, 403].includes((await sellerA(`${ST}/api/v1/ads/campaigns/${campA}`, { method: "POST", body: { decision: "APPROVED" } })).status) && [401, 403].includes((await sellerA(`${ST}/api/v1/ads/slots/${slotId}/calendar`)).status));
 check("customers can't bid", [401, 403].includes((await shop(`${SE}/api/v1/ads/bids`, { method: "POST", body: { campaignId: campA, days: [d4], mode: "BID", amountPaise: 99999 } })).status));
 check("a seller can't bid with another seller's ad", /Ad not found/.test((await bid(sellerB, campA, [d4], "BID", 900)).json?.results?.[0]?.reason ?? ""));
 const audits = await sql`select action from audit_logs where created_at > now() - interval '15 minutes' and action like 'AD_%'`;

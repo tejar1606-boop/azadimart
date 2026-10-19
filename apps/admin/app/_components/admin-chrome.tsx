@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { PortalShell, type PortalNavSection } from "@azadimart/ui";
-import { STAFF_PERMISSION_KEYS, adminPagePermission, firstAdminPage } from "@azadimart/shared";
+import { STAFF_PERMISSION_KEYS, STUDIO_URL, adminPagePermission, firstAdminPage } from "@azadimart/shared";
 
 export type AdminCounts = { liveWaiting: number; role: string; roleName: string; displayName: string | null; permissions: string[]; support: number; sellers: number; qc: number; approvals: number; aplus: number; ads: number };
 
@@ -49,10 +49,10 @@ export default function AdminChrome({ counts, children }: { counts: AdminCounts 
     ] },
     { title: "Storefront", items: [
       { href: "/online-store", label: "Online Store", icon: "store" },
-      { href: "/online-store/page-banners", label: "Page banners", icon: "store" },
+      // Banners live in the separate Banner Studio app.
+      ...(permissions?.includes("banners") ? [{ href: STUDIO_URL, label: "Banner Studio ↗", icon: "sparkle" as const, badge: badge(counts.ads) }] : []),
       { href: "/marketing/coupons", label: "Coupons", icon: "coupons" },
       { href: "/marketing/offer-tags", label: "Offer tags", icon: "sparkle" },
-      { href: "/marketing/ads", label: "Seller ads", icon: "marketing", badge: badge(counts.ads) },
       { href: "/marketing", label: "Marketing", icon: "marketing" },
     ] },
     { title: "Operations", items: [

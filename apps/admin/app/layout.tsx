@@ -31,7 +31,7 @@ async function adminCounts(): Promise<AdminCounts | null> {
       can("catalog") ? n(db.select({ n: count() }).from(qcSubmissions).where(eq(qcSubmissions.status, "PENDING"))) : skip,
       can("catalog") ? n(db.select({ n: count() }).from(products).where(eq(products.status, "PENDING_ADMIN_APPROVAL"))) : skip,
       can("catalog") ? n(db.select({ n: count() }).from(productAplusContent).where(eq(productAplusContent.status, "PENDING_REVIEW"))) : skip,
-      can("marketing") ? n(db.select({ n: count() }).from(adCampaigns).where(eq(adCampaigns.status, "PENDING_REVIEW"))) : skip,
+      can("banners") ? n(db.select({ n: count() }).from(adCampaigns).where(eq(adCampaigns.status, "PENDING_REVIEW"))) : skip,
     ]);
     return { liveWaiting, role: access.role, roleName: access.roleName, displayName: access.displayName, permissions: access.permissions, support, sellers: sellersPending, qc, approvals, aplus, ads };
   } catch {

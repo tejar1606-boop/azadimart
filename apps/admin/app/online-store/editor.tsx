@@ -3,14 +3,15 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { DEFAULT_HOME_SECTIONS, SECTION_TYPES, type ThemeSectionDraft } from "@azadimart/shared";
-import BannerRowField, { type RowBanner } from "./banner-row-field";
+import type { RowBanner } from "./banner-row-field";
 import CategoryPhotos from "./category-photos";
 import IntroField, { type IntroSettings } from "./intro-field";
-import HeroSlidesField, { SLIDE_SECONDS_DEFAULT, slidesFromSettings } from "./hero-slides-field";
+import { SLIDE_SECONDS_DEFAULT, slidesFromSettings } from "./hero-slides-field";
 import MediaField from "./media-field";
 import NavigationEditor from "./navigation-editor";
 import ShowcaseField from "./showcase-field";
 import SeoFields from "../_components/seo-fields";
+import { STUDIO_URL } from "@azadimart/shared";
 
 type Row = ThemeSectionDraft & { id:string };
 type HomepageSectionResponse = { id:string; type:string; position:number; isVisible:boolean; settings:Record<string,unknown> };
@@ -158,26 +159,8 @@ function SectionFields({section,onChange}:{section:Row;onChange:(key:string,valu
   return <div className="mt-4 grid gap-3 md:grid-cols-2">
     {t==="category_showcase" && <ShowcaseField settings={section.settings} onChange={onChange}/>}
     {t!=="category_grid" && t!=="marquee" && t!=="promo_banner" && t!=="banner_row" && t!=="category_showcase" && t!=="hero" && t!=="image_banner" && <Field label="Heading"><input className="w-full rounded-lg border p-2.5" value={val(section,"heading")} onChange={e=>onChange("heading",e.target.value)}/></Field>}
-    {t==="banner_row" && <>
-      <Field label="Heading above the banners (optional)" wide><input className="w-full rounded-lg border p-2.5" placeholder="e.g. Deals of the day" value={val(section,"heading")} onChange={e=>onChange("heading",e.target.value)}/></Field>
-      <BannerRowField banners={Array.isArray(section.settings.banners)?section.settings.banners as RowBanner[]:[]} onChange={(update)=>onChange("banners",(settings:Record<string,unknown>)=>update(Array.isArray(settings.banners)?settings.banners as RowBanner[]:[]))}/>
-      <p className="text-xs text-slate-500 md:col-span-2">Place this row between product sections with the ↑ ↓ arrows. Banners without an image are hidden on the store.</p>
-    </>}
+    {(t==="hero"||t==="promo_banner"||t==="banner_row") && <StudioNote/>}
     {t!=="hero" && t!=="image_banner" && t!=="marquee" && t!=="promo_banner" && t!=="banner_row" && t!=="category_showcase" && <Field label="Subtitle"><input className="w-full rounded-lg border p-2.5" value={val(section,"subtitle")} onChange={e=>onChange("subtitle",e.target.value)}/></Field>}
-    {t==="hero" && <>
-      <Field label="Banner size"><select className="w-full rounded-lg border p-2.5" value={val(section,"size")||"full"} onChange={e=>onChange("size",e.target.value)}><option value="full">Full width</option><option value="compact">Compact (smaller card)</option></select></Field>
-      <HeroSlidesField slides={slidesFromSettings(section.settings)} onChange={(update)=>onChange("slides",(settings:Record<string,unknown>)=>update(slidesFromSettings(settings)))} slideSeconds={Number(section.settings.slideSeconds)||SLIDE_SECONDS_DEFAULT} onSecondsChange={(seconds)=>onChange("slideSeconds",seconds)}/>
-      <details className="rounded-xl border border-slate-200 p-3 md:col-span-2" open={slidesFromSettings(section.settings).length===0}>
-        <summary className="cursor-pointer text-sm font-semibold">Text banner <span className="font-normal text-slate-500">(only shown when there are no slides)</span></summary>
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <Field label="Eyebrow"><input className="w-full rounded-lg border p-2.5" value={val(section,"eyebrow")} onChange={e=>onChange("eyebrow",e.target.value)}/></Field>
-          <Field label="Heading"><input className="w-full rounded-lg border p-2.5" value={val(section,"heading")} onChange={e=>onChange("heading",e.target.value)}/></Field>
-          <Field label="Description" wide><textarea className="min-h-20 w-full rounded-lg border p-2.5" value={val(section,"description")} onChange={e=>onChange("description",e.target.value)}/></Field>
-          <Field label="Button label"><input className="w-full rounded-lg border p-2.5" value={val(section,"primaryLabel")} onChange={e=>onChange("primaryLabel",e.target.value)}/></Field>
-          <Field label="Button link"><input className="w-full rounded-lg border p-2.5" value={val(section,"primaryHref")} onChange={e=>onChange("primaryHref",e.target.value)}/></Field>
-        </div>
-      </details>
-    </>}
     {t==="image_banner" && <><Field label="Eyebrow"><input className="w-full rounded-lg border p-2.5" value={val(section,"eyebrow")} onChange={e=>onChange("eyebrow",e.target.value)}/></Field><Field label="Heading"><input className="w-full rounded-lg border p-2.5" value={val(section,"heading")} onChange={e=>onChange("heading",e.target.value)}/></Field><Field label="Description" wide><textarea className="min-h-24 w-full rounded-lg border p-2.5" value={val(section,"description")} onChange={e=>onChange("description",e.target.value)}/></Field><Field label="Button label"><input className="w-full rounded-lg border p-2.5" value={val(section,"buttonLabel")} onChange={e=>onChange("buttonLabel",e.target.value)}/></Field><Field label="Button link"><input className="w-full rounded-lg border p-2.5" value={val(section,"buttonHref")} onChange={e=>onChange("buttonHref",e.target.value)}/></Field><MediaField kind="image" label="Side image (optional)" hint="1600 × 1200 px · replaces the icon tiles" size={{width:1600,height:1200}} value={val(section,"imageUrl")} onChange={v=>onChange("imageUrl",v)}/></>}
     {t==="marquee" && <p className="rounded-lg bg-slate-50 p-2.5 text-xs text-slate-600 md:col-span-2">The dark bar fills itself: it shows your newest active coupon (Marketing → Coupons) and “Cash on Delivery”. Below it, type your 3 promises.</p>}
     {(t==="trust_strip"||t==="marquee") && <Field label={t==="trust_strip"?"Promises (one per line: Title | short line)":"3 promises (one per line, keep them short)"} wide><textarea className="min-h-28 w-full rounded-lg border p-2.5" value={Array.isArray(section.settings.items)?section.settings.items.filter((v): v is string=>typeof v==="string").join("\n"):""} onChange={e=>onChange("items",e.target.value.split("\n").map(v=>v.trim()).filter(Boolean))}/></Field>}
@@ -185,15 +168,6 @@ function SectionFields({section,onChange}:{section:Row;onChange:(key:string,valu
     {t==="category_grid" && <CategoryPicker value={Array.isArray(section.settings.categories)?section.settings.categories.filter((v): v is string=>typeof v==="string"):[]} onChange={v=>onChange("categories",v)}/>}
     {(t==="featured_products"||t==="sponsored_products"||t==="sales_coupons") && <Field label={t==="featured_products"?"How many products (6, 12, 18 or 24 fill full rows)":"How many to show"}><input type="number" min="1" max="24" step={t==="featured_products"?6:1} className="w-full rounded-lg border p-2.5" value={String(section.settings.limit ?? (t==="featured_products"?12:8))} onChange={e=>onChange("limit",Number(e.target.value))}/></Field>}
     {t==="newsletter" && <Field label="Button label"><input className="w-full rounded-lg border p-2.5" value={val(section,"buttonLabel")} onChange={e=>onChange("buttonLabel",e.target.value)}/></Field>}
-    {t==="promo_banner" && <>
-      <MediaField kind="image" label="Desktop banner" hint="1800 × 320 px" size={{width:1800,height:320}} value={val(section,"desktopImageUrl")} onChange={v=>onChange("desktopImageUrl",v)}/>
-      <MediaField kind="image" label="Mobile banner" hint="800 × 329 px" size={{width:800,height:329}} value={val(section,"mobileImageUrl")} onChange={v=>onChange("mobileImageUrl",v)}/>
-      <MediaField kind="video" label="Desktop video (optional)" hint="Same shape as 1800 × 320" size={{width:1800,height:320}} value={val(section,"desktopVideoUrl")} onChange={v=>onChange("desktopVideoUrl",v)}/>
-      <MediaField kind="video" label="Mobile video (optional)" hint="Same shape as 800 × 329" size={{width:800,height:329}} value={val(section,"mobileVideoUrl")} onChange={v=>onChange("mobileVideoUrl",v)}/>
-      <Field label="Link (where the banner goes)"><input className="w-full rounded-lg border p-2.5" placeholder="/c/electronics-accessories" value={val(section,"href")} onChange={e=>onChange("href",e.target.value)}/></Field>
-      <Field label="Alt text (describe the banner)"><input className="w-full rounded-lg border p-2.5" placeholder="e.g. Diwali sale — up to 40% off" value={val(section,"alt")} onChange={e=>onChange("alt",e.target.value)}/></Field>
-      <p className="text-xs text-slate-500 md:col-span-2">Add as many promo banners as you like and drag them between sections with the arrows. A banner without a desktop image or video is hidden on the store. A video plays muted on loop, with the image shown while it loads.</p>
-    </>}
     {t==="video" && <MediaField kind="video" label="Video" hint="16:9 works best" value={val(section,"videoUrl")} onChange={v=>onChange("videoUrl",v)}/>}
   </div>
 }
@@ -291,5 +265,13 @@ function HomepageSeo({seo,onChange}:{seo:Record<string,unknown>;onChange:(key:st
         path="/" siteSuffix={false}/>
     </div>
     <div className="mt-3"><MediaField kind="image" label="Share image" hint="1200 × 630 px" size={{width:1200,height:630}} value={text("imageUrl")} onChange={(v)=>onChange("imageUrl",v)}/></div>
+  </div>;
+}
+
+/** Banner images, slides and schedules are uploaded in the separate Banner Studio. */
+function StudioNote(){
+  return <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#F3EDFD] p-3 text-sm md:col-span-2">
+    <p className="text-slate-700">Upload, schedule and publish these banners in the <b>Banner Studio</b>. Here you can still add, move or hide this section.</p>
+    <a href={STUDIO_URL+"/home-banners"} target="_blank" rel="noreferrer" className="rounded-full bg-[#6A2CD6] px-4 py-2 text-xs font-semibold text-white">Open Banner Studio ↗</a>
   </div>;
 }

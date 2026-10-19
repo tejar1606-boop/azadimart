@@ -12,18 +12,20 @@ if (process.env.NODE_ENV === "production") throw new Error("E2E test is disabled
 if (process.env.ALLOW_E2E !== "YES") throw new Error("Set ALLOW_E2E=YES to run the E2E test (it writes test data).");
 
 const AD = process.env.ADMIN_URL ?? "http://localhost:3002";
+// Banners (home, page, seller ads) live in the separate Banner Studio app.
+const ST = process.env.STUDIO_URL ?? "http://localhost:3003";
 const PW = process.env.DEMO_PASSWORD || "AzadiDemo2026!";
 const sql = neon(process.env.DATABASE_URL);
 const RUN = Date.now().toString(36).slice(-5).toLowerCase();
 let pass = 0, fail = 0;
 const check = (n, ok, x = "") => { ok ? pass++ : fail++; console.log((ok ? "PASS " : "FAIL ") + n + (x ? "  " + x : "")); };
 
-function client() {
+function client(base = AD) {
   let cookie = "";
   return async (path, { method = "GET", body, redirect = "follow" } = {}) => {
-    const headers = { cookie, origin: AD };
+    const headers = { cookie, origin: base };
     if (body) headers["content-type"] = "application/json";
-    const res = await fetch(AD + path, { method, headers, body: body ? JSON.stringify(body) : undefined, redirect });
+    const res = await fetch(base + path, { method, headers, body: body ? JSON.stringify(body) : undefined, redirect });
     const set = res.headers.getSetCookie?.() ?? [];
     if (set.length) cookie = set.map((c) => c.split(";")[0]).join("; ");
     const text = await res.text();
@@ -66,6 +68,7 @@ const R = {
   finance: await testRole("Finance", ["dashboard", "payments", "orders"]),
   marketing: await testRole("Marketing", ["dashboard", "storefront", "marketing"]),
   support: await testRole("Support", ["support"]),
+  banners: await testRole("Banners", ["banners"]),
 };
 
 // --- members
@@ -84,6 +87,7 @@ await addMember("catalog", R.catalog);
 await addMember("finance", R.finance);
 await addMember("marketing", R.marketing);
 await addMember("support", R.support);
+await addMember("banners", R.banners);
 await addMember("returns", returnsRole);
 await addMember("lead", leadRole);
 check("admin adds team members with their own sign-in", Object.values(members).every((m) => m.status === 201 && m.login === 200), JSON.stringify(Object.fromEntries(Object.entries(members).map(([k, m]) => [k, [m.status, m.login]]))));
@@ -101,9 +105,21 @@ const t = async (name, key, paths, expect) => { const bad = await allowed(key, p
 await t("Catalogue & QC can open catalogue areas", "catalog", [["/api/v1/qc"], ["/api/v1/products"], ["/api/v1/reviews"], ["/api/v1/aplus"], ["/api/v1/catalog/categories"]], true);
 await t("Catalogue & QC can't open orders, money, sellers, support or team", "catalog", [["/api/v1/orders"], ["/api/v1/payouts"], ["/api/v1/sellers"], ["/api/v1/support/tickets"], ["/api/v1/team"], ["/api/v1/coupons"], ["/api/v1/online-store/homepage"]], false);
 await t("Finance can open payments and orders", "finance", [["/api/v1/payouts"], ["/api/v1/orders"], ["/api/v1/sellers"]], true);
-await t("Finance can't open catalogue, store design, marketing or logistics", "finance", [["/api/v1/qc"], ["/api/v1/online-store/homepage"], ["/api/v1/ads/slots"], ["/api/v1/catalog/categories", "POST"]], false);
-await t("Marketing can open store design, coupons, ads (and pick sellers/products for them)", "marketing", [["/api/v1/coupons"], ["/api/v1/ads/slots"], ["/api/v1/page-banners"], ["/api/v1/online-store/homepage"], ["/api/v1/sellers"], ["/api/v1/catalog/products"], ["/api/v1/offer-tags"]], true);
+await t("Finance can't open catalogue, store design, marketing or logistics", "finance", [["/api/v1/qc"], ["/api/v1/online-store/homepage"], ["/api/v1/catalog/categories", "POST"]], false);
+await t("Marketing can open store design, coupons, ads (and pick sellers/products for them)", "marketing", [["/api/v1/coupons"], ["/api/v1/online-store/homepage"], ["/api/v1/sellers"], ["/api/v1/catalog/products"], ["/api/v1/offer-tags"]], true);
 await t("Marketing can't change categories or open orders and payouts", "marketing", [["/api/v1/catalog/categories", "POST"], ["/api/v1/orders"], ["/api/v1/payouts"], ["/api/v1/qc"]], false);
+// --- Banner Studio (separate app): only roles with the Banner Studio area may sign in there
+const studioMember = async (key) => { const c = client(ST); const res = await c("/api/auth/login", { method: "POST", body: { email: members[key].email, password: "TeamPass2026!" } }); return { c, status: res.status }; };
+const bannerTeam = await studioMember("banners");
+const bannerApis = await Promise.all(["/api/v1/home-banners", "/api/v1/page-banners", "/api/v1/ads/slots"].map(async (p) => (await bannerTeam.c(p)).status));
+check("Banner team signs in to the Banner Studio and opens every banner screen", bannerTeam.status === 200 && bannerApis.every((s) => s === 200), JSON.stringify([bannerTeam.status, bannerApis]));
+await t("Banner team can't open anything in Admin", "banners", [["/api/v1/orders"], ["/api/v1/coupons"], ["/api/v1/online-store/homepage"], ["/api/v1/catalog/products"]], false);
+r = await members.banners.c("/dashboard", { redirect: "manual" });
+check("Banner team opening Admin is sent to the Banner Studio", [307, 308].includes(r.status) && Boolean(r.location?.startsWith(ST)), `${r.status} ${r.location}`);
+const marketingStudio = await studioMember("marketing");
+check("roles with Online store can also use the Banner Studio", marketingStudio.status === 200 && (await marketingStudio.c("/api/v1/ads/slots")).status === 200);
+check("roles without banners are refused at the Banner Studio sign-in", (await studioMember("finance")).status === 403 && (await studioMember("catalog")).status === 403);
+check("the Banner Studio refuses Admin-only roles' sessions", (await members.finance.c("/api/v1/orders")).status === 200 && (await client(ST)("/api/v1/home-banners")).status === 401);
 await t("Support agent can open only the support desk", "support", [["/api/v1/support/tickets"], ["/api/v1/support/canned"]], true);
 await t("Support agent is refused everywhere else", "support", [["/api/v1/orders"], ["/api/v1/coupons"], ["/api/v1/qc"], ["/api/v1/catalog/products"], ["/api/v1/team"]], false);
 await t("custom role gets exactly its areas", "returns", [["/api/v1/orders"], ["/api/v1/abandoned-carts"], ["/api/v1/support/tickets"]], true);

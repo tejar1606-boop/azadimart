@@ -1,7 +1,7 @@
-import PageBanners from "./page-banners";
+import { STUDIO_URL } from "@azadimart/shared";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Page banners" };
-
-export default function PageBannersPage() {
-  return <PageBanners />;
+/** Page banners moved to the separate Banner Studio. */
+export default function PageBannersMoved() {
+  redirect(STUDIO_URL + "/page-banners");
 }

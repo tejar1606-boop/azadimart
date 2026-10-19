@@ -175,7 +175,7 @@ agentUserId = r.json?.member?.userId ?? null;
 check("admin adds a support agent", r.status === 201 && agentUserId);
 check("agent signs in to the admin portal", (await agent("/api/auth/login", { method: "POST", body: { email: agentEmail, password: "AgentPass2026!" } })).status === 200);
 check("agent works the desk", (await agent("/api/v1/support/tickets")).status === 200);
-check("agent can't use other admin tools", (await agent("/api/v1/ads/slots")).status === 403 && (await agent("/api/v1/orders")).status === 403);
+check("agent can't use other admin tools", (await agent("/api/v1/coupons")).status === 403 && (await agent("/api/v1/orders")).status === 403);
 check("agent can't add agents", (await agent("/api/v1/team/members", { method: "POST", body: { displayName: "Nope", email: "nope@azadimart.test", password: "AgentPass2026!", roleId: supportRole?.id } })).status === 403);
 r = await agent(`/api/v1/support/tickets/${sTicket.id}`, { method: "PATCH", body: { assignedToUserId: agentUserId } });
 check("ticket assigned to the agent", r.json?.ticket?.assignedToUserId === agentUserId);

@@ -30,7 +30,9 @@ export async function getStaffAccess(db: Database, principal: SessionPrincipal):
     .from(staffMembers).innerJoin(roles, eq(roles.id, staffMembers.roleId)).where(eq(staffMembers.userId, principal.userId)).limit(1))[0];
   if (member) {
     if (!member.isActive) throw new AppError("FORBIDDEN", "Your access to the admin portal is switched off");
-    const permissions = member.permissions.filter(isStaffPermission);
+    const saved = member.permissions.filter(isStaffPermission);
+    // Banners used to be part of "Online store"; roles saved before the Banner Studio keep that access.
+    const permissions = saved.includes("storefront") && !saved.includes("banners") ? [...saved, "banners" as const] : saved;
     return { ...base, permissions, roleName: member.roleName, roleId: member.roleId, displayName: member.displayName, fullAccess: STAFF_PERMISSION_KEYS.every((p) => permissions.includes(p)) };
   }
   if (principal.role === "ADMIN") return { ...base, permissions: [...STAFF_PERMISSION_KEYS], roleName: "Admin (full access)", roleId: null, displayName: null, fullAccess: true };

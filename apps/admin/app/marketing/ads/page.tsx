@@ -1,7 +1,7 @@
-import AdsAdmin from "./ads-admin";
+import { STUDIO_URL } from "@azadimart/shared";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Seller ads" };
-
-export default function SellerAdsPage() {
-  return <AdsAdmin storefrontUrl={(process.env.AUTH_URL_STOREFRONT ?? "").replace(/\/$/, "")} />;
+/** Seller ad approvals moved to the separate Banner Studio. */
+export default function SellerAdsMoved() {
+  redirect(STUDIO_URL + "/seller-ads");
 }
