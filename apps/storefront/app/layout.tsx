@@ -68,7 +68,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <SiteFooter chrome={chrome} />
         <MobileTabBar />
         <HelpChat title="LOIMART Help" subtitle="Orders, returns, payments and products" apiBase="/api/v1/support" ticketsPath="/account/support" signInHref="/login"
-          categories={supportCategoriesFor("CUSTOMER").map((key) => ({ key, label: SUPPORT_CATEGORIES[key].label }))} storageKey="azm-help" launcherClassName="bottom-24 lg:bottom-6" hideLauncherOn={["/checkout"]}
+          categories={supportCategoriesFor("CUSTOMER").map((key) => ({ key, label: SUPPORT_CATEGORIES[key].label }))} storageKey="azm-help" launcherClassName="bottom-24 lg:bottom-6" hideLauncherOn={["/checkout"]} launcher="active"
           live={{ apiBase: "/api/v1/live-chat", ticketsPath: "/account/support", storageKey: "azm-live-chat", topics: supportCategoriesFor("CUSTOMER").map((key) => ({ key, label: SUPPORT_CATEGORIES[key].label })) }} />
       </body>
     </html>

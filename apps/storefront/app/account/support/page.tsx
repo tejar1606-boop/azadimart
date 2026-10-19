@@ -6,8 +6,9 @@ import { requireCustomerPage } from "./session";
 export const metadata = { title: "Help & support", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
-export default async function SupportPage() {
-  await requireCustomerPage("/account/support");
+export default async function SupportPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
+  const startCreating = (await searchParams).new === "1";
+  await requireCustomerPage(startCreating ? "/account/support?new=1" : "/account/support");
   return (
     <main className="min-h-[60vh] bg-canvas px-4 py-8 sm:px-6 sm:py-12">
       <div className="mx-auto max-w-4xl">
@@ -20,7 +21,7 @@ export default async function SupportPage() {
           <Link href="/account" className="text-sm font-bold text-slate-500">← Your orders</Link>
         </div>
         <div className="mt-7">
-          <SupportTicketList apiBase="/api/v1/support" ticketsPath="/account/support" categories={supportCategoriesFor("CUSTOMER").map((key) => ({ key, label: SUPPORT_CATEGORIES[key].label }))} />
+          <SupportTicketList startCreating={startCreating} apiBase="/api/v1/support" ticketsPath="/account/support" categories={supportCategoriesFor("CUSTOMER").map((key) => ({ key, label: SUPPORT_CATEGORIES[key].label }))} />
         </div>
       </div>
     </main>

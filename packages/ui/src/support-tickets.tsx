@@ -30,10 +30,11 @@ export function SupportStatusPill({ status }: { status: SupportStatus }) {
 }
 
 /** The requester's list of support requests, with a form to start a new one. */
-export function SupportTicketList({ apiBase, ticketsPath, categories }: { apiBase: string; ticketsPath: string; categories: Array<{ key: string; label: string }> }) {
+/** startCreating: open the "new request" form straight away (e.g. from a "Raise a ticket" link). */
+export function SupportTicketList({ apiBase, ticketsPath, categories, startCreating = false }: { apiBase: string; ticketsPath: string; categories: Array<{ key: string; label: string }>; startCreating?: boolean }) {
   const [items, setItems] = useState<TicketRow[] | null>(null);
   const [error, setError] = useState("");
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(startCreating);
   const [form, setForm] = useState({ category: categories[0]?.key ?? "OTHER", subject: "", message: "" });
   const [sending, setSending] = useState(false);
 

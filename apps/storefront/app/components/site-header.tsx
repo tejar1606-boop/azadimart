@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
-import { BrandMark, BrandWordmark } from "@azadimart/ui";
+import { BrandMark, BrandWordmark, HELP_CHAT_OPEN_EVENT } from "@azadimart/ui";
 import type { StoreChrome } from "../lib/chrome";
 import { BagIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon, GridIcon, HeartIcon, MenuIcon, SearchIcon, UserIcon } from "./icons";
 
@@ -177,6 +177,13 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
               {([["My orders", "/account"], ["Wishlist", "/wishlist"], ["Cart", "/cart"]] as const).map(([label, href]) => (
                 <Link key={href} href={href} className="block rounded-lg px-3 py-3 text-[15px] font-medium hover:bg-slate-50">{label}</Link>
               ))}
+              <p className="mt-4 px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Support</p>
+              <button type="button" onClick={() => { setMenuOpen(false); window.dispatchEvent(new CustomEvent(HELP_CHAT_OPEN_EVENT, { detail: { mode: "live" } })); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-[15px] font-medium hover:bg-slate-50">
+                <span className="h-2 w-2 rounded-full bg-[#22c55e]" aria-hidden="true" />Live chat
+              </button>
+              <Link href="/account/support?new=1" onClick={() => setMenuOpen(false)} className="block rounded-lg px-3 py-3 text-[15px] font-medium hover:bg-slate-50">Raise a ticket</Link>
+              <Link href="/account/support" onClick={() => setMenuOpen(false)} className="block rounded-lg px-3 py-3 text-[15px] font-medium hover:bg-slate-50">My support tickets</Link>
+              <div className="mt-4 border-t border-slate-100 pt-2" />
               {me ? (
                 <button type="button" onClick={() => void signOut()} className="block w-full rounded-lg px-3 py-3 text-left text-[15px] font-medium text-red-700 hover:bg-red-50">Sign out</button>
               ) : me === null ? (

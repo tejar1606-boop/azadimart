@@ -32,6 +32,8 @@ export type HelpChatProps = {
   launcherClassName?: string;
   /** Pages where the floating launcher is hidden (the chat can still be opened by event). */
   hideLauncherOn?: string[];
+  /** "active": show the floating button only while a live chat is open or replies are unread (the chat is opened from menus). */
+  launcher?: "always" | "active";
   storageKey: string;
   /** Live chat with the support team (a separate tool inside the same panel). */
   live?: Omit<LiveChatProps, "onBack">;
@@ -52,7 +54,7 @@ function SendIcon() {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h13M13 6l6 6-6 6" /></svg>;
 }
 
-export function HelpChat({ title, subtitle = "Usually answers instantly", apiBase, categories, ticketsPath, signInHref, launcherClassName = "bottom-6", hideLauncherOn = [], storageKey, live }: HelpChatProps) {
+export function HelpChat({ title, subtitle = "Usually answers instantly", apiBase, categories, ticketsPath, signInHref, launcherClassName = "bottom-6", hideLauncherOn = [], launcher = "always", storageKey, live }: HelpChatProps) {
   const [open, setOpen] = useState(false);
   // "bot" = the assistant; "live" = live chat with a person.
   const [mode, setMode] = useState<"bot" | "live">("bot");
@@ -160,7 +162,7 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
 
   const signInLink = signInHref ? `${signInHref}?next=${encodeURIComponent(path || "/")}` : null;
   const last = messages[messages.length - 1];
-  const hideLauncher = hideLauncherOn.some((p) => path === p || path.startsWith(p + "/"));
+  const hideLauncher = hideLauncherOn.some((p) => path === p || path.startsWith(p + "/")) || (launcher === "active" && !liveOpen && !unread);
 
   return (
     <>
