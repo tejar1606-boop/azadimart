@@ -164,7 +164,6 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
             ) : (
             <div className="flex-1 overflow-y-auto px-2 py-3">
               <p className="px-3 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Shop</p>
-              <Link href="/products" className="block rounded-lg px-3 py-3 text-[15px] font-medium hover:bg-slate-50">All products</Link>
               {chrome.categories.length ? chrome.categories.map((c) => c.children.length ? (
                 // Has sub-categories: open them in the menu instead of leaving the page.
                 <button key={c.id} type="button" onClick={() => setMenuCategoryId(c.id)} className="flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-[15px] font-medium hover:bg-slate-50">{c.name}<ChevronRightIcon size={18} className="text-slate-400" /></button>

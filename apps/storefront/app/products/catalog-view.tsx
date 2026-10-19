@@ -50,19 +50,13 @@ function CategoryRail({ rail, activeId }: { rail: RailCategory[]; activeId: stri
     <nav aria-label="Categories" className="sticky top-[136px] max-h-[calc(100vh-148px)] overflow-y-auto overscroll-contain rounded-2xl bg-slate-100/80 p-1.5 [scrollbar-width:none] lg:top-[132px] lg:max-h-[calc(100vh-150px)] lg:p-2">
       <p className="hidden px-2.5 pb-2 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400 lg:block">Categories</p>
       <ul className="space-y-1">
-        <li>
-          {openParent ? (
+        {openParent ? (
+          <li>
             <Link href="/products" className="flex flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-center text-[11px] font-semibold text-slate-600 transition hover:bg-white/70 hover:text-slate-950 lg:flex-row lg:gap-1.5 lg:px-2.5 lg:text-left lg:text-sm">
               <ChevronLeftIcon size={18} />All categories
             </Link>
-          ) : (
-            <Link href="/products" aria-current="page" className={item(true)}>
-              {bar(true)}
-              <Thumb src={null} className="h-12 w-12 bg-brand/10 text-brand-600 lg:h-11 lg:w-11" />
-              <span className={label(true)}>All products</span>
-            </Link>
-          )}
-        </li>
+          </li>
+        ) : null}
         {top.map((c) => {
           const selected = c.id === activeId;
           const children = c.id === openParent ? rail.filter((x) => x.parentId === c.id && shown(x)) : [];
