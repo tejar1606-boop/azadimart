@@ -80,6 +80,13 @@ export default function AuthScene({ headline, sub, children }: { headline: React
 
   const upTo = picks.length ? offPct(picks[0]!) : 0;
   const first = offers[0];
+  const bestSaving = Math.max(0, ...picks.map((x) => (x.compareAtPaise ?? x.pricePaise) - x.pricePaise));
+  // Today's savings at a glance: three numbers, no codes.
+  const savings = [
+    upTo ? { kicker: "Up to", value: `${upTo}%`, label: "off on top deals" } : null,
+    first ? { kicker: "Extra", value: first.discountType === "PERCENTAGE" ? `${first.discountValue}%` : first.discountType === "FIXED" ? rupees(first.discountValue) : "Free", label: first.discountType === "FREE_SHIPPING" ? "delivery for members" : "members' discount" } : null,
+    bestSaving ? { kicker: "Save", value: rupees(bestSaving), label: "on a single item today" } : null,
+  ].filter((x): x is { kicker: string; value: string; label: string } => Boolean(x));
 
   return (
     <main className="azm-auth relative isolate overflow-hidden px-4 pb-14 pt-6 sm:px-6 lg:py-12">
@@ -108,21 +115,20 @@ export default function AuthScene({ headline, sub, children }: { headline: React
               <p className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.28em] text-brand-300">
                 <span className="flex h-1 w-10 overflow-hidden rounded"><i className="flex-1 bg-[#FF9933]" /><i className="flex-1 bg-white" /><i className="flex-1 bg-[#138808]" /></span>Today&apos;s offers
               </p>
-              {upTo ? <span className="bg-[#EF5A8A] px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide">Up to {upTo}% off today</span> : null}
             </div>
             <h2 className="mt-4 text-5xl font-extrabold leading-[1.05] tracking-[-0.03em]">{headline}</h2>
             <p className="mt-4 max-w-md text-base leading-7 text-white/75">{sub}</p>
 
-            {offers.length ? (
-              <ul className="mt-7 grid max-w-xl gap-2.5 sm:grid-cols-[repeat(auto-fit,minmax(170px,1fr))]">
-                {offers.map((o, i) => (
-                  <li key={i} className="relative flex flex-col justify-between border border-dashed border-[#F9CB5B]/80 bg-[#F9CB5B]/10 p-3.5">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/60">Members&apos; offer</p>
-                    <p className="mt-1 text-[26px] font-extrabold leading-tight text-[#F9CB5B]">{offerText(o)}</p>
-                    <p className="mt-0.5 text-[12px] text-white/70">{o.minimumOrderPaise ? `On orders above ${rupees(o.minimumOrderPaise)}` : "On any order"}</p>
-                  </li>
+            {savings.length ? (
+              <dl className="mt-7 grid max-w-xl border border-white/15 bg-white/[0.06] backdrop-blur-sm" style={{ gridTemplateColumns: `repeat(${savings.length}, minmax(0, 1fr))` }}>
+                {savings.map((x, i) => (
+                  <div key={x.label} className={"px-5 py-4 " + (i ? "border-l border-white/15" : "")}>
+                    <dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/55">{x.kicker}</dt>
+                    <dd className="mt-1 text-[30px] font-extrabold leading-none tracking-[-0.02em] text-[#F9CB5B]">{x.value}</dd>
+                    <dd className="mt-1.5 text-[12.5px] text-white/70">{x.label}</dd>
+                  </div>
                 ))}
-              </ul>
+              </dl>
             ) : null}
 
             {picks.length ? (
