@@ -163,7 +163,7 @@ export default function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
         <>
           <button type="button" onClick={() => go(index - 1)} aria-label="Previous banner" className="absolute left-4 top-1/2 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/25 text-xl text-white backdrop-blur transition hover:bg-white/40 sm:grid">‹</button>
           <button type="button" onClick={() => go(index + 1)} aria-label="Next banner" className="absolute right-4 top-1/2 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white text-xl text-slate-950 shadow transition hover:bg-slate-100 sm:grid">›</button>
-          <div className="absolute inset-x-0 bottom-3 flex items-center justify-center gap-3 sm:bottom-5">
+          <div className="absolute inset-x-0 bottom-3 flex items-center justify-end gap-3 px-4 sm:bottom-5 sm:px-6">
             <div className="flex items-center gap-1.5 rounded-full bg-black/25 px-2.5 py-1.5 backdrop-blur">
               {slides.map((_, i) => (
                 <button key={i} type="button" onClick={() => go(i)} aria-label={`Show banner ${i + 1}`} aria-current={i === index} className={"h-1.5 rounded-full transition-all " + (i === index ? "w-6 bg-tiranga-saffron" : "w-1.5 bg-white/70 hover:bg-white")} />
