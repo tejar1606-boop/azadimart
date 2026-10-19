@@ -52,7 +52,7 @@ const offPct = (x: Pick) => (x.compareAtPaise && x.compareAtPaise > x.pricePaise
  * Sign-in / sign-up backdrop, built around offers (that's why shoppers come):
  * the biggest live deals, shown calmly as one featured deal and two more. All
  * from live store data; nothing invented, no fake timers. On phones a slim
- * deals strip sits above the form so the form stays first.
+ * deals strip sits below the form so the form comes first.
  */
 export default function AuthScene({ headline, sub, children }: { headline: React.ReactNode; sub: string; children: React.ReactNode }) {
   const [picks, setPicks] = useState<Pick[]>([]);
@@ -83,8 +83,8 @@ export default function AuthScene({ headline, sub, children }: { headline: React
 
       {/* minmax(0,1fr): the column never grows past the screen, even with large phone text sizes. */}
       <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_440px] lg:gap-14">
-        <section className="min-w-0 text-white">
-          {/* phone: the offer in one line, then the form */}
+        {/* Phones: the form first, the deals strip after it. Computers: deals on the left. */}
+        <section className="order-last min-w-0 text-white lg:order-first">
           <div className="lg:hidden">
             {upTo ? <p className="bg-[#F9CB5B] px-4 py-2.5 text-center text-[13px] font-semibold text-[#2A0E5F]">Today&apos;s deals: up to <b className="text-[15px]">{upTo}% off</b></p> : null}
             <ul className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[12px] font-medium text-white/85">
