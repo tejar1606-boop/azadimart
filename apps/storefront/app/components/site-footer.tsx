@@ -37,7 +37,7 @@ export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
             </div>
 
             <nav aria-label="Footer" className="grid grid-cols-2 content-start gap-x-8 gap-y-4 text-[15px] text-white/80">
-              {[...shopLinks, { label: "My orders", href: "/account" }, { label: "Wishlist", href: "/wishlist" }, { label: "Cart", href: "/cart" }].map((link) => (
+              {[...shopLinks, { label: "About us", href: "/about" }, { label: "My orders", href: "/account" }, { label: "Wishlist", href: "/wishlist" }, { label: "Cart", href: "/cart" }].map((link) => (
                 <Link key={link.href + link.label} href={link.href} className="transition hover:text-white">{link.label}</Link>
               ))}
               <FooterAccountLink className="transition hover:text-white" />
@@ -48,6 +48,7 @@ export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
               <p className="mt-1">We believe the best of India is made by people you can trust: weavers, cooks, makers and small businesses in every corner of the country.</p>
               <p className="mt-4">LOIMART gives them a fair, modern shop window. Every seller is KYC-verified and every product is quality-checked, so you can shop with confidence and pay when it arrives.</p>
               <p className="mt-4">Shop India. Support Indian sellers.</p>
+              <Link href="/about" className="mt-4 inline-flex items-center gap-1 font-semibold text-white underline underline-offset-2">Read our story →</Link>
             </div>
           </div>
 

@@ -92,3 +92,15 @@ body {
   .azm-sh-armed .azm-sh-line { transform: none; }
   .azm-sh-line::after, .azm-sh-shine::after, .azm-sh-arrow { animation: none !important; }
 }
+
+/* About page: 3D ring radius per screen size, 3D cards, icons and numbers. */
+.azm-about-tile { --ring-r: 190px; }
+@media (min-width: 640px) { .azm-about-tile { --ring-r: 300px; } }
+.azm-tilt { transform: perspective(900px) rotateX(0) rotateY(0) translateY(0); transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.45s ease; will-change: transform; }
+.azm-tilt:hover { transform: perspective(900px) rotateX(5deg) rotateY(-7deg) translateY(-6px); box-shadow: 0 30px 50px -24px rgba(42, 14, 95, 0.45); }
+.azm-icon3d { background: linear-gradient(145deg, #9B63FF 0%, #6A2CD6 45%, #3D1691 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -3px 6px rgba(0,0,0,0.25), 0 10px 18px -6px rgba(106,44,214,0.65); }
+.azm-num3d { color: #B996F7; text-shadow: 1px 1px 0 #9C70F2, 2px 2px 0 #8452E8, 3px 3px 0 #6A2CD6, 5px 6px 12px rgba(106,44,214,0.35); }
+@media (prefers-reduced-motion: reduce) { .azm-tilt, .azm-tilt:hover { transform: none; transition: none; } }
+.azm-founder { transform: rotateY(-8deg) rotateX(3deg); transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.azm-founder:hover { transform: rotateY(0deg) rotateX(0deg) translateY(-4px); }
+@media (max-width: 1023px), (prefers-reduced-motion: reduce) { .azm-founder, .azm-founder:hover { transform: none; } }

@@ -11,6 +11,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base: MetadataRoute.Sitemap = [
     { url: SITE_URL + "/", lastModified: now, changeFrequency: "daily", priority: 1 },
     { url: SITE_URL + "/products", lastModified: now, changeFrequency: "daily", priority: 0.8 },
+    { url: SITE_URL + "/about", lastModified: now, changeFrequency: "monthly", priority: 0.4 },
   ];
   try {
     const db = createDatabase();
