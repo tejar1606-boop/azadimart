@@ -11,6 +11,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Lets phones on the same Wi-Fi open the dev server (e.g. http://192.168.x.x:3000). Dev only.
+  allowedDevOrigins: ["192.168.*.*", "10.*.*.*", "172.*.*.*"],
   // Hide the Next.js dev-tools "N" button in local development (it covered the mobile tab bar). Production never shows it.
   devIndicators: false,
   // Gives this app its own login cookie name (see SESSION_COOKIE_NAME in @azadimart/auth).

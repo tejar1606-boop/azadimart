@@ -12,6 +12,8 @@ const SF = process.env.STOREFRONT_URL ?? "http://localhost:3000";
 const AD = process.env.ADMIN_URL ?? "http://localhost:3002";
 const PASSWORD = process.env.DEMO_PASSWORD || "AzadiDemo2026!";
 const sql = neon(process.env.DATABASE_URL);
+// Suites run back to back as the same demo shopper; start each with a fresh checkout allowance.
+await sql`delete from rate_limit_buckets where key like 'checkout:%'`;
 let pass = 0, fail = 0;
 const check = (name, ok, extra = "") => { ok ? pass++ : fail++; console.log((ok ? "PASS " : "FAIL ") + name + (extra ? "  " + extra : "")); };
 function client(base) {
