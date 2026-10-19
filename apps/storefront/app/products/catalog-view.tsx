@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { ChevronLeftIcon } from "../components/icons";
 import ProductCard from "../components/product-card";
 import type { RailCategory } from "../lib/category-rail";
 import { countAdView } from "../lib/ad-tracking";
@@ -37,7 +38,8 @@ function CategoryRail({ rail, activeId }: { rail: RailCategory[]; activeId: stri
   const openParent = active?.parentId ?? active?.id ?? "";
   // Empty categories stay out of the column (so shoppers never land on an empty page), unless open.
   const shown = (c: RailCategory) => c.count > 0 || c.id === activeId || c.id === openParent;
-  const top = rail.filter((c) => !c.parentId && shown(c));
+  // Inside a category only that category and its sub-categories are listed; "All products" lists every main category.
+  const top = rail.filter((c) => !c.parentId && shown(c) && (!openParent || c.id === openParent));
   const item = (selected: boolean) =>
     "group relative flex flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-center transition lg:flex-row lg:gap-3 lg:px-2.5 lg:text-left " +
     (selected ? "bg-white shadow-card ring-1 ring-brand/30" : "hover:bg-white/70");
@@ -49,11 +51,17 @@ function CategoryRail({ rail, activeId }: { rail: RailCategory[]; activeId: stri
       <p className="hidden px-2.5 pb-2 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400 lg:block">Categories</p>
       <ul className="space-y-1">
         <li>
-          <Link href="/products" aria-current={!activeId ? "page" : undefined} className={item(!activeId)}>
-            {bar(!activeId)}
-            <Thumb src={null} className={"h-12 w-12 lg:h-11 lg:w-11 " + (!activeId ? "bg-brand/10 text-brand-600" : "")} />
-            <span className={label(!activeId)}>All products</span>
-          </Link>
+          {openParent ? (
+            <Link href="/products" className="flex flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-center text-[11px] font-semibold text-slate-600 transition hover:bg-white/70 hover:text-slate-950 lg:flex-row lg:gap-1.5 lg:px-2.5 lg:text-left lg:text-sm">
+              <ChevronLeftIcon size={18} />All categories
+            </Link>
+          ) : (
+            <Link href="/products" aria-current="page" className={item(true)}>
+              {bar(true)}
+              <Thumb src={null} className="h-12 w-12 bg-brand/10 text-brand-600 lg:h-11 lg:w-11" />
+              <span className={label(true)}>All products</span>
+            </Link>
+          )}
         </li>
         {top.map((c) => {
           const selected = c.id === activeId;
@@ -64,7 +72,7 @@ function CategoryRail({ rail, activeId }: { rail: RailCategory[]; activeId: stri
                 {bar(selected)}
                 <Thumb src={c.imageSrc} className="h-12 w-12 lg:h-11 lg:w-11" />
                 <span className="min-w-0 lg:flex-1">
-                  <span className={label(selected)}>{c.name}</span>
+                  <span className={label(selected)}>{openParent ? "All " + c.name : c.name}</span>
                   <span className="hidden text-xs text-slate-400 lg:block">{c.count} item{c.count === 1 ? "" : "s"}</span>
                 </span>
               </Link>

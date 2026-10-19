@@ -1,5 +1,5 @@
 import { categories, createDatabase, navigation, navigationItems, themes } from "@azadimart/database";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 export type ChromeLink = { label: string; href: string };
 /** Festival intro animation shown full screen when a shopper opens the store (set in Admin → Online Store). */
@@ -18,7 +18,8 @@ export type StoreChrome = {
   intro: StoreIntro | null;
   announcements: string[];
   navigation: ChromeLink[];
-  categories: Array<{ id: string; name: string; href: string }>;
+  /** Main categories in admin order; children = their active sub-categories (for the phone menu). */
+  categories: Array<{ id: string; name: string; href: string; children: Array<{ id: string; name: string; href: string }> }>;
 };
 
 const SELLER_URL = process.env.NEXT_PUBLIC_SELLER_URL || "https://seller.loimart.com";
@@ -57,11 +58,10 @@ export async function getStoreChrome(): Promise<StoreChrome> {
     const db = createDatabase();
     const [theme, categoryRows] = await Promise.all([
       db.select({ id: themes.id, settings: themes.settings }).from(themes).where(eq(themes.status, "PUBLISHED")).limit(1).then((rows) => rows[0]),
-      db.select({ id: categories.id, name: categories.name, slug: categories.slug })
+      db.select({ id: categories.id, name: categories.name, slug: categories.slug, parentId: categories.parentId })
         .from(categories)
-        .where(and(eq(categories.isActive, true), isNull(categories.parentId)))
-        .orderBy(asc(categories.sortOrder), asc(categories.name))
-        .limit(12),
+        .where(eq(categories.isActive, true))
+        .orderBy(asc(categories.sortOrder), asc(categories.name)),
     ]);
 
     let navLinks: ChromeLink[] = [];
@@ -81,7 +81,9 @@ export async function getStoreChrome(): Promise<StoreChrome> {
       : "";
     const announcements = announcement.split(/[|•]/).map((part) => part.trim()).filter(Boolean);
 
-    const categoryLinks = categoryRows.map((category) => ({ id: category.id, name: category.name, href: "/c/" + category.slug }));
+    const link = (category: { id: string; name: string; slug: string }) => ({ id: category.id, name: category.name, href: "/c/" + category.slug });
+    const categoryLinks = categoryRows.filter((category) => !category.parentId).slice(0, 12)
+      .map((category) => ({ ...link(category), children: categoryRows.filter((child) => child.parentId === category.id).map(link) }));
     return {
       intro: readIntro(theme?.settings as Record<string, unknown> | undefined),
       announcements: announcements.length ? announcements : DEFAULT_ANNOUNCEMENTS,

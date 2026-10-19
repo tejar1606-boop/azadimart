@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 import { BrandMark, BrandWordmark } from "@azadimart/ui";
 import type { StoreChrome } from "../lib/chrome";
-import { BagIcon, CloseIcon, GridIcon, HeartIcon, MenuIcon, SearchIcon, UserIcon } from "./icons";
+import { BagIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon, GridIcon, HeartIcon, MenuIcon, SearchIcon, UserIcon } from "./icons";
 
 /** The LOIMART logo: bag icon + "loimart" in the logo colours. Icon scales with the font size. */
 export function Wordmark({ className = "", onDark = false }: { className?: string; onDark?: boolean }) {
@@ -66,6 +66,8 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
   // undefined = still checking, null = signed out
   const [me, setMe] = useState<{ name: string | null; email: string | null } | null | undefined>(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Phone menu: the main category whose sub-categories are showing (null = top level).
+  const [menuCategoryId, setMenuCategoryId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/v1/cart", { cache: "no-store" }).then(async (response) => {
@@ -85,6 +87,8 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
   const firstName = me?.name?.trim().split(/\s+/)[0] || me?.email?.split("@")[0] || "";
 
   useEffect(() => setMenuOpen(false), [pathname]);
+  useEffect(() => { if (!menuOpen) setMenuCategoryId(null); }, [menuOpen]);
+  const menuCategory = chrome.categories.find((c) => c.id === menuCategoryId);
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
@@ -147,10 +151,26 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
               <Wordmark className="text-xl" />
               <button type="button" onClick={() => setMenuOpen(false)} className={iconButton} aria-label="Close menu"><CloseIcon /></button>
             </div>
+            {menuCategory ? (
+              // Inside one main category: only its own sub-categories.
+              <div className="flex-1 overflow-y-auto px-2 py-3">
+                <button type="button" onClick={() => setMenuCategoryId(null)} className="flex w-full items-center gap-1.5 rounded-lg px-2 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"><ChevronLeftIcon size={18} />All categories</button>
+                <p className="px-3 pb-2 pt-3 text-lg font-semibold text-slate-950">{menuCategory.name}</p>
+                <Link href={menuCategory.href} onClick={() => setMenuOpen(false)} className="block rounded-lg px-3 py-3 text-[15px] font-semibold text-brand-600 hover:bg-slate-50">All {menuCategory.name}</Link>
+                {menuCategory.children.map((child) => (
+                  <Link key={child.id} href={child.href} onClick={() => setMenuOpen(false)} className="block rounded-lg px-3 py-3 text-[15px] font-medium hover:bg-slate-50">{child.name}</Link>
+                ))}
+              </div>
+            ) : (
             <div className="flex-1 overflow-y-auto px-2 py-3">
               <p className="px-3 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Shop</p>
               <Link href="/products" className="block rounded-lg px-3 py-3 text-[15px] font-medium hover:bg-slate-50">All products</Link>
-              {(chrome.categories.length ? chrome.categories.map((c) => ({ label: c.name, href: c.href })) : chrome.navigation).map((item) => (
+              {chrome.categories.length ? chrome.categories.map((c) => c.children.length ? (
+                // Has sub-categories: open them in the menu instead of leaving the page.
+                <button key={c.id} type="button" onClick={() => setMenuCategoryId(c.id)} className="flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-[15px] font-medium hover:bg-slate-50">{c.name}<ChevronRightIcon size={18} className="text-slate-400" /></button>
+              ) : (
+                <Link key={c.id} href={c.href} className="block rounded-lg px-3 py-3 text-[15px] font-medium hover:bg-slate-50">{c.name}</Link>
+              )) : chrome.navigation.map((item) => (
                 <Link key={item.href + item.label} href={item.href} className="block rounded-lg px-3 py-3 text-[15px] font-medium hover:bg-slate-50">{item.label}</Link>
               ))}
               <p className="mt-4 px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Your account</p>
@@ -164,6 +184,7 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
                 <Link href="/login" className="block rounded-lg px-3 py-3 text-[15px] font-medium text-brand-600 hover:bg-slate-50">Sign in</Link>
               ) : null}
             </div>
+            )}
           </div>
         </div>
       ) : null}
