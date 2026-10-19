@@ -44,7 +44,7 @@ export default function CustomerLoginPage() {
   }
 
   return (
-    <AuthScene headline={<>Welcome back to<br /><span className="text-brand-300">India&apos;s own</span> marketplace.</>} sub="Handpicked products from KYC-verified Indian sellers, with Cash on Delivery and easy 7-day returns.">
+    <AuthScene headline={<>Your offers<br />are <span className="text-[#F9CB5B]">waiting.</span></>} sub="Sign in to use today's coupon codes and grab the biggest deals from KYC-verified Indian sellers.">
       <div className="mx-auto w-full max-w-md rounded-[2rem] border border-white/60 bg-white p-6 shadow-[0_30px_80px_rgba(2,6,23,0.45)] sm:p-8">
         <Link href="/" aria-label="LOIMART home"><Wordmark className="text-2xl" /></Link>
         <p className="mt-8 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">Welcome back</p>

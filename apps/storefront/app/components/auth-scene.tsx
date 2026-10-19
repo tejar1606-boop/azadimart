@@ -46,28 +46,23 @@ type Offer = { code: string; title: string; discountType: string; discountValue:
 const rupees = (paise: number) => "₹" + Math.round(paise / 100).toLocaleString("en-IN");
 const offerText = (o: Offer) => o.discountType === "PERCENTAGE" ? `${o.discountValue}% off` : o.discountType === "FIXED" ? `Flat ${rupees(o.discountValue)} off` : "Free delivery";
 
-/** The reasons to trust LOIMART, as numbers people can scan in a second. */
-const PROOF = [
-  { value: "10,000+", label: "orders in our first month" },
-  { value: "100%", label: "sellers KYC-verified" },
-  { value: "COD", label: "pay when it arrives" },
-  { value: "7-day", label: "easy returns" },
-];
+const TRUST = ["KYC-verified sellers", "Cash on Delivery", "Easy 7-day returns"];
 const CHECK = <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M20 6 9 17l-5-5" /></svg>;
+const offPct = (x: Pick) => (x.compareAtPaise && x.compareAtPaise > x.pricePaise ? Math.round((1 - x.pricePaise / x.compareAtPaise) * 100) : 0);
 
 /**
- * Sign-in / sign-up backdrop. The left side gives a reason to sign in, all
- * from live store data: the newest store-wide offer, proof that LOIMART can
- * be trusted, and what is selling right now. On phones a slim trust strip
- * sits above the form so the form stays first.
+ * Sign-in / sign-up backdrop, built around offers (that's why shoppers come):
+ * how much they can save today, the store-wide coupon codes, and the biggest
+ * live deals. All from live store data; nothing invented, no fake timers.
+ * On phones a slim offer strip sits above the form so the form stays first.
  */
 export default function AuthScene({ headline, sub, children }: { headline: React.ReactNode; sub: string; children: React.ReactNode }) {
   const [picks, setPicks] = useState<Pick[]>([]);
-  const [offer, setOffer] = useState<Offer | null>(null);
+  const [offers, setOffers] = useState<Offer[]>([]);
 
   useEffect(() => {
-    fetch("/api/v1/coupons/featured").then((r) => r.json()).then((d: { coupon: Offer | null }) => setOffer(d.coupon)).catch(() => undefined);
-    fetch("/api/v1/catalog/products?limit=24", { cache: "force-cache" })
+    fetch("/api/v1/coupons/featured").then((r) => r.json()).then((d: { coupons?: Offer[] }) => setOffers(d.coupons ?? [])).catch(() => undefined);
+    fetch("/api/v1/catalog/products?limit=48", { cache: "force-cache" })
       .then((r) => r.json())
       .then((d: { items?: Array<{ id: string; slug: string; title: string; media?: Array<{ kind: string; storageKey: string }>; variants?: Array<{ pricePaise: number; compareAtPaise: number | null }> }> }) => {
         const list = (d.items ?? []).flatMap((p) => {
@@ -75,15 +70,16 @@ export default function AuthScene({ headline, sub, children }: { headline: React
           const v = [...(p.variants ?? [])].sort((a, b) => a.pricePaise - b.pricePaise)[0];
           return photo && v ? [{ id: p.id, slug: p.slug, title: p.title, image: "/media/" + photo.storageKey, pricePaise: v.pricePaise, compareAtPaise: v.compareAtPaise }] : [];
         });
-        // Best deals first: shoppers notice a real discount.
-        const off = (x: Pick) => (x.compareAtPaise && x.compareAtPaise > x.pricePaise ? 1 - x.pricePaise / x.compareAtPaise : 0);
-        setPicks(list.sort((a, b) => off(b) - off(a)).slice(0, 3));
+        setPicks(list.filter((x) => offPct(x) > 0).sort((a, b) => offPct(b) - offPct(a)).slice(0, 6));
       })
       .catch(() => undefined);
   }, []);
 
+  const upTo = picks.length ? offPct(picks[0]!) : 0;
+  const first = offers[0];
+
   return (
-    <main className="azm-auth relative isolate overflow-hidden px-4 pb-14 pt-6 sm:px-6 lg:py-14">
+    <main className="azm-auth relative isolate overflow-hidden px-4 pb-14 pt-6 sm:px-6 lg:py-12">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
         <span className="azm-glow azm-glow-a" />
         <span className="azm-glow azm-glow-b" />
@@ -91,73 +87,73 @@ export default function AuthScene({ headline, sub, children }: { headline: React
       </div>
 
       {/* minmax(0,1fr): the column never grows past the screen, even with large phone text sizes. */}
-      <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] items-center gap-6 lg:grid-cols-[minmax(0,1fr)_440px] lg:gap-14">
+      <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_440px] lg:gap-14">
         <section className="min-w-0 text-white">
-          {/* phone: one slim strip of reasons, then the form */}
+          {/* phone: the offer in one line, then the form */}
           <div className="lg:hidden">
-            {offer ? (
-              <p className="flex items-center justify-center gap-2 rounded-full bg-[#F9CB5B] px-4 py-2 text-center text-[13px] font-semibold text-[#2A0E5F]">
-                Sign in for {offerText(offer)} · code <b className="font-mono">{offer.code}</b>
-              </p>
-            ) : null}
+            <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 bg-[#F9CB5B] px-4 py-2.5 text-center text-[13px] font-semibold text-[#2A0E5F]">
+              {upTo ? <span>Up to <b className="text-[15px]">{upTo}% off</b> today</span> : <span>Today&apos;s offers</span>}
+              {first ? <span>· extra {offerText(first)} with <b className="font-mono">{first.code}</b></span> : null}
+            </p>
             <ul className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[12px] font-medium text-white/85">
-              {["KYC-verified sellers", "Cash on Delivery", "7-day returns"].map((t) => <li key={t} className="flex items-center gap-1.5"><span className="text-[#5fd35a]">{CHECK}</span>{t}</li>)}
+              {TRUST.map((t) => <li key={t} className="flex items-center gap-1.5"><span className="text-[#5fd35a]">{CHECK}</span>{t}</li>)}
             </ul>
           </div>
 
           <div className="hidden lg:block">
-            <p className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.28em] text-brand-300">
-              <span className="flex h-1 w-10 overflow-hidden rounded"><i className="flex-1 bg-[#FF9933]" /><i className="flex-1 bg-white" /><i className="flex-1 bg-[#138808]" /></span>LOIMART
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.28em] text-brand-300">
+                <span className="flex h-1 w-10 overflow-hidden rounded"><i className="flex-1 bg-[#FF9933]" /><i className="flex-1 bg-white" /><i className="flex-1 bg-[#138808]" /></span>Today&apos;s offers
+              </p>
+              {upTo ? <span className="bg-[#EF5A8A] px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide">Up to {upTo}% off today</span> : null}
+            </div>
             <h2 className="mt-4 text-5xl font-extrabold leading-[1.05] tracking-[-0.03em]">{headline}</h2>
             <p className="mt-4 max-w-md text-base leading-7 text-white/75">{sub}</p>
 
-            {offer ? (
-              <div className="mt-8 flex max-w-lg items-center justify-between gap-4 border border-dashed border-[#F9CB5B]/70 bg-[#F9CB5B]/10 p-4">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#F9CB5B]">Members&apos; offer</p>
-                  <p className="mt-1 text-xl font-bold">{offerText(offer)}{offer.minimumOrderPaise ? <span className="text-sm font-medium text-white/70"> on orders above {rupees(offer.minimumOrderPaise)}</span> : null}</p>
-                </div>
-                <span className="shrink-0 bg-[#F9CB5B] px-3 py-2 font-mono text-sm font-bold tracking-wider text-[#2A0E5F]">{offer.code}</span>
-              </div>
+            {offers.length ? (
+              <ul className="mt-7 grid max-w-xl gap-2.5 sm:grid-cols-[repeat(auto-fit,minmax(170px,1fr))]">
+                {offers.map((o) => (
+                  <li key={o.code} className="relative flex flex-col justify-between border border-dashed border-[#F9CB5B]/80 bg-[#F9CB5B]/10 p-3.5">
+                    <p className="text-[22px] font-extrabold leading-tight text-[#F9CB5B]">{offerText(o)}</p>
+                    <p className="mt-0.5 text-[12px] text-white/70">{o.minimumOrderPaise ? `On orders above ${rupees(o.minimumOrderPaise)}` : "On any order"}</p>
+                    <p className="mt-3 flex items-center justify-between gap-2 border-t border-dashed border-[#F9CB5B]/50 pt-2.5 text-[11px] uppercase tracking-[0.14em] text-white/60">
+                      Code <span className="bg-[#F9CB5B] px-2 py-1 font-mono text-[12px] font-bold normal-case tracking-wider text-[#2A0E5F]">{o.code}</span>
+                    </p>
+                  </li>
+                ))}
+              </ul>
             ) : null}
 
-            <dl className="mt-8 grid max-w-lg grid-cols-4 divide-x divide-white/15 border-y border-white/15">
-              {PROOF.map((p) => (
-                <div key={p.label} className="px-3 py-4 first:pl-0">
-                  <dt className="text-2xl font-extrabold tracking-[-0.02em] text-white">{p.value}</dt>
-                  <dd className="mt-1 text-[12px] leading-4 text-white/65">{p.label}</dd>
-                </div>
-              ))}
-            </dl>
-
             {picks.length ? (
-              <div className="mt-8 max-w-lg">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">Trending right now</p>
+              <div className="mt-8 max-w-xl">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">Biggest deals right now</p>
                 <ul className="mt-3 grid grid-cols-3 gap-2">
-                  {picks.map((p) => {
-                    const off = p.compareAtPaise && p.compareAtPaise > p.pricePaise ? Math.round((1 - p.pricePaise / p.compareAtPaise) * 100) : 0;
-                    return (
-                      <li key={p.id}>
-                        <Link href={"/products/" + p.slug} className="group block border border-white/15 bg-white text-slate-950 transition hover:border-white/50">
-                          <span className="relative block aspect-square overflow-hidden bg-slate-100">
-                            <Image src={p.image} alt={p.title} fill sizes="160px" className="object-cover transition duration-500 group-hover:scale-105" />
-                            {off ? <span className="absolute left-0 top-0 bg-[#EF5A8A] px-1.5 py-0.5 text-[10px] font-bold text-white">{off}% OFF</span> : null}
-                          </span>
-                          <span className="block p-2">
-                            <span className="line-clamp-1 text-[12px] font-medium text-slate-700">{p.title}</span>
-                            <span className="mt-0.5 block text-sm font-bold">{rupees(p.pricePaise)}{off ? <s className="ml-1 text-[11px] font-normal text-slate-400">{rupees(p.compareAtPaise!)}</s> : null}</span>
-                          </span>
-                        </Link>
-                      </li>
-                    );
-                  })}
+                  {picks.slice(0, 3).map((p) => (
+                    <li key={p.id}>
+                      <Link href={"/products/" + p.slug} className="group block border border-white/15 bg-white text-slate-950 transition hover:border-white/50">
+                        <span className="relative block aspect-square overflow-hidden bg-slate-100">
+                          <Image src={p.image} alt={p.title} fill sizes="180px" className="object-cover transition duration-500 group-hover:scale-105" />
+                          <span className="absolute left-0 top-0 bg-[#EF5A8A] px-2 py-1 text-[13px] font-extrabold leading-none text-white">{offPct(p)}%<span className="block text-[9px] font-bold">OFF</span></span>
+                        </span>
+                        <span className="block p-2">
+                          <span className="line-clamp-1 text-[12px] font-medium text-slate-700">{p.title}</span>
+                          <span className="mt-0.5 block text-sm font-bold">{rupees(p.pricePaise)} <s className="text-[11px] font-normal text-slate-400">{rupees(p.compareAtPaise!)}</s></span>
+                          <span className="block text-[11px] font-semibold text-[#138808]">You save {rupees(p.compareAtPaise! - p.pricePaise)}</span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
                 </ul>
               </div>
             ) : null}
+
+            <ul className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-[13px] font-medium text-white/75">
+              {TRUST.map((t) => <li key={t} className="flex items-center gap-1.5"><span className="text-[#5fd35a]">{CHECK}</span>{t}</li>)}
+              <li className="flex items-center gap-1.5"><span className="text-[#5fd35a]">{CHECK}</span>10,000+ orders in month one</li>
+            </ul>
           </div>
         </section>
-        <div className="relative min-w-0">
+        <div className="relative min-w-0 lg:sticky lg:top-28">
           <Link href="/" className="sr-only">LOIMART home</Link>
           {children}
         </div>
