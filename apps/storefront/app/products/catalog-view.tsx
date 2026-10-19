@@ -71,13 +71,19 @@ function CategoryRail({ rail, activeId }: { rail: RailCategory[]; activeId: stri
                 </span>
               </Link>
               {children.length ? (
-                <ul className="mb-1 mt-1 space-y-0.5 lg:ml-[3.25rem]">
+                <ul className="mb-1 mt-1 space-y-1">
                   {children.map((child) => {
                     const on = child.id === activeId;
+                    // Each sub-category with its own photo (Admin → Catalogue → Category photos).
                     return (
                       <li key={child.id}>
-                        <Link href={"/c/" + child.slug} aria-current={on ? "page" : undefined} className={"block rounded-lg px-1 py-1.5 text-center text-[10.5px] leading-tight transition lg:px-2.5 lg:text-left lg:text-[13px] " + (on ? "bg-white font-semibold text-brand-600 shadow-card" : "text-slate-600 hover:bg-white/70 hover:text-slate-950")}>
-                          {child.name}
+                        <Link href={"/c/" + child.slug} aria-current={on ? "page" : undefined} className={item(on)}>
+                          {bar(on)}
+                          <Thumb src={child.imageSrc} className="h-12 w-12 lg:h-11 lg:w-11" />
+                          <span className="min-w-0 lg:flex-1">
+                            <span className={label(on)}>{child.name}</span>
+                            <span className="hidden text-xs text-slate-400 lg:block">{child.count} item{child.count === 1 ? "" : "s"}</span>
+                          </span>
                         </Link>
                       </li>
                     );
