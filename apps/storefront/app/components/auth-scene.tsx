@@ -71,7 +71,6 @@ export default function AuthScene({ headline, sub, children }: { headline: React
       .catch(() => undefined);
   }, []);
 
-  const upTo = picks.length ? offPct(picks[0]!) : 0;
 
   return (
     <main className="azm-auth relative isolate overflow-hidden px-4 pb-14 pt-6 sm:px-6 lg:py-12">
