@@ -175,7 +175,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
   // Colours/sizes: the picker lists options in the seller's order; the gallery shows the chosen colour's photos.
   const hasOptions = variants.some((v) => v.attributes?.color || v.attributes?.size);
   const pickerVariants = [...variants].sort((a, b) => (hasOptions ? a.variantCreatedAt.getTime() - b.variantCreatedAt.getTime() : 0) || a.pricePaise - b.pricePaise || a.variantId.localeCompare(b.variantId))
-    .map((v) => ({ id: v.variantId, title: v.variantTitle, sku: v.sku, pricePaise: v.pricePaise, compareAtPaise: v.compareAtPaise, stock: stockOf(v), color: v.attributes?.color, colorHex: v.attributes?.colorHex, size: v.attributes?.size }));
+    .map((v) => ({ id: v.variantId, title: v.variantTitle, sku: v.sku, pricePaise: v.pricePaise, compareAtPaise: v.compareAtPaise, stock: stockOf(v), color: v.attributes?.color, colorHex: v.attributes?.colorHex, size: v.attributes?.size, sizeLabel: v.attributes?.sizeLabel }));
 
   const hasDiscount = Boolean(selectedVariant.compareAtPaise && selectedVariant.compareAtPaise > selectedVariant.pricePaise);
   const discountPercent = hasDiscount ? Math.round((1 - selectedVariant.pricePaise / (selectedVariant.compareAtPaise ?? selectedVariant.pricePaise)) * 100) : 0;

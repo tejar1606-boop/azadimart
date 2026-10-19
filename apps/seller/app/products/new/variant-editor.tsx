@@ -1,15 +1,18 @@
 "use client";
 
-import { COLOR_PRESETS, MAX_VARIANTS, SIZE_PRESETS, compareSizes, swatchBackground } from "@azadimart/shared";
+import { COLOR_PRESETS, MAX_VARIANTS, OPTION_LABEL_PRESETS, SIZE_PRESETS, compareSizes, swatchBackground } from "@azadimart/shared";
 import { useState } from "react";
 
 export type ColorOption = { name: string; hex: string };
 export type VariantRow = { id?: string; color?: string; colorHex?: string; size?: string; sku: string; price: string; compareAt: string; onHand: string; enabled: boolean };
-export type VariantState = { colors: ColorOption[]; sizes: string[]; rows: VariantRow[] };
+export type VariantState = { colors: ColorOption[]; sizes: string[]; rows: VariantRow[]; /** Name shoppers see for the size option ("Size", "Set"…). */ sizeLabel?: string };
 type Img = { id: string; url: string };
 
 const keyOf = (color?: string, size?: string) => `${(color ?? "").toLowerCase()}|${(size ?? "").toLowerCase()}`;
-const skuPart = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]+/g, "").slice(0, 8);
+// "Cabin + Medium + Large" → "CABMEDLAR" so sets never share a code with a single bag.
+const skuPart = (s: string) => s.includes("+")
+  ? s.split("+").map((p) => p.toUpperCase().replace(/[^A-Z0-9]+/g, "").slice(0, 3)).join("").slice(0, 12)
+  : s.toUpperCase().replace(/[^A-Z0-9]+/g, "").slice(0, 8);
 export const autoSku = (base: string, color?: string, size?: string) => [base.trim().toUpperCase() || "SKU", color ? skuPart(color) : "", size ? skuPart(size) : ""].filter(Boolean).join("-");
 
 /** Rebuilds the colour × size rows, keeping what the seller typed for combinations that still exist. */
@@ -39,17 +42,19 @@ export default function VariantEditor({ value, onChange, baseSku, defaultPrice, 
   const [customSize, setCustomSize] = useState("");
   const [bulk, setBulk] = useState({ price: "", compareAt: "", onHand: "" });
   const defaults = { baseSku, price: defaultPrice, compareAt: defaultCompareAt };
-  const update = (colors: ColorOption[], sizes: string[]) => onChange({ colors, sizes, rows: buildRows(colors, sizes, value.rows, defaults) });
+  const update = (colors: ColorOption[], sizes: string[], sizeLabel = value.sizeLabel) => onChange({ colors, sizes, sizeLabel, rows: buildRows(colors, sizes, value.rows, defaults) });
+  const label = value.sizeLabel || "Size";
 
   const toggleColor = (c: ColorOption) => {
     const has = value.colors.some((x) => x.name.toLowerCase() === c.name.toLowerCase());
     update(has ? value.colors.filter((x) => x.name.toLowerCase() !== c.name.toLowerCase()) : [...value.colors, c], value.sizes);
     if (has) onImageColors(Object.fromEntries(Object.entries(imageColors).filter(([, col]) => col.toLowerCase() !== c.name.toLowerCase())));
   };
-  const addSizes = (list: string[]) => {
+  const addSizes = (list: string[], presetLabel?: string) => {
     const next = [...value.sizes];
     for (const s of list) if (!next.some((x) => x.toLowerCase() === s.toLowerCase())) next.push(s);
-    update(value.colors, next.sort(compareSizes));
+    // Luggage sets read better as "Size" (Cabin, Medium…); keep whatever the seller chose otherwise.
+    update(value.colors, next.sort(compareSizes), presetLabel === "Luggage / trolley" && !value.sizeLabel ? "Size" : value.sizeLabel);
   };
   const setRow = (i: number, patch: Partial<VariantRow>) => onChange({ ...value, rows: value.rows.map((r, j) => (j === i ? { ...r, ...patch } : r)) });
   const applyAll = () => onChange({ ...value, rows: value.rows.map((r) => ({ ...r, ...(bulk.price ? { price: bulk.price } : {}), ...(bulk.compareAt ? { compareAt: bulk.compareAt } : {}), ...(bulk.onHand ? { onHand: bulk.onHand } : {}) })) });
@@ -86,10 +91,15 @@ export default function VariantEditor({ value, onChange, baseSku, defaultPrice, 
       </div>
 
       <div>
-        <p className="text-sm font-semibold">Sizes <span className="font-normal text-slate-400">(optional)</span></p>
-        <p className="mt-0.5 text-xs text-slate-500">Add a ready-made set, then tap a size to remove it.</p>
+        <p className="text-sm font-semibold">{label === "Size" ? "Sizes" : label} <span className="font-normal text-slate-400">(optional)</span></p>
+        <p className="mt-0.5 text-xs text-slate-500">Add a ready-made set, then tap one to remove it. You can type your own too, e.g. &ldquo;Cabin (55 cm)&rdquo; or &ldquo;Set of 3&rdquo;.</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="font-semibold text-slate-600">Shoppers see it as:</span>
+          {OPTION_LABEL_PRESETS.map((l) => <button key={l} type="button" aria-pressed={label === l} onClick={() => onChange({ ...value, sizeLabel: l })} className={"rounded-full border px-2.5 py-1 font-semibold " + (label === l ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white hover:border-slate-900")}>{l}</button>)}
+          <input aria-label="Other name for this option" maxLength={20} placeholder="Other…" value={OPTION_LABEL_PRESETS.includes(label as (typeof OPTION_LABEL_PRESETS)[number]) ? "" : label} onChange={(e) => onChange({ ...value, sizeLabel: e.target.value || "Size" })} className="w-24 rounded-full border border-slate-200 px-2.5 py-1" />
+        </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          {SIZE_PRESETS.map((p) => <button key={p.label} type="button" onClick={() => addSizes(p.sizes)} className="rounded-full border border-dashed border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 hover:border-slate-900">+ {p.label}</button>)}
+          {SIZE_PRESETS.map((p) => <button key={p.label} type="button" onClick={() => addSizes(p.sizes, p.label)} className="rounded-full border border-dashed border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 hover:border-slate-900">+ {p.label}</button>)}
         </div>
         {value.sizes.length ? (
           <div className="mt-3 flex flex-wrap gap-2">
@@ -97,7 +107,7 @@ export default function VariantEditor({ value, onChange, baseSku, defaultPrice, 
           </div>
         ) : null}
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <input value={customSize} onChange={(e) => setCustomSize(e.target.value)} maxLength={20} placeholder="Other size, e.g. 42 or 2-3Y" className="w-48 rounded-full border border-slate-200 px-3 py-1.5 text-xs"
+          <input value={customSize} onChange={(e) => setCustomSize(e.target.value)} maxLength={40} placeholder="Add your own, e.g. 42, 2-3Y, Cabin (55 cm)" className="w-48 rounded-full border border-slate-200 px-3 py-1.5 text-xs"
             onKeyDown={(e) => { if (e.key === "Enter" && customSize.trim()) { e.preventDefault(); addSizes([customSize.trim()]); setCustomSize(""); } }} />
           <button type="button" disabled={!customSize.trim()} onClick={() => { addSizes([customSize.trim()]); setCustomSize(""); }} className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-bold disabled:opacity-40">Add size</button>
         </div>

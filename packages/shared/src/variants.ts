@@ -21,11 +21,19 @@ export const SIZE_PRESETS: Array<{ label: string; sizes: string[] }> = [
   { label: "Kids (age)", sizes: ["0-6M", "6-12M", "1-2Y", "2-3Y", "3-4Y", "4-5Y", "5-6Y", "6-7Y", "7-8Y", "8-9Y", "9-10Y"] },
   { label: "Footwear (UK)", sizes: ["UK 5", "UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"] },
   { label: "Bra", sizes: ["32B", "34B", "36B", "32C", "34C", "36C"] },
+  { label: "Luggage / trolley", sizes: ["Backpack", "Cabin", "Medium", "Large", "Cabin + Medium", "Cabin + Medium + Large"] },
 ];
+
+/** What the second option is called on the product page ("Size: M", "Set: Cabin + Medium"). Sellers can also type their own. */
+export const OPTION_LABEL_PRESETS = ["Size", "Set", "Pack", "Capacity", "Weight", "Storage"] as const;
+
+const LUGGAGE_ORDER = ["backpack", "cabin", "small", "medium", "large", "extra large", "cabin + medium", "medium + large", "cabin + large", "cabin + medium + large"];
 
 const LETTER_ORDER = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "2XL", "3XL", "4XL", "5XL"];
 /** Sorts sizes the way shoppers expect: XS→3XL, then numbers ascending, else as given. */
 export function compareSizes(a: string, b: string): number {
+  const ga = LUGGAGE_ORDER.indexOf(a.toLowerCase().replace(/\s*\+\s*/g, " + ").trim()), gb = LUGGAGE_ORDER.indexOf(b.toLowerCase().replace(/\s*\+\s*/g, " + ").trim());
+  if (ga >= 0 && gb >= 0) return ga - gb;
   const la = LETTER_ORDER.indexOf(a.toUpperCase()), lb = LETTER_ORDER.indexOf(b.toUpperCase());
   if (la >= 0 && lb >= 0) return la - lb;
   const na = parseFloat(a.replace(/[^\d.]/g, "")), nb = parseFloat(b.replace(/[^\d.]/g, ""));
@@ -52,7 +60,9 @@ export const productVariantInputSchema = z.object({
   onHand: z.number().int().nonnegative().max(1_000_000).default(0),
   color: optionText.optional(),
   colorHex: z.string().regex(/^(#[0-9a-fA-F]{6}|multi)$/).optional(),
-  size: z.string().trim().min(1).max(20).optional(),
+  size: z.string().trim().min(1).max(40).optional(),
+  /** Name of the size option shown to shoppers ("Size", "Set", "Pack"…). */
+  sizeLabel: z.string().trim().min(1).max(20).optional(),
 });
 export type ProductVariantInput = z.infer<typeof productVariantInputSchema>;
 
@@ -62,8 +72,9 @@ export const productVariantListSchema = z.array(productVariantInputSchema).min(1
   .refine((list) => new Set(list.map((v) => `${v.color ?? ""}|${v.size ?? ""}`.toLowerCase())).size === list.length, "The same colour and size is listed twice");
 
 /** Variant attributes stored in product_variants.attributes. */
-export const variantAttributes = (v: Pick<ProductVariantInput, "color" | "colorHex" | "size">): Record<string, string> => ({
+export const variantAttributes = (v: Pick<ProductVariantInput, "color" | "colorHex" | "size" | "sizeLabel">): Record<string, string> => ({
   ...(v.color ? { color: v.color } : {}), ...(v.color && v.colorHex ? { colorHex: v.colorHex } : {}), ...(v.size ? { size: v.size } : {}),
+  ...(v.size && v.sizeLabel && v.sizeLabel !== "Size" ? { sizeLabel: v.sizeLabel } : {}),
 });
 
 /** Photo → colour it shows. */

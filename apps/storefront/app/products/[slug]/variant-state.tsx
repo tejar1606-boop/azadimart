@@ -5,7 +5,7 @@ import AddToCart from "./add-to-cart";
 import ProductGallery from "./product-gallery";
 import VariantPicker from "./variant-picker";
 
-export type PdpVariant = { id: string; title: string; sku: string; pricePaise: number; compareAtPaise: number | null; stock: number; color?: string; colorHex?: string; size?: string };
+export type PdpVariant = { id: string; title: string; sku: string; pricePaise: number; compareAtPaise: number | null; stock: number; color?: string; colorHex?: string; size?: string; sizeLabel?: string };
 type GalleryItem = { mediaAssetId: string; mediaStorageKey: string; altText: string | null; kind: "IMAGE" | "VIDEO"; color: string | null };
 
 const money = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });

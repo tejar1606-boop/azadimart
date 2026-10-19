@@ -211,7 +211,7 @@ const variantLines = (list: Array<{ title: string; sku: string; pricePaise: numb
 const optionSummary = (list: Array<{ attributes?: Record<string, string> }>) => {
   const colors = [...new Set(list.map((v) => v.attributes?.color).filter(Boolean))];
   const sizes = [...new Set(list.map((v) => v.attributes?.size).filter(Boolean))];
-  return [colors.length ? `Colours: ${colors.join(", ")}` : "", sizes.length ? `Sizes: ${sizes.join(", ")}` : ""].filter(Boolean).join(" · ");
+  return [colors.length ? `Colours: ${colors.join(", ")}` : "", sizes.length ? `${list.find((v) => v.attributes?.sizeLabel)?.attributes?.sizeLabel ?? "Sizes"}: ${sizes.join(", ")}` : ""].filter(Boolean).join(" · ");
 };
 const specText = (rows: Array<{ label: string; value: string }>) => (rows.length ? rows.map((row) => `${row.label}: ${row.value}`).join("\n") : "—");
 

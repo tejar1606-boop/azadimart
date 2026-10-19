@@ -33,3 +33,12 @@ describe("bulk products", () => {
     expect(errors.join(" | ")).toMatch(/photo/);
   });
 });
+
+describe("luggage sizes", () => {
+  it("sorts single bags before sets", async () => {
+    const { compareSizes } = await import("./variants");
+    expect(["Cabin + Medium + Large", "Large", "Cabin", "Cabin + Medium", "Backpack", "Medium"].sort(compareSizes))
+      .toEqual(["Backpack", "Cabin", "Medium", "Large", "Cabin + Medium", "Cabin + Medium + Large"]);
+    expect(["XL", "S", "M"].sort(compareSizes)).toEqual(["S", "M", "XL"]);
+  });
+});

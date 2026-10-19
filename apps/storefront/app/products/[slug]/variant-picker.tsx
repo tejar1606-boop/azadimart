@@ -2,7 +2,7 @@
 
 import { compareSizes, swatchBackground } from "@azadimart/shared";
 
-export type PickerVariant = { id: string; title: string; color?: string; colorHex?: string; size?: string; stock: number; pricePaise: number };
+export type PickerVariant = { id: string; title: string; color?: string; colorHex?: string; size?: string; sizeLabel?: string; stock: number; pricePaise: number };
 
 const money = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 
@@ -50,7 +50,7 @@ export default function VariantPicker({ variants, selectedId, onSelect }: { vari
 
       {sizes.length ? (
         <div>
-          <p className="text-sm"><span className="font-semibold text-slate-500">Size:</span> <span className="font-bold">{selected.size}</span></p>
+          <p className="text-sm"><span className="font-semibold text-slate-500">{variants.find((v) => v.sizeLabel)?.sizeLabel ?? "Size"}:</span> <span className="font-bold">{selected.size}</span></p>
           <div className="mt-2.5 flex flex-wrap gap-2" role="radiogroup" aria-label="Choose a size">
             {sizes.map((size) => {
               const target = sizeTarget(size);

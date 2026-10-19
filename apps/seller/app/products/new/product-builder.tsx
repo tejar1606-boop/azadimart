@@ -19,7 +19,7 @@ function stateFromVariants(list: LoadedVariant[]): VariantState {
     if (a.color && !colors.some((c) => c.name === a.color)) colors.push({ name: a.color, hex: a.colorHex ?? "" });
     if (a.size && !sizes.includes(a.size)) sizes.push(a.size);
   }
-  return { colors, sizes: sizes.sort(compareSizes), rows: list.map((v) => ({ id: v.id, color: v.attributes?.color, colorHex: v.attributes?.colorHex, size: v.attributes?.size, sku: v.sku, price: rupeeText(v.pricePaise), compareAt: rupeeText(v.compareAtPaise), onHand: String(v.onHand ?? 0), enabled: true })) };
+  return { colors, sizes: sizes.sort(compareSizes), sizeLabel: list.find((v) => v.attributes?.sizeLabel)?.attributes?.sizeLabel, rows: list.map((v) => ({ id: v.id, color: v.attributes?.color, colorHex: v.attributes?.colorHex, size: v.attributes?.size, sku: v.sku, price: rupeeText(v.pricePaise), compareAt: rupeeText(v.compareAtPaise), onHand: String(v.onHand ?? 0), enabled: true })) };
 }
 
 type Upload = { id: string; fileName: string; kind: "IMAGE" | "VIDEO"; url: string };
@@ -133,7 +133,7 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
     const on=options.rows.filter(r=>r.enabled);
     const imageIds=new Set(images.map(v=>v.id));
     return {
-      variants:on.map(r=>({id:r.id,sku:r.sku.trim(),pricePaise:toPaise(r.price),compareAtPaise:r.compareAt?toPaise(r.compareAt):null,onHand:Math.max(0,Math.floor(Number(r.onHand)||0)),color:r.color,colorHex:r.color?r.colorHex||undefined:undefined,size:r.size})),
+      variants:on.map(r=>({id:r.id,sku:r.sku.trim(),pricePaise:toPaise(r.price),compareAtPaise:r.compareAt?toPaise(r.compareAt):null,onHand:Math.max(0,Math.floor(Number(r.onHand)||0)),color:r.color,colorHex:r.color?r.colorHex||undefined:undefined,size:r.size,sizeLabel:r.size?options.sizeLabel||undefined:undefined})),
       imageColors:Object.fromEntries(Object.entries(imageColors).filter(([id,c])=>imageIds.has(id)&&options.colors.some(x=>x.name===c))),
     };
   }
