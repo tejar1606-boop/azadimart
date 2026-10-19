@@ -15,8 +15,8 @@ export default function CatalogSkeleton({ banner = true }: { banner?: boolean })
             <div className="min-w-0">
               <div className="h-7 w-48 animate-pulse rounded bg-slate-200" />
               <div className="mt-2 h-3 w-32 animate-pulse rounded bg-slate-200" />
-              <div className="mt-5 grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
-                {Array.from({ length: 6 }).map((_, i) => <div key={i} className="aspect-[3/4] animate-pulse rounded-none bg-slate-200" />)}
+              <div className="mt-5 grid grid-cols-2 gap-px border border-slate-200 bg-slate-200 md:grid-cols-3 xl:grid-cols-4">
+                {Array.from({ length: 6 }).map((_, i) => <div key={i} className="aspect-[3/4] animate-pulse bg-white" />)}
               </div>
             </div>
           </div>
