@@ -8,7 +8,7 @@ import ProductCard, { type ProductCardData } from "./product-card";
 export default function SponsoredRow({ items }: { items: Array<{ bidId: string; product: ProductCardData }> }) {
   useEffect(() => { items.forEach((item) => countAdView(item.bidId)); }, [items]);
   return (
-    <div className="mt-6 grid grid-cols-2 gap-px border border-slate-200 bg-slate-200 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="mt-6 grid grid-cols-2 gap-1.5 sm:gap-2 sm:grid-cols-3 lg:grid-cols-5">
       {items.map(({ bidId, product }) => <ProductCard key={bidId} product={{ ...product, sponsoredHref: `/api/v1/ads/click/${bidId}` }} />)}
     </div>
   );

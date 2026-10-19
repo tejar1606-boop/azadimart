@@ -351,7 +351,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
               <div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">More to explore</p><h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">You may also like</h2></div>
               <Link href="/products" className="text-sm font-bold text-slate-500 hover:text-slate-950">View all →</Link>
             </div>
-            <div className="mt-5 grid grid-cols-2 gap-px border border-slate-200 bg-slate-200 sm:grid-cols-4">
+            <div className="mt-5 grid grid-cols-2 gap-1.5 sm:gap-2 sm:grid-cols-4">
               {relatedRows.map((item) => <ProductCard key={item.id} product={{ ...item, badge: relatedBadges[item.id] ?? null, coupon: relatedCoupons[item.id] ?? null }} />)}
             </div>
           </section>

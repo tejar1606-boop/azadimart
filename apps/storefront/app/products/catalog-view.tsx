@@ -173,11 +173,11 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
             {error ? <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
             {loading ? (
- <div className="mt-5 grid grid-cols-2 gap-px border border-slate-200 bg-slate-200 md:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="animate-pulse bg-white p-3"><div className="aspect-square bg-slate-100" /><div className="mt-3 h-4 rounded bg-slate-100" /><div className="mt-2 h-4 w-2/3 rounded bg-slate-100" /></div>)}</div>
+ <div className="mt-5 grid grid-cols-2 gap-1.5 sm:gap-2 md:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="animate-pulse border border-slate-200 bg-white p-3"><div className="aspect-square bg-slate-100" /><div className="mt-3 h-4 rounded bg-slate-100" /><div className="mt-2 h-4 w-2/3 rounded bg-slate-100" /></div>)}</div>
             ) : items.length === 0 ? (
               <div className="mt-6 rounded-[2rem] border border-dashed border-slate-300 bg-white p-8 text-center sm:p-12"><p className="text-lg font-bold sm:text-xl">No matching products yet.</p><p className="mt-2 text-sm text-slate-500">Try another category, a different search, or clear the price filter.</p><Link href="/products" className="mt-5 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white">See all products</Link></div>
             ) : (
-              <div className="mt-5 grid grid-cols-2 gap-px border border-slate-200 bg-slate-200 md:grid-cols-3 xl:grid-cols-4">
+              <div className="mt-5 grid grid-cols-2 gap-1.5 sm:gap-2 md:grid-cols-3 xl:grid-cols-4">
                 {[...sponsored.map((s) => ({ product: s.product, bidId: s.bidId })), ...items.filter((p) => !sponsored.some((s) => s.product.id === p.id)).map((product) => ({ product, bidId: "" }))].map(({ product, bidId }) => {
                   const variant = [...product.variants].sort((a, b) => a.pricePaise - b.pricePaise)[0];
                   const image = product.media?.find((media) => media.kind === "IMAGE" && media.storageKey);
