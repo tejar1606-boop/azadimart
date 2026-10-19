@@ -65,6 +65,7 @@ export default function CustomerLoginPage() {
         </form>
         )}
         <p className="mt-6 text-center text-sm text-slate-500">New to LOIMART? <Link href={"/register" + carry} className="font-semibold text-slate-950 underline">Create account</Link></p>
+        <p className="mt-3 text-center text-[11px] leading-5 text-slate-400">By continuing, you agree to LOIMART&apos;s <Link href="/terms" className="underline underline-offset-2">Terms</Link> and <Link href="/privacy" className="underline underline-offset-2">Privacy Policy</Link>.</p>
       </div>
     </AuthScene>
   );

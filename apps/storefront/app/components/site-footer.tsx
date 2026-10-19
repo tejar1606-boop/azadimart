@@ -52,7 +52,14 @@ export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
             </div>
           </div>
 
-          <div className="mt-16 border-t border-white/25 pt-6 lg:mt-24 text-[15px] text-white/75">© {new Date().getFullYear()} LOIMART. All rights reserved.</div>
+          <div className="mt-16 flex flex-col gap-3 border-t border-white/25 pt-6 text-[15px] text-white/75 sm:flex-row sm:items-center sm:justify-between lg:mt-24">
+            <span>© {new Date().getFullYear()} LOIMART. All rights reserved.</span>
+            <nav aria-label="Legal" className="flex flex-wrap gap-x-5 gap-y-2">
+              <Link href="/about" className="transition hover:text-white">About us</Link>
+              <Link href="/terms" className="transition hover:text-white">Terms &amp; Conditions</Link>
+              <Link href="/privacy" className="transition hover:text-white">Privacy Policy</Link>
+            </nav>
+          </div>
         </div>
       </div>
     </footer>
