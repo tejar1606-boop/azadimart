@@ -17,6 +17,24 @@ const SELLER_URL = process.env.NEXT_PUBLIC_SELLER_URL || "https://seller.loimart
 const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "";
 const SUPPORT_PHONE = process.env.NEXT_PUBLIC_SUPPORT_PHONE || "";
 
+/** The founder's story, in his own words (from his career; no private contact details). */
+const FOUNDER_STORY = [
+  "I didn't begin with investors or a big office. I began on the other end of the phone.",
+  "I'm from Visakhapatnam, and for more than eight years my work has been the same at heart: being there for people when something goes wrong. On a ride-hailing safety response team, I took the urgent calls, and learned that behind every case number is a real person, frightened and waiting for someone to care.",
+  "For four years I stood beside small shop owners, helping them with billing machines, stock and payments, where one mistake could cost a family a day's earnings. I saw how hard they worked, and how little the big systems were built for them.",
+  "I protected an online community of mothers and parents from harmful content, because I learned that trust is the most precious thing a platform has, and once broken it rarely comes back. Through all of it, I studied for my degree in Fine Arts in the evenings and on weekends, because I believed that growth doesn't wait for perfect conditions.",
+  "Most recently I managed online stores for travel brands, every price, photo and detail that shoppers depend on. And I kept seeing the same gap: big brands sell online with ease, while the talented seller down the road still struggles to be seen. That gap stayed with me. LOIMART is my answer to it.",
+  "So I built the marketplace I always wished existed. Sellers are verified before they sell. Every product is checked before it goes live. You can pay when it arrives and return it easily. Sellers are paid straight to their bank. And when you need help, a real person answers, because I have been that person for eight years, and I know how much it matters.",
+];
+/** Milestones from the founder's career. */
+const FOUNDER_JOURNEY = [
+  { year: "2017", title: "Where it started", text: "Safety and emergency support, and caring for creators on a fast-growing video platform." },
+  { year: "2019", title: "Beside India's shopkeepers", text: "Four years leading customer support for retail stores: billing, stock and the daily realities of small business." },
+  { year: "2022", title: "A degree, earned the hard way", text: "Fine Arts, Andhra University, studied while working full time." },
+  { year: "2024", title: "Solving problems at scale", text: "Senior technical specialist, cutting query resolution time by 98%." },
+  { year: "2026", title: "LOIMART", text: "Everything learned, put into one promise: a fair marketplace India can trust." },
+];
+
 /** Founder card. Name and title as they should appear on the page. */
 const FOUNDER = { name: "Surisetty Raviteja", title: "CEO & Director, LOIMART", photo: "/about/founder-portrait.webp" };
 
@@ -135,16 +153,25 @@ export default async function AboutPage() {
 
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#EF5A8A]">Meet our founder</p>
-            <h2 className="mt-2 text-[28px] font-bold leading-tight tracking-[-0.02em] text-[#2A0E5F] sm:text-[38px]">Building a marketplace India can trust</h2>
+            <h2 className="mt-2 text-[28px] font-bold leading-tight tracking-[-0.02em] text-[#2A0E5F] sm:text-[38px]">From the other end of the phone, to building LOIMART</h2>
             <blockquote className="relative mt-6 rounded-3xl bg-gradient-to-br from-[#FBF8FF] to-white p-6 ring-1 ring-[#E9DFFB] sm:p-8">
               <span aria-hidden className="absolute -top-5 left-6 font-serif text-[80px] leading-none text-[#6A2CD6]/25">&ldquo;</span>
               <p className="relative text-[17px] font-medium leading-8 text-[#2A0E5F] sm:text-[19px]">Every great product has a person behind it. LOIMART exists so that the seller in a small town gets the same chance as a big brand, and every shopper can buy from them with complete confidence.</p>
             </blockquote>
             <div className="mt-6 space-y-4 text-[15.5px] leading-7 text-slate-600">
-              <p>As CEO and Director, {FOUNDER.name} leads LOIMART&apos;s mission to give India&apos;s sellers a fair, modern place to grow, and to make online shopping simple and safe for every customer.</p>
-              <p>Under that leadership, LOIMART crossed <b className="text-[#2A0E5F]">{MILESTONE.value} {MILESTONE.label}</b>, a sign of how much India wants to buy from sellers it can trust.</p>
-              <p>That vision shapes how LOIMART works every day: sellers are verified before they sell, products are checked before they go live, customers can pay on delivery and return with ease, and sellers are paid straight to their bank.</p>
+              {FOUNDER_STORY.map((para, i) => <p key={i} className={i === 0 ? "text-[17px] font-semibold leading-8 text-[#2A0E5F]" : undefined}>{para}</p>)}
+              <p>Today, LOIMART has crossed <b className="text-[#2A0E5F]">{MILESTONE.value} {MILESTONE.label}</b>. Every one of them is a small promise kept.</p>
             </div>
+            <ol className="mt-8 grid gap-3 sm:grid-cols-2">
+              {FOUNDER_JOURNEY.map((step) => (
+                <li key={step.year + step.title} className="rounded-2xl border border-[#E9DFFB] bg-[#FBF8FF] p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#EF5A8A]">{step.year}</p>
+                  <p className="mt-1 font-semibold text-[#2A0E5F]">{step.title}</p>
+                  <p className="mt-1 text-[13.5px] leading-6 text-slate-600">{step.text}</p>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-8 text-[16px] font-medium italic leading-8 text-[#2A0E5F]">If you are a seller carrying a dream, or a shopper looking for something real, welcome. This place was built for you.</p>
             <div className="mt-7 flex items-center gap-4">
               <span className="h-px w-12 bg-[#6A2CD6]/40" />
               <div><p className="font-[cursive] text-2xl text-[#2A0E5F]">{FOUNDER.name}</p><p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{FOUNDER.title}</p></div>
