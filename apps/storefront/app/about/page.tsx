@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { getCategoryRail } from "../lib/category-rail";
+import CountUp from "./count-up";
 import { COMMISSION_FREE_MONTHS, PAYOUT_HOLD_DAYS } from "@azadimart/shared";
 import { OpenHelpChatButton } from "@azadimart/ui";
 import { BadgeIcon, CashIcon, CheckIcon, ReturnIcon, ShieldIcon, TruckIcon } from "../components/icons";
@@ -18,6 +19,9 @@ const SUPPORT_PHONE = process.env.NEXT_PUBLIC_SUPPORT_PHONE || "";
 
 /** Founder card. Name and title as they should appear on the page. */
 const FOUNDER = { name: "Surisetty Raviteja", title: "CEO & Director, LOIMART", photo: "/about/founder-portrait.webp" };
+
+/** Milestone shown on the page (update as LOIMART grows). */
+const MILESTONE = { count: 10000, suffix: "+", value: "10,000+", label: "orders in just 1 month", note: "Thank you, India, for trusting LOIMART and our sellers." };
 
 const PROMISES = [
   { icon: ShieldIcon, title: "Verified sellers", text: "Every seller completes KYC (identity, business and bank details) before they can sell on LOIMART." },
@@ -59,6 +63,7 @@ export default async function AboutPage() {
               <Link href="/products" className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-[#2A0E5F] shadow-[0_12px_30px_-8px_rgba(255,255,255,0.45)] transition hover:-translate-y-0.5 hover:bg-[#F3EDFD]">Start shopping</Link>
               <a href={SELLER_URL + "/register"} className="rounded-full border border-white/30 bg-white/[0.04] px-6 py-3 text-sm font-semibold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/10">Sell on LOIMART</a>
             </div>
+            <p className="mt-7 inline-flex items-center gap-2 rounded-full border border-[#F9CB5B]/30 bg-[#F9CB5B]/10 px-4 py-2 text-sm text-white/85"><span aria-hidden>🎉</span><b className="text-[#F9CB5B]">{MILESTONE.value}</b> {MILESTONE.label}</p>
           </div>
 
           <div className="relative h-[300px] sm:h-[420px] lg:h-[500px]" aria-hidden>
@@ -79,6 +84,23 @@ export default async function AboutPage() {
             <span className="azm-float absolute left-0 top-[4%] z-10 rounded-2xl border border-white/20 bg-white/10 px-3.5 py-2 text-xs font-semibold shadow-xl backdrop-blur-md sm:text-sm">✓ KYC-verified sellers</span>
             <span className="azm-float absolute bottom-[2%] right-0 z-10 rounded-2xl border border-white/20 bg-white/10 px-3.5 py-2 text-xs font-semibold shadow-xl backdrop-blur-md [animation-delay:-2s] sm:text-sm">₹ Cash on Delivery</span>
             <span className="azm-float absolute bottom-[10%] left-0 z-10 hidden rounded-2xl border border-white/20 bg-white/10 px-3.5 py-2 text-sm font-semibold shadow-xl backdrop-blur-md [animation-delay:-4s] sm:inline-block">↺ 7-day returns</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Milestone */}
+      <section className="relative z-10 mx-auto -mt-8 max-w-5xl px-5 sm:-mt-12 sm:px-8">
+        <div className="azm-milestone relative overflow-hidden rounded-[2rem] bg-gradient-to-r from-[#F9CB5B] via-[#FFB38A] to-[#EF5A8A] p-[2px] shadow-[0_30px_60px_-28px_rgba(239,90,138,0.65)]">
+          <div className="flex flex-col items-center gap-4 rounded-[calc(2rem-2px)] bg-white px-6 py-7 text-center sm:flex-row sm:justify-between sm:px-10 sm:text-left">
+            <div className="flex items-center gap-5">
+              <span className="azm-icon3d grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-2xl" aria-hidden>🏆</span>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#EF5A8A]">Milestone</p>
+                <CountUp to={MILESTONE.count} suffix={MILESTONE.suffix} className="azm-count3d mt-1 block text-[52px] font-black leading-none tracking-[-0.03em] sm:text-[68px]" />
+                <p className="mt-2 text-[18px] font-bold text-[#2A0E5F] sm:text-[22px]">{MILESTONE.label}</p>
+              </div>
+            </div>
+            <p className="max-w-xs text-sm leading-6 text-slate-600">{MILESTONE.note}</p>
           </div>
         </div>
       </section>
@@ -120,6 +142,7 @@ export default async function AboutPage() {
             </blockquote>
             <div className="mt-6 space-y-4 text-[15.5px] leading-7 text-slate-600">
               <p>As CEO and Director, {FOUNDER.name} leads LOIMART&apos;s mission to give India&apos;s sellers a fair, modern place to grow, and to make online shopping simple and safe for every customer.</p>
+              <p>Under that leadership, LOIMART crossed <b className="text-[#2A0E5F]">{MILESTONE.value} {MILESTONE.label}</b>, a sign of how much India wants to buy from sellers it can trust.</p>
               <p>That vision shapes how LOIMART works every day: sellers are verified before they sell, products are checked before they go live, customers can pay on delivery and return with ease, and sellers are paid straight to their bank.</p>
             </div>
             <div className="mt-7 flex items-center gap-4">

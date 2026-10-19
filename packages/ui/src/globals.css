@@ -104,3 +104,7 @@ body {
 .azm-founder { transform: rotateY(-8deg) rotateX(3deg); transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .azm-founder:hover { transform: rotateY(0deg) rotateX(0deg) translateY(-4px); }
 @media (max-width: 1023px), (prefers-reduced-motion: reduce) { .azm-founder, .azm-founder:hover { transform: none; } }
+/* Big 3D counter (About page milestone): gradient face with stacked depth. */
+.azm-count3d { display: inline-block; color: #7B3BEA; background: linear-gradient(180deg, #A877FF 0%, #6A2CD6 55%, #4A1FA8 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(1px 1px 0 #5A22C0) drop-shadow(1px 1px 0 #4A1FA8) drop-shadow(1px 1px 0 #3D1691) drop-shadow(2px 2px 0 #2A0E5F) drop-shadow(4px 8px 12px rgba(106,44,214,0.35));
+  transform: perspective(600px) rotateX(10deg); transform-origin: bottom; }
