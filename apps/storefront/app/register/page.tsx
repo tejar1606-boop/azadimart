@@ -34,7 +34,7 @@ export default function CustomerRegisterPage() {
   }
 
   return (
-    <AuthScene headline={<>Join free.<br /><span className="text-[#F9CB5B]">Save</span> from your first order.</>} sub="Create your LOIMART account in a minute and unlock members' coupons and today's best deals.">
+    <AuthScene headline={<>Join free.<br /><span className="text-[#F9CB5B]">Save</span> from your first order.</>} sub="Create your LOIMART account in a minute and shop today's best deals from verified Indian sellers.">
       <div className="mx-auto max-w-lg rounded-[2rem] border border-white/60 bg-white p-6 shadow-[0_30px_80px_rgba(2,6,23,0.45)] sm:p-8">
         <Link href="/" aria-label="LOIMART home"><Wordmark className="text-2xl" /></Link>
         <p className="mt-8 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">Join LOIMART</p>
