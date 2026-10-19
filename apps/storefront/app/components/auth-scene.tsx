@@ -42,7 +42,7 @@ export function SecureNote() {
 }
 
 type Pick = { id: string; slug: string; title: string; image: string; pricePaise: number; compareAtPaise: number | null };
-type Offer = { code: string; title: string; discountType: string; discountValue: number; minimumOrderPaise: number };
+type Offer = { discountType: string; discountValue: number; minimumOrderPaise: number };
 const rupees = (paise: number) => "₹" + Math.round(paise / 100).toLocaleString("en-IN");
 const offerText = (o: Offer) => o.discountType === "PERCENTAGE" ? `${o.discountValue}% off` : o.discountType === "FIXED" ? `Flat ${rupees(o.discountValue)} off` : "Free delivery";
 
@@ -52,7 +52,7 @@ const offPct = (x: Pick) => (x.compareAtPaise && x.compareAtPaise > x.pricePaise
 
 /**
  * Sign-in / sign-up backdrop, built around offers (that's why shoppers come):
- * how much they can save today, the store-wide coupon codes, and the biggest
+ * how much they can save today, the members' discounts (no codes), and the biggest
  * live deals. All from live store data; nothing invented, no fake timers.
  * On phones a slim offer strip sits above the form so the form stays first.
  */
@@ -61,7 +61,10 @@ export default function AuthScene({ headline, sub, children }: { headline: React
   const [offers, setOffers] = useState<Offer[]>([]);
 
   useEffect(() => {
-    fetch("/api/v1/coupons/featured").then((r) => r.json()).then((d: { coupons?: Offer[] }) => setOffers(d.coupons ?? [])).catch(() => undefined);
+    fetch("/api/v1/coupons/featured").then((r) => r.json())
+      // The same saving twice says nothing new: show each distinct offer once.
+      .then((d: { coupons?: Offer[] }) => setOffers((d.coupons ?? []).filter((o, i, all) => all.findIndex((x) => offerText(x) === offerText(o) && x.minimumOrderPaise === o.minimumOrderPaise) === i)))
+      .catch(() => undefined);
     fetch("/api/v1/catalog/products?limit=48", { cache: "force-cache" })
       .then((r) => r.json())
       .then((d: { items?: Array<{ id: string; slug: string; title: string; media?: Array<{ kind: string; storageKey: string }>; variants?: Array<{ pricePaise: number; compareAtPaise: number | null }> }> }) => {
@@ -93,7 +96,7 @@ export default function AuthScene({ headline, sub, children }: { headline: React
           <div className="lg:hidden">
             <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 bg-[#F9CB5B] px-4 py-2.5 text-center text-[13px] font-semibold text-[#2A0E5F]">
               {upTo ? <span>Up to <b className="text-[15px]">{upTo}% off</b> today</span> : <span>Today&apos;s offers</span>}
-              {first ? <span>· extra {offerText(first)} with <b className="font-mono">{first.code}</b></span> : null}
+              {first ? <span>· extra <b>{offerText(first)}</b> for members</span> : null}
             </p>
             <ul className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[12px] font-medium text-white/85">
               {TRUST.map((t) => <li key={t} className="flex items-center gap-1.5"><span className="text-[#5fd35a]">{CHECK}</span>{t}</li>)}
@@ -112,13 +115,11 @@ export default function AuthScene({ headline, sub, children }: { headline: React
 
             {offers.length ? (
               <ul className="mt-7 grid max-w-xl gap-2.5 sm:grid-cols-[repeat(auto-fit,minmax(170px,1fr))]">
-                {offers.map((o) => (
-                  <li key={o.code} className="relative flex flex-col justify-between border border-dashed border-[#F9CB5B]/80 bg-[#F9CB5B]/10 p-3.5">
-                    <p className="text-[22px] font-extrabold leading-tight text-[#F9CB5B]">{offerText(o)}</p>
+                {offers.map((o, i) => (
+                  <li key={i} className="relative flex flex-col justify-between border border-dashed border-[#F9CB5B]/80 bg-[#F9CB5B]/10 p-3.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/60">Members&apos; offer</p>
+                    <p className="mt-1 text-[26px] font-extrabold leading-tight text-[#F9CB5B]">{offerText(o)}</p>
                     <p className="mt-0.5 text-[12px] text-white/70">{o.minimumOrderPaise ? `On orders above ${rupees(o.minimumOrderPaise)}` : "On any order"}</p>
-                    <p className="mt-3 flex items-center justify-between gap-2 border-t border-dashed border-[#F9CB5B]/50 pt-2.5 text-[11px] uppercase tracking-[0.14em] text-white/60">
-                      Code <span className="bg-[#F9CB5B] px-2 py-1 font-mono text-[12px] font-bold normal-case tracking-wider text-[#2A0E5F]">{o.code}</span>
-                    </p>
                   </li>
                 ))}
               </ul>

@@ -2,12 +2,12 @@ import { coupons, createDatabase } from "@azadimart/database";
 import { and, desc, eq, gt, isNull, lte, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-/** The newest active store-wide coupons (sign-in / register offers): up to 3, newest first. */
+/** How much the newest store-wide coupons save (sign-in / register offers): up to 3, newest first. Codes are not shown there. */
 export async function GET() {
   try {
     const now = new Date();
     const rows = await createDatabase()
-      .select({ code: coupons.code, title: coupons.title, discountType: coupons.discountType, discountValue: coupons.discountValue, minimumOrderPaise: coupons.minimumOrderPaise })
+      .select({ discountType: coupons.discountType, discountValue: coupons.discountValue, minimumOrderPaise: coupons.minimumOrderPaise })
       .from(coupons)
       .where(and(eq(coupons.isActive, true), isNull(coupons.sellerId), lte(coupons.startsAt, now), or(isNull(coupons.endsAt), gt(coupons.endsAt, now))))
       .orderBy(desc(coupons.createdAt)).limit(3);
