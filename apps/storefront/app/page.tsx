@@ -503,7 +503,7 @@ function CategoryShowcase({ s, rail, products: byCategory }: { s: Settings; rail
         <ul className="-mx-4 mt-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:justify-center sm:gap-4 sm:overflow-visible sm:px-0">
           {tiles.map((tile) => (
             <li key={tile.href + tile.label} className="w-[44%] shrink-0 snap-start sm:w-[calc((100%-48px)/4)] lg:w-[calc((100%-80px)/6)]">
-              <Link href={tile.href} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition hover:-translate-y-0.5 hover:shadow-lift">
+              <Link href={tile.href} className="group flex h-full flex-col overflow-hidden rounded-none border border-slate-200/80 bg-white transition hover:-translate-y-0.5 hover:shadow-lift">
                 <span className="relative block aspect-square overflow-hidden bg-[#F3EDFD]">
                   {tile.imageSrc ? <Image src={tile.imageSrc} alt="" fill sizes="(max-width:640px) 44vw, (max-width:1024px) 24vw, 220px" className="object-cover transition duration-500 group-hover:scale-[1.04]" /> : null}
                 </span>
@@ -609,7 +609,7 @@ function CategoryGrid({ s, categories: all }: { s: Settings; categories: HomeCat
       <SectionHeading eyebrow="Explore" heading={str(s, "heading", "Shop by category")} subtitle={str(s, "subtitle")} />
       <div className="mt-4 flex flex-wrap justify-center gap-2.5 sm:gap-4">
         {tiles.map((category) => (
-          <Link key={category.id} href={"/c/" + category.slug} className="group flex w-[calc((100%-20px)/3)] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition hover:-translate-y-0.5 hover:shadow-lift sm:w-[calc((100%-32px)/3)] lg:w-[calc((100%-80px)/6)]">
+          <Link key={category.id} href={"/c/" + category.slug} className="group flex w-[calc((100%-20px)/3)] flex-col overflow-hidden rounded-none border border-slate-200/80 bg-white transition hover:-translate-y-0.5 hover:shadow-lift sm:w-[calc((100%-32px)/3)] lg:w-[calc((100%-80px)/6)]">
             <span className="relative block aspect-square overflow-hidden bg-[#F3EDFD]">
               {category.imageSrc ? (
                 <Image src={category.imageSrc} alt="" unoptimized={category.imageSrc.startsWith("https://")} fill sizes="(max-width:1024px) 32vw, 220px" className="object-cover transition duration-500 group-hover:scale-[1.05]" />

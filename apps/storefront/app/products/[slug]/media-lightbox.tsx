@@ -106,7 +106,7 @@ export default function MediaLightbox({ items, index, title, onIndex, onClose }:
       {count > 1 ? (
         <div className="flex justify-center gap-2 overflow-x-auto px-4 py-3">
           {items.map((entry, i) => (
-            <button key={entry.mediaAssetId} type="button" onClick={() => { setZoomed(false); onIndex(i); }} aria-label={entry.kind === "VIDEO" ? "Video" : `Image ${i + 1}`} aria-current={i === index} className={"relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 " + (i === index ? "border-white" : "border-transparent opacity-60 hover:opacity-100")}>
+            <button key={entry.mediaAssetId} type="button" onClick={() => { setZoomed(false); onIndex(i); }} aria-label={entry.kind === "VIDEO" ? "Video" : `Image ${i + 1}`} aria-current={i === index} className={"relative h-14 w-14 shrink-0 overflow-hidden rounded-none border-2 " + (i === index ? "border-white" : "border-transparent opacity-60 hover:opacity-100")}>
               {entry.kind === "VIDEO" ? <span className="grid h-full w-full place-items-center bg-white/10 text-lg">▶</span> : <Image src={"/media/" + entry.mediaStorageKey} alt="" fill sizes="56px" className="object-cover" />}
             </button>
           ))}

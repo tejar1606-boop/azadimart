@@ -34,7 +34,7 @@ export function discountPercent(pricePaise: number, compareAtPaise?: number | nu
 
 export default function ProductCard({ product, priority = false, sizes = "(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 22vw" }: { product: ProductCardData; priority?: boolean; sizes?: string }) {
   const off = discountPercent(product.pricePaise, product.compareAtPaise);
-  const cardClass = "group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition duration-300 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand";
+  const cardClass = "group flex h-full flex-col overflow-hidden rounded-none border border-slate-200/80 bg-white transition duration-300 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand";
   const body = (
     <>
       <div className="relative aspect-square overflow-hidden bg-slate-100">
