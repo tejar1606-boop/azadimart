@@ -111,6 +111,10 @@ async function orderAndBook() {
   orders.push(o.json.orderId);
   return { orderId: o.json.orderId, booked: await seller("/api/v1/shipments", { method: "POST", body: { orderId: o.json.orderId } }) };
 }
+// Only LOIMART ships: a seller who chose "own courier" earlier, or tries to now, still gets LOIMART.
+r = await seller("/api/v1/shipping-settings", { method: "PATCH", body: { shipWith: "SELF", preferredProvider: "MANUAL", pickup: original.settings?.pickup ?? { name: "Demo Store", phone: "9876543210", line1: "12 MG Road", city: "Bengaluru", state: "Karnataka", postalCode: "560001", country: "IN" } } });
+check("sellers can't switch to their own courier", (await seller("/api/v1/shipping-settings")).json?.settings?.shipWith === "LOIMART");
+await sql`update seller_settings set shipping_settings = jsonb_set(shipping_settings, '{shipWith}', '"SELF"') where seller_id = ${me.id}`;
 let { booked } = await orderAndBook();
 const ship1 = booked.json?.shipment;
 const [s1] = await sql`select shipping_fee_paise fee, wallet_paid_paise paid, shipped_by from shipments where id = ${ship1?.id}`;

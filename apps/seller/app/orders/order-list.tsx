@@ -100,8 +100,6 @@ export default function OrderList() {
   const [working, setWorking] = useState<string | null>(null);
   const [tracking, setTracking] = useState<{ shipmentId: string; courierName: string; awb: string; error: string } | null>(null);
   const [copied, setCopied] = useState("");
-  const [shipWith, setShipWith] = useState<"LOIMART" | "SELF" | null>(null);
-  useEffect(() => { void fetch("/api/v1/shipping-settings", { cache: "no-store" }).then((r) => r.json()).then((b) => setShipWith(b?.settings ? (b.settings.shipWith ?? "LOIMART") : null)).catch(() => undefined); }, []);
   const [tab, setTab] = useState<Tab>("toShip");
   const [cancelling, setCancelling] = useState<Order | null>(null);
   const [cancelReason, setCancelReason] = useState<(typeof CANCEL_REASONS)[number]>("Out of stock");
@@ -446,7 +444,7 @@ export default function OrderList() {
                       onClick={() => void createShipment(item.id)}
                       className="rounded-full bg-slate-950 px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
                     >
-                      {working === item.id ? (shipWith === "LOIMART" ? "Booking courier…" : "Creating…") : shipWith === "LOIMART" ? "Ready to ship · LOIMART books courier" : "Create shipment"}
+                      {working === item.id ? "Booking courier…" : "Ready to ship · LOIMART books courier"}
                     </button>
                     {item.cancelRequestedByMe ? (
                       <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">Cancellation requested · awaiting LOIMART</span>

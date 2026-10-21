@@ -7,7 +7,7 @@ import { LOIMART_RATE_CARD } from "@azadimart/shared";
 const rupees=(p:number)=>"₹"+(p/100).toLocaleString("en-IN",{maximumFractionDigits:0});
 
 type FormState={
-  shipWith:"LOIMART"|"SELF";
+  shipWith:"LOIMART";
   preferredProvider:"MANUAL"|"SHIPROCKET"|"DELHIVERY"|"SHADOWFAX";
   pickup:{name:string;phone:string;line1:string;line2:string;city:string;state:string;postalCode:string;country:"IN"};
 };
@@ -54,35 +54,25 @@ export default function ShippingSettingsPage(){
     <Link href="/orders" className="text-sm font-semibold text-slate-500">← Orders</Link>
     <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Fulfillment setup</p>
     <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">Shipping.</h1>
-    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Choose who delivers your parcels and save the address couriers pick up from.</p>
+    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">LOIMART delivers all your orders. Save the address our courier picks up from.</p>
 
     <section className="mt-7 rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-      <p className="text-sm font-bold">Who ships your orders?</p>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        {([["LOIMART","LOIMART ships it","You pack and print the label. LOIMART books the courier, it picks up from your address and tracking updates by itself. The fee comes off your payout."],["SELF","I'll use my own courier","You book a courier yourself, add the tracking number, and update the delivery status. No LOIMART shipping fee."]] as const).map(([v,title,text])=><button key={v} type="button" aria-pressed={form.shipWith===v} onClick={()=>setForm(c=>({...c,shipWith:v}))} className={"rounded-2xl border p-4 text-left transition "+(form.shipWith===v?"border-slate-950 bg-slate-50 ring-1 ring-slate-950":"border-slate-200 hover:border-slate-900")}><span className="flex items-center gap-2 text-sm font-black">{title}{v==="LOIMART"?<span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">Recommended</span>:null}</span><span className="mt-1 block text-xs leading-5 text-slate-500">{text}</span></button>)}
-      </div>
-      {form.shipWith==="LOIMART"?<div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-        <p className="bg-slate-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">LOIMART shipping fee (incl. GST, taken from your payout)</p>
+      <p className="text-sm font-bold">LOIMART ships every order</p>
+      <p className="mt-1 text-sm leading-6 text-slate-600">You pack and print the label. When you tap <b>Ready to ship</b>, LOIMART books the courier, it picks up from your address and tracking updates by itself. The fee is paid from your <a href="/wallet" className="font-semibold text-slate-900 underline">courier wallet</a>; anything it doesn&apos;t cover comes off your payout.</p>
+      <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+        <p className="bg-slate-50 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">LOIMART shipping fee (incl. GST, paid from your courier wallet)</p>
         <table className="w-full text-sm"><thead className="text-left text-[11px] uppercase tracking-wide text-slate-400"><tr><th className="px-4 py-2">Delivering to</th><th className="px-4 py-2 text-right">Up to 500 g</th><th className="px-4 py-2 text-right">Each extra 500 g</th></tr></thead>
           <tbody>{(["local","regional","national"] as const).map(z=><tr key={z} className="border-t border-slate-100"><td className="px-4 py-2 font-semibold">{LOIMART_RATE_CARD[z].label}</td><td className="px-4 py-2 text-right">{rupees(LOIMART_RATE_CARD[z].first500g)}</td><td className="px-4 py-2 text-right">{rupees(LOIMART_RATE_CARD[z].extra500g)}</td></tr>)}</tbody></table>
         <p className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-500">Cash on Delivery orders add {rupees(LOIMART_RATE_CARD.codFeePaise)} for cash collection. Weight is the package weight on your products. Example: a 400 g parcel to another state = {rupees(LOIMART_RATE_CARD.national.first500g)}.</p>
-      </div>:null}
+      </div>
 
-      {form.shipWith==="SELF"?<><label className="mt-6 block text-sm font-bold">Your courier</label>
-      <select value={form.preferredProvider} onChange={e=>setForm(current=>({...current,preferredProvider:e.target.value as FormState["preferredProvider"]}))} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm">
-        <option value="MANUAL">I book it myself (any courier)</option>
-        <option value="SHIPROCKET">Shiprocket (credentials pending)</option>
-        <option value="DELHIVERY">Delhivery (credentials pending)</option>
-        <option value="SHADOWFAX">Shadowfax (credentials pending)</option>
-      </select></>:null}
       <p className="mt-7 text-sm font-bold">Pickup address</p>
-      <p className="mt-0.5 text-xs text-slate-500">{form.shipWith==="LOIMART"?"The courier collects parcels from here. It's also printed as the return address.":"Printed as the return address on your labels."}</p>
+      <p className="mt-0.5 text-xs text-slate-500">The courier collects parcels from here. It&apos;s also printed as the return address.</p>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         {([["name","Pickup contact name"],["phone","Pickup phone"],["line1","Address line 1"],["line2","Address line 2 (optional)"],["city","City"],["state","State"],["postalCode","PIN code"]] as const).map(([key,label])=><label key={key} className={key==="line1"||key==="line2"?"sm:col-span-2":" "}><span className="text-sm font-semibold">{label}</span><input value={form.pickup[key]} onChange={e=>setPickup(key,e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-400" /></label>)}
       </div>
 
-      {form.shipWith==="SELF"&&form.preferredProvider!=="MANUAL"?<div className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-900">This provider is saved as your preference, but it will remain unavailable until its official credentials and API configuration are added.</div>:null}
       {error?<div className="mt-5 rounded-2xl bg-red-50 p-4 text-sm text-red-700">{error}</div>:null}
       {message?<div className="mt-5 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-700">{message}</div>:null}
       <button type="button" disabled={saving} onClick={()=>void save()} className="mt-6 rounded-full bg-slate-950 px-6 py-3 text-sm font-bold text-white disabled:opacity-50">{saving?"Saving…":"Save shipping settings"}</button>

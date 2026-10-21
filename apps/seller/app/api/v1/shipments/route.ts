@@ -1,6 +1,6 @@
 import { requireApiAccess } from "@azadimart/auth";
 import { auditLogs, chargeCourierFromWallet, createDatabase, orderItems, orders, payments, productVariants, sellerSettings, shipmentEvents, shipments, sellers } from "@azadimart/database";
-import { courierDisplayName, createShipmentForOrder, getLogisticsProvider, getPlatformCourier, type Address } from "@azadimart/logistics";
+import { courierDisplayName, getPlatformCourier, type Address } from "@azadimart/logistics";
 import { AppError, loimartShippingFee, sellerShippingSettingsSchema, shippingZone, toApiError } from "@azadimart/shared";
 import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -48,11 +48,11 @@ export async function POST(request: Request) {
       throw new AppError("CONFLICT", "Configure your pickup address before creating shipments");
     }
     const settings = parsedSettings.data;
-    // LOIMART shipping: LOIMART's courier account books the parcel and the fee comes off the payout.
-    const viaLoimart = settings.shipWith === "LOIMART";
-    const provider = viaLoimart ? getPlatformCourier() : getLogisticsProvider(settings.preferredProvider);
+    // Only LOIMART ships: LOIMART's courier account books every parcel (fee from the wallet, shortfall from the payout).
+    const viaLoimart = true;
+    const provider = getPlatformCourier();
     if (!provider.isConfigured) {
-      throw new AppError("CONFLICT", settings.preferredProvider + " logistics is not configured yet");
+      throw new AppError("CONFLICT", "LOIMART courier booking is not set up yet. Please contact LOIMART support.");
     }
 
     const existing = (await db.select({
@@ -166,10 +166,10 @@ export async function POST(request: Request) {
     }
     const reserved = reservation.reserved;
 
-    let created: Awaited<ReturnType<typeof createShipmentForOrder>>;
+    let created: Awaited<ReturnType<ReturnType<typeof getPlatformCourier>["createShipment"]>>;
     try {
       const input = { orderId, sellerId, pickup: settings.pickup, delivery, weightGrams, declaredValuePaise, idempotencyKey: orderId + ":" + sellerId };
-      created = viaLoimart ? await provider.createShipment(input) : await createShipmentForOrder(settings.preferredProvider, input);
+      created = await provider.createShipment(input);
     } catch (error) {
       await db.update(shipments)
         .set({ status: "FAILED", updatedAt: new Date() })
