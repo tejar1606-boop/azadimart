@@ -32,7 +32,7 @@ await seller("/api/auth/login", { method: "POST", body: { email: "demo.seller@az
 await admin("/api/auth/login", { method: "POST", body: { email: "demo.admin@azadimart.test", password: PW } });
 
 // A live single-size product of the demo seller with a real MRP and no edit already waiting.
-const [p] = await sql`select p.id, v.id variant_id, v.price_paise, v.compare_at_paise, u.id seller_user from products p
+const [p] = await sql`select p.id, p.coupon_max_discount_pct, v.id variant_id, v.price_paise, v.compare_at_paise, u.id seller_user from products p
   join sellers s on s.id = p.seller_id join users u on u.id = s.user_id
   join product_variants v on v.product_id = p.id and v.is_active
   where u.email = 'demo.seller@azadimart.test' and p.status = 'LIVE' and v.compare_at_paise > v.price_paise
@@ -45,6 +45,7 @@ const [adminUser] = await sql`select id from users where email = 'demo.admin@aza
 const started = new Date();
 const restore = async () => {
   await sql`update product_variants set price_paise = ${p.price_paise}, compare_at_paise = ${p.compare_at_paise} where id = ${p.variant_id}`;
+  await sql`update products set coupon_max_discount_pct = ${p.coupon_max_discount_pct} where id = ${p.id}`;
   await sql`delete from product_price_history where product_id = ${p.id} and created_at >= ${started}`;
 };
 for (const event of ["uncaughtException", "unhandledRejection"]) process.on(event, (e) => { console.error(e); restore().finally(() => process.exit(1)); });
@@ -79,6 +80,19 @@ check("…and flags the raised MRP", row?.mrp_raised === true);
 r = await admin(`/api/v1/catalog/products/${p.id}/price-history`);
 check("admin sees it on the product's price history", r.status === 200 && r.json?.items?.[0]?.mrpRaised === true && r.json.items[0].requestedBy === "demo.seller@azadimart.test" && r.json.items[0].approvedBy === "demo.admin@azadimart.test", JSON.stringify(r.json?.items?.[0] ?? r.json));
 check("sellers can't read LOIMART's price history", [401, 403].includes((await seller(`${AD}/api/v1/catalog/products/${p.id}/price-history`)).status));
+
+// --- coupon limit (seller's own money, applies at once) is tracked too
+const newPct = p.coupon_max_discount_pct === 40 ? 30 : 40;
+r = await seller(`/api/v1/products/${p.id}/coupon-limit`, { method: "PUT", body: { couponMaxDiscountPct: newPct } });
+const [couponRow] = await sql`select * from product_price_history where product_id = ${p.id} and kind = 'COUPON_LIMIT' and created_at >= ${started}`;
+check("a coupon-limit change is recorded", r.status === 200 && couponRow?.coupon_pct_before === p.coupon_max_discount_pct && couponRow.coupon_pct_after === newPct && couponRow.source === "SELLER_COUPON_LIMIT", JSON.stringify(couponRow && { b: couponRow.coupon_pct_before, a: couponRow.coupon_pct_after }));
+r = await admin(`/api/v1/catalog/products/${p.id}/price-history`);
+check("product page shows the coupon limit and the lowest price a customer can pay", r.json?.current?.couponPct === newPct && r.json.current.lowestWithCouponPaise === Math.round(p.price_paise * (100 - newPct) / 100), JSON.stringify(r.json?.current));
+r = await admin("/api/v1/catalog/price-changes?days=7&show=coupon");
+check("Discount changes lists it under Coupon limits", r.json?.items?.some((x) => x.id === couponRow?.id) && r.json.items.every((x) => x.kind === "COUPON_LIMIT"));
+r = await admin("/api/v1/catalog/price-changes?days=7&show=mrp");
+check("…and the raised MRP under MRP raised", r.json?.items?.some((x) => x.productId === p.id && x.mrpRaised) && r.json.counts.mrp >= 1, JSON.stringify(r.json?.counts));
+check("sellers can't see Discount changes", [401, 403].includes((await seller(`${AD}/api/v1/catalog/price-changes`)).status));
 
 await restore();
 console.log(`\n${pass} passed, ${fail} failed`);

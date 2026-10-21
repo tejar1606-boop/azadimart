@@ -296,12 +296,19 @@ export const productPriceHistory = pgTable(
     pricePaiseAfter: integer("price_paise_after").notNull(),
     mrpPaiseBefore: integer("mrp_paise_before"),
     mrpPaiseAfter: integer("mrp_paise_after"),
-    /** SELLER_EDIT (before going live), SELLER_EDIT_APPROVED (approved in QC) or ADMIN_EDIT. */
+    /** PRICE = selling price / MRP of one size; COUPON_LIMIT = how much seller-paid coupons may take off (whole product). */
+    kind: text("kind").notNull().default("PRICE"),
+    couponPctBefore: integer("coupon_pct_before"),
+    couponPctAfter: integer("coupon_pct_after"),
+    /** SELLER_EDIT (before going live), SELLER_EDIT_APPROVED (approved in QC), SELLER_COUPON_LIMIT (set directly) or ADMIN_EDIT. */
     source: text("source").notNull(),
     requestedByUserId: uuid("requested_by_user_id").references(() => users.id),
     approvedByUserId: uuid("approved_by_user_id").references(() => users.id),
     mrpRaised: boolean("mrp_raised").notNull().default(false),
     ...timestamps,
   },
-  (table) => [index("product_price_history_product_idx").on(table.productId, table.createdAt)],
+  (table) => [
+    index("product_price_history_product_idx").on(table.productId, table.createdAt),
+    index("product_price_history_created_idx").on(table.createdAt),
+  ],
 );

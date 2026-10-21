@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import type { createDatabase } from "./client";
 import { recordLowestPriceChange } from "./price-drop";
-import { priceSnapshot, recordPriceHistory, type PriceHistoryActors } from "./price-history";
+import { couponLimitOf, priceSnapshot, recordCouponLimitChange, recordPriceHistory, type PriceHistoryActors } from "./price-history";
 import { inventory, mediaAssets, productMedia, productVariants, products, qcSubmissions, type ProductEditChanges } from "./schema/index";
 
 type Db = ReturnType<typeof createDatabase>;
@@ -16,8 +16,12 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 export async function applyProductEdit(tx: Db | Tx, productId: string, sellerId: string, changes: ProductEditChanges, history?: PriceHistoryActors): Promise<void> {
   // Price/MRP changes are kept in the product's price history (who asked, who approved).
   const before = history ? await priceSnapshot(tx, productId) : null;
+  const couponBefore = history ? await couponLimitOf(tx, productId) : 0;
   await writeProductEdit(tx, productId, sellerId, changes);
-  if (history && before) await recordPriceHistory(tx, productId, before, history);
+  if (history && before) {
+    await recordPriceHistory(tx, productId, before, history);
+    await recordCouponLimitChange(tx, productId, couponBefore, changes.couponMaxDiscountPct ?? couponBefore, history);
+  }
 }
 
 async function writeProductEdit(tx: Db | Tx, productId: string, sellerId: string, changes: ProductEditChanges): Promise<void> {

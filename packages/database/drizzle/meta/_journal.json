@@ -316,6 +316,13 @@
       "when": 1792603935129,
       "tag": "20261021173215_product_price_history",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1792604385626,
+      "tag": "20261021173945_price_history_coupons",
+      "breakpoints": true
     }
   ]
 }
