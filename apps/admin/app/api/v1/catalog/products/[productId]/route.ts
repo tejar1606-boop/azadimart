@@ -1,7 +1,7 @@
 import { requireStaff } from "@azadimart/auth";
 import {
   auditLogs, cartItems, categories, createDatabase, inventory, inventoryMovements, mediaAssets, orderItems,
-  productMedia, productVariants, products, recordLowestPriceChange, sellers,
+  priceSnapshot, productMedia, productVariants, products, recordLowestPriceChange, recordPriceHistory, sellers,
 } from "@azadimart/database";
 import { AppError, adminProductUpdateSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { and, asc, eq, inArray } from "drizzle-orm";
@@ -72,6 +72,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
       await tx.update(products).set({ title: input.title, description: input.description || null, specifications: input.specifications ?? [], metaTitle: input.metaTitle || null, metaDescription: input.metaDescription || null, categoryId: input.categoryId, updatedAt: new Date() }).where(eq(products.id, productId));
 
+      const pricesBefore = await priceSnapshot(tx, productId);
       const existing = await tx.select({ id: productVariants.id, pricePaise: productVariants.pricePaise, compareAtPaise: productVariants.compareAtPaise, isActive: productVariants.isActive }).from(productVariants).where(eq(productVariants.productId, productId));
       const owned = new Map(existing.map((v) => [v.id, v]));
       const changes: Array<Record<string, unknown>> = [];
@@ -103,6 +104,7 @@ export async function PATCH(request: Request, { params }: Params) {
       }
 
       await recordLowestPriceChange(tx, productId, lowestBefore, lowestAfter);
+      await recordPriceHistory(tx, productId, pricesBefore, { source: "ADMIN_EDIT", requestedByUserId: principal.userId, approvedByUserId: principal.userId });
 
       await tx.delete(productMedia).where(eq(productMedia.productId, productId));
       await tx.insert(productMedia).values([

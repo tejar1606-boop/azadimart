@@ -92,7 +92,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pr
         return "review" as const;
       }
 
-      await applyProductEdit(tx, productId, principal.sellerId, changes);
+      await applyProductEdit(tx, productId, principal.sellerId, changes, { source: "SELLER_EDIT", requestedByUserId: principal.userId });
       if (status === "PENDING_QC" || status === "PENDING_ADMIN_APPROVAL") {
         // Content changed during review: start QC again on the new version.
         await tx.update(qcSubmissions).set({ status: "REJECTED", notes: "Replaced by the seller's newer edit", updatedAt: new Date() })

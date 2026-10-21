@@ -309,6 +309,13 @@
       "when": 1792592245561,
       "tag": "20261021141725_seller_referrals",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1792603935129,
+      "tag": "20261021173215_product_price_history",
+      "breakpoints": true
     }
   ]
 }

@@ -27,3 +27,4 @@ export * from "./seller-wallet";
  * it is ignored on the live hosted site.
  */
 export const testProvidersAllowed = () => process.env.NODE_ENV !== "production" || (process.env.ALLOW_TEST_PROVIDERS === "YES" && process.env.VERCEL_ENV !== "production");
+export * from "./price-changes";

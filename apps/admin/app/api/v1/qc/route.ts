@@ -165,7 +165,8 @@ export async function POST(request: Request) {
         if (input.decision === "APPROVED") {
           const product = (await tx.select({ status: products.status }).from(products).where(eq(products.id, submission.productId)).limit(1))[0];
           if (!product || product.status === "ARCHIVED") throw new AppError("CONFLICT", "This product was removed, so the edit can't be applied");
-          await applyProductEdit(tx, submission.productId, submission.sellerId, changes);
+          const requester = (await tx.select({ userId: sellers.userId }).from(sellers).where(eq(sellers.id, submission.sellerId)).limit(1))[0];
+          await applyProductEdit(tx, submission.productId, submission.sellerId, changes, { source: "SELLER_EDIT_APPROVED", requestedByUserId: requester?.userId ?? null, approvedByUserId: principal.userId });
         }
         await tx.insert(auditLogs).values({
           actorUserId: principal.userId,

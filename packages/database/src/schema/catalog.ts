@@ -278,3 +278,30 @@ export const qcIssues = pgTable(
     index("qc_issues_resolved_idx").on(table.resolved),
   ],
 );
+
+/**
+ * Every change to a product's selling price or MRP, size by size, with who
+ * asked for it and who approved it, so LOIMART can always see how a discount
+ * changed after a product went live.
+ */
+export const productPriceHistory = pgTable(
+  "product_price_history",
+  {
+    id,
+    productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    variantId: uuid("variant_id").references(() => productVariants.id, { onDelete: "set null" }),
+    sku: text("sku").notNull(),
+    variantTitle: text("variant_title").notNull(),
+    pricePaiseBefore: integer("price_paise_before"),
+    pricePaiseAfter: integer("price_paise_after").notNull(),
+    mrpPaiseBefore: integer("mrp_paise_before"),
+    mrpPaiseAfter: integer("mrp_paise_after"),
+    /** SELLER_EDIT (before going live), SELLER_EDIT_APPROVED (approved in QC) or ADMIN_EDIT. */
+    source: text("source").notNull(),
+    requestedByUserId: uuid("requested_by_user_id").references(() => users.id),
+    approvedByUserId: uuid("approved_by_user_id").references(() => users.id),
+    mrpRaised: boolean("mrp_raised").notNull().default(false),
+    ...timestamps,
+  },
+  (table) => [index("product_price_history_product_idx").on(table.productId, table.createdAt)],
+);

@@ -1,6 +1,6 @@
 "use client";
 
-import { toCsv } from "@azadimart/shared";
+import { comparePrices, toCsv } from "@azadimart/shared";
 import { useCallback, useEffect, useState } from "react";
 
 type Changes = {
@@ -124,6 +124,13 @@ export default function QCPage() {
                     <span className="rounded-full bg-violet-50 px-2 py-0.5 font-semibold text-violet-800">{(entry.kind === "EDIT" ? entry.proposedCategoryName : entry.currentCategoryName) ?? "No category"}</span>
                     {entry.variants[0] ? <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-700">{rupees(entry.variants[0].pricePaise)}{sellerOff(entry.variants[0]) ? ` · ${sellerOff(entry.variants[0])}% off MRP` : ""}</span> : null}
                     <span className={"rounded-full px-2 py-0.5 font-semibold " + (couponPct(entry) ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-500")}>{couponPct(entry) ? `Coupons up to ${couponPct(entry)}%` : "Coupons off"}</span>
+                    {entry.kind === "EDIT" && entry.proposedChanges ? (() => {
+                      const cmp = priceComparison(entry, entry.proposedChanges);
+                      return <>
+                        {cmp.changed ? <span className="rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-900">Price change · {cmp.discountBefore}% → {cmp.discountAfter}% off</span> : null}
+                        {cmp.mrpRaised ? <span className="rounded-full bg-red-100 px-2 py-0.5 font-bold text-red-700">⚠ MRP raised</span> : null}
+                      </>;
+                    })() : null}
                   </p>
                   <p className="mt-1.5 text-xs text-ink-muted">{entry.variants.length} variant(s) · {entry.media.length} media item(s) · sent {new Date(entry.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
                 </button>
@@ -215,14 +222,16 @@ const optionSummary = (list: Array<{ attributes?: Record<string, string> }>) => 
 };
 const specText = (rows: Array<{ label: string; value: string }>) => (rows.length ? rows.map((row) => `${row.label}: ${row.value}`).join("\n") : "—");
 
+/** Size-by-size price comparison for an edit (a single-size product keeps its variant id). */
+const priceComparison = (item: Item, changes: Changes) =>
+  comparePrices(item.variants, changes.variants ?? [{ ...changes.variant, id: item.variants[0]?.id }]);
+
 /** Before → after for an edit to a live product. Changed rows are highlighted. */
 function EditDiff({ item, changes }: { item: Item; changes: Changes }) {
   const before = item.variants[0];
   const rows: Array<[string, string, string]> = [
     ["Title", item.productTitle, changes.title],
     ["Category", item.currentCategoryName ?? "—", item.proposedCategoryName ?? "—"],
-    ["Selling price", rupees(before?.pricePaise), rupees(changes.variant.pricePaise)],
-    ["MRP (compare-at)", rupees(before?.compareAtPaise), rupees(changes.variant.compareAtPaise)],
     ["SKU", before?.sku ?? "—", changes.variant.sku],
     ["Variant name", before?.title ?? "—", changes.variant.title],
     ["Package weight", before ? before.weightGrams + " g" : "—", changes.variant.weightGrams + " g"],
@@ -237,6 +246,7 @@ function EditDiff({ item, changes }: { item: Item; changes: Changes }) {
     <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50/40 p-4">
       <h3 className="font-semibold">Requested changes</h3>
       <p className="mt-1 text-xs text-ink-muted">The product stays {item.productStatus === "UNLISTED" ? "hidden" : "live"} with its current details until you decide.</p>
+      <PriceTable item={item} changes={changes} />
       <div className="mt-3 overflow-x-auto">
         <table className="w-full min-w-[520px] text-sm">
           <thead><tr className="text-left text-xs uppercase tracking-wide text-ink-muted"><th className="py-2 pr-3">Field</th><th className="py-2 pr-3">Now (live)</th><th className="py-2">Requested</th></tr></thead>
@@ -407,5 +417,36 @@ function QcHistory() {
         </div>
       )}
     </section>
+  );
+}
+
+/** Prices and discount, size by size: now (live) → requested, with warnings for a raised MRP or a very big discount. */
+function PriceTable({ item, changes }: { item: Item; changes: Changes }) {
+  const cmp = priceComparison(item, changes);
+  const pct = (n: number) => (n ? `${n}% off` : "No discount");
+  return (
+    <div className={"mt-3 rounded-xl border bg-white p-3 " + (cmp.mrpRaised ? "border-red-300" : cmp.changed ? "border-amber-300" : "border-slate-200")}>
+      <p className="text-sm font-semibold">Prices &amp; discount {cmp.changed ? <span className="ml-1 rounded bg-amber-200 px-1.5 text-[10px] font-bold uppercase">changed</span> : <span className="ml-1 text-xs font-normal text-ink-muted">(no change)</span>}</p>
+      {cmp.mrpRaised ? <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">⚠ The MRP was raised, making the discount look bigger. Check the new MRP is genuine (the price printed on the product / brand&apos;s price) before approving. A fake MRP misleads customers.</p> : null}
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full min-w-[600px] text-sm">
+          <thead><tr className="text-left text-[11px] uppercase tracking-wide text-ink-muted"><th className="py-1.5 pr-3">Size / colour</th><th className="pr-3">MRP</th><th className="pr-3">Selling price</th><th>Discount</th></tr></thead>
+          <tbody>
+            {cmp.rows.map((r) => {
+              const cell = (now: string, next: string, changed: boolean) => changed ? <><span className="text-ink-muted line-through">{now}</span> <span className="font-semibold text-amber-900">→ {next}</span></> : <span>{next}</span>;
+              const b = r.before;
+              return (
+                <tr key={r.key} className={"border-t border-slate-100 " + (r.changed ? "" : "opacity-60")}>
+                  <td className="py-2 pr-3"><span className="font-medium">{r.title}</span> <span className="text-xs text-ink-muted">{r.sku}</span>{r.isNew ? <span className="ml-1 rounded bg-sky-100 px-1.5 text-[10px] font-bold text-sky-800">NEW</span> : null}</td>
+                  <td className="pr-3">{b ? cell(rupees(b.compareAtPaise), rupees(r.after.compareAtPaise), b.compareAtPaise !== r.after.compareAtPaise) : rupees(r.after.compareAtPaise)}{r.mrpRaised ? <span className="ml-1 text-xs font-bold text-red-600">⚠ raised</span> : null}</td>
+                  <td className="pr-3">{b ? cell(rupees(b.pricePaise), rupees(r.after.pricePaise), b.pricePaise !== r.after.pricePaise) : rupees(r.after.pricePaise)}</td>
+                  <td>{b ? cell(pct(b.discountPct), pct(r.after.discountPct), b.discountPct !== r.after.discountPct) : pct(r.after.discountPct)}{r.bigDiscount ? <span className="ml-1 text-xs font-bold text-amber-700">⚠ 70%+</span> : null}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
