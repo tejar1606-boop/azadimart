@@ -4,7 +4,7 @@ import webpush from "web-push";
 
 type Db = ReturnType<typeof createDatabase>;
 
-export type SellerAlertKind = "NEW_ORDER" | "SHIP_BY_REMINDER" | "ORDER_LATE" | "ORDER_AUTO_CANCELLED" | "ORDER_CANCELLED_BY_CUSTOMER" | "ORDER_CANCELLED_BY_ADMIN" | "PAYOUT_PAID" | "PAYOUT_ON_HOLD" | "AD_OUTBID" | "AD_WON" | "AD_LOST" | "AD_CHARGED" | "AD_REVIEWED" | "SUPPORT_REPLY" | "PRODUCT_REVIEWED";
+export type SellerAlertKind = "NEW_ORDER" | "SHIP_BY_REMINDER" | "ORDER_LATE" | "ORDER_AUTO_CANCELLED" | "ORDER_CANCELLED_BY_CUSTOMER" | "ORDER_CANCELLED_BY_ADMIN" | "PAYOUT_PAID" | "PAYOUT_ON_HOLD" | "AD_OUTBID" | "AD_WON" | "AD_LOST" | "AD_CHARGED" | "AD_REVIEWED" | "SUPPORT_REPLY" | "PRODUCT_REVIEWED" | "REFERRAL_REWARD";
 export type SellerAlertPreferences = { newOrders: boolean; reminders: boolean; cancellations: boolean; payouts: boolean; ads: boolean };
 export const DEFAULT_ALERT_PREFERENCES: SellerAlertPreferences = { newOrders: true, reminders: true, cancellations: true, payouts: true, ads: true };
 
@@ -25,6 +25,7 @@ const CATEGORY: Record<SellerAlertKind, keyof SellerAlertPreferences | null> = {
   AD_REVIEWED: "ads",
   SUPPORT_REPLY: null,
   PRODUCT_REVIEWED: null,
+  REFERRAL_REWARD: "payouts",
 };
 
 /** Whether the seller wants a browser push for this kind of alert (it's always kept in Notices). */

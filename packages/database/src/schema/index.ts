@@ -13,7 +13,7 @@ export * from "./reviews";
 
 export const MARKETPLACE_TABLES = [
   "users","roles","user_roles","sessions","customers","customer_addresses","sellers","seller_documents",
-  "seller_bank_accounts","seller_wallet_transactions","seller_wallet_top_ups","platform_settings","seller_verifications","seller_settings","categories","brands","products",
+  "seller_bank_accounts","seller_wallet_transactions","seller_wallet_top_ups","platform_settings","seller_commission_free_periods","seller_verifications","seller_settings","categories","brands","products",
   "product_attributes","product_variants","product_media","product_aplus_content","inventory",
   "inventory_movements","wishlists","wishlist_items","carts","cart_items","orders","order_items",
   "payments","payment_events","refunds","shipments","shipment_events","delivery_providers","serviceability",

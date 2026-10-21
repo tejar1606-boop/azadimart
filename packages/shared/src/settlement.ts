@@ -36,6 +36,8 @@ export type SettlementInput = {
   gstRegistered: boolean;
   /** LOIMART shipping fee for the parcel (on its first item), when LOIMART shipped it. */
   shippingFeePaise?: number;
+  /** The order falls in an extra commission-free period (e.g. 3 months earned by a referral). */
+  inBonusFreePeriod?: boolean;
 };
 export type SettlementBreakdown = {
   grossPaise: number;
@@ -58,7 +60,7 @@ export function calculateSettlement(input: SettlementInput): SettlementBreakdown
   // What the customer actually paid for these items: commission and taxes are worked out on this.
   const sold = gross - sellerDiscount;
   // A seller without an approval date hasn't started the free period, so it's treated as free.
-  const commissionFree = !input.sellerApprovedAt || input.orderedAt < commissionFreeUntil(input.sellerApprovedAt);
+  const commissionFree = !input.sellerApprovedAt || input.orderedAt < commissionFreeUntil(input.sellerApprovedAt) || Boolean(input.inBonusFreePeriod);
   const commissionRateBps = commissionFree ? 0 : COMMISSION_RATE_BPS;
   const commissionPaise = bps(sold, commissionRateBps);
   const gstOnCommissionPaise = bps(commissionPaise, GST_ON_FEES_BPS);
@@ -70,3 +72,7 @@ export function calculateSettlement(input: SettlementInput): SettlementBreakdown
 
 /** When a delivered item's money can be paid out. */
 export const payoutEligibleAt = (deliveredAt: Date) => new Date(deliveredAt.getTime() + PAYOUT_HOLD_DAYS * 24 * 60 * 60 * 1000);
+
+/** Each successful seller referral earns the referrer this many extra commission-free months, up to the cap. */
+export const REFERRAL_BONUS_MONTHS = 3;
+export const REFERRAL_MAX_REWARDS = 4;

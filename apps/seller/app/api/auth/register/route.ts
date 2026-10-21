@@ -1,6 +1,7 @@
 import { getClientIp, hashPassword, verifyCaptcha, enforceRateLimit } from "@azadimart/auth";
 import {
   createDatabase,
+  findReferrer,
   sellerSettings,
   sellerVerifications,
   sellers,
@@ -55,6 +56,10 @@ export async function POST(request: Request) {
       throw new AppError("CONFLICT", "An account already exists with this phone number");
     }
 
+    // Optional referral: the code must belong to an active seller.
+    const referrer = input.referralCode ? await findReferrer(db, input.referralCode) : null;
+    if (input.referralCode && !referrer) throw new AppError("VALIDATION_ERROR", "That referral code isn't valid. Check it, or leave it empty.");
+
     const passwordHash = await hashPassword(input.password);
 
     const insertedUsers = await db
@@ -86,6 +91,7 @@ export async function POST(request: Request) {
           businessState: input.businessState,
           taxDeclarationAcceptedAt: input.taxDeclarationAccepted ? new Date() : null,
           status: "REGISTERED",
+          referredBySellerId: referrer?.id ?? null,
         })
         .returning({ id: sellers.id });
 

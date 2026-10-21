@@ -27,7 +27,7 @@ export type SettlementLine = {
 type Row = {
   order_item_id: string; order_id: string; order_number: string; seller_id: string; title: string;
   quantity: number; returned: number; unit_price_paise: number; seller_discount_paise: number; ordered_at: string; delivered_at: string;
-  approved_at: string | null; tax_identity_type: string; open_return: boolean; shipping_fee_paise: number;
+  approved_at: string | null; tax_identity_type: string; open_return: boolean; shipping_fee_paise: number; in_bonus_free: boolean;
 };
 
 export async function unpaidSettlementLines(db: Pick<Database, "execute">, options: { sellerId?: string } = {}): Promise<SettlementLine[]> {
@@ -39,6 +39,8 @@ export async function unpaidSettlementLines(db: Pick<Database, "execute">, optio
         -- Only the part the seller's courier wallet didn't already pay.
         then coalesce((select sh.shipping_fee_paise - sh.wallet_paid_paise from shipments sh where sh.order_id = oi.order_id and sh.seller_id = oi.seller_id and sh.shipped_by = 'LOIMART' and sh.status <> 'CANCELLED' limit 1), 0)
         else 0 end::int shipping_fee_paise,
+      -- Ordered inside an extra commission-free period (referral bonus).
+      exists(select 1 from seller_commission_free_periods fp where fp.seller_id = oi.seller_id and o.created_at >= fp.starts_at and o.created_at < fp.ends_at) in_bonus_free,
       coalesce((select sum(ri.quantity) from return_items ri join returns r on r.id = ri.return_id
         where ri.order_item_id = oi.id and r.status in ('RECEIVED', 'REFUNDED')), 0)::int returned,
       exists(select 1 from return_items ri join returns r on r.id = ri.return_id
@@ -66,6 +68,7 @@ export async function unpaidSettlementLines(db: Pick<Database, "execute">, optio
         sellerApprovedAt: row.approved_at ? new Date(row.approved_at) : null,
         gstRegistered: row.tax_identity_type === "GSTIN",
         shippingFeePaise: row.shipping_fee_paise,
+        inBonusFreePeriod: row.in_bonus_free,
       }),
     }];
   });

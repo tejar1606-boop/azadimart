@@ -17,6 +17,8 @@ export const sellerRegistrationSchema = z.object({
   taxDeclarationAccepted:z.literal(true),
   password:z.string().min(8).max(256),
   captchaToken:z.string().max(2048).optional(),
+  /** Another seller's referral code (optional): they earn extra free months after this seller's first delivery. */
+  referralCode:z.string().trim().max(20).optional().transform((v)=>v||undefined),
 }).superRefine((value, ctx) => {
   if (value.taxIdentityType === "GSTIN" && !value.gstin) {
     ctx.addIssue({ code:"custom", path:["gstin"], message:"GSTIN is required when GST registration is selected" });

@@ -1,4 +1,4 @@
-import { boolean, check, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { id, timestamps } from "./columns";
 import { documentTypeEnum, sellerStatusEnum, sellerTaxIdentityTypeEnum, verificationStatusEnum, walletTopUpStatusEnum, walletTxnTypeEnum } from "./enums";
@@ -23,6 +23,10 @@ export const sellers = pgTable(
     status: sellerStatusEnum("status").notNull().default("REGISTERED"),
     /** Prepaid courier wallet (closed loop: pays only LOIMART courier fees; no withdrawals). */
     walletBalancePaise: integer("wallet_balance_paise").notNull().default(0),
+    // Seller referrals: this seller's own code, who referred them, and when they earned that seller a bonus.
+    referralCode: text("referral_code"),
+    referredBySellerId: uuid("referred_by_seller_id").references((): AnyPgColumn => sellers.id, { onDelete: "set null" }),
+    referralRewardedAt: timestamp("referral_rewarded_at", { withTimezone: true }),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     approvedByUserId: uuid("approved_by_user_id").references(() => users.id),
     // Set by an admin to stop automatic payouts to this seller (e.g. a dispute).
@@ -35,6 +39,9 @@ export const sellers = pgTable(
     uniqueIndex("sellers_user_id_unique").on(table.userId),
     index("sellers_status_idx").on(table.status),
     check("sellers_wallet_balance_non_negative", sql`${table.walletBalancePaise} >= 0`),
+    uniqueIndex("sellers_referral_code_unique").on(table.referralCode),
+    index("sellers_referred_by_idx").on(table.referredBySellerId),
+    check("sellers_no_self_referral", sql`${table.referredBySellerId} is null or ${table.referredBySellerId} <> ${table.id}`),
     uniqueIndex("sellers_gst_enrolment_id_unique").on(table.gstEnrolmentId),
   ],
 );
@@ -211,5 +218,29 @@ export const sellerWalletTopUps = pgTable(
     uniqueIndex("seller_wallet_top_ups_reference_unique").on(sql`upper(${table.reference})`).where(sql`${table.status} <> 'REJECTED'`),
     index("seller_wallet_top_ups_status_idx").on(table.status, table.createdAt),
     check("seller_wallet_top_ups_amount_positive", sql`${table.amountPaise} > 0`),
+  ],
+);
+
+/**
+ * Extra commission-free periods on top of the first 3 months after approval,
+ * e.g. 3 months earned when a referred seller delivers their first order.
+ * Orders placed inside a period pay no commission and no platform fee.
+ */
+export const sellerCommissionFreePeriods = pgTable(
+  "seller_commission_free_periods",
+  {
+    id,
+    sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "cascade" }),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    reason: text("reason").notNull(),
+    /** The referred seller whose first delivery earned this period (one reward per referred seller). */
+    referredSellerId: uuid("referred_seller_id").references(() => sellers.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (table) => [
+    index("seller_commission_free_periods_seller_idx").on(table.sellerId, table.startsAt),
+    uniqueIndex("seller_commission_free_periods_referred_unique").on(table.referredSellerId),
+    check("seller_commission_free_periods_order", sql`${table.endsAt} > ${table.startsAt}`),
   ],
 );

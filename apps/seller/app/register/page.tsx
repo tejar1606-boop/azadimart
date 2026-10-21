@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Turnstile, type TurnstileHandle } from "@azadimart/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -29,7 +29,13 @@ export default function RegisterPage() {
     gstEnrolmentId: "",
     taxDeclarationAccepted: false,
     password: "",
+    referralCode: "",
   });
+  // A referral link (…/register?ref=LOIXXXXXX) fills in the code.
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) setForm((current) => ({ ...current, referralCode: ref.toUpperCase().slice(0, 20) }));
+  }, []);
   const [error, setError] = useState("");
   const [captchaToken, setCaptchaToken] = useState<string>();
   const captchaRef = useRef<TurnstileHandle>(null);
@@ -54,6 +60,7 @@ export default function RegisterPage() {
         ...form,
         gstin: form.gstin.trim() || undefined,
         gstEnrolmentId: form.gstEnrolmentId.trim().toUpperCase() || undefined,
+        referralCode: form.referralCode.trim().toUpperCase() || undefined,
         captchaToken,
       };
 
@@ -169,6 +176,12 @@ export default function RegisterPage() {
             <span className="leading-6">
               I confirm the tax identity and business-state information I submit is accurate. I understand that eligibility for the Enrolment ID route is subject to applicable GST rules and that I must obtain GST registration when legally required.
             </span>
+          </label>
+
+          <label className="text-sm font-medium sm:col-span-2">
+            Referral code <span className="font-normal text-slate-400">(optional)</span>
+            <input className="mt-2 w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2.5 font-mono uppercase" value={form.referralCode} maxLength={20} placeholder="e.g. LOI7K2QXM" onChange={(e) => setField("referralCode", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} />
+            <span className="mt-1 block text-xs font-normal text-slate-500">Invited by another LOIMART seller? Enter their code. It doesn&apos;t change anything for you: you still get your first 3 months with no commission.</span>
           </label>
 
           <label className="text-sm font-medium sm:col-span-2">

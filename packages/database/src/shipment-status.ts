@@ -3,6 +3,7 @@ import { AppError } from "@azadimart/shared";
 import type { Database } from "./client";
 import { auditLogs, inventory, inventoryMovements, orderItems, orders, payments, shipmentEvents, shipments } from "./schema/index";
 import { refundCourierToWallet } from "./seller-wallet";
+import { rewardReferralOnFirstDelivery } from "./seller-referrals";
 
 type Executor = Pick<Database, "select" | "update">;
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -103,6 +104,8 @@ export async function advanceShipmentStatus(tx: Tx, input: { shipmentId: string;
   if (!updated) throw new AppError("CONFLICT", "Shipment changed before it could be updated");
   // A cancelled or failed LOIMART parcel gives the wallet part of its courier fee back.
   if (input.status === "CANCELLED" || input.status === "FAILED") await refundCourierToWallet(tx, shipment.id, input.actorUserId);
+  // A referred seller's first delivered order earns the seller who referred them extra free months.
+  if (input.status === "DELIVERED") await rewardReferralOnFirstDelivery(tx, shipment.sellerId);
   await tx.insert(shipmentEvents).values({ shipmentId: shipment.id, status: input.status as typeof shipments.$inferSelect.status, description: input.notes ?? "Shipment status updated" });
   await syncOrderFulfillmentStatus(tx, shipment.orderId);
   await tx.insert(auditLogs).values({

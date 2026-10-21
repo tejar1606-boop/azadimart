@@ -53,3 +53,16 @@ describe("bank account details", () => {
     expect(s).toMatchObject({ commissionPaise: 0, shippingFeePaise: 6_000, netPaise: 100_000 - 100 - 6_000 });
   });
 });
+
+describe("referral bonus months", () => {
+  const long = { grossPaise: 100000, sellerApprovedAt: new Date("2025-01-01"), orderedAt: new Date("2026-06-01"), gstRegistered: true };
+  it("charges commission after the first free months", () => {
+    expect(calculateSettlement(long).commissionFree).toBe(false);
+  });
+  it("orders inside a referral bonus period pay no commission", () => {
+    const s = calculateSettlement({ ...long, inBonusFreePeriod: true });
+    expect(s.commissionFree).toBe(true);
+    expect(s.commissionPaise).toBe(0);
+    expect(s.gstOnCommissionPaise).toBe(0);
+  });
+});

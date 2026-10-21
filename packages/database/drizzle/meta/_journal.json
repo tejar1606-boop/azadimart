@@ -302,6 +302,13 @@
       "when": 1792590380119,
       "tag": "20261021134620_platform_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1792592245561,
+      "tag": "20261021141725_seller_referrals",
+      "breakpoints": true
     }
   ]
 }
