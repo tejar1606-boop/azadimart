@@ -1,6 +1,6 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, sellerWalletTopUps, sellerWalletTransactions, sellers, shipments, orders } from "@azadimart/database";
-import { AppError, SELLER_WALLET_MAX_PAISE, toApiError, walletRoomPaise } from "@azadimart/shared";
+import { createDatabase, getPlatformSetting, sellerWalletTopUps, sellerWalletTransactions, sellers, shipments, orders } from "@azadimart/database";
+import { AppError, SELLER_WALLET_MAX_PAISE, WALLET_PAYMENT_DETAILS_KEY, toApiError, walletRoomPaise, type WalletPaymentDetails } from "@azadimart/shared";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -27,6 +27,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       balancePaise: balance, maxPaise: SELLER_WALLET_MAX_PAISE, pendingPaise: pending, roomPaise: walletRoomPaise(balance, pending),
       spentLast30DaysPaise: spent?.n ?? 0, history, topUps,
+      // Where to pay top-ups (set in Admin → Finance → Seller wallets).
+      paymentDetails: await getPlatformSetting<WalletPaymentDetails>(db, WALLET_PAYMENT_DETAILS_KEY),
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);

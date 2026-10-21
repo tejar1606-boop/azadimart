@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { PortalPageHeader } from "@azadimart/ui";
+import PaymentDetailsForm from "./payment-details-form";
 
 type TopUp = { id: string; sellerId: string; storeName: string; balancePaise: number; amountPaise: number; reference: string; status: "PENDING" | "APPROVED" | "REJECTED"; adminNote: string | null; createdAt: string; decidedAt: string | null };
 type Balance = { sellerId: string; storeName: string; balancePaise: number; lastActivity: string | null };
@@ -43,6 +44,7 @@ export default function WalletsView() {
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
       <PortalPageHeader eyebrow="Finance" title="Seller wallets" description={`Sellers prepay LOIMART courier fees (up to ${data ? rupees(data.maxPaise) : "₹500"} each). Check the money reached LOIMART's account, then approve the top-up. Courier fees are taken from the wallet automatically; any shortfall comes off the payout.`} />
       {error ? <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
+      <PaymentDetailsForm />
 
       <section className="mt-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card">
         <h2 className="font-semibold">Waiting for you {pending.length ? <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">{pending.length}</span> : null}</h2>

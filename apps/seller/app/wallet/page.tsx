@@ -5,7 +5,19 @@ import { PortalPageHeader } from "@azadimart/ui";
 
 type Txn = { id: string; type: "TOP_UP" | "COURIER_CHARGE" | "COURIER_REFUND" | "ADJUSTMENT"; amountPaise: number; balanceAfterPaise: number; note: string | null; createdAt: string; orderNumber: string | null };
 type TopUp = { id: string; amountPaise: number; reference: string; status: "PENDING" | "APPROVED" | "REJECTED"; adminNote: string | null; createdAt: string };
-type Wallet = { balancePaise: number; maxPaise: number; pendingPaise: number; roomPaise: number; spentLast30DaysPaise: number; history: Txn[]; topUps: TopUp[] };
+type PaymentDetails = { accountName: string; bankName: string; accountNumber: string; ifsc: string; upiId: string; note: string };
+type Wallet = { balancePaise: number; maxPaise: number; pendingPaise: number; roomPaise: number; spentLast30DaysPaise: number; history: Txn[]; topUps: TopUp[]; paymentDetails: PaymentDetails | null };
+
+/** A detail with a Copy button. */
+function CopyRow({ label, value, mono = true }: { label: string; value: string; mono?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex items-center justify-between gap-2 py-1.5">
+      <div className="min-w-0"><p className="text-[11px] text-slate-500">{label}</p><p className={"truncate text-sm font-semibold " + (mono ? "font-mono" : "")}>{value}</p></div>
+      <button type="button" onClick={() => { void navigator.clipboard?.writeText(value).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1500); }); }} className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-slate-300 hover:ring-slate-900">{copied ? "Copied" : "Copy"}</button>
+    </div>
+  );
+}
 
 const rupees = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const LABEL: Record<Txn["type"], string> = { TOP_UP: "Money added", COURIER_CHARGE: "Courier fee", COURIER_REFUND: "Courier fee returned", ADJUSTMENT: "Adjustment" };
@@ -63,8 +75,25 @@ export default function WalletPage() {
 
         <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-card">
           <h2 className="font-semibold">Add money</h2>
-          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-600">
-            <li>Pay LOIMART by bank transfer or UPI, using the account details our team shared with you.</li>
+          {wallet?.paymentDetails ? (
+            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2">
+              <p className="pt-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Pay LOIMART here</p>
+              {wallet.paymentDetails.accountNumber ? <>
+                <CopyRow label="Account name" value={wallet.paymentDetails.accountName} mono={false} />
+                {wallet.paymentDetails.bankName ? <CopyRow label="Bank" value={wallet.paymentDetails.bankName} mono={false} /> : null}
+                <CopyRow label="Account number" value={wallet.paymentDetails.accountNumber} />
+                <CopyRow label="IFSC" value={wallet.paymentDetails.ifsc} />
+              </> : null}
+              {wallet.paymentDetails.upiId ? <CopyRow label="UPI ID" value={wallet.paymentDetails.upiId} /> : null}
+              {wallet.paymentDetails.note ? <p className="pb-1.5 pt-1 text-xs text-slate-600">{wallet.paymentDetails.note}</p> : null}
+              {wallet.paymentDetails.upiId ? (
+                // Phones: opens GPay / PhonePe / Paytm with LOIMART's UPI ID (and the amount typed below).
+                <a href={`upi://pay?pa=${encodeURIComponent(wallet.paymentDetails.upiId)}&pn=${encodeURIComponent(wallet.paymentDetails.accountName || "LOIMART")}&cu=INR&tn=${encodeURIComponent("Courier wallet top-up")}${Number(amount) > 0 ? `&am=${Number(amount).toFixed(2)}` : ""}`} className="mb-2 mt-1 inline-flex rounded-full bg-green-700 px-4 py-2 text-xs font-semibold text-white sm:hidden">Pay with UPI app{Number(amount) > 0 ? ` · ₹${Number(amount)}` : ""}</a>
+              ) : null}
+            </div>
+          ) : null}
+          <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-slate-600">
+            <li>{wallet?.paymentDetails ? "Pay LOIMART by bank transfer or UPI using the details above." : "Pay LOIMART by bank transfer or UPI, using the account details our team shared with you."}</li>
             <li>Enter the amount and the payment reference (UTR) below.</li>
             <li>We add it to your wallet once we see the payment.</li>
           </ol>

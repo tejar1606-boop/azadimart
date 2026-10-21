@@ -19,3 +19,17 @@ export const walletTopUpDecisionSchema = z.object({
 
 /** How much more can be added right now. */
 export const walletRoomPaise = (balancePaise: number, pendingPaise = 0) => Math.max(0, SELLER_WALLET_MAX_PAISE - balancePaise - pendingPaise);
+
+/** Where sellers pay wallet top-ups (shown on their Wallet page). Bank account and/or UPI ID. */
+const blank = (v: unknown) => (typeof v === "string" ? v.trim() : v);
+export const walletPaymentDetailsSchema = z.object({
+  accountName: z.preprocess(blank, z.string().max(100).default("")),
+  bankName: z.preprocess(blank, z.string().max(80).default("")),
+  accountNumber: z.preprocess(blank, z.string().regex(/^(\d{6,20})?$/, "Account number: 6 to 20 digits").default("")),
+  ifsc: z.preprocess((v) => (typeof v === "string" ? v.trim().toUpperCase() : v), z.string().regex(/^([A-Z]{4}0[A-Z0-9]{6})?$/, "IFSC looks like SBIN0001234").default("")),
+  upiId: z.preprocess(blank, z.string().regex(/^([\w.-]{2,}@[a-zA-Z]{2,})?$/, "UPI ID looks like loimart@okicici").default("")),
+  note: z.preprocess(blank, z.string().max(300).default("")),
+}).refine((v) => (v.accountNumber && v.ifsc && v.accountName) || v.upiId, "Add the bank account (name, number and IFSC) or a UPI ID")
+  .refine((v) => !v.accountNumber || Boolean(v.ifsc && v.accountName), "Add the account holder name and IFSC with the account number");
+export type WalletPaymentDetails = z.infer<typeof walletPaymentDetailsSchema>;
+export const WALLET_PAYMENT_DETAILS_KEY = "wallet_payment_details";

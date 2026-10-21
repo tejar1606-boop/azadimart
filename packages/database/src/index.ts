@@ -15,3 +15,4 @@ export * from "./shipment-status";
 export * from "./homepage";
 export * from "./review-import";
 export * from "./seller-wallet";
+export * from "./platform-settings";

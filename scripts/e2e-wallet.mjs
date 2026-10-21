@@ -37,7 +37,8 @@ await seller("/api/auth/login", { method: "POST", body: { email: "demo.seller@az
 
 const [me] = await sql`select s.id, s.wallet_balance_paise from sellers s join users u on u.id = s.user_id where u.email = 'demo.seller@azadimart.test'`;
 const started = new Date();
-const original = { balance: me.wallet_balance_paise, settings: (await seller("/api/v1/shipping-settings")).json?.settings ?? null };
+const original = { balance: me.wallet_balance_paise, settings: (await seller("/api/v1/shipping-settings")).json?.settings ?? null,
+  details: (await sql`select value from platform_settings where key = 'wallet_payment_details'`)[0]?.value ?? null };
 const [product] = await sql`select v.id variant_id from product_variants v join products p on p.id = v.product_id join inventory i on i.variant_id = v.id
   where p.seller_id = ${me.id} and p.status = 'LIVE' and v.is_active and v.weight_grams > 0 and i.on_hand - i.reserved >= 3 order by p.created_at limit 1`;
 if (!product) throw new Error("Need a stocked live product from the demo seller.");
@@ -49,6 +50,8 @@ async function tidy() {
   await sql`delete from seller_wallet_top_ups where seller_id = ${me.id} and created_at >= ${started}`;
   await sql`update sellers set wallet_balance_paise = ${original.balance} where id = ${me.id}`;
   if (original.settings) await seller("/api/v1/shipping-settings", { method: "PATCH", body: original.settings });
+  if (original.details) await sql`update platform_settings set value = ${JSON.stringify(original.details)}::jsonb where key = 'wallet_payment_details'`;
+  else await sql`delete from platform_settings where key = 'wallet_payment_details'`;
 }
 for (const event of ["uncaughtException", "unhandledRejection"]) process.on(event, (error) => { console.error(error); tidy().finally(() => process.exit(1)); });
 
@@ -86,6 +89,15 @@ check("seller sees the rejection reason; balance unchanged", w.topUps.some((t) =
 r = await seller("/api/v1/wallet/top-ups", { method: "POST", body: { amountPaise: 15000, reference: `E2E${RUN}C` } });
 check("a rejected reference can be sent again", r.status === 201, String(r.status));
 await admin(`/api/v1/wallets/top-ups/${r.json?.id}`, { method: "POST", body: { decision: "REJECT", note: "Test" } });
+
+// --- where sellers pay: LOIMART's bank details, set in Admin
+r = await admin("/api/v1/wallets/payment-details", { method: "PUT", body: { accountName: "LOIMART Test", accountNumber: "1234567890", ifsc: "BADIFSC", upiId: "" } });
+check("a wrong IFSC is refused", r.status === 400, String(r.status));
+r = await admin("/api/v1/wallets/payment-details", { method: "PUT", body: { accountName: "LOIMART Test Account", bankName: "Test Bank", accountNumber: "1234567890", ifsc: "test0001234", upiId: "loimart.test@okaxis", note: "Use your store name as the remark" } });
+check("admin saves the bank details for top-ups", r.status === 200 && r.json?.details?.ifsc === "TEST0001234", String(r.status));
+r = await seller("/api/v1/wallet");
+check("sellers see them on their Wallet page", r.json?.paymentDetails?.accountNumber === "1234567890" && r.json.paymentDetails.upiId === "loimart.test@okaxis");
+check("sellers can't change them", [401, 403].includes((await seller(`${AD}/api/v1/wallets/payment-details`, { method: "PUT", body: { upiId: "thief@okaxis" } })).status));
 
 // --- courier fees: LOIMART books the parcel, the wallet pays first
 await seller("/api/v1/shipping-settings", { method: "PATCH", body: { shipWith: "LOIMART", preferredProvider: "MANUAL", pickup: original.settings?.pickup ?? { name: "Demo Store", phone: "9876543210", line1: "12 MG Road", city: "Bengaluru", state: "Karnataka", postalCode: "560001", country: "IN" } } });
