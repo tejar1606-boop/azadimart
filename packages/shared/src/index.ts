@@ -17,3 +17,4 @@ export * from "./coupon-allocation";
 export * from "./bulk-products";
 export * from "./variants";
 export * from "./shipping-rates";
+export * from "./bulk-reviews";

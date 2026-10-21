@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ImportedReviewForm, PortalPageHeader, type ReviewProductOption } from "@azadimart/ui";
+import { BulkReviewImport, ImportedReviewForm, PortalPageHeader, type ReviewProductOption } from "@azadimart/ui";
 
 type Review = {
   id: string; rating: number; title: string | null; body: string | null; createdAt: string; sellerReply: string | null; sellerRepliedAt: string | null; productTitle: string; productSlug: string; authorName: string; photos: string[];
@@ -27,6 +27,7 @@ export default function SellerReviewsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
+  const [bulk, setBulk] = useState(false);
   const [notice, setNotice] = useState("");
 
   const load = useCallback(async () => {
@@ -58,7 +59,7 @@ export default function SellerReviewsPage() {
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
       <PortalPageHeader eyebrow="Catalogue" title="Customer reviews" description="Reviews from verified buyers of your products. A polite, helpful reply builds trust with future customers. Got genuine reviews on another site? Add them with a screenshot: our team checks them, then they show on your product labelled with their source."
-        actions={<button type="button" onClick={() => setAdding(true)} className="rounded-full bg-chrome px-4 py-2 text-sm font-semibold text-white">Add review from another site</button>} />
+        actions={<div className="flex flex-wrap gap-2"><button type="button" onClick={() => setBulk(true)} className="rounded-full px-4 py-2 text-sm font-semibold ring-1 ring-slate-300 hover:ring-slate-900">Bulk upload (CSV)</button><button type="button" onClick={() => setAdding(true)} className="rounded-full bg-chrome px-4 py-2 text-sm font-semibold text-white">Add review from another site</button></div>} />
       {notice ? <p className="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800">{notice}</p> : null}
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:max-w-xl">
         <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Average rating</p><p className="mt-1 text-3xl font-semibold">{summary.count ? summary.average.toFixed(1) : "—"} <span className="text-xl text-amber-500">★</span></p></div>
@@ -105,6 +106,7 @@ export default function SellerReviewsPage() {
           );
         })}
       </div>
+      {bulk ? <BulkReviewImport proofUrl="/api/v1/reviews/proofs" bulkUrl="/api/v1/reviews/bulk" needsApproval onCancel={() => setBulk(false)} onDone={(count) => { setBulk(false); setNotice(`${count} reviews sent. Our team will check the proof, then publish them.`); void load(); }} /> : null}
       {adding ? <ImportedReviewForm searchProducts={searchProducts} proofUrl="/api/v1/reviews/proofs" submitUrl="/api/v1/reviews" needsApproval onCancel={() => setAdding(false)} onDone={() => { setAdding(false); setNotice("Thanks! Our team will check the screenshot, then publish the review."); void load(); }} /> : null}
     </main>
   );

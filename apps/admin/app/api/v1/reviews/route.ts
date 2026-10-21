@@ -35,7 +35,7 @@ export async function GET(request: Request) {
       createdAt: productReviews.createdAt, productTitle: products.title, productSlug: products.slug,
       sellerName: sellers.storeName, customerName: customers.fullName, customerEmail: users.email,
       source: productReviews.source, importedAuthorName: productReviews.importedAuthorName, importedSourceName: productReviews.importedSourceName,
-      importedReviewedAt: productReviews.importedReviewedAt, hasProof: sql<boolean>`${productReviews.importProofAssetId} is not null`,
+      importedReviewedAt: productReviews.importedReviewedAt, hasProof: sql<boolean>`${productReviews.importProofAssetId} is not null`, proofAssetId: productReviews.importProofAssetId,
       pinnedAt: productReviews.pinnedAt, addedByEmail: addedBy.email, addedByRole: addedBy.role,
     }).from(productReviews)
       .innerJoin(products, eq(products.id, productReviews.productId))

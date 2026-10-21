@@ -223,5 +223,35 @@ const importAudits = await sql`select action from audit_logs where entity_id = $
 check("imports, approvals and pins are audited", ["REVIEW_IMPORTED", "REVIEW_IMPORT_APPROVED", "REVIEW_PINNED"].every((a) => importAudits.some((x) => x.action === a)), JSON.stringify(importAudits));
 await sql`delete from product_reviews where id in (${importId}, ${adminImport ?? importId}, ${rejectId ?? importId})`;
 
+// --- bulk import (CSV rows + one proof file for the whole upload)
+const [sku] = await sql`select sku from product_variants where product_id = ${target.id} limit 1`;
+const [othersSku] = await sql`select v.sku from product_variants v join products p on p.id = v.product_id join sellers s on s.id = p.seller_id join users u on u.id = s.user_id where u.email <> 'demo.seller@azadimart.test' limit 1`;
+const pdfForm = () => { const f = new FormData(); f.append("file", new Blob([Buffer.from("%PDF-1.4\n% e2e review export\n")], { type: "application/pdf" }), "export.pdf"); return f; };
+r = await seller("/api/v1/reviews/proofs", { method: "POST", raw: pdfForm() });
+const bulkProof = r.json?.proofAssetId;
+check("a PDF export is accepted as proof", r.status === 201 && Boolean(bulkProof), String(r.status));
+const row = (n, extra = {}) => ({ sku: sku.sku.toLowerCase(), sourceName: "E2E Bulk", authorName: `Bulk Reviewer ${n}`, rating: 5, reviewedAt: "2026-08-15", title: "", body: `Bulk imported review number ${n} ${RUN}`, ...extra });
+r = await seller("/api/v1/reviews/bulk", { method: "POST", body: { proofAssetId: bulkProof, dryRun: true, rows: [row(1), row(2, { rating: 9 }), row(3, { sku: othersSku?.sku ?? "NO-SUCH-SKU" }), row(1)] } });
+const lines = (r.json?.problems ?? []).map((x) => x.line);
+check("bulk check reports each bad row by line", r.status === 422 && lines.includes(3) && lines.includes(4) && lines.includes(5) && !lines.includes(2), JSON.stringify(r.json?.problems));
+r = await seller("/api/v1/reviews/bulk", { method: "POST", body: { proofAssetId: bulkProof, dryRun: false, rows: [row(1), row(2, { rating: 9 })] } });
+const [{ n: savedBad }] = await sql`select count(*)::int n from product_reviews where body like ${"Bulk imported review number % " + RUN}`;
+check("nothing is saved while any row has a problem", r.status === 422 && savedBad === 0, String(savedBad));
+r = await seller("/api/v1/reviews/bulk", { method: "POST", body: { proofAssetId: bulkProof, dryRun: true, rows: [row(1), row(2), row(3)] } });
+check("a clean file checks out", r.status === 200 && r.json?.ready === 3, JSON.stringify(r.json));
+r = await seller("/api/v1/reviews/bulk", { method: "POST", body: { proofAssetId: bulkProof, dryRun: false, rows: [row(1), row(2), row(3)] } });
+const [{ n: pendingBulk }] = await sql`select count(*)::int n from product_reviews where body like ${"Bulk imported review number % " + RUN} and status = 'PENDING'`;
+check("seller's bulk upload waits for approval", r.status === 201 && r.json?.created === 3 && pendingBulk === 3, String(pendingBulk));
+r = await seller("/api/v1/reviews/bulk", { method: "POST", body: { proofAssetId: bulkProof, dryRun: true, rows: [row(1)] } });
+check("re-uploading the same review is caught", r.status === 422 && /already on LOIMART/.test(r.json?.problems?.[0]?.message ?? ""));
+r = await admin("/api/v1/reviews/bulk/decision", { method: "POST", body: { proofAssetId: bulkProof, decision: "APPROVE" } });
+page = await html(`/products/${target.slug}`);
+check("admin approves the whole upload at once", r.status === 200 && r.json?.count === 3 && page.includes("Imported from E2E Bulk"), JSON.stringify(r.json));
+r = await admin("/api/v1/reviews/proofs", { method: "POST", raw: pdfForm() });
+r = await admin("/api/v1/reviews/bulk", { method: "POST", body: { proofAssetId: r.json?.proofAssetId, rows: [row(4, { sku: othersSku?.sku ?? sku.sku })] } });
+const [adminBulk] = await sql`select status from product_reviews where body = ${"Bulk imported review number 4 " + RUN}`;
+check("admin bulk upload covers any seller and goes live", r.status === 201 && adminBulk?.status === "PUBLISHED", String(r.status));
+await sql`delete from product_reviews where body like ${"Bulk imported review number % " + RUN}`;
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
