@@ -288,6 +288,13 @@
       "when": 1792569952267,
       "tag": "20261021080552_imported_reviews",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1792589056248,
+      "tag": "20261021132416_seller_wallet",
+      "breakpoints": true
     }
   ]
 }

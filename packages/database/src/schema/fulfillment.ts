@@ -38,6 +38,8 @@ export const shipments = pgTable(
     shippedBy: text("shipped_by").notNull().default("SELLER"),
     /** LOIMART shipping fee charged to the seller for this parcel (0 when the seller ships). */
     shippingFeePaise: integer("shipping_fee_paise").notNull().default(0),
+    /** Part of the fee paid from the seller's courier wallet; the rest comes off the payout. */
+    walletPaidPaise: integer("wallet_paid_paise").notNull().default(0),
     ...timestamps,
   },
   (table) => [

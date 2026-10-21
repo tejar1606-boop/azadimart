@@ -1,6 +1,7 @@
-import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { id, timestamps } from "./columns";
-import { documentTypeEnum, sellerStatusEnum, sellerTaxIdentityTypeEnum, verificationStatusEnum } from "./enums";
+import { documentTypeEnum, sellerStatusEnum, sellerTaxIdentityTypeEnum, verificationStatusEnum, walletTopUpStatusEnum, walletTxnTypeEnum } from "./enums";
 import { users } from "./identity";
 import { mediaAssets } from "./cms";
 
@@ -20,6 +21,8 @@ export const sellers = pgTable(
     taxDeclarationAcceptedAt: timestamp("tax_declaration_accepted_at", { withTimezone: true }),
     pan: text("pan"),
     status: sellerStatusEnum("status").notNull().default("REGISTERED"),
+    /** Prepaid courier wallet (closed loop: pays only LOIMART courier fees; no withdrawals). */
+    walletBalancePaise: integer("wallet_balance_paise").notNull().default(0),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     approvedByUserId: uuid("approved_by_user_id").references(() => users.id),
     // Set by an admin to stop automatic payouts to this seller (e.g. a dispute).
@@ -31,6 +34,7 @@ export const sellers = pgTable(
   (table) => [
     uniqueIndex("sellers_user_id_unique").on(table.userId),
     index("sellers_status_idx").on(table.status),
+    check("sellers_wallet_balance_non_negative", sql`${table.walletBalancePaise} >= 0`),
     uniqueIndex("sellers_gst_enrolment_id_unique").on(table.gstEnrolmentId),
   ],
 );
@@ -161,3 +165,51 @@ export const sellerAadhaar = pgTable("seller_aadhaar", {
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
   ...timestamps,
 });
+
+/**
+ * Every change to a seller's courier wallet, with the balance after it.
+ * amount_paise is + for money in (top-up, refund) and - for charges.
+ */
+export const sellerWalletTransactions = pgTable(
+  "seller_wallet_transactions",
+  {
+    id,
+    sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "cascade" }),
+    type: walletTxnTypeEnum("type").notNull(),
+    amountPaise: integer("amount_paise").notNull(),
+    balanceAfterPaise: integer("balance_after_paise").notNull(),
+    /** The parcel a courier charge or refund belongs to. */
+    shipmentId: uuid("shipment_id"),
+    topUpId: uuid("top_up_id"),
+    note: text("note"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id),
+    ...timestamps,
+  },
+  (table) => [
+    index("seller_wallet_transactions_seller_idx").on(table.sellerId, table.createdAt),
+    index("seller_wallet_transactions_shipment_idx").on(table.shipmentId),
+  ],
+);
+
+/** A seller's request to add money (paid to LOIMART by bank transfer/UPI); an admin approves it. */
+export const sellerWalletTopUps = pgTable(
+  "seller_wallet_top_ups",
+  {
+    id,
+    sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "cascade" }),
+    amountPaise: integer("amount_paise").notNull(),
+    /** Bank / UPI transaction reference (UTR) the seller paid with. */
+    reference: text("reference").notNull(),
+    status: walletTopUpStatusEnum("status").notNull().default("PENDING"),
+    adminNote: text("admin_note"),
+    decidedByUserId: uuid("decided_by_user_id").references(() => users.id),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    // One payment reference can only be used once (a rejected request frees it to be sent again).
+    uniqueIndex("seller_wallet_top_ups_reference_unique").on(sql`upper(${table.reference})`).where(sql`${table.status} <> 'REJECTED'`),
+    index("seller_wallet_top_ups_status_idx").on(table.status, table.createdAt),
+    check("seller_wallet_top_ups_amount_positive", sql`${table.amountPaise} > 0`),
+  ],
+);

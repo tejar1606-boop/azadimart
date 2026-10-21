@@ -119,3 +119,7 @@ export const reviewStatusEnum = pgEnum("review_status", ["PUBLISHED", "HIDDEN", 
 export const reviewSourceEnum = pgEnum("review_source", ["VERIFIED_PURCHASE", "IMPORTED"]);
 export const offerTagToneEnum = pgEnum("offer_tag_tone", ["SAFFRON", "GREEN", "RED", "NAVY", "PINK", "PURPLE"]);
 export const cancelActorEnum = pgEnum("cancel_actor", ["CUSTOMER", "SELLER", "ADMIN", "SYSTEM"]);
+
+/** Seller courier wallet: what moved the balance. */
+export const walletTxnTypeEnum = pgEnum("wallet_txn_type", ["TOP_UP", "COURIER_CHARGE", "COURIER_REFUND", "ADJUSTMENT"]);
+export const walletTopUpStatusEnum = pgEnum("wallet_topup_status", ["PENDING", "APPROVED", "REJECTED"]);

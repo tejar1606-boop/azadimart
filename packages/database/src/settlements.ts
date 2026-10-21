@@ -36,7 +36,8 @@ export async function unpaidSettlementLines(db: Pick<Database, "execute">, optio
       o.created_at ordered_at, o.delivered_at, s.approved_at, s.tax_identity_type,
       -- LOIMART shipping fee for this seller's parcel, charged once on its first item.
       case when oi.id = (select oi2.id from order_items oi2 where oi2.order_id = oi.order_id and oi2.seller_id = oi.seller_id order by oi2.created_at, oi2.id limit 1)
-        then coalesce((select sh.shipping_fee_paise from shipments sh where sh.order_id = oi.order_id and sh.seller_id = oi.seller_id and sh.shipped_by = 'LOIMART' and sh.status <> 'CANCELLED' limit 1), 0)
+        -- Only the part the seller's courier wallet didn't already pay.
+        then coalesce((select sh.shipping_fee_paise - sh.wallet_paid_paise from shipments sh where sh.order_id = oi.order_id and sh.seller_id = oi.seller_id and sh.shipped_by = 'LOIMART' and sh.status <> 'CANCELLED' limit 1), 0)
         else 0 end::int shipping_fee_paise,
       coalesce((select sum(ri.quantity) from return_items ri join returns r on r.id = ri.return_id
         where ri.order_item_id = oi.id and r.status in ('RECEIVED', 'REFUNDED')), 0)::int returned,

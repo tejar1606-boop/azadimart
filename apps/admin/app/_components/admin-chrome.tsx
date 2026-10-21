@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { PortalShell, type PortalNavSection } from "@azadimart/ui";
 import { STAFF_PERMISSION_KEYS, STUDIO_URL, adminPagePermission, firstAdminPage } from "@azadimart/shared";
 
-export type AdminCounts = { liveWaiting: number; role: string; roleName: string; displayName: string | null; permissions: string[]; support: number; sellers: number; qc: number; approvals: number; aplus: number; ads: number };
+export type AdminCounts = { liveWaiting: number; role: string; roleName: string; displayName: string | null; permissions: string[]; support: number; sellers: number; qc: number; approvals: number; aplus: number; ads: number; walletTopUps: number };
 
 const badge = (n: number) => (n > 0 ? String(n > 99 ? "99+" : n) : undefined);
 
@@ -59,6 +59,7 @@ export default function AdminChrome({ counts, children }: { counts: AdminCounts 
     { title: "Operations", items: [
       { href: "/logistics", label: "Logistics", icon: "logistics" },
       { href: "/finance", label: "Finance", icon: "finance" },
+      { href: "/finance/wallets", label: "Seller wallets", icon: "payments", badge: badge(counts.walletTopUps) },
       { href: "/security", label: "Security & audit", icon: "security" },
     ] },
     { title: "Support", items: supportItems },

@@ -18,3 +18,4 @@ export * from "./bulk-products";
 export * from "./variants";
 export * from "./shipping-rates";
 export * from "./bulk-reviews";
+export * from "./seller-wallet";

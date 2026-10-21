@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
-import { createDatabase, liveChats, adCampaigns, productAplusContent, products, qcSubmissions, sellerVerifications, supportTickets } from "@azadimart/database";
+import { createDatabase, liveChats, adCampaigns, sellerWalletTopUps, productAplusContent, products, qcSubmissions, sellerVerifications, supportTickets } from "@azadimart/database";
 import { and, count, eq, inArray } from "drizzle-orm";
 import "@azadimart/ui/globals.css";
 import AdminChrome, { type AdminCounts } from "./_components/admin-chrome";
@@ -23,7 +23,7 @@ async function adminCounts(): Promise<AdminCounts | null> {
     const can = (p: string) => access.permissions.includes(p as never);
     const n = (q: Promise<Array<{ n: number }>>) => q.then((r) => Number(r[0]?.n ?? 0));
     const skip = Promise.resolve(0);
-    const [liveWaiting, support, sellersPending, qc, approvals, aplus, ads] = await Promise.all([
+    const [liveWaiting, support, sellersPending, qc, approvals, aplus, ads, walletTopUps] = await Promise.all([
       can("livechat") ? n(db.select({ n: count() }).from(liveChats).where(eq(liveChats.status, "WAITING"))) : skip,
       // Tickets where the requester is waiting on the team.
       can("support") ? n(db.select({ n: count() }).from(supportTickets).where(and(inArray(supportTickets.status, ["OPEN", "IN_PROGRESS"]), eq(supportTickets.lastReplyBy, "REQUESTER")))) : skip,
@@ -32,8 +32,9 @@ async function adminCounts(): Promise<AdminCounts | null> {
       can("catalog") ? n(db.select({ n: count() }).from(products).where(eq(products.status, "PENDING_ADMIN_APPROVAL"))) : skip,
       can("catalog") ? n(db.select({ n: count() }).from(productAplusContent).where(eq(productAplusContent.status, "PENDING_REVIEW"))) : skip,
       can("banners") ? n(db.select({ n: count() }).from(adCampaigns).where(eq(adCampaigns.status, "PENDING_REVIEW"))) : skip,
+      can("payments") ? n(db.select({ n: count() }).from(sellerWalletTopUps).where(eq(sellerWalletTopUps.status, "PENDING"))) : skip,
     ]);
-    return { liveWaiting, role: access.role, roleName: access.roleName, displayName: access.displayName, permissions: access.permissions, support, sellers: sellersPending, qc, approvals, aplus, ads };
+    return { liveWaiting, role: access.role, roleName: access.roleName, displayName: access.displayName, permissions: access.permissions, support, sellers: sellersPending, qc, approvals, aplus, ads, walletTopUps };
   } catch {
     return null;
   }
