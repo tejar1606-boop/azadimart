@@ -1,7 +1,7 @@
 // End-to-end test for product reviews: only verified buyers (delivered
 // orders) can review; photos; edit and delete; star totals on product and
 // cards; seller replies (own products only); admin hide/publish with reasons;
-// structured data for Google. Requires the demo seed + catalogue seed and all
+// structured data for Google; imported reviews (proof, approval, label, pin). Requires the demo seed + catalogue seed and all
 // three apps running against a NON-PRODUCTION database.
 //   ALLOW_E2E=YES SELLER_URL=… ADMIN_URL=… STOREFRONT_URL=… pnpm e2e:reviews
 import { deflateSync } from "node:zlib";
@@ -26,7 +26,7 @@ function client(base) {
   return async (path, { method = "GET", body, raw, contentType } = {}) => {
     const headers = { cookie };
     if (body) headers["content-type"] = "application/json";
-    if (raw) headers["content-type"] = contentType;
+    if (raw && contentType) headers["content-type"] = contentType;
     const res = await fetch(path.startsWith("http") ? path : base + path, { method, headers, body: raw ?? (body ? JSON.stringify(body) : undefined) });
     const set = res.headers.getSetCookie?.() ?? [];
     if (set.length) cookie = set.map((c) => c.split(";")[0]).join("; ");
@@ -169,6 +169,59 @@ r = await shop(`/api/v1/reviews/${reviewId}`, { method: "DELETE" });
 check("customer deletes own review; totals restored", r.status === 200 && p.review_count === baseCount && p.rating_total === baseTotal, JSON.stringify(p));
 await sql`update orders set status = 'CANCELLED' where id = ${orderId}`;
 await sql`update inventory set reserved = greatest(0, reserved - 1) where variant_id = ${target.variant_id}`;
+
+// --- imported reviews: genuine reviews from other sites, with a private screenshot as proof
+const proofForm = () => { const f = new FormData(); f.append("file", new Blob([png(40, 40)], { type: "image/png" }), "proof.png"); return f; };
+r = await seller("/api/v1/reviews/proofs", { method: "POST", raw: proofForm() });
+const sellerProof = r.json?.proofAssetId;
+check("seller uploads a proof screenshot", r.status === 201 && Boolean(sellerProof), String(r.status));
+const [proofRow] = await sql`select storage_key, kind from media_assets where id = ${sellerProof}`;
+check("proof is private (not served by /media)", proofRow?.kind === "DOCUMENT" && (await fetch(`${SF}/media/${proofRow.storage_key}`)).status === 404);
+const importBody = { productId: target.id, rating: 4, title: "", body: `Lovely quality, arrived well packed ${RUN}`, authorName: "Anita Rao", sourceName: "E2E Source", reviewedAt: "2026-09-01", proofAssetId: sellerProof };
+const [othersProduct] = await sql`select p.id from products p join sellers s on s.id = p.seller_id join users u on u.id = s.user_id where u.email <> 'demo.seller@azadimart.test' limit 1`;
+if (othersProduct) { r = await seller("/api/v1/reviews", { method: "POST", body: { ...importBody, productId: othersProduct.id } }); check("seller can't import onto another seller's product", r.status === 404, String(r.status)); }
+r = await seller("/api/v1/reviews", { method: "POST", body: { ...importBody, body: "Great, see www.spam.com for more" } });
+check("links are rejected in imported reviews", r.status === 400, String(r.status));
+r = await seller("/api/v1/reviews", { method: "POST", body: { ...importBody, proofAssetId: crypto.randomUUID() } });
+check("an import needs the seller's own screenshot", r.status === 400, String(r.status));
+r = await shop(`${SE}/api/v1/reviews`, { method: "POST", body: importBody });
+check("customers can't import reviews", r.status === 401 || r.status === 403, String(r.status));
+[p] = await sql`select review_count, rating_total from products where id = ${target.id}`;
+const beforeImport = p;
+r = await seller("/api/v1/reviews", { method: "POST", body: importBody });
+const importId = r.json?.id;
+check("seller's import waits for approval", r.status === 201 && r.json?.status === "PENDING", String(r.status));
+page = await html(`/products/${target.slug}`);
+check("a waiting import is not on the store", !page.includes(`arrived well packed ${RUN}`));
+r = await seller("/api/v1/reviews");
+check("seller sees the import as waiting", r.json?.items?.some((x) => x.id === importId && x.status === "PENDING" && x.source === "IMPORTED"));
+r = await admin("/api/v1/reviews?status=PENDING");
+check("admin sees it in Waiting for approval", r.json?.items?.some((x) => x.id === importId && x.hasProof) && r.json?.pendingCount >= 1);
+const proofView = await fetch(`${AD}/api/v1/reviews/${importId}/proof`, { headers: { cookie: "" } });
+check("the screenshot needs an admin sign-in", proofView.status === 401 || proofView.status === 403, String(proofView.status));
+r = await admin(`/api/v1/reviews/${importId}`, { method: "PATCH", body: { status: "PUBLISHED" } });
+page = await html(`/products/${target.slug}`);
+[p] = await sql`select review_count, rating_total from products where id = ${target.id}`;
+check("approved import shows labelled 'Imported from'", r.status === 200 && page.includes(`arrived well packed ${RUN}`) && page.includes("Imported from E2E Source"));
+check("imports never change the star rating", p.review_count === beforeImport.review_count && p.rating_total === beforeImport.rating_total, JSON.stringify(p));
+check("imports never go to Google's review data", !JSON.stringify(ld(page)).includes(`arrived well packed ${RUN}`));
+r = await admin(`/api/v1/reviews/${importId}`, { method: "PATCH", body: { pinned: true } });
+const listed = (await shop(`/api/v1/reviews?productId=${target.id}`)).json;
+check("admin pins it to the top", r.status === 200 && listed?.items?.[0]?.id === importId && listed.items[0].pinned === true, JSON.stringify(listed?.items?.[0]?.id));
+r = await admin("/api/v1/reviews/proofs", { method: "POST", raw: proofForm() });
+r = await admin("/api/v1/reviews", { method: "POST", body: { ...importBody, body: `Admin-added genuine review ${RUN}`, proofAssetId: r.json?.proofAssetId } });
+const adminImport = r.json?.id;
+const [adminRow] = adminImport ? await sql`select status from product_reviews where id = ${adminImport}` : [];
+check("admin's import goes live at once", r.status === 201 && adminRow?.status === "PUBLISHED", String(r.status));
+r = await seller("/api/v1/reviews/proofs", { method: "POST", raw: proofForm() });
+r = await seller("/api/v1/reviews", { method: "POST", body: { ...importBody, body: `To be rejected ${RUN}`, proofAssetId: r.json?.proofAssetId } });
+const rejectId = r.json?.id;
+r = await admin(`/api/v1/reviews/${rejectId}`, { method: "PATCH", body: { status: "HIDDEN", reason: "Can't confirm the source" } });
+r = await seller("/api/v1/reviews");
+check("seller sees why an import was rejected", r.json?.items?.some((x) => x.id === rejectId && x.status === "HIDDEN" && x.hiddenReason === "Can't confirm the source"));
+const importAudits = await sql`select action from audit_logs where entity_id = ${importId}`;
+check("imports, approvals and pins are audited", ["REVIEW_IMPORTED", "REVIEW_IMPORT_APPROVED", "REVIEW_PINNED"].every((a) => importAudits.some((x) => x.action === a)), JSON.stringify(importAudits));
+await sql`delete from product_reviews where id in (${importId}, ${adminImport ?? importId}, ${rejectId ?? importId})`;
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

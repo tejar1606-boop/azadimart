@@ -12,3 +12,4 @@ export { LIVE_CHAT_STATE_EVENT, LiveChat, type LiveChatProps } from "./live-chat
 export { CHAT_FILE_ACCEPT, CHAT_FILE_MAX_BYTES, ChatAttachmentView, ChatFileButton, type ChatAttachment } from "./chat-attachment";
 export { BRAND_COLORS, BRAND_TAGLINE, BrandMark, BrandWordmark } from "./brand";
 export { LoginMethodTabs, OtpLoginForm, useOtpAvailable } from "./otp-login";
+export { ImportedReviewForm, type ReviewProductOption } from "./imported-review-form";

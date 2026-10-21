@@ -20,6 +20,8 @@ export const RATE_LIMITS = {
   // Product photos: a bulk upload sends many at once.
   productImageUpload: { limit: 1500, windowSeconds: 60 * 60 },
   supportChat: { limit: 40, windowSeconds: 10 * 60 },
+  // Sellers adding reviews they earned on other sites (each needs admin approval).
+  reviewImport: { limit: 30, windowSeconds: 60 * 60 },
   supportTicket: { limit: 10, windowSeconds: 60 * 60 },
   supportReply: { limit: 60, windowSeconds: 60 * 60 },
   liveChatStart: { limit: 8, windowSeconds: 60 * 60 },

@@ -51,3 +51,4 @@ export * from "./object-store";
 export * from "./media";
 export * from "./uploads";
 export * from "./chat-files";
+export * from "./review-proofs";

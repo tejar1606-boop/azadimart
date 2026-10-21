@@ -1,9 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { PortalPageHeader } from "@azadimart/ui";
+import { ImportedReviewForm, PortalPageHeader, type ReviewProductOption } from "@azadimart/ui";
 
-type Review = { id: string; rating: number; title: string | null; body: string | null; createdAt: string; sellerReply: string | null; sellerRepliedAt: string | null; productTitle: string; productSlug: string; authorName: string; photos: string[] };
+type Review = {
+  id: string; rating: number; title: string | null; body: string | null; createdAt: string; sellerReply: string | null; sellerRepliedAt: string | null; productTitle: string; productSlug: string; authorName: string; photos: string[];
+  status: "PUBLISHED" | "HIDDEN" | "PENDING"; hiddenReason: string | null; source: "VERIFIED_PURCHASE" | "IMPORTED"; importedSourceName: string | null; importedReviewedAt: string | null;
+};
+
+/** The seller's own products, filtered by the search text, for the import form. */
+let productCache: ReviewProductOption[] | null = null;
+const searchProducts = async (q: string): Promise<ReviewProductOption[]> => {
+  productCache ??= ((await fetch("/api/v1/products", { cache: "no-store" }).then((r) => r.json())).products ?? []).map((p: { id: string; title: string }) => ({ id: p.id, title: p.title }));
+  const needle = q.toLowerCase();
+  return (productCache ?? []).filter((p) => !needle || p.title.toLowerCase().includes(needle)).slice(0, 30);
+};
 const stars = (n: number) => "★★★★★".slice(0, n) + "☆☆☆☆☆".slice(0, 5 - n);
 
 export default function SellerReviewsPage() {
@@ -15,6 +26,8 @@ export default function SellerReviewsPage() {
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [notice, setNotice] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,7 +57,9 @@ export default function SellerReviewsPage() {
 
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
-      <PortalPageHeader eyebrow="Catalogue" title="Customer reviews" description="Reviews from verified buyers of your products. A polite, helpful reply builds trust with future customers." />
+      <PortalPageHeader eyebrow="Catalogue" title="Customer reviews" description="Reviews from verified buyers of your products. A polite, helpful reply builds trust with future customers. Got genuine reviews on another site? Add them with a screenshot: our team checks them, then they show on your product labelled with their source."
+        actions={<button type="button" onClick={() => setAdding(true)} className="rounded-full bg-chrome px-4 py-2 text-sm font-semibold text-white">Add review from another site</button>} />
+      {notice ? <p className="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800">{notice}</p> : null}
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:max-w-xl">
         <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Average rating</p><p className="mt-1 text-3xl font-semibold">{summary.count ? summary.average.toFixed(1) : "—"} <span className="text-xl text-amber-500">★</span></p></div>
         <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Reviews</p><p className="mt-1 text-3xl font-semibold">{summary.count}</p></div>
@@ -64,8 +79,10 @@ export default function SellerReviewsPage() {
               <p className="mt-1.5"><span className="text-amber-500">{stars(r.rating)}</span>{r.title ? <span className="ml-2 text-sm font-semibold">{r.title}</span> : null}</p>
               {r.body ? <p className="mt-1.5 whitespace-pre-line text-sm leading-6 text-slate-700">{r.body}</p> : null}
               {r.photos.length ? <div className="mt-2 flex gap-2">{r.photos.map((src) => <a key={src} href={src} target="_blank" rel="noreferrer" className="h-14 w-14 rounded-lg bg-slate-100 bg-cover bg-center ring-1 ring-slate-200" style={{ backgroundImage: `url("${src}")` }} aria-label="Open photo" />)}</div> : null}
-              <p className="mt-2 text-xs text-slate-400">{r.authorName} · Verified buyer · {new Date(r.createdAt).toLocaleDateString("en-IN")}</p>
-              {isEditing ? (
+              <p className="mt-2 text-xs text-slate-400">{r.authorName} · {r.source === "IMPORTED" ? `Imported from ${r.importedSourceName}` : "Verified buyer"} · {new Date(r.source === "IMPORTED" && r.importedReviewedAt ? r.importedReviewedAt : r.createdAt).toLocaleDateString("en-IN")}</p>
+              {r.status === "PENDING" ? <p className="mt-2 inline-block rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">Waiting for LOIMART to check the screenshot</p> : null}
+              {r.status === "HIDDEN" ? <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">Not approved: {r.hiddenReason}</p> : null}
+              {r.status !== "PUBLISHED" ? null : isEditing ? (
                 <div className="mt-3">
                   <textarea value={drafts[r.id] ?? r.sellerReply ?? ""} maxLength={1000} onChange={(e) => setDrafts({ ...drafts, [r.id]: e.target.value })} placeholder="Thank the customer, or explain how you'll make it right." className="min-h-24 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-900" />
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -88,6 +105,7 @@ export default function SellerReviewsPage() {
           );
         })}
       </div>
+      {adding ? <ImportedReviewForm searchProducts={searchProducts} proofUrl="/api/v1/reviews/proofs" submitUrl="/api/v1/reviews" needsApproval onCancel={() => setAdding(false)} onDone={() => { setAdding(false); setNotice("Thanks! Our team will check the screenshot, then publish the review."); void load(); }} /> : null}
     </main>
   );
 }

@@ -87,7 +87,7 @@ export default function ReviewsSection({ productId, slug, productTitle, summary,
               </ul>
             </>
           ) : (
-            <div className="rounded-2xl bg-slate-50 p-5"><p className="font-semibold">No reviews yet</p><p className="mt-1 text-sm text-slate-500">Bought this? Be the first to share your experience.</p></div>
+            <div className="rounded-2xl bg-slate-50 p-5"><p className="font-semibold">No LOIMART ratings yet</p><p className="mt-1 text-sm text-slate-500">Bought this? Be the first to share your experience.{summary.importedCount ? ` Reviews from other sites are shown below.` : ""}</p></div>
           )}
           <WriteReview productId={productId} slug={slug} productTitle={productTitle} />
         </div>
@@ -106,9 +106,9 @@ export default function ReviewsSection({ productId, slug, productTitle, summary,
             </div>
           ) : null}
 
-          {summary.count ? (
+          {summary.count || summary.importedCount ? (
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-              <p className="text-sm text-slate-500">{rating ? <>Showing {rating}-star reviews · <button type="button" onClick={() => setRating(null)} className="font-semibold text-brand-600">Show all</button></> : "All reviews are from verified buyers."}</p>
+              <p className="text-sm text-slate-500">{rating ? <>Showing {rating}-star reviews · <button type="button" onClick={() => setRating(null)} className="font-semibold text-brand-600">Show all</button></> : summary.importedCount ? "Stars are from verified LOIMART buyers. Reviews from other sites are labelled." : "All reviews are from verified buyers."}</p>
               <select value={sort} onChange={(e) => setSort(e.target.value as ReviewSort)} className="h-9 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold outline-none" aria-label="Sort reviews">
                 {SORTS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
@@ -134,7 +134,13 @@ export default function ReviewsSection({ productId, slug, productTitle, summary,
                 ) : null}
                 <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
                   <span className="font-semibold text-slate-700">{r.authorName}</span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-india-light px-2 py-0.5 font-semibold text-india"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>Verified buyer</span>
+                  {r.source === "IMPORTED" ? (
+                    // Earned elsewhere: always says where it came from, never "Verified buyer".
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600" title="This review was written on another site and checked by LOIMART. It is not counted in the star rating.">{`Imported from ${r.importedSourceName}`}</span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-india-light px-2 py-0.5 font-semibold text-india"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>Verified buyer</span>
+                  )}
+                  {r.pinned ? <span className="font-semibold text-brand-700">· Top review</span> : null}
                   <span>{new Date(r.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}{r.edited ? " · edited" : ""}</span>
                 </p>
                 {r.sellerReply ? (

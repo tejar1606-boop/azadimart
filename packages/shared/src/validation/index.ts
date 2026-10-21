@@ -300,10 +300,28 @@ export const reviewSubmitSchema = z.object({
   body: reviewText(2000),
   mediaAssetIds: z.array(uuidSchema).max(4, "Add up to 4 photos").default([]).refine((ids) => new Set(ids).size === ids.length, "Duplicate photos"),
 });
+/** Admin: publish or hide (with a reason), and/or pin a review to the top of the product's reviews. */
 export const adminReviewModerationSchema = z.object({
-  status: z.enum(["PUBLISHED", "HIDDEN"]),
+  status: z.enum(["PUBLISHED", "HIDDEN"]).optional(),
   reason: z.string().trim().max(300).optional(),
+  pinned: z.boolean().optional(),
+}).refine((v) => v.status !== undefined || v.pinned !== undefined, "Nothing to change");
+/**
+ * A genuine review the product earned somewhere else (the seller's own website,
+ * another marketplace), copied word for word, with a screenshot as proof. It is
+ * shown with its source and never counts towards the star rating.
+ */
+export const importedReviewSchema = z.object({
+  productId: uuidSchema,
+  rating: z.number().int().min(1, "Choose the star rating it was given").max(5),
+  title: reviewText(100),
+  body: z.string().trim().min(10, "Paste the review text, word for word").max(2000).refine((v) => !NO_LINKS.test(v), "Please remove web links from the review"),
+  authorName: z.string().trim().min(2, "Add the reviewer's name as shown on the source").max(60),
+  sourceName: z.string().trim().min(2, "Where was it written? e.g. Our website, Amazon").max(60),
+  reviewedAt: z.coerce.date().refine((d) => d.getTime() <= Date.now() + 86_400_000, "The review date can't be in the future"),
+  proofAssetId: uuidSchema,
 });
+export type ImportedReviewInput = z.infer<typeof importedReviewSchema>;
 /** Seller's public reply to a review ("" removes it). */
 export const sellerReviewReplySchema = z.object({
   reply: z.string().trim().max(1000).refine((v) => !NO_LINKS.test(v), "Please remove web links from your reply"),

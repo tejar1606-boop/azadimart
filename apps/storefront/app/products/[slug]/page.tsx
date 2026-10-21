@@ -227,7 +227,8 @@ export default async function ProductDetailPage({ params, searchParams }: { para
             },
             ...(reviewSummary.count ? {
               aggregateRating: { "@type": "AggregateRating", ratingValue: reviewSummary.average.toFixed(1), reviewCount: reviewSummary.count, bestRating: 5, worstRating: 1 },
-              review: reviewPage.items.slice(0, 5).map((r) => ({
+              // Only verified LOIMART reviews go to search engines (never imported ones).
+              review: reviewPage.items.filter((r) => r.source === "VERIFIED_PURCHASE").slice(0, 5).map((r) => ({
                 "@type": "Review",
                 reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5 },
                 author: { "@type": "Person", name: r.authorName },
