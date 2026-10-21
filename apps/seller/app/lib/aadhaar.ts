@@ -1,4 +1,4 @@
-import { AppError } from "@azadimart/shared";
+import { AppError, testProvidersAllowed } from "@azadimart/shared";
 
 /**
  * Aadhaar OTP verification through a UIDAI-licensed provider. LOIMART never
@@ -60,7 +60,7 @@ function cashfree(): Provider {
 
 /** The configured provider. Test mode is never allowed on the live site. */
 export function aadhaarProvider(holderName: string): Provider {
-  const chosen = process.env.AADHAAR_PROVIDER ?? (process.env.NODE_ENV === "production" ? "" : "sandbox");
+  const chosen = process.env.AADHAAR_PROVIDER ?? (testProvidersAllowed() ? "sandbox" : "");
   if (chosen === "cashfree") return cashfree();
   if (chosen === "sandbox" && process.env.VERCEL_ENV !== "production") return sandbox(holderName);
   throw new AppError("UNPROCESSABLE", "Aadhaar verification isn't set up yet. Please try again later.");

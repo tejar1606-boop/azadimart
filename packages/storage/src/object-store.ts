@@ -265,7 +265,9 @@ export function getObjectStore(): ObjectStore {
 
 /** Local disk is not shared between serverless instances; refuse uploads there in production. */
 export function assertUploadsAvailable(objectStore: ObjectStore = getObjectStore()): void {
-  if (objectStore.driver === "local" && process.env.NODE_ENV === "production") {
+  // A private test server (ALLOW_TEST_PROVIDERS=YES, never the live site) may keep files on its own disk.
+  const testServer = process.env.ALLOW_TEST_PROVIDERS === "YES" && process.env.VERCEL_ENV !== "production";
+  if (objectStore.driver === "local" && process.env.NODE_ENV === "production" && !testServer) {
     throw new Error("STORAGE_NOT_CONFIGURED");
   }
 }

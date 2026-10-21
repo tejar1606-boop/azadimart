@@ -1,7 +1,7 @@
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { loginOtps, users, type Database } from "@azadimart/database";
-import { AppError, logger, type Role } from "@azadimart/shared";
+import { AppError, logger, testProvidersAllowed, type Role } from "@azadimart/shared";
 import { getClientIp, type LoginAudience } from "./login-guard";
 import { enforceRateLimit } from "./rate-limit";
 import { createSession } from "./session";
@@ -17,7 +17,7 @@ export type SmsProvider = "msg91" | "console" | "none";
 export function smsProvider(): SmsProvider {
   const configured = (process.env.SMS_PROVIDER ?? "").toLowerCase();
   if (configured === "msg91" && process.env.MSG91_AUTH_KEY && process.env.MSG91_OTP_TEMPLATE_ID) return "msg91";
-  if (process.env.NODE_ENV !== "production" && (configured === "console" || configured === "")) return "console";
+  if (testProvidersAllowed() && (configured === "console" || configured === "")) return "console";
   return "none";
 }
 
