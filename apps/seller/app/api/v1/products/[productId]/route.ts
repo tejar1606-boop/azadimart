@@ -66,6 +66,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pr
       description: input.description || null,
       specifications: input.specifications ?? [],
       couponMaxDiscountPct: input.couponMaxDiscountPct,
+      ...(input.gst !== undefined ? { gst: input.gst } : {}),
       imageAssetIds: input.imageAssetIds,
       videoAssetId: input.videoAssetId ?? null,
       variant: variants?.length

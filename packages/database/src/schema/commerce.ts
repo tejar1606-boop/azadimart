@@ -1,4 +1,4 @@
-import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { id, timestamps } from "./columns";
 import { orderStatusEnum, paymentMethodEnum, paymentStatusEnum, refundStatusEnum, cancelActorEnum } from "./enums";
 import { customers, customerAddresses } from "./identity";
@@ -116,6 +116,9 @@ export const orderItems = pgTable(
     unitPricePaise: integer("unit_price_paise").notNull(),
     /** Coupon discount on this line paid by the seller (taken from their payout). */
     sellerDiscountPaise: integer("seller_discount_paise").notNull().default(0),
+    /** GST at the time of the order (for the invoice): HSN code and rate in basis points. */
+    hsnCode: text("hsn_code"),
+    gstRateBps: integer("gst_rate_bps"),
     ...timestamps,
   },
   (table) => [
@@ -174,4 +177,73 @@ export const refunds = pgTable(
     uniqueIndex("refunds_idempotency_key_unique").on(table.idempotencyKey),
     uniqueIndex("refunds_provider_refund_unique").on(table.providerRefundId),
   ],
+);
+
+/** What an invoice shows, frozen when it is issued (later edits to sellers or products don't change it). */
+export type InvoiceDetails = {
+  seller: { legalName: string; storeName: string; gstin: string | null; gstEnrolmentId: string | null; pan: string | null; address: string; state: string; stateCode: string | null };
+  buyer: { name: string; phone: string | null; address: string; state: string; stateCode: string | null };
+  marketplace: { name: string; legalName: string; gstin: string | null; address: string };
+  orderNumber: string;
+  orderDate: string;
+  placeOfSupply: string;
+  interState: boolean;
+  paymentMethod: string;
+  lines: Array<{ orderItemId?: string; title: string; sku: string; hsnCode: string | null; gstRateBps: number; quantity: number; unitPricePaise: number; grossPaise: number; discountPaise: number; netPaise: number; taxablePaise: number; cgstPaise: number; sgstPaise: number; igstPaise: number }>;
+  /** Part of the customer's coupon paid by LOIMART (not a seller discount; doesn't lower the taxable value). */
+  platformDiscountPaise: number;
+  /** Credit notes: the invoice it reverses and why. */
+  original?: { number: string; issuedAt: string };
+  reason?: string;
+};
+
+/**
+ * Tax invoices (seller → customer, issued by LOIMART for the seller when the
+ * parcel ships), bills of supply (sellers without GST registration) and
+ * credit notes (returns and undelivered parcels). Numbered per seller per
+ * financial year; never edited or deleted once issued.
+ */
+export const invoices = pgTable(
+  "invoices",
+  {
+    id,
+    kind: text("kind").$type<"TAX_INVOICE" | "BILL_OF_SUPPLY" | "CREDIT_NOTE">().notNull(),
+    number: text("number").notNull(),
+    financialYear: text("financial_year").notNull(),
+    sequence: integer("sequence").notNull(),
+    orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "restrict" }),
+    sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "restrict" }),
+    /** Credit notes: the invoice they reverse. */
+    originalInvoiceId: uuid("original_invoice_id"),
+    /** What caused it, so it is issued once: "ORDER:<order>:<seller>", "RTO:<shipment>", "RETURN:<return>". */
+    sourceKey: text("source_key").notNull(),
+    issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
+    taxablePaise: integer("taxable_paise").notNull(),
+    cgstPaise: integer("cgst_paise").notNull().default(0),
+    sgstPaise: integer("sgst_paise").notNull().default(0),
+    igstPaise: integer("igst_paise").notNull().default(0),
+    totalPaise: integer("total_paise").notNull(),
+    /** Issued on a test server or before LOIMART's GST details were set: marked "TEST" and not valid. */
+    isTest: boolean("is_test").notNull().default(false),
+    details: jsonb("details").$type<InvoiceDetails>().notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("invoices_seller_number_unique").on(table.sellerId, table.number),
+    uniqueIndex("invoices_source_key_unique").on(table.sourceKey),
+    index("invoices_order_id_idx").on(table.orderId),
+    index("invoices_issued_at_idx").on(table.issuedAt),
+  ],
+);
+
+/** The last number used in each seller's invoice series (per kind, per financial year). */
+export const invoiceCounters = pgTable(
+  "invoice_counters",
+  {
+    sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    financialYear: text("financial_year").notNull(),
+    lastSequence: integer("last_sequence").notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.sellerId, table.kind, table.financialYear] })],
 );

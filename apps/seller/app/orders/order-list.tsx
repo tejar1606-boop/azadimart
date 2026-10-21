@@ -29,6 +29,8 @@ type Order = {
   shipTo: { full: boolean; name: string | null; phone: string | null; line1: string | null; line2: string | null; city: string; state: string; postalCode: string };
   /** Cash on Delivery: what the courier collects for this seller's parcel; null = prepaid. */
   codCollectPaise: number | null;
+  /** Invoice issued in the seller's name when the parcel ships, and any credit notes. */
+  invoices: Array<{ id: string; kind: "TAX_INVOICE" | "BILL_OF_SUPPLY" | "CREDIT_NOTE"; number: string }>;
 };
 
 const CANCEL_REASONS = ["Out of stock", "Product damaged or defective", "Can't ship to this address", "Price or listing error", "Other"] as const;
@@ -404,6 +406,7 @@ export default function OrderList() {
                       </button>
                     ) : null}
                     {["CONFIRMED", "PAID", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY"].includes(item.status) ? <a href={`/orders/${item.id}/label`} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:border-slate-900">🖨 Print label</a> : null}
+                    {(item.invoices ?? []).map((inv) => <a key={inv.id} href={`/orders/invoices/${inv.id}`} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:border-slate-900">{inv.kind === "CREDIT_NOTE" ? "Credit note" : inv.kind === "BILL_OF_SUPPLY" ? "Bill of supply" : "Invoice"} {inv.number}</a>)}
                     {shipment.shippedBy === "LOIMART" ? (
                       <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-800">
                         Shipped by LOIMART{shipment.shippingFeePaise ? ` · fee ${money(shipment.shippingFeePaise)}` : ""}{shipment.status === "CREATED" ? " · courier will pick up" : ""}

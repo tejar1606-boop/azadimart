@@ -1,4 +1,5 @@
 import { imageColorsSchema, productVariantListSchema } from "../variants";
+import { productGstSchema } from "../gst";
 import { z } from "zod";
 import { ROLES } from "../roles";
 import { PRODUCT_MEDIA_LIMITS } from "../routes";
@@ -65,6 +66,8 @@ export const productCouponLimitSchema = z.object({ couponMaxDiscountPct });
 export const productDraftSchema = z.object({
   title:z.string().trim().min(3).max(200),
   couponMaxDiscountPct: couponMaxDiscountPct.optional().default(0),
+  /** The product's own HSN code and GST rate; null or missing = the category's. */
+  gst: productGstSchema.optional(),
   description:z.string().trim().max(20000).optional(),
   specifications:specRowsSchema.optional(),
   categoryId:uuidSchema,
@@ -87,6 +90,7 @@ export const productDraftSchema = z.object({
 export const productEditSchema = z.object({
   title:z.string().trim().min(3).max(200),
   couponMaxDiscountPct: couponMaxDiscountPct.optional().default(0),
+  gst: productGstSchema.optional(),
   description:z.string().trim().max(20000).optional(),
   specifications:specRowsSchema.optional(),
   categoryId:uuidSchema,

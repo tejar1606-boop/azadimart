@@ -23,6 +23,8 @@ export async function insertSellerProduct(tx: Tx, sellerId: string, input: Produ
     description: input.description || null,
     specifications: input.specifications ?? [],
     couponMaxDiscountPct: input.couponMaxDiscountPct,
+    hsnCode: input.gst?.hsnCode ?? null,
+    gstRateBps: input.gst?.gstRateBps ?? null,
     status: options.submitForQc ? "PENDING_QC" : "DRAFT",
   }).returning({ id: products.id, title: products.title, slug: products.slug, status: products.status }))[0];
 

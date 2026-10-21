@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { CouponLimitHelp, CouponLimitSelect } from "../coupon-limit";
 import { useRouter } from "next/navigation";
 import { DescriptionStyleToggle, SpecTableEditor, directUpload, readImageSize, type SpecRow } from "@azadimart/ui";
-import { compareSizes } from "@azadimart/shared";
+import { GST_RATES_BPS, compareSizes, formatGstRate } from "@azadimart/shared";
 import VariantEditor, { autoSku, type VariantState } from "./variant-editor";
 
 type LoadedVariant = { id?: string; sku: string; title?: string; pricePaise: number; compareAtPaise: number | null; onHand?: number | null; attributes?: Record<string, string> };
@@ -28,6 +28,8 @@ const steps = ["Basics", "Media", "Price & sizes", "Review"];
 
 type EditInfo = { status: string; pendingSince: string | null; rejectedNote: string | null; rejectedAt: string | null };
 const LIVE_STATUSES = ["LIVE", "UNLISTED"];
+type CategoryGst = { hsnCode: string; gstRateBps: number; priceLimitPaise: number | null; rateAboveLimitBps: number | null } | null;
+const gstText = (g: NonNullable<CategoryGst>) => `HSN ${g.hsnCode} · GST ${formatGstRate(g.gstRateBps)}` + (g.priceLimitPaise && g.rateAboveLimitBps != null ? ` (${formatGstRate(g.rateAboveLimitBps)} above ₹${(g.priceLimitPaise / 100).toLocaleString("en-IN")} a piece)` : "");
 
 /** Creates a product, or with productId edits an existing one (see PATCH /api/v1/products/[productId]). */
 export default function ProductBuilder({ productId }: { productId?: string } = {}) {
@@ -48,11 +50,17 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
   const [progress,setProgress] = useState(0);
   const [error,setError] = useState("");
   const [message,setMessage] = useState("");
-  const [categories,setCategories] = useState<Array<{id:string;name:string}>>([]);
+  const [categories,setCategories] = useState<Array<{id:string;name:string;gst?:CategoryGst}>>([]);
+  // GST: the category's HSN code and rate, unless the seller gives this product its own.
+  const [ownGst,setOwnGst] = useState(false);
+  const [hsn,setHsn] = useState("");
+  const [gstRate,setGstRate] = useState("");
   const [categoryLoading,setCategoryLoading] = useState(true);
   const [editInfo,setEditInfo] = useState<EditInfo|null>(null);
   const [loaded,setLoaded] = useState(!productId);
   const isLive = Boolean(editInfo && LIVE_STATUSES.includes(editInfo.status));
+  const categoryGst = categories.find(c=>c.id===form.categoryId)?.gst ?? null;
+  const gstPayload = () => (ownGst||!categoryGst) ? {hsnCode:hsn.trim(),gstRateBps:Number(gstRate)} : null;
   const set=(key:keyof typeof form,value:string)=>setForm(v=>({...v,[key]:value}));
   useEffect(()=>{
     void fetch("/api/v1/categories",{cache:"no-store"}).then(async response=>response.ok?response.json():Promise.reject(new Error("Unable to load categories."))).then(body=>setCategories(body.items??[])).catch(()=>setError("Unable to load categories. Please refresh and try again.")).finally(()=>setCategoryLoading(false));
@@ -69,6 +77,8 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
       const v=source.variant??{};
       setForm({title:source.title??"",description:source.description??"",categoryId:source.categoryId??"",sku:v.sku??"",variantTitle:v.title??"Default",price:v.pricePaise!=null?String(v.pricePaise/100):"",compareAt:v.compareAtPaise!=null?String(v.compareAtPaise/100):"",weightGrams:v.weightGrams!=null?String(v.weightGrams):"",onHand:String(body.variant?.onHand??0)});
       setCouponPct(source.couponMaxDiscountPct??0);
+      const gst=source.gst!==undefined?source.gst:body.product.gst;
+      if(gst){setOwnGst(true);setHsn(gst.hsnCode);setGstRate(String(gst.gstRateBps));}
       // Colours/sizes: from the edit waiting in QC if there is one, else the saved variants.
       const list:LoadedVariant[]=pending?(source.variants??[]).map((x:LoadedVariant)=>({...x,onHand:x.id?(body.variants??[]).find((b:LoadedVariant)=>b.id===x.id)?.onHand??0:x.onHand})):(body.variants??[]);
       if(list.some(x=>x.attributes?.color||x.attributes?.size)){setHasOptions(true);setOptions(stateFromVariants(list));}
@@ -105,6 +115,8 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
   function validate(){
     if(step===0){
       if(!form.title.trim()||!form.categoryId.trim())return "Complete the title and category.";
+      if((ownGst||!categoryGst)&&!/^\d{4}(\d{2}){0,2}$/.test(hsn.trim()))return "Enter the product's HSN code (4, 6 or 8 digits). It's on your supplier's bill and in your GST returns.";
+      if((ownGst||!categoryGst)&&gstRate==="")return "Choose the GST rate for this HSN code.";
       if(detailStyle==="text"&&!form.description.trim())return "Write a product description, or switch to a specification table.";
       if(detailStyle==="table"){
         const filled=specs.filter(r=>r.label.trim()||r.value.trim());
@@ -153,6 +165,7 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
           title:form.title.trim(),categoryId:form.categoryId.trim(),
           description:detailStyle==="text"?form.description.trim():"",
           couponMaxDiscountPct:couponPct,
+          gst:gstPayload(),
           specifications:detailStyle==="table"?specs.filter(r=>r.label.trim()&&r.value.trim()).map(r=>({label:r.label.trim(),value:r.value.trim()})):[],
           imageAssetIds:images.map(v=>v.id),videoAssetId:video?.id??null,
           variant:(m=>({sku:m.sku,title:m.title,pricePaise:toPaise(m.price),compareAtPaise:m.compareAt?toPaise(m.compareAt):null,weightGrams:Math.max(0,Math.floor(Number(form.weightGrams)||0))}))(mainVariant()),
@@ -168,6 +181,7 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
         title:form.title.trim(),categoryId:form.categoryId.trim(),
         description:detailStyle==="text"?form.description.trim():"",
         couponMaxDiscountPct:couponPct,
+        gst:gstPayload(),
         specifications:detailStyle==="table"?specs.filter(r=>r.label.trim()&&r.value.trim()).map(r=>({label:r.label.trim(),value:r.value.trim()})):[],
         imageAssetIds:images.map(v=>v.id),videoAssetId:video?.id,
         variant:(m=>({sku:m.sku,title:m.title,pricePaise:toPaise(m.price),compareAtPaise:m.compareAt?toPaise(m.compareAt):undefined,weightGrams:Math.max(0,Math.floor(Number(form.weightGrams)||0)),onHand:Math.max(0,Math.floor(Number(form.onHand)||0))}))(mainVariant()),
@@ -195,6 +209,18 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
         <Field label="Product title" value={form.title} onChange={v=>set("title",v)} wide/>
         <label className="text-sm font-semibold">Category<select className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm" value={form.categoryId} onChange={e=>set("categoryId",e.target.value)} disabled={categoryLoading} required><option value="">{categoryLoading?"Loading categories…":"Select category"}</option>{categories.map(category=><option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
         <Field label="SKU" value={form.sku} onChange={v=>set("sku",v)}/>
+        {form.categoryId?<div className="rounded-2xl border border-slate-200 p-4 sm:col-span-2">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div><p className="text-sm font-semibold">GST</p>
+              <p className="mt-0.5 text-xs text-slate-500">{categoryGst&&!ownGst?<>From the category: <b className="text-slate-800">{gstText(categoryGst)}</b>. Your price includes GST; LOIMART prints it on the customer&apos;s invoice.</>:categoryGst?"Your own HSN code for this product. QC checks it.":"This category has no HSN code yet. Enter your product's HSN code and GST rate."}</p></div>
+            {categoryGst?<button type="button" onClick={()=>{setOwnGst(v=>!v);if(!hsn){setHsn(categoryGst.hsnCode);setGstRate(String(categoryGst.gstRateBps));}}} className="shrink-0 text-xs font-bold text-slate-700 underline">{ownGst?"Use the category's":"Use a different HSN code"}</button>:null}
+          </div>
+          {ownGst||!categoryGst?<div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-semibold">HSN code<input className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-mono text-sm" inputMode="numeric" maxLength={8} value={hsn} onChange={e=>setHsn(e.target.value.replace(/\D/g,""))} placeholder="e.g. 6204"/></label>
+            <label className="text-sm font-semibold">GST rate<select className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm" value={gstRate} onChange={e=>setGstRate(e.target.value)}><option value="">Select rate</option>{GST_RATES_BPS.map(b=><option key={b} value={b}>{formatGstRate(b)}</option>)}</select></label>
+            <p className="text-xs text-slate-500 sm:col-span-2">Use the same HSN code as on your supplier&apos;s bill and your GST returns. You can look codes up on the GST portal (services.gst.gov.in → Search HSN).</p>
+          </div>:null}
+        </div>:null}
         <div className="sm:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">Product details</p><DescriptionStyleToggle value={detailStyle} onChange={setDetailStyle}/></div>
           <p className="mt-1 text-xs text-slate-500">{detailStyle==="text"?"Describe the product in your own words.":"Best for specifications like size, material and warranty. Paste a table or add rows."} Only the selected style is saved.</p>
@@ -230,7 +256,7 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
         <div className="text-sm font-semibold sm:col-span-2"><label htmlFor="coupon-limit">LOIMART coupons</label><CouponLimitSelect id="coupon-limit" value={couponPct} onChange={setCouponPct}/><CouponLimitHelp pct={couponPct} pricePaise={form.price?Math.round(Number(form.price)*100):null}/></div>
       </div>}
       </div>:null}
-      {step===3?<div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Ready for QC</p><h2 className="mt-2 text-2xl font-black">{productId?"Review your changes.":"Review before creating your draft."}</h2><div className="mt-5 grid gap-3 sm:grid-cols-2"><Summary label="Product" value={form.title||"—"}/><Summary label="Category" value={categories.find(category=>category.id===form.categoryId)?.name||"—"}/><Summary label="Product details" value={detailStyle==="table"?`Specification table · ${specs.filter(r=>r.label.trim()&&r.value.trim()).length} rows`:"Text description"}/><Summary label="Images" value={String(images.length)}/>{hasOptions?<Summary label="Options" value={`${options.colors.length?options.colors.map(c=>c.name).join(", "):"—"}${options.sizes.length?" · "+options.sizes.join(", "):""} (${options.rows.filter(r=>r.enabled).length} on sale)`}/>:<Summary label="Price" value={form.price?"₹"+form.price:"—"}/>}<Summary label="Package weight" value={form.weightGrams+" g"}/><Summary label={productId?"Stock in hand":"Opening stock"} value={hasOptions?String(options.rows.filter(r=>r.enabled).reduce((n,r)=>n+(Number(r.onHand)||0),0))+" (all options)":form.onHand}/></div><p className="mt-5 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">{isLive?"Your changes go to LOIMART QC. Your current listing stays on the store until they're approved; stock updates straight away.":productId?"Saving updates this product. If it's in QC review, it goes back to QC with your changes.":"Draft products remain hidden from customers until they pass QC and are published by LOIMART."}</p></div>:null}
+      {step===3?<div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">Ready for QC</p><h2 className="mt-2 text-2xl font-black">{productId?"Review your changes.":"Review before creating your draft."}</h2><div className="mt-5 grid gap-3 sm:grid-cols-2"><Summary label="Product" value={form.title||"—"}/><Summary label="Category" value={categories.find(category=>category.id===form.categoryId)?.name||"—"}/><Summary label="GST" value={(ownGst||!categoryGst)?`HSN ${hsn||"—"} · ${gstRate!==""?formatGstRate(Number(gstRate)):"—"}`:categoryGst?gstText(categoryGst):"—"}/><Summary label="Product details" value={detailStyle==="table"?`Specification table · ${specs.filter(r=>r.label.trim()&&r.value.trim()).length} rows`:"Text description"}/><Summary label="Images" value={String(images.length)}/>{hasOptions?<Summary label="Options" value={`${options.colors.length?options.colors.map(c=>c.name).join(", "):"—"}${options.sizes.length?" · "+options.sizes.join(", "):""} (${options.rows.filter(r=>r.enabled).length} on sale)`}/>:<Summary label="Price" value={form.price?"₹"+form.price:"—"}/>}<Summary label="Package weight" value={form.weightGrams+" g"}/><Summary label={productId?"Stock in hand":"Opening stock"} value={hasOptions?String(options.rows.filter(r=>r.enabled).reduce((n,r)=>n+(Number(r.onHand)||0),0))+" (all options)":form.onHand}/></div><p className="mt-5 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">{isLive?"Your changes go to LOIMART QC. Your current listing stays on the store until they're approved; stock updates straight away.":productId?"Saving updates this product. If it's in QC review, it goes back to QC with your changes.":"Draft products remain hidden from customers until they pass QC and are published by LOIMART."}</p></div>:null}
       {busy&&step===1?<div className="mt-5"><p className="text-xs font-semibold text-slate-500">Uploading… {progress}%</p><div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-slate-950 transition-[width]" style={{width:progress+"%"}}/></div></div>:null}
       {error?<p className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>:null}{message?<p className="mt-5 rounded-xl bg-green-50 p-3 text-sm text-green-700">{message}</p>:null}
       <div className="mt-7 flex justify-between border-t border-slate-100 pt-5"><button type="button" disabled={step===0||busy} onClick={()=>setStep(v=>Math.max(0,v-1))} className="rounded-full border px-5 py-3 text-sm font-bold disabled:opacity-40">Back</button>{step<3?<button type="button" disabled={busy} onClick={()=>{const p=validate();if(p)setError(p);else setStep(v=>v+1)}} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:opacity-50">Continue</button>:<button type="button" disabled={busy} onClick={()=>void create()} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:opacity-50">{busy?(productId?"Saving…":"Creating…"):productId?(isLive?"Send changes to QC":"Save changes"):"Create draft product"}</button>}</div>

@@ -323,6 +323,13 @@
       "when": 1792604385626,
       "tag": "20261021173945_price_history_coupons",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1792605866780,
+      "tag": "20261021180426_gst_invoices",
+      "breakpoints": true
     }
   ]
 }

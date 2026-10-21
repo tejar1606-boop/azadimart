@@ -43,7 +43,8 @@
     "e2e:wallet": "node scripts/e2e-wallet.mjs",
     "e2e:referrals": "node scripts/e2e-referrals.mjs",
     "e2e:price-changes": "node scripts/e2e-price-changes.mjs",
-    "e2e:coupon-edit": "node scripts/e2e-coupon-edit.mjs"
+    "e2e:coupon-edit": "node scripts/e2e-coupon-edit.mjs",
+    "e2e:invoices": "node scripts/e2e-invoices.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

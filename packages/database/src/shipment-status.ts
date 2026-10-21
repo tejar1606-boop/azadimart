@@ -4,6 +4,7 @@ import type { Database } from "./client";
 import { auditLogs, inventory, inventoryMovements, orderItems, orders, payments, shipmentEvents, shipments } from "./schema/index";
 import { refundCourierToWallet } from "./seller-wallet";
 import { rewardReferralOnFirstDelivery } from "./seller-referrals";
+import { issueCreditNote, issueSellerInvoice } from "./invoices";
 
 type Executor = Pick<Database, "select" | "update">;
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -106,6 +107,10 @@ export async function advanceShipmentStatus(tx: Tx, input: { shipmentId: string;
   if (input.status === "CANCELLED" || input.status === "FAILED") await refundCourierToWallet(tx, shipment.id, input.actorUserId);
   // A referred seller's first delivered order earns the seller who referred them extra free months.
   if (input.status === "DELIVERED") await rewardReferralOnFirstDelivery(tx, shipment.sellerId);
+  // The seller's invoice is issued when the parcel leaves with the courier (GST: invoice by the time goods are removed).
+  if (["PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED"].includes(input.status)) await issueSellerInvoice(tx, { orderId: shipment.orderId, sellerId: shipment.sellerId, actorUserId: input.actorUserId });
+  // A parcel that comes back reverses its invoice.
+  if (input.status === "RETURNED") await issueCreditNote(tx, { orderId: shipment.orderId, sellerId: shipment.sellerId, sourceKey: `RTO:${shipment.id}`, reason: shipment.status === "DELIVERED" ? "Goods returned" : "Parcel not delivered (returned to seller)", actorUserId: input.actorUserId });
   await tx.insert(shipmentEvents).values({ shipmentId: shipment.id, status: input.status as typeof shipments.$inferSelect.status, description: input.notes ?? "Shipment status updated" });
   await syncOrderFulfillmentStatus(tx, shipment.orderId);
   await tx.insert(auditLogs).values({

@@ -24,7 +24,7 @@ export async function GET(request: Request) {
         sellerName: sellers.storeName,
         // Edit requests for live products carry the new details; current values come from the product.
         proposedChanges: qcSubmissions.proposedChanges,
-        current: { categoryId: products.categoryId, description: products.description, specifications: products.specifications, couponMaxDiscountPct: products.couponMaxDiscountPct },
+        current: { categoryId: products.categoryId, description: products.description, specifications: products.specifications, couponMaxDiscountPct: products.couponMaxDiscountPct, hsnCode: products.hsnCode, gstRateBps: products.gstRateBps },
       })
       .from(qcSubmissions)
       .innerJoin(products, eq(products.id, qcSubmissions.productId))
@@ -86,7 +86,7 @@ export async function GET(request: Request) {
     const proposedMediaIds = [...new Set(edits.flatMap((item) => [...item.proposedChanges!.imageAssetIds, ...(item.proposedChanges!.videoAssetId ? [item.proposedChanges!.videoAssetId] : [])]))];
     const [categoryRows, proposedMedia] = await Promise.all([
       // All categories (a small table) so names can show their full path, e.g. "Fashion › Men › T-shirts".
-      categoryIds.length ? db.select({ id: categories.id, name: categories.name, parentId: categories.parentId, isActive: categories.isActive }).from(categories) : [],
+      categoryIds.length ? db.select({ id: categories.id, name: categories.name, parentId: categories.parentId, isActive: categories.isActive, hsnCode: categories.hsnCode, gstRateBps: categories.gstRateBps, priceLimitPaise: categories.gstPriceLimitPaise, rateAboveLimitBps: categories.gstRateAboveLimitBps }).from(categories) : [],
       proposedMediaIds.length ? db.select({ id: mediaAssets.id, kind: mediaAssets.kind, storageKey: mediaAssets.storageKey }).from(mediaAssets).where(inArray(mediaAssets.id, proposedMediaIds)) : [],
     ]);
     const byId = new Map(categoryRows.map((c) => [c.id, c]));
@@ -96,12 +96,25 @@ export async function GET(request: Request) {
       return [c.id, path.join(" › ") + (c.isActive ? "" : " (hidden category)")];
     }));
     const mediaById = new Map(proposedMedia.map((m) => [m.id, m]));
+    // GST the product will be invoiced with: the seller's own HSN (flagged when it differs from the category's), else the category's.
+    const gstOf = (own: { hsnCode: string; gstRateBps: number } | null | undefined, categoryId: string) => {
+      const c = byId.get(categoryId);
+      const rule = effectiveGstRule({ hsnCode: null, gstRateBps: null }, [c, c?.parentId ? byId.get(c.parentId) : undefined].filter((x): x is NonNullable<typeof x> => Boolean(x)));
+      const ruleText = rule.hsnCode ? `HSN ${rule.hsnCode} · ${formatGstRate(rule.gstRateBps ?? 0)}${rule.priceLimitPaise && rule.rateAboveLimitBps != null ? ` (${formatGstRate(rule.rateAboveLimitBps)} above ₹${rule.priceLimitPaise / 100})` : ""}` : null;
+      if (own) {
+        const differs = Boolean(rule.hsnCode) && (own.hsnCode.slice(0, 4) !== rule.hsnCode!.slice(0, 4) || own.gstRateBps !== rule.gstRateBps);
+        return { text: `HSN ${own.hsnCode} · ${formatGstRate(own.gstRateBps)} (seller's own)`, warning: differs ? `Differs from the category's ${ruleText}. Check it's right.` : null };
+      }
+      return ruleText ? { text: `${ruleText} (from category)`, warning: null } : { text: "None", warning: "No HSN code: neither the product nor its category has one. Invoices would use 18%. Set the category's in Catalogue → GST & HSN." };
+    };
 
     return NextResponse.json({
       items: submissions.map((item) => ({
         ...item,
         kind: item.proposedChanges ? "EDIT" : "NEW_LISTING",
         currentCategoryName: categoryName.get(item.current.categoryId) ?? null,
+        gstNow: gstOf(item.current.hsnCode && item.current.gstRateBps != null ? { hsnCode: item.current.hsnCode, gstRateBps: item.current.gstRateBps } : null, item.current.categoryId),
+        gstRequested: item.proposedChanges ? gstOf(item.proposedChanges.gst !== undefined ? item.proposedChanges.gst : (item.current.hsnCode && item.current.gstRateBps != null ? { hsnCode: item.current.hsnCode, gstRateBps: item.current.gstRateBps } : null), item.proposedChanges.categoryId) : null,
         proposedCategoryName: item.proposedChanges ? categoryName.get(item.proposedChanges.categoryId) ?? null : null,
         proposedMedia: item.proposedChanges ? [...item.proposedChanges.imageAssetIds, ...(item.proposedChanges.videoAssetId ? [item.proposedChanges.videoAssetId] : [])].map((id) => mediaById.get(id)).filter(Boolean) : [],
         variants: variantMap.get(item.productId) ?? [],
@@ -120,7 +133,7 @@ export async function GET(request: Request) {
 import { requireStaff } from "@azadimart/auth";
 import { applyProductEdit, auditLogs, categories, createDatabase, inventory, mediaAssets, productAplusContent, productMedia, productVariants, products, qcSubmissions, sellers, staffMembers, users } from "@azadimart/database";
 import { notifySeller } from "@azadimart/notify";
-import { AppError, qcDecisionSchema, toApiError } from "@azadimart/shared";
+import { AppError, effectiveGstRule, formatGstRate, qcDecisionSchema, toApiError } from "@azadimart/shared";
 import { and, asc, desc, eq, gte, ilike, inArray, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 

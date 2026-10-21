@@ -31,6 +31,7 @@ async function writeProductEdit(tx: Db | Tx, productId: string, sellerId: string
     description: changes.description,
     specifications: changes.specifications,
     couponMaxDiscountPct: changes.couponMaxDiscountPct,
+    ...(changes.gst !== undefined ? { hsnCode: changes.gst?.hsnCode ?? null, gstRateBps: changes.gst?.gstRateBps ?? null } : {}),
     updatedAt: new Date(),
   }).where(eq(products.id, productId));
 
@@ -118,7 +119,7 @@ export async function loadProductForEdit(db: Db, productId: string, sellerId: st
   const pendingIds = pendingEdit?.proposedChanges ? [...pendingEdit.proposedChanges.imageAssetIds, ...(pendingEdit.proposedChanges.videoAssetId ? [pendingEdit.proposedChanges.videoAssetId] : [])] : [];
   const pendingMedia = pendingIds.length ? await db.select({ id: mediaAssets.id, kind: mediaAssets.kind, storageKey: mediaAssets.storageKey }).from(mediaAssets).where(inArray(mediaAssets.id, pendingIds)) : [];
   return {
-    product: { id: product.id, title: product.title, slug: product.slug, status: product.status, categoryId: product.categoryId, description: product.description, specifications: product.specifications, couponMaxDiscountPct: product.couponMaxDiscountPct },
+    product: { id: product.id, title: product.title, slug: product.slug, status: product.status, categoryId: product.categoryId, description: product.description, specifications: product.specifications, couponMaxDiscountPct: product.couponMaxDiscountPct, gst: product.hsnCode && product.gstRateBps != null ? { hsnCode: product.hsnCode, gstRateBps: product.gstRateBps } : null },
     variant,
     variants,
     media: media.map((m) => ({ id: m.id, kind: m.kind, url: "/media/" + m.storageKey, color: m.color })),

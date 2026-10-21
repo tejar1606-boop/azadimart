@@ -4,6 +4,7 @@ import {
   createDatabase,
   inventory,
   inventoryMovements,
+  issueReturnCreditNote,
   orderItems,
   orders,
   returnItems,
@@ -123,6 +124,8 @@ export async function POST(
       if (!updated) throw new AppError("CONFLICT", "Return changed; please retry");
 
       let orderStatus: string | null = null;
+      // Received back: a credit note reverses the returned pieces on the seller's invoice.
+      if (nextStatus === "RECEIVED") await issueReturnCreditNote(tx, current.id, principal.userId);
       if (nextStatus === "RECEIVED") {
         const allItems = await tx.select({ id: orderItems.id, quantity: orderItems.quantity })
           .from(orderItems).where(eq(orderItems.orderId, current.orderId));

@@ -1,5 +1,5 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, orderItems, orders, payments, sellers } from "@azadimart/database";
+import { createDatabase, invoices, orderItems, orders, payments, sellers } from "@azadimart/database";
 import { AppError, toApiError } from "@azadimart/shared";
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -54,13 +54,15 @@ export async function GET(request: Request) {
       const all=await db.select({orderId:orderItems.orderId,quantity:orderItems.quantity,unitPricePaise:orderItems.unitPricePaise}).from(orderItems).where(inArray(orderItems.orderId,[...shared]));
       for(const r of all)orderTotals.set(r.orderId,(orderTotals.get(r.orderId)??0)+r.quantity*r.unitPricePaise);
     }
+    // This seller's invoices and credit notes for these orders.
+    const docs=orderIds.length?await db.select({id:invoices.id,orderId:invoices.orderId,kind:invoices.kind,number:invoices.number}).from(invoices).where(and(eq(invoices.sellerId,principal.sellerId),inArray(invoices.orderId,orderIds))).orderBy(invoices.issuedAt):[];
     return NextResponse.json({ items:rows.map(({cancelRequestedBySellerId,shippingAddress,grandTotalPaise,discountPaise,shippingPaise,...row})=>{
       const mine=sellerTotals.get(row.id)??0;
       const share=shared.has(row.id)&&orderTotals.get(row.id)?mine/orderTotals.get(row.id)!:1;
       // Cash on Delivery: what the courier collects for this seller's parcel (their share when several sellers ship one order).
       const codCollectPaise=row.paymentMethod==="COD"&&!["CAPTURED","REFUNDED","PARTIALLY_REFUNDED"].includes(row.paymentStatus??"")
         ?(share===1?grandTotalPaise:Math.max(0,mine-Math.round(discountPaise*share)+Math.round(shippingPaise*share))):null;
-      return { ...row, sellerSubtotalPaise: mine, sharedWithOtherSellers: shared.has(row.id), cancelRequestedByMe: cancelRequestedBySellerId===principal.sellerId, shipTo: shipToFor(row.status, shippingAddress), codCollectPaise };
+      return { ...row, invoices: docs.filter((d)=>d.orderId===row.id).map(({orderId:_o,...d})=>d), sellerSubtotalPaise: mine, sharedWithOtherSellers: shared.has(row.id), cancelRequestedByMe: cancelRequestedBySellerId===principal.sellerId, shipTo: shipToFor(row.status, shippingAddress), codCollectPaise };
     }) });
   } catch(error) {
     const {status,body}=toApiError(error,requestId);

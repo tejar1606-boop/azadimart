@@ -1,6 +1,6 @@
 import { requireApiAccess, enforceRateLimit } from "@azadimart/auth";
 import {
-  cartItems, carts, couponRedemptions, coupons, createDatabase, customerAddresses,
+  cartItems, carts, couponRedemptions, coupons, createDatabase, customerAddresses, orderLineGst, productGstRules,
   customers, inventory, orderItems, orders, payments, productVariants, products, sellers, users,
 } from "@azadimart/database";
 import { AppError, SHIP_BY_DAYS, allocateCoupon, checkoutSchema, checkSellerSupplyToState, toApiError } from "@azadimart/shared";
@@ -120,9 +120,15 @@ export async function POST(request:Request){
         if(!reserved.length)throw new AppError("CONFLICT",`Stock changed for ${line.title}. Please try again.`);
       }
 
-      await tx.insert(orderItems).values(rawLines.map(line=>({
-        orderId:order.id,sellerId:line.sellerId,productId:line.productId,variantId:line.variantId,title:line.title,sku:line.sku,quantity:line.quantity,unitPricePaise:line.unitPricePaise,sellerDiscountPaise:sellerShare.get(line.cartItemId)??0,
-      })));
+      // GST is saved on each line now, so the invoice uses the rate at the time of the order.
+      const gstRules=await productGstRules(tx,rawLines.map(line=>line.productId));
+      await tx.insert(orderItems).values(rawLines.map(line=>{
+        const sellerDiscountPaise=sellerShare.get(line.cartItemId)??0;
+        return {
+          orderId:order.id,sellerId:line.sellerId,productId:line.productId,variantId:line.variantId,title:line.title,sku:line.sku,quantity:line.quantity,unitPricePaise:line.unitPricePaise,sellerDiscountPaise,
+          ...orderLineGst(gstRules.get(line.productId),{unitPricePaise:line.unitPricePaise,quantity:line.quantity,sellerDiscountPaise}),
+        };
+      }));
 
       const payment=getPaymentProvider("COD");
       const intent=await payment.createPayment({orderId:order.id,amountPaise:grandTotal,currency:"INR",customer:{id:session.customerId!},returnUrl:"/account/orders"});

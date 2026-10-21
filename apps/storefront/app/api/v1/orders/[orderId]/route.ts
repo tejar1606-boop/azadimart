@@ -1,5 +1,5 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, orderItems, orders, payments, sellers, products } from "@azadimart/database";
+import { createDatabase, orderInvoices, orderItems, orders, payments, sellers, products } from "@azadimart/database";
 import { AppError, toApiError } from "@azadimart/shared";
 import { asc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -30,7 +30,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     }).from(orderItems).innerJoin(sellers, eq(sellers.id, orderItems.sellerId)).innerJoin(products, eq(products.id, orderItems.productId))
       .where(eq(orderItems.orderId, order.id)).orderBy(asc(orderItems.createdAt));
 
-    return NextResponse.json({ order: { ...order, items } });
+    // Invoices (one per seller, issued when the parcel ships) and any credit notes.
+    const invoices = (await orderInvoices(db, order.id)).map((inv) => ({ ...inv, sellerName: items.find((i) => i.sellerId === inv.sellerId)?.sellerName ?? null }));
+    return NextResponse.json({ order: { ...order, items, invoices } });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);
     return NextResponse.json(body, { status });

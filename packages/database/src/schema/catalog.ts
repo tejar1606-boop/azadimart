@@ -26,6 +26,8 @@ export type ProductEditChanges = {
   variants?: Array<{ id?: string; sku: string; title: string; pricePaise: number; compareAtPaise: number | null; weightGrams: number; onHand?: number; attributes: Record<string, string> }>;
   /** Which colour each photo shows (media asset id → colour name). */
   imageColors?: Record<string, string>;
+  /** The product's own HSN code and GST rate (null = the category's). Absent in older edits = unchanged. */
+  gst?: { hsnCode: string; gstRateBps: number } | null;
 };
 import { aplusStatusEnum, mediaKindEnum, productStatusEnum, verificationStatusEnum } from "./enums";
 import { users } from "./identity";
@@ -47,6 +49,12 @@ export const categories = pgTable(
     description: text("description"),
     // Photo for the round category row and the "Shop by category" tiles (uploaded in Admin; else a product photo is used).
     imageUrl: text("image_url"),
+    // GST for products in this category (subcategories without their own use the parent's). Rate in basis points (500 = 5%).
+    // With a price limit, `gstRateBps` applies up to that price per piece (before GST) and `gstRateAboveLimitBps` above it.
+    hsnCode: text("hsn_code"),
+    gstRateBps: integer("gst_rate_bps"),
+    gstPriceLimitPaise: integer("gst_price_limit_paise"),
+    gstRateAboveLimitBps: integer("gst_rate_above_limit_bps"),
     ...timestamps,
   },
   (table) => [
@@ -90,6 +98,9 @@ export const products = pgTable(
     relatedProductIds: uuid("related_product_ids").array().notNull().default([]),
     /** The most the seller lets LOIMART coupons take off this product (percent, paid by the seller). 0 = not in coupons. */
     couponMaxDiscountPct: integer("coupon_max_discount_pct").notNull().default(0),
+    /** The seller's own HSN code and GST rate for this product; null = the category's. */
+    hsnCode: text("hsn_code"),
+    gstRateBps: integer("gst_rate_bps"),
     status: productStatusEnum("status").notNull().default("DRAFT"),
     // Storefront display order set by admins (1 = first). Null = not arranged yet; shown after arranged products, newest first.
     position: integer("position"),

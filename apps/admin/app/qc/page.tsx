@@ -9,6 +9,7 @@ type Changes = {
   variant: { sku: string; title: string; pricePaise: number; compareAtPaise: number | null; weightGrams: number };
   variants?: Array<{ id?: string; sku: string; title: string; pricePaise: number; compareAtPaise: number | null; onHand?: number; attributes: Record<string, string> }>;
 };
+type Gst = { text: string; warning: string | null };
 type Item = {
   id: string;
   kind: "NEW_LISTING" | "EDIT";
@@ -16,6 +17,8 @@ type Item = {
   proposedChanges: Changes | null;
   current: { categoryId: string; description: string | null; specifications: Array<{ label: string; value: string }>; couponMaxDiscountPct: number };
   currentCategoryName: string | null;
+  gstNow: Gst;
+  gstRequested: Gst | null;
   proposedCategoryName: string | null;
   proposedMedia: Array<{ id: string; kind: string; storageKey: string }>;
   productId: string;
@@ -236,6 +239,7 @@ function EditDiff({ item, changes }: { item: Item; changes: Changes }) {
     ["Variant name", before?.title ?? "—", changes.variant.title],
     ["Package weight", before ? before.weightGrams + " g" : "—", changes.variant.weightGrams + " g"],
     ["Coupon limit", item.current.couponMaxDiscountPct + "%", changes.couponMaxDiscountPct + "%"],
+    ["GST", item.gstNow.text, item.gstRequested?.text ?? item.gstNow.text],
     ["Colours / sizes", variantLines(item.variants), variantLines(changes.variants ?? [changes.variant])],
     ["Description", item.current.description || "—", changes.description || "—"],
     ["Specifications", specText(item.current.specifications), specText(changes.specifications)],
@@ -247,6 +251,7 @@ function EditDiff({ item, changes }: { item: Item; changes: Changes }) {
       <h3 className="font-semibold">Requested changes</h3>
       <p className="mt-1 text-xs text-ink-muted">The product stays {item.productStatus === "UNLISTED" ? "hidden" : "live"} with its current details until you decide.</p>
       <PriceTable item={item} changes={changes} />
+      {item.gstRequested?.warning ? <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">⚠ GST: {item.gstRequested.warning}</p> : null}
       <div className="mt-3 overflow-x-auto">
         <table className="w-full min-w-[520px] text-sm">
           <thead><tr className="text-left text-xs uppercase tracking-wide text-ink-muted"><th className="py-2 pr-3">Field</th><th className="py-2 pr-3">Now (live)</th><th className="py-2">Requested</th></tr></thead>
@@ -294,6 +299,7 @@ function ListingDetails({ item }: { item: Item }) {
         <h3 className="font-semibold">Listing details</h3>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <Row label="Category" hint="Check the product really belongs here; ask the seller to change it if not.">{item.currentCategoryName ?? <span className="text-red-700">No category</span>}</Row>
+          <Row label="GST (for invoices)" hint={item.gstNow.warning ? <span className="font-semibold text-red-700">⚠ {item.gstNow.warning}</span> : "Prices include GST. Check the HSN code suits the product."}>{item.gstNow.text}</Row>
           {optionSummary(item.variants) ? <div className="sm:col-span-2"><Row label="Colours & sizes" hint="Check each colour's photos match, and that sizes suit the category.">{optionSummary(item.variants)} <span className="font-normal text-ink-muted">({item.variants.length} options)</span></Row></div> : null}
           <Row label="LOIMART coupon limit" hint={pct ? `Seller agreed that LOIMART coupons can take up to ${pct}% off; the coupon cost comes from the seller's payout.` : "Seller opted out: their payout isn't reduced by LOIMART coupons."}>
             {pct ? <span className="text-emerald-700">Up to {pct}% off</span> : "Not in LOIMART coupons"}
