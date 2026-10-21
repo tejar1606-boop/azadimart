@@ -33,7 +33,11 @@ export async function GET(request: Request) {
     const db = createDatabase();
     const rows = await db.select().from(coupons).where(isNull(coupons.deletedAt)).orderBy(desc(coupons.createdAt));
     const labels = await scopeLabels(db, rows);
-    return NextResponse.json({ coupons: rows.map((c) => ({ ...c, appliesTo: labels.get(c.id) })) });
+    // Details of the products a coupon is limited to, so the coupon can be edited.
+    const productIds = [...new Set(rows.flatMap((r) => (r.scope as Scope | null)?.productIds ?? []))];
+    const scoped = productIds.length ? await db.select({ id: products.id, title: products.title, sellerId: products.sellerId, sellerName: sellers.storeName, couponMaxDiscountPct: products.couponMaxDiscountPct })
+      .from(products).innerJoin(sellers, eq(sellers.id, products.sellerId)).where(inArray(products.id, productIds)) : [];
+    return NextResponse.json({ coupons: rows.map((c) => ({ ...c, appliesTo: labels.get(c.id), scopeProducts: scoped.filter((p) => ((c.scope as Scope | null)?.productIds ?? []).includes(p.id)) })) });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);
     return NextResponse.json(body, { status });

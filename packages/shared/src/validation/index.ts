@@ -170,7 +170,12 @@ function validateCouponRules(value: Partial<CouponPayload>, ctx: z.RefinementCtx
 }
 
 export const couponSchema = couponBaseSchema.superRefine(validateCouponRules);
-export const couponUpdateSchema = couponBaseSchema.partial().superRefine(validateCouponRules);
+/** Editing a coupon: any field; null clears the optional limits (end date, max discount, usage limit). */
+export const couponUpdateSchema = couponBaseSchema.extend({
+  maximumDiscountPaise: z.number().int().positive().nullable(),
+  endsAt: z.string().datetime().nullable(),
+  usageLimit: z.number().int().positive().nullable(),
+}).partial().superRefine((value, ctx) => validateCouponRules(value as Partial<CouponPayload>, ctx));
 export const navigationItemSchema = z.object({
   label: z.string().trim().min(1).max(80),
   // "/path" only: "//host" is a protocol-relative external link.

@@ -42,7 +42,8 @@
     "e2e:seller-coupons": "node scripts/e2e-seller-coupons.mjs",
     "e2e:wallet": "node scripts/e2e-wallet.mjs",
     "e2e:referrals": "node scripts/e2e-referrals.mjs",
-    "e2e:price-changes": "node scripts/e2e-price-changes.mjs"
+    "e2e:price-changes": "node scripts/e2e-price-changes.mjs",
+    "e2e:coupon-edit": "node scripts/e2e-coupon-edit.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
