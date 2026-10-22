@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import CallAlert from "./call-alert";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { PortalShell, type PortalNavSection } from "@azadimart/ui";
@@ -26,6 +27,7 @@ export default function AdminChrome({ counts, children }: { counts: AdminCounts 
   const supportItems: PortalNavSection["items"] = [
     { href: "/live-chat", label: "Live chat", icon: "support", badge: badge(counts.liveWaiting) },
     { href: "/support", label: "Support desk", icon: "support", badge: badge(counts.support) },
+    { href: "/calls", label: "Call centre", icon: "support" },
     { href: "/support/replies", label: "Saved replies", icon: "support" },
   ];
   const all: PortalNavSection[] = [
@@ -78,6 +80,7 @@ export default function AdminChrome({ counts, children }: { counts: AdminCounts 
   return (
     <PortalShell product={STAFF_PERMISSION_KEYS.every((k) => CONFIDENTIAL_PERMISSIONS.includes(k) || counts.permissions.includes(k)) ? "Admin console" : `Admin · ${counts.roleName}`} sections={sections} pathname={pathname} Link={Link} onSignOut={() => void signOut()}>
       {children}
+      {permissions?.includes("support") ? <CallAlert /> : null}
     </PortalShell>
   );
 }

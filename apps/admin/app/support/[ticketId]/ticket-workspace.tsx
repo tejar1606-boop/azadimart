@@ -170,7 +170,7 @@ export default function TicketWorkspace({ ticketId }: { ticketId: string }) {
                 </>
               ) : null}
               <Row label="Email">{context.email ? <a className="text-brand-700 hover:underline" href={`mailto:${context.email}`}>{context.email}</a> : "–"}</Row>
-              {"phone" in context && context.phone ? <Row label="Phone">{context.phone}</Row> : null}
+              {"phone" in context && context.phone ? <Row label="Phone">{context.phone} <a href={`/calls?dial=${encodeURIComponent(context.phone)}&ticket=${ticketId}`} className="ml-1 font-bold text-brand-700 hover:underline">📞 Call</a></Row> : null}
               {"since" in context && context.since ? <Row label="Member since">{day(context.since)}</Row> : null}
               {"ticketCount" in context ? <Row label="Requests">{context.ticketCount}</Row> : null}
             </dl>

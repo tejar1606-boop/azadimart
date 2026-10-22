@@ -251,6 +251,7 @@ export default function OrdersList() {
                 <p className="text-xs text-slate-400">Customer</p>
                 <p className="mt-1 truncate text-sm font-semibold">{order.customerName ?? order.deliverTo ?? "—"}</p>
                 <p className="truncate text-xs text-slate-500">{[order.deliveryPhone ?? order.customerPhone, order.customerEmail].filter(Boolean).join(" · ") || "—"}</p>
+                {order.deliveryPhone ?? order.customerPhone ? <a href={`/calls?dial=${encodeURIComponent((order.deliveryPhone ?? order.customerPhone)!)}&order=${order.id}`} className="mt-1 inline-block text-xs font-bold text-brand-700 hover:underline">📞 Call customer</a> : null}
                 {order.city ? <p className="truncate text-xs text-slate-500">{[order.city, order.state, order.postalCode].filter(Boolean).join(", ")}</p> : null}
               </div>
               <div className="min-w-0 rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-400">Seller{order.sellerCount === 1 ? "" : "s"}</p><p className="mt-1 text-sm font-semibold">{order.sellers.join(", ") || "—"}</p></div>

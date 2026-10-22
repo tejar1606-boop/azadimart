@@ -13,6 +13,7 @@
     "@azadimart/auth": "workspace:*",
     "@azadimart/database": "workspace:*",
     "@azadimart/logistics": "workspace:*",
+    "@azadimart/notify": "workspace:*",
     "@azadimart/payments": "workspace:*",
     "@azadimart/shared": "workspace:*",
     "@azadimart/storage": "workspace:^",
@@ -21,7 +22,7 @@
     "next": "^15.1.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@azadimart/notify": "workspace:*"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
