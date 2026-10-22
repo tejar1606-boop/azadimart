@@ -48,7 +48,9 @@ const parentOf = new Map(cats.map((c) => [c.id, c.parent_id]));
 const live = (await sql`select p.id, p.slug, p.title, p.category_id from products p where p.status = 'LIVE' and p.title not ilike '%gallardo%' and p.price_dropped_at is null and exists (select 1 from product_media m where m.product_id = p.id) order by p.created_at`)
   .filter((p) => !taggedProducts.has(p.id) && !taggedCats.has(p.category_id) && !taggedCats.has(parentOf.get(p.category_id)));
 if (live.length < 2) throw new Error("Need two untagged live products in different categories.");
-const a = live[0], b = live.find((p) => p.category_id !== a.category_id);
+// B must be outside A's category family (a coupon for a category also covers its sub-categories).
+const family = (id) => [id, parentOf.get(id)].filter(Boolean);
+const a = live[0], b = live.find((p) => !family(p.category_id).some((id) => family(a.category_id).includes(id)));
 const created = [];
 const createTag = async (body) => { const r = await admin("/api/v1/offer-tags", { method: "POST", body }); if (r.json?.tag?.id) created.push(r.json.tag.id); return r; };
 
