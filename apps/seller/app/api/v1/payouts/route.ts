@@ -1,6 +1,6 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, payouts, sellerBankAccounts, sellers, unpaidSettlementLines } from "@azadimart/database";
-import { AppError, COMMISSION_RATE_BPS, PAYOUT_HOLD_DAYS, commissionFreeUntil, toApiError } from "@azadimart/shared";
+import { createDatabase, feeInvoices, getPlatformSetting, payouts, sellerBankAccounts, sellers, unpaidSettlementLines } from "@azadimart/database";
+import { AppError, COMMISSION_RATE_BPS, DEFAULT_SETTLEMENT_CYCLE, PAYOUT_HOLD_DAYS, SETTLEMENT_CYCLE_KEY, commissionFreeUntil, nextSettlementDate, toApiError, type SettlementCycle } from "@azadimart/shared";
 import { and, desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -18,10 +18,11 @@ export async function GET(request: Request) {
       db.select({ approvedAt: sellers.approvedAt, holdReason: sellers.payoutHoldReason }).from(sellers).where(eq(sellers.id, sellerId)).limit(1).then((r) => r[0]),
       db.select({ accountHolderName: sellerBankAccounts.accountHolderName, last4: sellerBankAccounts.accountNumberLast4, ifsc: sellerBankAccounts.ifsc, status: sellerBankAccounts.verificationStatus, rejectionReason: sellerBankAccounts.rejectionReason })
         .from(sellerBankAccounts).where(and(eq(sellerBankAccounts.sellerId, sellerId), eq(sellerBankAccounts.isPrimary, true))).limit(1).then((r) => r[0] ?? null),
-      db.select({ id: payouts.id, status: payouts.status, amountPaise: payouts.amountPaise, grossPaise: payouts.grossPaise, deductionsPaise: payouts.deductionsPaise, itemCount: payouts.itemCount, utr: payouts.utr, mode: payouts.mode, failureReason: payouts.failureReason, paidAt: payouts.paidAt, createdAt: payouts.createdAt })
-        .from(payouts).where(eq(payouts.sellerId, sellerId)).orderBy(desc(payouts.createdAt)).limit(100),
+      db.select({ id: payouts.id, status: payouts.status, amountPaise: payouts.amountPaise, grossPaise: payouts.grossPaise, deductionsPaise: payouts.deductionsPaise, itemCount: payouts.itemCount, utr: payouts.utr, mode: payouts.mode, failureReason: payouts.failureReason, paidAt: payouts.paidAt, createdAt: payouts.createdAt, periodStart: payouts.periodStart, periodEnd: payouts.periodEnd, feeInvoiceId: feeInvoices.id, feeInvoiceNumber: feeInvoices.number })
+        .from(payouts).leftJoin(feeInvoices, eq(feeInvoices.payoutId, payouts.id)).where(eq(payouts.sellerId, sellerId)).orderBy(desc(payouts.createdAt)).limit(100),
       unpaidSettlementLines(db, { sellerId }),
     ]);
+    const cycle = (await getPlatformSetting<SettlementCycle>(db, SETTLEMENT_CYCLE_KEY)) ?? DEFAULT_SETTLEMENT_CYCLE;
     const freeUntil = seller?.approvedAt ? commissionFreeUntil(seller.approvedAt) : null;
     const now = Date.now();
     const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
@@ -31,6 +32,7 @@ export async function GET(request: Request) {
       bankAccount: bank,
       holdReason: seller?.holdReason ?? null,
       commission: { freeUntil, isFreeNow: !freeUntil || freeUntil.getTime() > now, rateBps: COMMISSION_RATE_BPS, holdDays: PAYOUT_HOLD_DAYS },
+      settlement: { cycle, nextAt: nextSettlementDate(new Date(), cycle) },
       summary: {
         paid30dPaise: sent.filter((p) => p.status === "PAID" && p.paidAt && p.paidAt.getTime() > monthAgo).reduce((s, p) => s + p.amountPaise, 0),
         waitingPaise: waiting.reduce((s, p) => s + p.amountPaise, 0),

@@ -330,6 +330,13 @@
       "when": 1792605866780,
       "tag": "20261021180426_gst_invoices",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1792649927963,
+      "tag": "20261022061847_fee_invoices",
+      "breakpoints": true
     }
   ]
 }

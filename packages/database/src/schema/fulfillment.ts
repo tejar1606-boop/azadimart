@@ -40,6 +40,8 @@ export const shipments = pgTable(
     shippingFeePaise: integer("shipping_fee_paise").notNull().default(0),
     /** Part of the fee paid from the seller's courier wallet; the rest comes off the payout. */
     walletPaidPaise: integer("wallet_paid_paise").notNull().default(0),
+    /** LOIMART's fee invoice to the seller that billed this parcel's courier fee (set at settlement). */
+    feeInvoiceId: uuid("fee_invoice_id"),
     ...timestamps,
   },
   (table) => [
@@ -183,11 +185,56 @@ export const payouts = pgTable(
     approvedByUserId: uuid("approved_by_user_id").references(() => users.id),
     initiatedAt: timestamp("initiated_at", { withTimezone: true }),
     paidAt: timestamp("paid_at", { withTimezone: true }),
+    /** The settlement cycle this payout covers (items whose return window closed between these dates). */
+    periodStart: timestamp("period_start", { withTimezone: true }),
+    periodEnd: timestamp("period_end", { withTimezone: true }),
     ...timestamps,
   },
   (table) => [
     index("payouts_seller_id_idx").on(table.sellerId),
     index("payouts_status_idx").on(table.status),
     uniqueIndex("payouts_reference_unique").on(table.reference),
+  ],
+);
+
+/** What LOIMART's fee invoice shows, frozen when issued. Amounts in paise. */
+export type FeeInvoiceDetails = {
+  company: { legalName: string; tradeName: string; gstin: string | null; pan: string | null; address: string; state: string; stateCode: string | null };
+  seller: { legalName: string; storeName: string; gstin: string | null; address: string; state: string; stateCode: string | null };
+  periodStart: string | null;
+  periodEnd: string | null;
+  payoutReference: string | null;
+  interState: boolean;
+  lines: Array<{ description: string; sac: string; taxablePaise: number; rateBps: number; cgstPaise: number; sgstPaise: number; igstPaise: number; totalPaise: number }>;
+};
+
+/**
+ * LOIMART's tax invoices TO sellers for its own services (commission, courier,
+ * ads), one per settlement. LOIMART's single series per financial year
+ * ("LMS/2627/000001"); 18% GST the seller can claim back.
+ */
+export const feeInvoices = pgTable(
+  "fee_invoices",
+  {
+    id,
+    number: text("number").notNull(),
+    financialYear: text("financial_year").notNull(),
+    sequence: integer("sequence").notNull(),
+    sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "restrict" }),
+    payoutId: uuid("payout_id").notNull().references(() => payouts.id, { onDelete: "restrict" }),
+    issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
+    taxablePaise: integer("taxable_paise").notNull(),
+    cgstPaise: integer("cgst_paise").notNull().default(0),
+    sgstPaise: integer("sgst_paise").notNull().default(0),
+    igstPaise: integer("igst_paise").notNull().default(0),
+    totalPaise: integer("total_paise").notNull(),
+    isTest: boolean("is_test").notNull().default(false),
+    details: jsonb("details").$type<FeeInvoiceDetails>().notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("fee_invoices_number_unique").on(table.number),
+    uniqueIndex("fee_invoices_payout_unique").on(table.payoutId),
+    index("fee_invoices_seller_id_idx").on(table.sellerId),
   ],
 );

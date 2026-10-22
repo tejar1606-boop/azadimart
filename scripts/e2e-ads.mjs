@@ -56,7 +56,12 @@ const [mine, lent] = stocked;
 await sql`update products set seller_id = ${rival.id} where id = ${lent.product_id}`;
 let slotId = null;
 const extraSlots = [];
+// Ad charges are taken from an immediate payout here: run in daily mode (15-day cycles: see e2e:settlements).
+const [cycleBefore] = await sql`select value from platform_settings where key = 'settlement_cycle'`;
+await sql`insert into platform_settings (key, value) values ('settlement_cycle', '"DAILY"'::jsonb) on conflict (key) do update set value = excluded.value`;
 const giveBack = async () => {
+  if (cycleBefore) await sql`update platform_settings set value = ${cycleBefore.value} where key = 'settlement_cycle'`;
+  else await sql`delete from platform_settings where key = 'settlement_cycle'`;
   await sql`update products set seller_id = ${me.id} where id = ${lent.product_id}`;
   // Remove this run's ad space with its ads and bids (charges keep their history).
   // Test ad charges come off again (and back into the payout they were taken from), so demo sellers only see real ones.

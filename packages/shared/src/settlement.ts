@@ -76,3 +76,37 @@ export const payoutEligibleAt = (deliveredAt: Date) => new Date(deliveredAt.getT
 /** Each successful seller referral earns the referrer this many extra commission-free months, up to the cap. */
 export const REFERRAL_BONUS_MONTHS = 3;
 export const REFERRAL_MAX_REWARDS = 4;
+
+/**
+ * Settlement cycles: by default sellers are paid every 15 days, on the 1st and
+ * the 16th (India time), for everything whose return window closed in the
+ * cycle before. "DAILY" pays every day (Admin → Finance can switch).
+ */
+export type SettlementCycle = "FORTNIGHTLY" | "DAILY";
+export const SETTLEMENT_CYCLE_KEY = "settlement_cycle";
+export const DEFAULT_SETTLEMENT_CYCLE: SettlementCycle = "FORTNIGHTLY";
+const IST_MS = 330 * 60_000;
+const istMidnight = (y: number, m: number, d: number) => new Date(Date.UTC(y, m, d) - IST_MS);
+
+/** Start of the cycle `now` falls in: the 1st or 16th at midnight India time (DAILY: today's midnight). */
+export function settlementCycleStart(now: Date, cycle: SettlementCycle = DEFAULT_SETTLEMENT_CYCLE): Date {
+  const ist = new Date(now.getTime() + IST_MS);
+  const [y, m, d] = [ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate()];
+  if (cycle === "DAILY") return istMidnight(y, m, d);
+  return istMidnight(y, m, d >= 16 ? 16 : 1);
+}
+/** Start of the cycle before the one starting at `start`. */
+export function previousCycleStart(start: Date, cycle: SettlementCycle = DEFAULT_SETTLEMENT_CYCLE): Date {
+  return settlementCycleStart(new Date(start.getTime() - 60_000), cycle);
+}
+/** The next settlement day after `now` (1st or 16th, India time). */
+export function nextSettlementDate(now: Date, cycle: SettlementCycle = DEFAULT_SETTLEMENT_CYCLE): Date {
+  // A day (or 17 days) past the current cycle's start always lands in the next cycle.
+  const start = settlementCycleStart(now, cycle);
+  return settlementCycleStart(new Date(start.getTime() + (cycle === "DAILY" ? 25 : 17 * 24) * 3600_000), cycle);
+}
+
+/** LOIMART's fee invoices to sellers: one series per financial year, e.g. "LMS/2627/000001". */
+export const feeInvoiceNumber = (financialYear: string, sequence: number) => `LMS/${financialYear.replace("-", "").slice(2)}/${String(sequence).padStart(6, "0")}`;
+/** SAC codes for LOIMART's services (confirm with the CA). */
+export const FEE_SAC = { COMMISSION: "998599", COURIER: "996812", ADS: "998365" } as const;

@@ -42,8 +42,13 @@ const [product] = await sql`select v.id variant_id from product_variants v join 
 if (!product) throw new Error("Need a stocked live product from the demo seller.");
 const pct = (paise, bps) => Math.round((paise * bps) / 10000);
 const expectedNet = (gross, commissionBps) => { const c = pct(gross, commissionBps); return gross - c - pct(c, 1800) - (me.tax_identity_type === "GSTIN" ? pct(gross, 50) : 0) - pct(gross, 10); };
+// These checks pay the same seller several times in a row: run in daily mode (15-day cycles: see e2e:settlements).
+const [cycleBefore] = await sql`select value from platform_settings where key = 'settlement_cycle'`;
+await sql`insert into platform_settings (key, value) values ('settlement_cycle', '"DAILY"'::jsonb) on conflict (key) do update set value = excluded.value`;
 const restore = async () => {
   await sql`update sellers set approved_at = ${me.approved_at}, payout_hold_reason = ${me.payout_hold_reason} where id = ${me.id}`;
+  if (cycleBefore) await sql`update platform_settings set value = ${cycleBefore.value} where key = 'settlement_cycle'`;
+  else await sql`delete from platform_settings where key = 'settlement_cycle'`;
 };
 for (const event of ["uncaughtException", "unhandledRejection"]) process.on(event, (error) => { console.error(error); restore().finally(() => process.exit(1)); });
 

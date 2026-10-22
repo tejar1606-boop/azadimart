@@ -1,13 +1,16 @@
 import { decryptSecret } from "@azadimart/auth";
-import { auditLogs, chargeFinishedAdDays, payoutItems, payouts, sellerBankAccounts, sellerCharges, sellers, unpaidSettlementLines, type Database, type SettlementLine } from "@azadimart/database";
+import { auditLogs, chargeFinishedAdDays, getPlatformSetting, issueFeeInvoice, payoutItems, payouts, sellerBankAccounts, sellerCharges, sellers, unpaidSettlementLines, type Database, type SettlementLine } from "@azadimart/database";
 import { notifyAdEvents, notifySeller, settleAdAuctions } from "@azadimart/notify";
+import { DEFAULT_SETTLEMENT_CYCLE, SETTLEMENT_CYCLE_KEY, previousCycleStart, settlementCycleStart, type SettlementCycle } from "@azadimart/shared";
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 
 /**
  * Automatic seller payouts, from LOIMART's own current account.
  *
- * Every day: order items delivered 7+ days ago, paid, with no open return
- * are grouped per seller into a payout (commission etc. fixed per item), and
+ * Every 15 days (1st and 16th, India time; or daily if Admin chooses): order
+ * items whose 7-day return window closed in the previous cycle, paid, with no
+ * open return are grouped per seller into one payout (commission etc. fixed
+ * per item) with a settlement statement and LOIMART's fee invoice, and
  * each payout is sent to the seller's verified bank account. Payouts are held
  * (not sent) when the seller is on hold or not active, or has no verified
  * bank account; above the daily limit they wait for an admin's approval.
@@ -51,9 +54,19 @@ function startOfIndianDay(now: Date) {
   return new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate()) - 330 * 60_000);
 }
 
-/** Groups items that are ready into one payout per seller. Safe to run repeatedly: an item can only be in one payout. */
+export const settlementCycle = async (db: Database) => (await getPlatformSetting<SettlementCycle>(db, SETTLEMENT_CYCLE_KEY)) ?? DEFAULT_SETTLEMENT_CYCLE;
+
+/**
+ * Groups items that are ready into one payout per seller per cycle. Safe to
+ * run repeatedly: an item can only be in one payout, and a seller gets one
+ * payout per 15-day cycle (anything later waits for the next cycle).
+ */
 export async function createDuePayouts(db: Database, now = new Date()) {
-  const due = (await unpaidSettlementLines(db)).filter((line) => line.eligibleAt <= now && !line.openReturn);
+  const cycle = await settlementCycle(db);
+  const periodEnd = cycle === "DAILY" ? now : settlementCycleStart(now, cycle);
+  const periodStart = cycle === "DAILY" ? settlementCycleStart(now, "DAILY") : previousCycleStart(periodEnd, cycle);
+  const settled = cycle === "DAILY" ? new Set<string>() : new Set((await db.select({ sellerId: payouts.sellerId }).from(payouts).where(eq(payouts.periodEnd, periodEnd))).map((p) => p.sellerId));
+  const due = (await unpaidSettlementLines(db)).filter((line) => line.eligibleAt <= periodEnd && !line.openReturn && !settled.has(line.sellerId));
   const bySeller = new Map<string, SettlementLine[]>();
   for (const line of due) bySeller.set(line.sellerId, [...(bySeller.get(line.sellerId) ?? []), line]);
   let created = 0;
@@ -72,7 +85,7 @@ export async function createDuePayouts(db: Database, now = new Date()) {
           sellerId, status: "PENDING", amountPaise: net - charges, chargesPaise: charges,
           grossPaise: lines.reduce((sum, l) => sum + l.breakdown.grossPaise, 0),
           deductionsPaise: lines.reduce((sum, l) => sum + l.breakdown.grossPaise - l.breakdown.netPaise, 0) + charges,
-          itemCount: lines.length, mode: payoutRail()?.mode ?? "LIVE",
+          itemCount: lines.length, mode: payoutRail()?.mode ?? "LIVE", periodStart, periodEnd,
           reference: "AZMPO" + now.getTime().toString(36).toUpperCase() + crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase(),
         }).returning({ id: payouts.id });
         await tx.insert(payoutItems).values(lines.map((l) => ({
@@ -83,10 +96,13 @@ export async function createDuePayouts(db: Database, now = new Date()) {
           shippingFeePaise: l.breakdown.shippingFeePaise,
         })));
         if (taken.length) await tx.update(sellerCharges).set({ status: "SETTLED", payoutId: payout!.id, updatedAt: now }).where(inArray(sellerCharges.id, taken));
+        // LOIMART's tax invoice for its fees in this settlement (commission, courier, ads).
+        await issueFeeInvoice(tx, payout!.id);
       });
       created++;
-    } catch {
+    } catch (error) {
       // Another run took these items first (unique order item): nothing to do.
+      if (!/unique|duplicate/i.test(String((error as { cause?: unknown })?.cause ?? error))) console.error("payout creation failed", error);
     }
   }
   return created;

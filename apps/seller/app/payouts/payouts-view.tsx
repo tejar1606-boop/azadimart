@@ -6,11 +6,12 @@ import { StatCard } from "@azadimart/ui";
 type Bank = { accountHolderName: string; last4: string; ifsc: string; status: "PENDING" | "VERIFIED" | "REJECTED"; rejectionReason: string | null } | null;
 type Breakdown = { grossPaise: number; sellerDiscountPaise?: number; shippingFeePaise?: number; commissionRateBps: number; commissionPaise: number; gstOnCommissionPaise: number; tcsPaise: number; tdsPaise: number; netPaise: number };
 type Upcoming = Breakdown & { orderNumber: string; title: string; quantity: number; deliveredAt: string; eligibleAt: string; openReturn: boolean };
-type Payout = { id: string; status: string; amountPaise: number; grossPaise: number; deductionsPaise: number; itemCount: number; utr: string | null; mode: string; failureReason: string | null; paidAt: string | null; createdAt: string };
+type Payout = { id: string; status: string; amountPaise: number; grossPaise: number; deductionsPaise: number; itemCount: number; utr: string | null; mode: string; failureReason: string | null; paidAt: string | null; createdAt: string; periodStart: string | null; periodEnd: string | null; feeInvoiceId: string | null; feeInvoiceNumber: string | null };
 type Item = Breakdown & { orderNumber: string; title: string; quantity: number };
 type Data = {
   bankAccount: Bank; holdReason: string | null;
   commission: { freeUntil: string | null; isFreeNow: boolean; rateBps: number; holdDays: number };
+  settlement: { cycle: "FORTNIGHTLY" | "DAILY"; nextAt: string };
   summary: { paid30dPaise: number; waitingPaise: number; upcomingPaise: number; heldByReturnsPaise: number; nextPayoutAt: string | null };
   upcoming: Upcoming[]; payouts: Payout[];
 };
@@ -115,7 +116,7 @@ export default function PayoutsView() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Sent to your bank (30 days)" value={money(summary.paid30dPaise)} icon="payouts" tone="good" />
         <StatCard label="Scheduled or on hold" value={money(summary.waitingPaise)} hint="Already calculated, waiting to be sent" icon="payments" />
-        <StatCard label={`In the ${commission.holdDays}-day return window`} value={money(summary.upcomingPaise)} hint={summary.nextPayoutAt ? `Next payment from ${date(summary.nextPayoutAt)}` : "Delivered orders appear here"} icon="finance" tone="brand" />
+        <StatCard label={`In the ${commission.holdDays}-day return window`} value={money(summary.upcomingPaise)} hint={data.settlement.cycle === "FORTNIGHTLY" ? `Next settlement ${date(data.settlement.nextAt)}` : summary.nextPayoutAt ? `Next payment from ${date(summary.nextPayoutAt)}` : "Delivered orders appear here"} icon="finance" tone="brand" />
         <StatCard label="Held by open returns" value={money(summary.heldByReturnsPaise)} hint="Paid once the return is closed" icon="returns" tone="warn" />
       </div>
 
@@ -141,7 +142,7 @@ export default function PayoutsView() {
       <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-card">
         <div className="border-b border-slate-100 px-5 py-4">
           <h2 className="font-semibold">Upcoming payments</h2>
-          <p className="text-xs text-slate-500">Delivered orders are paid {commission.holdDays} days after delivery (after the return window), straight to your bank.</p>
+          <p className="text-xs text-slate-500">{data.settlement.cycle === "FORTNIGHTLY" ? <>Settled every 15 days, on the 1st and the 16th: orders whose {commission.holdDays}-day return window has closed are paid together, with a statement and LOIMART&apos;s fee invoice. Next settlement: <b>{date(data.settlement.nextAt)}</b>.</> : <>Delivered orders are paid {commission.holdDays} days after delivery (after the return window), straight to your bank.</>}</p>
         </div>
         {data.upcoming.length === 0 ? <p className="px-5 py-8 text-center text-sm text-slate-500">Nothing waiting. Delivered orders will appear here.</p> : (
           <ul className="divide-y divide-slate-100">
@@ -150,7 +151,7 @@ export default function PayoutsView() {
                 <span className="min-w-0"><span className="block truncate text-sm font-semibold">{u.title} × {u.quantity}</span>
                   <span className="block text-xs text-slate-500">{u.orderNumber} · delivered {date(u.deliveredAt)}</span><BreakdownRows b={u} /></span>
                 <span className="text-left sm:text-right"><span className="block font-semibold">{money(u.netPaise)}</span>
-                  <span className={"text-xs font-medium " + (u.openReturn ? "text-amber-700" : "text-slate-500")}>{u.openReturn ? "Return in progress" : new Date(u.eligibleAt) <= new Date() ? "In the next payment" : `Payable ${date(u.eligibleAt)}`}</span></span>
+                  <span className={"text-xs font-medium " + (u.openReturn ? "text-amber-700" : "text-slate-500")}>{u.openReturn ? "Return in progress" : data.settlement.cycle === "FORTNIGHTLY" ? `Return window closes ${date(u.eligibleAt)}` : new Date(u.eligibleAt) <= new Date() ? "In the next payment" : `Payable ${date(u.eligibleAt)}`}</span></span>
               </li>
             ))}
           </ul>
@@ -158,16 +159,16 @@ export default function PayoutsView() {
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-card">
-        <div className="border-b border-slate-100 px-5 py-4"><h2 className="font-semibold">Payments sent</h2></div>
+        <div className="border-b border-slate-100 px-5 py-4"><h2 className="font-semibold">Settlements</h2><p className="text-xs text-slate-500">Each settlement has a <b>statement</b> (every order and deduction) and, when LOIMART charged fees, a <b>tax invoice</b> for them. You can claim that GST as input tax credit.</p></div>
         {data.payouts.length === 0 ? <p className="px-5 py-8 text-center text-sm text-slate-500">No payments yet.</p> : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
-              <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-[0.08em] text-slate-500"><tr><th className="px-5 py-2.5 font-semibold">Date</th><th className="px-3 py-2.5 font-semibold">Orders</th><th className="px-3 py-2.5 text-right font-semibold">Sales</th><th className="px-3 py-2.5 text-right font-semibold">Deductions</th><th className="px-3 py-2.5 text-right font-semibold">You got</th><th className="px-5 py-2.5 font-semibold">Status</th></tr></thead>
+              <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-[0.08em] text-slate-500"><tr><th className="px-5 py-2.5 font-semibold">Date</th><th className="px-3 py-2.5 font-semibold">Orders</th><th className="px-3 py-2.5 text-right font-semibold">Sales</th><th className="px-3 py-2.5 text-right font-semibold">Deductions</th><th className="px-3 py-2.5 text-right font-semibold">You got</th><th className="px-3 py-2.5 font-semibold">Status</th><th className="px-5 py-2.5 font-semibold">Documents</th></tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {data.payouts.map((p) => (
                   <Fragment key={p.id}>
                     <tr className="cursor-pointer hover:bg-slate-50" onClick={() => void toggle(p.id)}>
-                      <td className="px-5 py-3">{date(p.paidAt ?? p.createdAt)}</td>
+                      <td className="px-5 py-3">{date(p.paidAt ?? p.createdAt)}{p.periodStart && p.periodEnd ? <span className="block text-[11px] text-slate-500">For {date(p.periodStart)} – {date(new Date(new Date(p.periodEnd).getTime() - 60_000).toISOString())}</span> : null}</td>
                       <td className="px-3 py-3"><span className="font-semibold text-brand-600">{p.itemCount} item{p.itemCount === 1 ? "" : "s"} {open === p.id ? "▴" : "▾"}</span></td>
                       <td className="px-3 py-3 text-right">{money(p.grossPaise)}</td>
                       <td className="px-3 py-3 text-right text-slate-500">−{money(p.deductionsPaise)}</td>
@@ -175,9 +176,13 @@ export default function PayoutsView() {
                       <td className="px-5 py-3"><span className={"rounded-full px-2.5 py-1 text-[11px] font-bold " + (STATUS[p.status]?.tone ?? "")}>{STATUS[p.status]?.label ?? p.status}</span>
                         {p.utr ? <span className="mt-1 block font-mono text-[11px] text-slate-500">UTR {p.utr}{p.mode === "TEST" ? " · test" : ""}</span> : null}
                         {p.status !== "PAID" && p.failureReason ? <span className="mt-1 block max-w-[220px] text-[11px] text-slate-500">{p.failureReason}</span> : null}</td>
+                      <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}><span className="flex flex-col items-start gap-1.5">
+                        <a href={`/payouts/${p.id}/statement`} className="rounded-full border border-slate-300 bg-white px-3 py-1 text-[11px] font-bold hover:border-slate-900">Statement</a>
+                        {p.feeInvoiceId ? <a href={`/payouts/fee-invoices/${p.feeInvoiceId}`} className="rounded-full border border-slate-300 bg-white px-3 py-1 text-[11px] font-bold hover:border-slate-900" title={p.feeInvoiceNumber ?? ""}>Fee invoice</a> : null}
+                      </span></td>
                     </tr>
                     {open === p.id ? (
-                      <tr><td colSpan={6} className="bg-slate-50 px-5 py-3">
+                      <tr><td colSpan={7} className="bg-slate-50 px-5 py-3">
                         {!items[p.id] ? <p className="text-xs text-slate-500">Loading…</p> : (
                           <ul className="space-y-2">{items[p.id]!.map((it) => (
                             <li key={it.orderNumber + it.title} className="flex justify-between gap-3 text-xs"><span><b>{it.title} × {it.quantity}</b> · {it.orderNumber}<BreakdownRows b={it} /></span><span className="shrink-0 text-right">{money(it.grossPaise)} − {money(deductions(it))} = <b>{money(it.netPaise)}</b></span></li>
@@ -200,7 +205,7 @@ export default function PayoutsView() {
           <li><b>Sale price</b> of your items the customer kept (returned items are left out).</li>
           <li><b>Commission</b>: none in your first 3 months; then {commission.rateBps / 100}% of the sale price, plus 18% GST on the commission (you can claim this GST as input credit).</li>
           <li><b>TCS</b> (0.5%, GST law, GST-registered sellers only) and <b>TDS</b> (0.1%, Income-tax law) are deducted and deposited with the government in your name; claim them in your returns.</li>
-          <li>Paid {commission.holdDays} days after delivery, once the return window has closed. Cash on Delivery orders count from delivery too.</li>
+          <li>{data.settlement.cycle === "FORTNIGHTLY" ? `Settled on the 1st and 16th of every month for orders whose ${commission.holdDays}-day return window has closed.` : `Paid ${commission.holdDays} days after delivery, once the return window has closed.`} Cash on Delivery orders count from delivery too.</li>
         </ul>
       </section>
     </div>

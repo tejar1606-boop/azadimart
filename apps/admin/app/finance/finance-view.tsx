@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { PortalPageHeader, StatCard } from "@azadimart/ui";
 
-type Payout = { id: string; sellerId: string; storeName: string; status: string; amountPaise: number; grossPaise: number; deductionsPaise: number; itemCount: number; reference: string | null; mode: string; utr: string | null; attempts: number; failureReason: string | null; initiatedAt: string | null; paidAt: string | null; createdAt: string; accountLast4: string | null };
+type Payout = { id: string; sellerId: string; storeName: string; status: string; amountPaise: number; grossPaise: number; deductionsPaise: number; itemCount: number; reference: string | null; mode: string; utr: string | null; attempts: number; failureReason: string | null; initiatedAt: string | null; paidAt: string | null; createdAt: string; accountLast4: string | null; periodStart: string | null; periodEnd: string | null; feeInvoiceId: string | null };
 type Item = { orderNumber: string; title: string; quantity: number; grossPaise: number; commissionRateBps: number; commissionPaise: number; gstOnCommissionPaise: number; tcsPaise: number; tdsPaise: number; sellerDiscountPaise?: number; shippingFeePaise?: number; netPaise: number };
 type Data = { mode: "TEST" | "LIVE" | "NOT_SET_UP"; dailyLimitPaise: number; summary: { paid30dPaise: number; commission30dPaise: number; tcs30dPaise: number; tds30dPaise: number; inReturnWindowPaise: number; inReturnWindowItems: number; heldByReturnsPaise: number; needsAttention: number }; items: Payout[] };
 
@@ -58,7 +58,8 @@ export default function FinanceView() {
 
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
-      <PortalPageHeader eyebrow="Finance" title="Seller payouts" description="Sellers are paid automatically from LOIMART's current account 7 days after delivery. No commission in a seller's first 3 months, then 5% per order (+18% GST)." />
+      <PortalPageHeader eyebrow="Finance" title="Seller payouts" description="Sellers are paid automatically from LOIMART's current account for orders whose 7-day return window has closed, every 15 days (1st and 16th) or daily. Each payout comes with a settlement statement and LOIMART's fee invoice. No commission in a seller's first 3 months, then 5% per order (+18% GST)." />
+      <CycleSetting />
       {data?.mode === "TEST" ? <p className="mt-5 rounded-2xl border border-purple-200 bg-purple-50 p-4 text-sm text-purple-900"><b>Test mode:</b> payouts are calculated and marked as sent, but no money leaves the bank. Connect your bank&apos;s payout API to go live.</p> : null}
       {data?.mode === "NOT_SET_UP" ? <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><b>Bank connection not set up.</b> Payouts are calculated and wait here until LOIMART&apos;s bank payout API is connected.</p> : null}
 
@@ -101,6 +102,7 @@ export default function FinanceView() {
                         {p.status !== "PAID" && p.failureReason ? <span className="mt-1 block max-w-[240px] text-[11px] text-slate-600">{p.failureReason}</span> : null}
                         {p.attempts > 1 ? <span className="block text-[11px] text-slate-400">{p.attempts} attempts</span> : null}</td>
                       <td className="px-5 py-3 text-right">
+                        <span className="mb-1.5 flex justify-end gap-1.5"><a href={`/finance/statements/${p.id}`} className="rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-slate-300 hover:ring-slate-900">Statement</a>{p.feeInvoiceId ? <a href={`/finance/fee-invoices/${p.feeInvoiceId}`} className="rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-slate-300 hover:ring-slate-900">Fee invoice</a> : null}</span>
                         {p.status === "PENDING" && p.failureReason?.includes("approval") ? <button type="button" disabled={working === p.id} onClick={() => void act(p, "APPROVE")} className="rounded-full bg-green-600 px-3.5 py-1.5 text-xs font-bold text-white disabled:opacity-40">Approve &amp; send</button> : null}
                         {p.status === "FAILED" || p.status === "ON_HOLD" ? <button type="button" disabled={working === p.id} onClick={() => void act(p, p.status === "FAILED" && p.attempts >= 3 ? "APPROVE" : "RETRY")} className="rounded-full px-3.5 py-1.5 text-xs font-bold ring-1 ring-slate-300 hover:ring-slate-900 disabled:opacity-40">Retry now</button> : null}
                       </td>
@@ -124,5 +126,32 @@ export default function FinanceView() {
       </section>
       <p className="mt-3 text-xs text-slate-500">Safety: at most {data ? money(data.dailyLimitPaise) : "…"} is sent automatically per day; larger totals wait for approval here. Payouts go only to bank accounts you&apos;ve verified (Sellers &amp; KYC). Failed transfers retry daily up to 3 times with the same reference, so nobody is paid twice.</p>
     </main>
+  );
+}
+
+/** How often sellers are settled: every 15 days (1st and 16th) or daily. */
+function CycleSetting() {
+  const [cycle, setCycle] = useState<"FORTNIGHTLY" | "DAILY" | null>(null);
+  const [nextAt, setNextAt] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { void fetch("/api/v1/finance/settlement-cycle", { cache: "no-store" }).then((r) => r.json()).then((b) => { setCycle(b.cycle); setNextAt(b.nextAt); }).catch(() => undefined); }, []);
+  async function choose(next: "FORTNIGHTLY" | "DAILY") {
+    if (next === cycle) return;
+    if (!window.confirm(next === "DAILY" ? "Pay sellers every day instead of every 15 days?" : "Pay sellers every 15 days (1st and 16th) instead of daily?")) return;
+    setSaving(true);
+    const r = await fetch("/api/v1/finance/settlement-cycle", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cycle: next }) });
+    const b = await r.json().catch(() => null);
+    if (r.ok) { setCycle(b.cycle); setNextAt(b.nextAt); }
+    setSaving(false);
+  }
+  if (!cycle) return null;
+  const chip = (active: boolean) => "rounded-full px-3.5 py-1.5 text-xs font-semibold disabled:opacity-50 " + (active ? "bg-chrome text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:text-slate-900");
+  return (
+    <div className="mt-5 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-card">
+      <span className="font-semibold">Settlement cycle</span>
+      <button type="button" disabled={saving} onClick={() => void choose("FORTNIGHTLY")} className={chip(cycle === "FORTNIGHTLY")}>Every 15 days (1st &amp; 16th)</button>
+      <button type="button" disabled={saving} onClick={() => void choose("DAILY")} className={chip(cycle === "DAILY")}>Daily</button>
+      {nextAt ? <span className="text-xs text-slate-500">Next settlement: <b>{new Date(nextAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</b></span> : null}
+    </div>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateSettlement, commissionFreeUntil, payoutEligibleAt } from "./settlement";
+import { calculateSettlement, commissionFreeUntil, feeInvoiceNumber, nextSettlementDate, payoutEligibleAt, previousCycleStart, settlementCycleStart } from "./settlement";
 import { sellerBankAccountSchema } from "./validation";
 
 const approved = new Date("2026-01-15T10:00:00Z");
@@ -64,5 +64,23 @@ describe("referral bonus months", () => {
     expect(s.commissionFree).toBe(true);
     expect(s.commissionPaise).toBe(0);
     expect(s.gstOnCommissionPaise).toBe(0);
+  });
+});
+
+describe("15-day settlement cycles (India time)", () => {
+  it("cycles start on the 1st and the 16th", () => {
+    expect(settlementCycleStart(new Date("2026-10-22T06:00:00Z")).toISOString()).toBe("2026-10-15T18:30:00.000Z"); // 16 Oct 00:00 IST
+    expect(settlementCycleStart(new Date("2026-10-15T18:29:00Z")).toISOString()).toBe("2026-09-30T18:30:00.000Z"); // 15 Oct 23:59 IST → 1 Oct
+    expect(settlementCycleStart(new Date("2026-10-22T06:00:00Z"), "DAILY").toISOString()).toBe("2026-10-21T18:30:00.000Z");
+  });
+  it("finds the previous and next settlement day", () => {
+    const oct16 = new Date("2026-10-15T18:30:00Z");
+    expect(previousCycleStart(oct16).toISOString()).toBe("2026-09-30T18:30:00.000Z");
+    expect(previousCycleStart(new Date("2026-09-30T18:30:00Z")).toISOString()).toBe("2026-09-15T18:30:00.000Z");
+    expect(nextSettlementDate(new Date("2026-10-22T06:00:00Z")).toISOString()).toBe("2026-10-31T18:30:00.000Z"); // 1 Nov
+    expect(nextSettlementDate(new Date("2026-12-20T06:00:00Z")).toISOString()).toBe("2026-12-31T18:30:00.000Z"); // 1 Jan
+  });
+  it("numbers LOIMART's fee invoices", () => {
+    expect(feeInvoiceNumber("2026-27", 12)).toBe("LMS/2627/000012");
   });
 });
