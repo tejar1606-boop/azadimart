@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { StatCard } from "@azadimart/ui";
+import { toCsv } from "@azadimart/shared";
 
 type Bank = { accountHolderName: string; last4: string; ifsc: string; status: "PENDING" | "VERIFIED" | "REJECTED"; rejectionReason: string | null } | null;
 type Breakdown = { grossPaise: number; sellerDiscountPaise?: number; shippingFeePaise?: number; commissionRateBps: number; commissionPaise: number; gstOnCommissionPaise: number; tcsPaise: number; tdsPaise: number; netPaise: number };
@@ -14,6 +15,7 @@ type Data = {
   settlement: { cycle: "FORTNIGHTLY" | "DAILY"; nextAt: string };
   summary: { paid30dPaise: number; waitingPaise: number; upcomingPaise: number; heldByReturnsPaise: number; nextPayoutAt: string | null };
   upcoming: Upcoming[]; payouts: Payout[];
+  feeCreditNotes?: Array<{ id: string; number: string; issuedAt: string; totalPaise: number }>;
 };
 
 const money = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { minimumFractionDigits: p % 100 ? 2 : 0, maximumFractionDigits: 2 });
@@ -199,6 +201,16 @@ export default function PayoutsView() {
         )}
       </section>
 
+      {data.feeCreditNotes?.length ? (
+        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card">
+          <h2 className="font-semibold">Fee credit notes</h2>
+          <p className="text-xs text-slate-500">Commission (and its GST) LOIMART gave back on goods returned after you were paid. Reduce your input tax credit by this GST.</p>
+          <ul className="mt-3 flex flex-wrap gap-2">{data.feeCreditNotes.map((n) => <li key={n.id}><a href={`/payouts/fee-invoices/${n.id}`} className="inline-block rounded-full border border-slate-300 px-3 py-1 text-xs font-bold hover:border-slate-900">{n.number} · {money(n.totalPaise)} · {date(n.issuedAt)}</a></li>)}</ul>
+        </section>
+      ) : null}
+
+      <TaxDeducted />
+
       <section className="rounded-2xl border border-slate-200/80 bg-white p-5 text-sm shadow-card">
         <h2 className="font-semibold">How your payment is calculated</h2>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-slate-600">
@@ -209,5 +221,32 @@ export default function PayoutsView() {
         </ul>
       </section>
     </div>
+  );
+}
+
+/** TCS and TDS deducted from the seller's payouts each month, to claim in their GST return and ITR. */
+function TaxDeducted() {
+  const [months, setMonths] = useState<Array<{ month: string; netSalesPaise: number; tcsPaise: number; tdsPaise: number }> | null>(null);
+  useEffect(() => { void fetch("/api/v1/payouts/tax", { cache: "no-store" }).then((r) => r.json()).then((b) => setMonths(b.months ?? [])).catch(() => setMonths([])); }, []);
+  if (!months?.length) return null;
+  const label = (m: string) => new Date(m + "-01T00:00:00Z").toLocaleDateString("en-IN", { month: "short", year: "numeric", timeZone: "UTC" });
+  function download() {
+    const csv = toCsv([["Month", "Net sales settled (₹)", "TCS deducted (₹)", "TDS 194-O deducted (₹)"], ...months!.map((m) => [m.month, (m.netSalesPaise / 100).toFixed(2), (m.tcsPaise / 100).toFixed(2), (m.tdsPaise / 100).toFixed(2)])]);
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a"); a.href = url; a.download = "loimart-tcs-tds.csv"; a.click(); URL.revokeObjectURL(url);
+  }
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-card">
+      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 px-5 py-4">
+        <div><h2 className="font-semibold">Tax deducted (TCS &amp; TDS)</h2><p className="text-xs text-slate-500">TCS shows in your GST portal (claim it in your GST return, GSTR-2X); TDS shows in your Form 26AS (claim it in your ITR; LOIMART issues Form 16A every quarter).</p></div>
+        <button type="button" onClick={download} className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-bold hover:border-slate-900">Download CSV</button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[480px] text-sm">
+          <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-[0.08em] text-slate-500"><tr><th className="px-5 py-2.5 font-semibold">Month</th><th className="px-3 py-2.5 text-right font-semibold">Net sales settled</th><th className="px-3 py-2.5 text-right font-semibold">TCS</th><th className="px-5 py-2.5 text-right font-semibold">TDS</th></tr></thead>
+          <tbody className="divide-y divide-slate-100">{months.map((m) => <tr key={m.month}><td className="px-5 py-2.5">{label(m.month)}</td><td className="px-3 py-2.5 text-right">{money(m.netSalesPaise)}</td><td className="px-3 py-2.5 text-right">{money(m.tcsPaise)}</td><td className="px-5 py-2.5 text-right">{money(m.tdsPaise)}</td></tr>)}</tbody>
+        </table>
+      </div>
+    </section>
   );
 }

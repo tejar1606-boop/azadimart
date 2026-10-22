@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const q = new URL(request.url).searchParams.get("q")?.trim().slice(0, 80) ?? "";
     const like = `%${q.replace(/[%_\\]/g, "\\$&")}%`;
     const items = await createDatabase().select({
-      id: feeInvoices.id, number: feeInvoices.number, issuedAt: feeInvoices.issuedAt, isTest: feeInvoices.isTest, storeName: sellers.storeName, gstin: sellers.gstin,
+      id: feeInvoices.id, kind: feeInvoices.kind, number: feeInvoices.number, issuedAt: feeInvoices.issuedAt, isTest: feeInvoices.isTest, storeName: sellers.storeName, gstin: sellers.gstin,
       taxablePaise: feeInvoices.taxablePaise, cgstPaise: feeInvoices.cgstPaise, sgstPaise: feeInvoices.sgstPaise, igstPaise: feeInvoices.igstPaise, totalPaise: feeInvoices.totalPaise,
     }).from(feeInvoices).innerJoin(sellers, eq(sellers.id, feeInvoices.sellerId))
       .where(q ? or(ilike(feeInvoices.number, like), ilike(sellers.storeName, like), ilike(sellers.legalName, like)) : undefined)

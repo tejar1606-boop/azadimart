@@ -37,7 +37,7 @@ export type StatementView = {
   lines: Array<{ orderNumber: string; deliveredAt: string | null; title: string; quantity: number; grossPaise: number; sellerDiscountPaise: number; commissionRateBps: number; commissionPaise: number; gstOnCommissionPaise: number; shippingFeePaise: number; tcsPaise: number; tdsPaise: number; netPaise: number }>;
   charges: Array<{ description: string; amountPaise: number }>;
   feeInvoice: { id: string; number: string; totalPaise: number } | null;
-  totals: { grossPaise: number; sellerDiscountPaise: number; commissionPaise: number; gstOnCommissionPaise: number; shippingFeePaise: number; tcsPaise: number; tdsPaise: number; chargesPaise: number; netPaise: number };
+  totals: { grossPaise: number; sellerDiscountPaise: number; commissionPaise: number; gstOnCommissionPaise: number; shippingFeePaise: number; tcsPaise: number; tdsPaise: number; chargesPaise: number; adsPaise?: number; recoveriesPaise?: number; netPaise: number };
 };
 
 /** A seller's settlement statement: what was sold in the cycle, every deduction and what was paid. */
@@ -49,7 +49,8 @@ export function SettlementStatementDocument({ statement: s, feeInvoiceHref }: { 
     ["Commission", -t.commissionPaise, "LOIMART fee invoice"],
     ["GST on commission (18%)", -t.gstOnCommissionPaise, "claim as input tax credit"],
     ["LOIMART courier (not covered by your wallet)", -t.shippingFeePaise],
-    ["Advertising", -t.chargesPaise],
+    ["Advertising", -(t.adsPaise ?? t.chargesPaise)],
+    ["Returned after an earlier payment (see orders below)", -(t.recoveriesPaise ?? 0), "commission given back on a fee credit note"],
     ["TCS deducted (GST, 0.5%)", -t.tcsPaise, "claim in your GST return"],
     ["TDS deducted (Income tax 194-O, 0.1%)", -t.tdsPaise, "claim in your ITR"],
   ];
@@ -115,12 +116,14 @@ export function SettlementStatementDocument({ statement: s, feeInvoiceHref }: { 
 }
 
 export type FeeInvoiceView = {
+  kind?: "INVOICE" | "CREDIT_NOTE";
   number: string; issuedAt: string; isTest: boolean;
   details: {
     company: { legalName: string; tradeName: string; gstin: string | null; pan: string | null; address: string; state: string; stateCode: string | null };
     seller: { legalName: string; storeName: string; gstin: string | null; address: string; state: string; stateCode: string | null };
     periodStart: string | null; periodEnd: string | null; payoutReference: string | null; interState: boolean;
     lines: Array<{ description: string; sac: string; taxablePaise: number; rateBps: number; cgstPaise: number; sgstPaise: number; igstPaise: number; totalPaise: number }>;
+    original?: { number: string; issuedAt: string }; reason?: string;
   };
 };
 
@@ -129,7 +132,7 @@ export function FeeInvoiceDocument({ invoice }: { invoice: FeeInvoiceView }) {
   const d = invoice.details;
   const sum = (k: "taxablePaise" | "cgstPaise" | "sgstPaise" | "igstPaise" | "totalPaise") => d.lines.reduce((n, l) => n + l[k], 0);
   return (
-    <Shell title="Tax invoice" subtitle={`LOIMART fee invoice ${invoice.number}`} isTest={invoice.isTest}>
+    <Shell title={invoice.kind === "CREDIT_NOTE" ? "Credit note" : "Tax invoice"} subtitle={`LOIMART fee ${invoice.kind === "CREDIT_NOTE" ? "credit note" : "invoice"} ${invoice.number}`} isTest={invoice.isTest}>
       {invoice.isTest ? <p className="mt-2 text-[11px] font-bold text-red-600">TEST document, not a valid tax invoice.</p> : null}
       <section className="grid gap-4 border-b border-slate-200 py-4 sm:grid-cols-2">
         <div>
@@ -148,7 +151,9 @@ export function FeeInvoiceDocument({ invoice }: { invoice: FeeInvoiceView }) {
         </div>
       </section>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 py-3">
-        <dt className="text-slate-500">Invoice no.</dt><dd className="font-mono font-bold">{invoice.number}</dd>
+        <dt className="text-slate-500">{invoice.kind === "CREDIT_NOTE" ? "Credit note no." : "Invoice no."}</dt><dd className="font-mono font-bold">{invoice.number}</dd>
+        {d.original ? <><dt className="text-slate-500">Against invoice</dt><dd className="font-mono">{d.original.number} ({day(d.original.issuedAt)})</dd></> : null}
+        {d.reason ? <><dt className="text-slate-500">Reason</dt><dd>{d.reason}</dd></> : null}
         <dt className="text-slate-500">Date</dt><dd>{day(invoice.issuedAt)}</dd>
         {d.periodStart ? <><dt className="text-slate-500">Service period</dt><dd>{day(d.periodStart)} – {lastDay(d.periodEnd)}</dd></> : null}
         {d.payoutReference ? <><dt className="text-slate-500">Settlement</dt><dd className="font-mono">{d.payoutReference}</dd></> : null}
@@ -165,7 +170,7 @@ export function FeeInvoiceDocument({ invoice }: { invoice: FeeInvoiceView }) {
         </table>
       </div>
       <p className="mt-3"><span className="text-slate-500">Amount in words:</span> <b>{rupeesInWords(sum("totalPaise"))}</b></p>
-      <p className="mt-1 text-slate-500">Already deducted from your settlement{d.payoutReference ? ` ${d.payoutReference}` : ""} (courier fees partly from your courier wallet). Tax payable on reverse charge: No. GST-registered sellers can claim this GST as input tax credit.</p>
+      <p className="mt-1 text-slate-500">{invoice.kind === "CREDIT_NOTE" ? "This commission and its GST are given back to you (netted in the amount recovered for the returned goods). Reduce your input tax credit by this GST." : <>Already deducted from your settlement{d.payoutReference ? ` ${d.payoutReference}` : ""} (courier fees partly from your courier wallet). Tax payable on reverse charge: No. GST-registered sellers can claim this GST as input tax credit.</>}</p>
       <footer className="mt-6 grid gap-4 border-t border-slate-200 pt-4 text-[10px] text-slate-500 sm:grid-cols-[1fr_auto]">
         <p>Computer-generated invoice; no signature required.</p>
         <p className="text-right font-semibold text-slate-700">For {d.company.legalName}<span className="mt-6 block font-normal text-slate-500">Authorised signatory</span></p>

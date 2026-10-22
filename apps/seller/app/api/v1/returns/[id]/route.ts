@@ -5,6 +5,7 @@ import {
   inventory,
   inventoryMovements,
   issueReturnCreditNote,
+  recordReturnAfterSettlement,
   orderItems,
   orders,
   returnItems,
@@ -125,7 +126,12 @@ export async function POST(
 
       let orderStatus: string | null = null;
       // Received back: a credit note reverses the returned pieces on the seller's invoice.
-      if (nextStatus === "RECEIVED") await issueReturnCreditNote(tx, current.id, principal.userId);
+      if (nextStatus === "RECEIVED") {
+        await issueReturnCreditNote(tx, current.id, principal.userId);
+        // Pieces the seller was already paid for: recovered from the next payout, commission given back on a fee credit note.
+        const returned = await tx.select({ orderItemId: returnItems.orderItemId, quantity: returnItems.quantity }).from(returnItems).where(eq(returnItems.returnId, current.id));
+        await recordReturnAfterSettlement(tx, { sellerId: current.sellerId, sourceKey: `RETURN:${current.id}`, quantities: new Map(returned.map((r) => [r.orderItemId, r.quantity])), actorUserId: principal.userId });
+      }
       if (nextStatus === "RECEIVED") {
         const allItems = await tx.select({ id: orderItems.id, quantity: orderItems.quantity })
           .from(orderItems).where(eq(orderItems.orderId, current.orderId));

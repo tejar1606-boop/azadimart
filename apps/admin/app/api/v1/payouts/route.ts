@@ -1,7 +1,7 @@
 import { requireStaff } from "@azadimart/auth";
 import { createDatabase, payoutItems, payouts, sellerBankAccounts, sellers, unpaidSettlementLines, feeInvoices } from "@azadimart/database";
 import { toApiError } from "@azadimart/shared";
-import { desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { dailyLimitPaise, payoutRail } from "../../../lib/payouts";
 
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
         mode: payouts.mode, utr: payouts.utr, attempts: payouts.attempts, failureReason: payouts.failureReason,
         initiatedAt: payouts.initiatedAt, paidAt: payouts.paidAt, createdAt: payouts.createdAt, accountLast4: sellerBankAccounts.accountNumberLast4,
         periodStart: payouts.periodStart, periodEnd: payouts.periodEnd, feeInvoiceId: feeInvoices.id,
-      }).from(payouts).innerJoin(sellers, eq(sellers.id, payouts.sellerId)).leftJoin(sellerBankAccounts, eq(sellerBankAccounts.id, payouts.bankAccountId)).leftJoin(feeInvoices, eq(feeInvoices.payoutId, payouts.id))
+      }).from(payouts).innerJoin(sellers, eq(sellers.id, payouts.sellerId)).leftJoin(sellerBankAccounts, eq(sellerBankAccounts.id, payouts.bankAccountId)).leftJoin(feeInvoices, and(eq(feeInvoices.payoutId, payouts.id), eq(feeInvoices.kind, "INVOICE")))
         .orderBy(desc(payouts.createdAt)).limit(200),
       unpaidSettlementLines(db),
       db.select({

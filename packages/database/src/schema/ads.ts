@@ -77,7 +77,8 @@ export const adBids = pgTable("ad_bids", {
 export const sellerCharges = pgTable("seller_charges", {
   id,
   sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "cascade" }),
-  kind: text("kind").$type<"AD">().notNull(),
+  /** AD = ad charge (base + 18% GST); RETURN_RECOVERY = money back for goods returned after the seller was paid (referenceId = the adjustment). */
+  kind: text("kind").$type<"AD" | "RETURN_RECOVERY">().notNull(),
   referenceId: uuid("reference_id").notNull(),
   description: text("description").notNull(),
   // amount = base + GST (18% on LOIMART's ad fee).

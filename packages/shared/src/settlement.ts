@@ -107,6 +107,6 @@ export function nextSettlementDate(now: Date, cycle: SettlementCycle = DEFAULT_S
 }
 
 /** LOIMART's fee invoices to sellers: one series per financial year, e.g. "LMS/2627/000001". */
-export const feeInvoiceNumber = (financialYear: string, sequence: number) => `LMS/${financialYear.replace("-", "").slice(2)}/${String(sequence).padStart(6, "0")}`;
+export const feeInvoiceNumber = (financialYear: string, sequence: number, kind: "INVOICE" | "CREDIT_NOTE" = "INVOICE") => `${kind === "CREDIT_NOTE" ? "LMC" : "LMS"}/${financialYear.replace("-", "").slice(2)}/${String(sequence).padStart(6, "0")}`;
 /** SAC codes for LOIMART's services (confirm with the CA). */
 export const FEE_SAC = { COMMISSION: "998599", COURIER: "996812", ADS: "998365" } as const;

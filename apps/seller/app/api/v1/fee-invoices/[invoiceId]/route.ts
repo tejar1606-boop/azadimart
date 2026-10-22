@@ -12,7 +12,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ invo
     if (!principal.sellerId) throw new AppError("FORBIDDEN", "Seller profile is required");
     const { invoiceId } = await params;
     if (!uuidSchema.safeParse(invoiceId).success) throw new AppError("NOT_FOUND", "Invoice not found");
-    const row = (await createDatabase().select({ number: feeInvoices.number, issuedAt: feeInvoices.issuedAt, isTest: feeInvoices.isTest, details: feeInvoices.details })
+    const row = (await createDatabase().select({ kind: feeInvoices.kind, number: feeInvoices.number, issuedAt: feeInvoices.issuedAt, isTest: feeInvoices.isTest, details: feeInvoices.details })
       .from(feeInvoices).where(and(eq(feeInvoices.id, invoiceId), eq(feeInvoices.sellerId, principal.sellerId))).limit(1))[0];
     if (!row) throw new AppError("NOT_FOUND", "Invoice not found");
     return NextResponse.json({ invoice: row });

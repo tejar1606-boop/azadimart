@@ -19,7 +19,7 @@ export async function GET(request: Request) {
       db.select({ accountHolderName: sellerBankAccounts.accountHolderName, last4: sellerBankAccounts.accountNumberLast4, ifsc: sellerBankAccounts.ifsc, status: sellerBankAccounts.verificationStatus, rejectionReason: sellerBankAccounts.rejectionReason })
         .from(sellerBankAccounts).where(and(eq(sellerBankAccounts.sellerId, sellerId), eq(sellerBankAccounts.isPrimary, true))).limit(1).then((r) => r[0] ?? null),
       db.select({ id: payouts.id, status: payouts.status, amountPaise: payouts.amountPaise, grossPaise: payouts.grossPaise, deductionsPaise: payouts.deductionsPaise, itemCount: payouts.itemCount, utr: payouts.utr, mode: payouts.mode, failureReason: payouts.failureReason, paidAt: payouts.paidAt, createdAt: payouts.createdAt, periodStart: payouts.periodStart, periodEnd: payouts.periodEnd, feeInvoiceId: feeInvoices.id, feeInvoiceNumber: feeInvoices.number })
-        .from(payouts).leftJoin(feeInvoices, eq(feeInvoices.payoutId, payouts.id)).where(eq(payouts.sellerId, sellerId)).orderBy(desc(payouts.createdAt)).limit(100),
+        .from(payouts).leftJoin(feeInvoices, and(eq(feeInvoices.payoutId, payouts.id), eq(feeInvoices.kind, "INVOICE"))).where(eq(payouts.sellerId, sellerId)).orderBy(desc(payouts.createdAt)).limit(100),
       unpaidSettlementLines(db, { sellerId }),
     ]);
     const cycle = (await getPlatformSetting<SettlementCycle>(db, SETTLEMENT_CYCLE_KEY)) ?? DEFAULT_SETTLEMENT_CYCLE;
@@ -42,6 +42,9 @@ export async function GET(request: Request) {
       },
       upcoming: lines.map((l) => ({ orderNumber: l.orderNumber, title: l.title, quantity: l.quantity, deliveredAt: l.deliveredAt, eligibleAt: l.eligibleAt, openReturn: l.openReturn, ...l.breakdown })),
       payouts: sent,
+      // Fee credit notes: commission given back on goods returned after a settlement.
+      feeCreditNotes: await db.select({ id: feeInvoices.id, number: feeInvoices.number, issuedAt: feeInvoices.issuedAt, totalPaise: feeInvoices.totalPaise }).from(feeInvoices)
+        .where(and(eq(feeInvoices.sellerId, sellerId), eq(feeInvoices.kind, "CREDIT_NOTE"))).orderBy(desc(feeInvoices.issuedAt)).limit(50),
     });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);

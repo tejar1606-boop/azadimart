@@ -41,7 +41,9 @@ const [me] = await sql`select s.id, s.approved_at, s.payout_hold_reason, s.tax_i
 const [product] = await sql`select v.id variant_id from product_variants v join products p on p.id = v.product_id join inventory i on i.variant_id = v.id where p.seller_id = ${me.id} and p.status = 'LIVE' and v.is_active and i.on_hand - i.reserved > 8 order by p.created_at limit 1`;
 if (!product) throw new Error("Need a stocked live product from the demo seller.");
 const pct = (paise, bps) => Math.round((paise * bps) / 10000);
-const expectedNet = (gross, commissionBps) => { const c = pct(gross, commissionBps); return gross - c - pct(c, 1800) - (me.tax_identity_type === "GSTIN" ? pct(gross, 50) : 0) - pct(gross, 10); };
+// TCS is on the value before GST (the GST rate saved on the test order's line).
+const lineGst = async () => (await sql`select oi.gst_rate_bps from order_items oi where oi.variant_id = ${product.variant_id} and oi.gst_rate_bps is not null order by oi.created_at desc limit 1`)[0]?.gst_rate_bps ?? 1800;
+const expectedNet = async (gross, commissionBps) => { const c = pct(gross, commissionBps); const rate = await lineGst(); return gross - c - pct(c, 1800) - (me.tax_identity_type === "GSTIN" ? pct(Math.round(gross * 10000 / (10000 + rate)), 50) : 0) - pct(gross, 10); };
 // These checks pay the same seller several times in a row: run in daily mode (15-day cycles: see e2e:settlements).
 const [cycleBefore] = await sql`select value from platform_settings where key = 'settlement_cycle'`;
 await sql`insert into platform_settings (key, value) values ('settlement_cycle', '"DAILY"'::jsonb) on conflict (key) do update set value = excluded.value`;
@@ -95,7 +97,7 @@ let mine = (await seller("/api/v1/payouts")).json;
 const up1 = mine?.upcoming?.find((u) => u.orderNumber === o1.order_number);
 const gross1 = o1.unit * 2;
 check("seller sees it as upcoming, payable 7 days after delivery", up1 && Math.abs(new Date(up1.eligibleAt) - new Date(o1.delivered_at) - 7 * 864e5) < 1000, JSON.stringify(up1 && { eligibleAt: up1.eligibleAt }));
-check("commission-free in the first 3 months", mine?.commission?.isFreeNow === true && up1?.commissionPaise === 0 && up1.netPaise === expectedNet(gross1, 0), JSON.stringify(up1 && { c: up1.commissionPaise, net: up1.netPaise, want: expectedNet(gross1, 0) }));
+check("commission-free in the first 3 months", mine?.commission?.isFreeNow === true && up1?.commissionPaise === 0 && up1.netPaise === (await expectedNet(gross1, 0)), JSON.stringify(up1 && { c: up1.commissionPaise, net: up1.netPaise, want: (await expectedNet(gross1, 0)) }));
 await run();
 check("not paid before 7 days", !(await payoutFor(o1.id)));
 
@@ -105,7 +107,7 @@ r = await run();
 let p1 = await payoutFor(o1.id);
 // Ad charges the seller owes (e.g. a real booking) are taken out of the same payout.
 const adCharges = p1 ? Number((await sql`select coalesce(sum(amount_paise), 0)::int n from seller_charges where payout_id = ${p1.id}`)[0].n) : 0;
-check("payout created after 7 days", r.status === 200 && p1 && p1.amount_paise === expectedNet(gross1, 0) - adCharges, r.status + " " + JSON.stringify(p1 && { amount: p1.amount_paise, adCharges }));
+check("payout created after 7 days", r.status === 200 && p1 && p1.amount_paise === (await expectedNet(gross1, 0)) - adCharges, r.status + " " + JSON.stringify(p1 && { amount: p1.amount_paise, adCharges }));
 check("held while the bank account is being verified", p1?.status === "ON_HOLD" && /being verified/.test(p1.failure_reason ?? ""), JSON.stringify(p1 && { s: p1.status, why: p1.failure_reason }));
 check("seller alerted that the payment is on hold", (await alerts("PAYOUT_ON_HOLD")).length >= 1);
 
@@ -136,7 +138,7 @@ await run();
 const p2 = await payoutFor(o2.id);
 const [i2] = await itemsFor(o2.id);
 check("after the return: paid for the 1 unit kept", p2?.status === "PAID" && i2.quantity === 1 && i2.gross_amount_paise === o2.unit, JSON.stringify(i2 && { q: i2.quantity, g: i2.gross_amount_paise }));
-check("5% commission + 18% GST, TCS 0.5%, TDS 0.1%", i2.commission_rate_bps === 500 && i2.commission_paise === pct(o2.unit, 500) && i2.gst_on_commission_paise === pct(pct(o2.unit, 500), 1800) && i2.tds_paise === pct(o2.unit, 10) && i2.net_amount_paise === expectedNet(o2.unit, 500), JSON.stringify(i2));
+check("5% commission + 18% GST, TCS 0.5%, TDS 0.1%", i2.commission_rate_bps === 500 && i2.commission_paise === pct(o2.unit, 500) && i2.gst_on_commission_paise === pct(pct(o2.unit, 500), 1800) && i2.tds_paise === pct(o2.unit, 10) && i2.net_amount_paise === (await expectedNet(o2.unit, 500)), JSON.stringify(i2));
 
 // --- admin hold
 r = await admin(`/api/v1/sellers/${me.id}/payout-hold`, { method: "POST", body: { hold: true } });

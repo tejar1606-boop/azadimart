@@ -128,6 +128,37 @@ check("Admin finds it under fee invoices", r.json?.items?.some((x) => x.id === f
 r = await admin("/api/v1/payouts");
 check("Admin's payout list links the fee invoice", r.json?.items?.find((p) => p.id === pa?.id)?.feeInvoiceId === fee?.id);
 
+// --- goods sent back after the seller was paid: recovery + fee credit note
+r = await admin(`/api/v1/shipments/${a.shipmentId}`, { method: "PATCH", body: { status: "RETURNED" } });
+const [adj] = await sql`select * from settlement_adjustments where source_key = ${"RTO:" + a.shipmentId}`;
+const [paidItem] = await sql`select pi.* from payout_items pi join order_items oi on oi.id = pi.order_item_id where oi.order_id = ${a.orderId}`;
+check("a parcel sent back after settlement is recorded", r.status === 200 && adj?.quantity === paidItem.quantity, String(r.status));
+const expectRecovery = paidItem.gross_amount_paise - paidItem.seller_discount_paise - paidItem.commission_paise - paidItem.gst_on_commission_paise - paidItem.tcs_paise;
+check("the seller gives back the sale less commission, its GST and TCS (TDS and courier stay)", adj?.recovery_paise === expectRecovery, `${adj?.recovery_paise} vs ${expectRecovery}`);
+const [charge] = await sql`select * from seller_charges where kind = 'RETURN_RECOVERY' and reference_id = ${adj?.id}`;
+check("…taken from the next payout", charge?.status === "PENDING" && charge.amount_paise === expectRecovery);
+const [cn] = await sql`select * from fee_invoices where kind = 'CREDIT_NOTE' and source_key = ${"RTO:" + a.shipmentId + ":" + me.id}`;
+if (items.c > 0) {
+  check("a fee credit note gives back the commission + GST (LMC/…)", /^LMC\/\d{4}\/\d{6}$/.test(cn?.number ?? "") && cn.total_paise === paidItem.commission_paise + paidItem.gst_on_commission_paise && cn.original_fee_invoice_id === fee?.id, cn?.number);
+  r = await seller("/api/v1/payouts");
+  check("the seller sees the fee credit note", r.json?.feeCreditNotes?.some((n) => n.id === cn?.id) && (await seller(`/api/v1/fee-invoices/${cn?.id}`)).json?.invoice?.kind === "CREDIT_NOTE");
+} else check("no commission charged, so no fee credit note", !cn);
+await admin(`/api/v1/shipments/${a.shipmentId}`, { method: "PATCH", body: { status: "RETURNED" } });
+check("recorded once", (await sql`select count(*)::int n from settlement_adjustments where source_key = ${"RTO:" + a.shipmentId}`)[0].n === 1);
+
+// --- monthly TCS / TDS
+const month = new Date(Date.now() + IST).toISOString().slice(0, 7);
+r = await admin(`/api/v1/finance/tax-report?month=${month}`);
+const mine = r.json?.rows?.find((x) => x.sellerId === me.id);
+check("TCS & TDS report shows the seller's supplies, returns and tax this month", r.status === 200 && mine && mine.suppliesPaise >= paidItem.gross_amount_paise && mine.returnsPaise >= adj.sold_paise && mine.tcsIgstPaise + mine.tcsCgstPaise + mine.tcsSgstPaise === mine.tcsPaise, JSON.stringify(mine && { s: mine.suppliesPaise, r: mine.returnsPaise, tcs: mine.tcsPaise }));
+check("TCS is on the value before GST", paidItem.tcs_paise === Math.round(Math.round((paidItem.gross_amount_paise - paidItem.seller_discount_paise) * 10000 / (10000 + (await sql`select gst_rate_bps from order_items where order_id = ${a.orderId}`)[0].gst_rate_bps)) * 50 / 10000), String(paidItem.tcs_paise));
+check("a bad month is refused", (await admin("/api/v1/finance/tax-report?month=2026-13")).status === 400);
+r = await seller("/api/v1/payouts/tax");
+check("the seller sees TCS and TDS deducted by month", r.json?.months?.some((m) => m.month === month && m.tdsPaise > 0));
+check("sellers can't open LOIMART's tax report", [401, 403].includes((await seller(`${AD}/api/v1/finance/tax-report?month=${month}`)).status));
+// Test recoveries mustn't come off the demo seller's later payouts.
+await sql`update seller_charges set status = 'WAIVED' where kind = 'RETURN_RECOVERY' and seller_id = ${me.id} and status = 'PENDING'`;
+
 await tidy();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

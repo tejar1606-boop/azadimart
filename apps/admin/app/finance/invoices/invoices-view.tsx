@@ -62,7 +62,7 @@ export default function InvoicesView() {
   );
 }
 
-type FeeRow = { id: string; number: string; issuedAt: string; isTest: boolean; storeName: string; gstin: string | null; taxablePaise: number; cgstPaise: number; sgstPaise: number; igstPaise: number; totalPaise: number };
+type FeeRow = { id: string; kind: "INVOICE" | "CREDIT_NOTE"; number: string; issuedAt: string; isTest: boolean; storeName: string; gstin: string | null; taxablePaise: number; cgstPaise: number; sgstPaise: number; igstPaise: number; totalPaise: number };
 
 /** LOIMART's own invoices to sellers for commission, courier and ads (one per settlement). */
 function FeeInvoices() {
@@ -72,7 +72,7 @@ function FeeInvoices() {
     const t = setTimeout(() => { void fetch(`/api/v1/finance/fee-invoices?q=${encodeURIComponent(q)}`, { cache: "no-store" }).then((r) => r.json()).then((b) => setRows(b.items ?? [])).catch(() => setRows([])); }, 250);
     return () => clearTimeout(t);
   }, [q]);
-  const total = (k: "taxablePaise" | "totalPaise") => (rows ?? []).reduce((n, r) => n + r[k], 0);
+  const total = (k: "taxablePaise" | "totalPaise") => (rows ?? []).reduce((n, r) => n + (r.kind === "CREDIT_NOTE" ? -r[k] : r[k]), 0);
   return (
     <>
       <p className="mt-4 text-sm text-slate-600">Issued automatically with every settlement: LOIMART&apos;s commission (+18% GST), courier fees and ads. These are LOIMART&apos;s own sales, so report them in LOIMART&apos;s GSTR-1 (B2B for sellers with a GSTIN).</p>
@@ -85,12 +85,12 @@ function FeeInvoices() {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id} className="border-t border-slate-100">
-                    <td className="px-4 py-2.5"><Link href={`/finance/fee-invoices/${r.id}`} className="font-mono font-semibold hover:underline">{r.number}</Link>{r.isTest ? <span className="block text-xs text-ink-muted">TEST</span> : null}</td>
+                    <td className="px-4 py-2.5"><Link href={`/finance/fee-invoices/${r.id}`} className="font-mono font-semibold hover:underline">{r.number}</Link><span className="block text-xs text-ink-muted">{r.kind === "CREDIT_NOTE" ? "Credit note" : "Invoice"}{r.isTest ? " · TEST" : ""}</span></td>
                     <td className="pr-3 text-xs text-ink-muted">{new Date(r.issuedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
                     <td className="pr-3">{r.storeName}<span className="block font-mono text-xs text-ink-muted">{r.gstin ?? "Unregistered"}</span></td>
                     <td className="pr-3 text-right">{rupees(r.taxablePaise)}</td>
                     <td className="pr-3 text-right">{rupees(r.cgstPaise + r.sgstPaise + r.igstPaise)}</td>
-                    <td className="pr-4 text-right font-semibold">{rupees(r.totalPaise)}</td>
+                    <td className={"pr-4 text-right font-semibold " + (r.kind === "CREDIT_NOTE" ? "text-red-700" : "")}>{r.kind === "CREDIT_NOTE" ? "−" : ""}{rupees(r.totalPaise)}</td>
                   </tr>
                 ))}
                 <tr className="border-t-2 border-slate-200 font-semibold"><td className="px-4 py-2.5" colSpan={3}>Total shown</td><td className="pr-3 text-right">{rupees(total("taxablePaise"))}</td><td className="pr-3 text-right">{rupees(total("totalPaise") - total("taxablePaise"))}</td><td className="pr-4 text-right">{rupees(total("totalPaise"))}</td></tr>

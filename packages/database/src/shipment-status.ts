@@ -5,6 +5,7 @@ import { auditLogs, inventory, inventoryMovements, orderItems, orders, payments,
 import { refundCourierToWallet } from "./seller-wallet";
 import { rewardReferralOnFirstDelivery } from "./seller-referrals";
 import { issueCreditNote, issueSellerInvoice } from "./invoices";
+import { recordReturnAfterSettlement } from "./fee-invoices";
 
 type Executor = Pick<Database, "select" | "update">;
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -111,6 +112,11 @@ export async function advanceShipmentStatus(tx: Tx, input: { shipmentId: string;
   if (["PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED"].includes(input.status)) await issueSellerInvoice(tx, { orderId: shipment.orderId, sellerId: shipment.sellerId, actorUserId: input.actorUserId });
   // A parcel that comes back reverses its invoice.
   if (input.status === "RETURNED") await issueCreditNote(tx, { orderId: shipment.orderId, sellerId: shipment.sellerId, sourceKey: `RTO:${shipment.id}`, reason: shipment.status === "DELIVERED" ? "Goods returned" : "Parcel not delivered (returned to seller)", actorUserId: input.actorUserId });
+  // Sent back after delivery and after the seller was already paid: recover that money and give back the commission.
+  if (input.status === "RETURNED" && shipment.status === "DELIVERED") {
+    const lines = await tx.select({ id: orderItems.id, quantity: orderItems.quantity }).from(orderItems).where(and(eq(orderItems.orderId, shipment.orderId), eq(orderItems.sellerId, shipment.sellerId)));
+    await recordReturnAfterSettlement(tx, { sellerId: shipment.sellerId, sourceKey: `RTO:${shipment.id}`, quantities: new Map(lines.map((l) => [l.id, l.quantity])), actorUserId: input.actorUserId });
+  }
   await tx.insert(shipmentEvents).values({ shipmentId: shipment.id, status: input.status as typeof shipments.$inferSelect.status, description: input.notes ?? "Shipment status updated" });
   await syncOrderFulfillmentStatus(tx, shipment.orderId);
   await tx.insert(auditLogs).values({

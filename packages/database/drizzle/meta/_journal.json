@@ -337,6 +337,13 @@
       "when": 1792649927963,
       "tag": "20261022061847_fee_invoices",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1792651329098,
+      "tag": "20261022064209_settlement_adjustments",
+      "breakpoints": true
     }
   ]
 }

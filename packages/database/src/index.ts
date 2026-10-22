@@ -20,3 +20,4 @@ export * from "./seller-referrals";
 export * from "./price-history";
 export * from "./invoices";
 export * from "./fee-invoices";
+export * from "./tax-reports";

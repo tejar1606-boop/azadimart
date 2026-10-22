@@ -16,7 +16,7 @@ export default async function AdminFeeInvoicePage({ params }: { params: Promise<
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
       <Link href="/finance/invoices?tab=fees" className="invoice-noprint text-sm font-semibold text-slate-500 hover:text-slate-900">← Invoices</Link>
-      <div className="mt-4"><FeeInvoiceDocument invoice={{ number: row.number, issuedAt: row.issuedAt.toISOString(), isTest: row.isTest, details: row.details }} /></div>
+      <div className="mt-4"><FeeInvoiceDocument invoice={{ kind: row.kind, number: row.number, issuedAt: row.issuedAt.toISOString(), isTest: row.isTest, details: row.details }} /></div>
     </main>
   );
 }

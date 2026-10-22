@@ -29,7 +29,7 @@ export async function GET(request: Request) {
       db.select({ id: sellerCharges.id, description: sellerCharges.description, basePaise: sellerCharges.basePaise, gstPaise: sellerCharges.gstPaise, amountPaise: sellerCharges.amountPaise, status: sellerCharges.status, createdAt: sellerCharges.createdAt,
         day: adBids.day, slotName: adSlots.name, impressions: adBids.impressions, clicks: adBids.clicks, paidAt: payouts.paidAt })
         .from(sellerCharges).leftJoin(adBids, eq(adBids.id, sellerCharges.referenceId)).leftJoin(adSlots, eq(adSlots.id, adBids.slotId)).leftJoin(payouts, eq(payouts.id, sellerCharges.payoutId))
-        .where(eq(sellerCharges.sellerId, sellerId)).orderBy(desc(sellerCharges.createdAt)).limit(100),
+        .where(and(eq(sellerCharges.sellerId, sellerId), eq(sellerCharges.kind, "AD"))).orderBy(desc(sellerCharges.createdAt)).limit(100),
       adBudget(db, sellerId),
     ]);
     // A seller may have bid several times on a day; show their best/latest state per day.

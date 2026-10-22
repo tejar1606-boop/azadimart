@@ -63,6 +63,7 @@ export default function AdminChrome({ counts, children }: { counts: AdminCounts 
       { href: "/finance", label: "Finance", icon: "finance" },
       { href: "/finance/wallets", label: "Seller wallets", icon: "payments", badge: badge(counts.walletTopUps) },
       { href: "/finance/invoices", label: "Invoices", icon: "finance" },
+      { href: "/finance/tax", label: "TCS & TDS", icon: "finance" },
       { href: "/security", label: "Security & audit", icon: "security" },
     ] },
     { title: "Support", items: supportItems },

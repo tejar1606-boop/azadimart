@@ -206,6 +206,9 @@ export type FeeInvoiceDetails = {
   payoutReference: string | null;
   interState: boolean;
   lines: Array<{ description: string; sac: string; taxablePaise: number; rateBps: number; cgstPaise: number; sgstPaise: number; igstPaise: number; totalPaise: number }>;
+  /** Credit notes: the fee invoice they reduce and why. */
+  original?: { number: string; issuedAt: string };
+  reason?: string;
 };
 
 /**
@@ -217,11 +220,16 @@ export const feeInvoices = pgTable(
   "fee_invoices",
   {
     id,
+    /** INVOICE = fees for a settlement; CREDIT_NOTE = fees given back (goods returned after settlement), own "LMC/" series. */
+    kind: text("kind").$type<"INVOICE" | "CREDIT_NOTE">().notNull().default("INVOICE"),
+    originalFeeInvoiceId: uuid("original_fee_invoice_id"),
+    /** What caused a credit note, so it is issued once. */
+    sourceKey: text("source_key"),
     number: text("number").notNull(),
     financialYear: text("financial_year").notNull(),
     sequence: integer("sequence").notNull(),
     sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "restrict" }),
-    payoutId: uuid("payout_id").notNull().references(() => payouts.id, { onDelete: "restrict" }),
+    payoutId: uuid("payout_id").references(() => payouts.id, { onDelete: "restrict" }),
     issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
     taxablePaise: integer("taxable_paise").notNull(),
     cgstPaise: integer("cgst_paise").notNull().default(0),
@@ -235,6 +243,36 @@ export const feeInvoices = pgTable(
   (table) => [
     uniqueIndex("fee_invoices_number_unique").on(table.number),
     uniqueIndex("fee_invoices_payout_unique").on(table.payoutId),
+    uniqueIndex("fee_invoices_source_key_unique").on(table.sourceKey),
     index("fee_invoices_seller_id_idx").on(table.sellerId),
+  ],
+);
+
+/**
+ * Goods returned AFTER the seller was paid for them: the seller gives back
+ * what they were paid for those pieces (sale price less the commission, its
+ * GST and the TCS, which LOIMART reverses), taken from the next payout; a fee
+ * credit note gives back the commission. TDS and the courier fee stay.
+ */
+export const settlementAdjustments = pgTable(
+  "settlement_adjustments",
+  {
+    id,
+    sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "restrict" }),
+    orderItemId: uuid("order_item_id").notNull().references(() => orderItems.id, { onDelete: "restrict" }),
+    payoutId: uuid("payout_id").notNull().references(() => payouts.id, { onDelete: "restrict" }),
+    sourceKey: text("source_key").notNull(),
+    quantity: integer("quantity").notNull(),
+    soldPaise: integer("sold_paise").notNull(),
+    commissionPaise: integer("commission_paise").notNull().default(0),
+    gstOnCommissionPaise: integer("gst_on_commission_paise").notNull().default(0),
+    tcsPaise: integer("tcs_paise").notNull().default(0),
+    recoveryPaise: integer("recovery_paise").notNull(),
+    feeCreditNoteId: uuid("fee_credit_note_id"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("settlement_adjustments_source_item_unique").on(table.sourceKey, table.orderItemId),
+    index("settlement_adjustments_seller_idx").on(table.sellerId),
   ],
 );
