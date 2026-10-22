@@ -62,7 +62,8 @@ function secret(): string {
   return devSecret;
 }
 
-type TokenClaims = { key: string; userId: string; purpose: UploadPurpose; contentType: string; exp: number };
+/** `byteSize`: the size the browser announced; what arrives must match it exactly (older tokens may lack it). */
+type TokenClaims = { key: string; userId: string; purpose: UploadPurpose; contentType: string; exp: number; byteSize?: number };
 
 function sign(claims: TokenClaims): string {
   const payload = Buffer.from(JSON.stringify(claims)).toString("base64url");
@@ -94,7 +95,7 @@ export async function createUpload(
   if (input.byteSize > rule.maxBytes) throw new UploadError(`File is larger than ${Math.round(rule.maxBytes / MB).toLocaleString("en-IN")} MB`, 413);
 
   const key = `${input.keyPrefix}/${crypto.randomUUID()}.${EXTENSIONS[input.contentType]}`;
-  const token = sign({ key, userId: input.userId, purpose: input.purpose, contentType: input.contentType, exp: Date.now() + 2 * 60 * 60 * 1000 });
+  const token = sign({ key, userId: input.userId, purpose: input.purpose, contentType: input.contentType, byteSize: input.byteSize, exp: Date.now() + 2 * 60 * 60 * 1000 });
   const signed = await store.createUploadUrl(key, input.contentType, 2 * 60 * 60);
   return {
     key,
@@ -111,13 +112,22 @@ export async function receiveLocalUpload(store: ObjectStore, token: string, user
   if (store.driver !== "local") throw new UploadError("Upload directly to storage with the signed URL", 400);
   const claims = verifyUploadToken(token, userId);
   if (!body) throw new UploadError("File is empty");
+  let written: number;
   try {
-    await store.writeStream(claims.key, body, UPLOAD_RULES[claims.purpose].maxBytes);
+    written = await store.writeStream(claims.key, body, UPLOAD_RULES[claims.purpose].maxBytes);
   } catch (error) {
     if (error instanceof Error && error.message === "UPLOAD_TOO_LARGE") throw new UploadError("File is too large", 413);
     throw error;
   }
+  // A cut-off upload (dropped connection, proxy body limit) must never be kept as if it were the whole file.
+  if (claims.byteSize !== undefined && written !== claims.byteSize) {
+    await store.delete(claims.key).catch(() => undefined);
+    throw new UploadError(incompleteMessage(written, claims.byteSize), 400);
+  }
 }
+
+const incompleteMessage = (got: number, expected: number) =>
+  `The upload didn't finish (${(got / MB).toFixed(1)} of ${(expected / MB).toFixed(1)} MB arrived). Please upload the file again.`;
 
 /** Verify what actually landed in storage; deletes the object if it fails any rule. */
 export async function finalizeUpload(
@@ -138,6 +148,7 @@ export async function finalizeUpload(
   if (!head) throw new UploadError("Upload not found; please upload the file again");
   if (head.size === 0) return reject("File is empty");
   if (head.size > rule.maxBytes) return reject("File is too large", 413);
+  if (claims.byteSize !== undefined && head.size !== claims.byteSize) return reject(incompleteMessage(head.size, claims.byteSize));
 
   // Enough to identify the format and, for images, find the pixel size
   // (JPEG frame headers can follow large EXIF blocks).

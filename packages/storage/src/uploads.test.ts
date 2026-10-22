@@ -33,6 +33,12 @@ describe("direct uploads", () => {
     expect(ticket.key).toMatch(/^site-media\/[0-9a-f-]{36}\.mp4$/);
   });
 
+  it("refuses an upload that arrives cut off (never keeps a broken file)", async () => {
+    const ticket = await createUpload(store, { purpose: "SITE_VIDEO", keyPrefix: "product-media/s1", userId: "u1", contentType: "video/quicktime", byteSize: mov.length + 1000, localUploadPath: "/x" });
+    await expect(receiveLocalUpload(store, ticket.token, "u1", stream(mov))).rejects.toThrow(/didn't finish/);
+    expect(await store.head(ticket.key)).toBeNull();
+  });
+
   it("accepts a square product image and records its size", async () => {
     const ticket = await uploadFlow("PRODUCT_IMAGE", "image/png", png(1000, 1000));
     const result = await finalizeUpload(store, { token: ticket.token, userId: "u1", allowedPurposes: ["PRODUCT_IMAGE"], keyPrefix: "product-media/s1" });

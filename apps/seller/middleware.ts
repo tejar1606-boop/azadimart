@@ -27,5 +27,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   // Everything except build assets and icons (which run no scripts).
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png).*)"],
+  // Also skips the local test-storage upload endpoint: running middleware there makes Next.js buffer the body
+  // and silently cut it at 10 MB (videos arrived broken). That endpoint is guarded by its own signed, per-user token.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|api/v1/media/uploads/local).*)"],
 };
