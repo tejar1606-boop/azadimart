@@ -6,7 +6,7 @@ import { useState } from "react";
  * A coupon as a flat purple "ticket" with side notches, and a Copy button
  * that copies the code without opening the product.
  */
-export default function CouponChip({ code, text, size = "card" }: { code: string; text: string; size?: "card" | "offer" }) {
+export default function CouponChip({ code, text, size = "card" }: { code: string; text: string; size?: "card" | "offer" | "plain" }) {
   const [copied, setCopied] = useState(false);
   const big = size === "offer";
 
@@ -25,6 +25,16 @@ export default function CouponChip({ code, text, size = "card" }: { code: string
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 1600);
+  }
+
+  if (size === "plain") {
+    // Product cards: one quiet line ("₹50 off on ₹999+ · Code YOUR50"); tapping the code copies it.
+    return (
+      <span className="flex min-w-0 items-center gap-1 text-[11px] leading-tight text-slate-600 sm:text-[12px]">
+        <span className="min-w-0 truncate">{text}</span>
+        <button type="button" onClick={(e) => void copy(e)} aria-label={copied ? `Copied ${code}` : `Copy coupon code ${code}`} className="shrink-0 border border-dashed border-slate-400 px-1 font-mono text-[10px] font-bold text-slate-900 hover:border-slate-900">{copied ? "Copied" : code}</button>
+      </span>
+    );
   }
 
   return (

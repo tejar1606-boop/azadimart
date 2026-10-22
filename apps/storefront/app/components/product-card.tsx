@@ -34,10 +34,11 @@ export function discountPercent(pricePaise: number, compareAtPaise?: number | nu
 
 export default function ProductCard({ product, priority = false, sizes = "(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 22vw" }: { product: ProductCardData; priority?: boolean; sizes?: string }) {
   const off = discountPercent(product.pricePaise, product.compareAtPaise);
-  const cardClass = "group flex h-full flex-col overflow-hidden border border-slate-200/80 bg-white transition duration-300 hover:shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand";
+  // Clean card: no border or shadow; the square photo carries it (Tata CLiQ-style).
+  const cardClass = "group flex h-full flex-col bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand";
   const body = (
     <>
-      <div className="relative aspect-square overflow-hidden bg-slate-100">
+      <div className="relative aspect-square overflow-hidden bg-slate-50">
         {product.mediaStorageKey ? (
           <Image
             src={"/media/" + product.mediaStorageKey}
@@ -54,20 +55,20 @@ export default function ProductCard({ product, priority = false, sizes = "(max-w
         <WishlistButton productId={product.id} />
       </div>
       {/* Details: the name always reserves two lines so every card has the same shape and the price lines up. */}
-      <div className="flex flex-1 flex-col px-3 pb-3 pt-2.5 sm:px-3.5">
-        {product.sponsoredHref ? <p className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-slate-500">Sponsored</p> : null}
-        {product.sellerName ? <p className="truncate text-[10.5px] font-medium uppercase tracking-[0.06em] text-slate-400">{product.sellerName}</p> : null}
-        <p className="mt-0.5 line-clamp-2 min-h-10 text-[13px] leading-5 text-slate-800 sm:text-sm">{product.title}</p>
+      <div className="flex flex-1 flex-col px-0.5 pb-2 pt-2.5 sm:px-1">
+        {product.sponsoredHref ? <p className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-slate-400">Sponsored</p> : null}
+        {product.sellerName ? <p className="truncate text-[12px] font-semibold text-slate-950 sm:text-[13px]">{product.sellerName}</p> : null}
+        <p className="mt-0.5 line-clamp-2 min-h-10 text-[12.5px] leading-5 text-slate-500 sm:text-[13.5px]">{product.title}</p>
         {product.reviewCount ? <span className="mt-1.5"><RatingPill average={(product.ratingTotal ?? 0) / product.reviewCount} count={product.reviewCount} compact /></span> : null}
         {/* Price + % off, then MRP: two lines so prices line up across a row (% off wraps only with very large phone text). */}
         <div className="mt-auto pt-1.5">
           <p className="flex flex-wrap items-baseline gap-x-1.5">
-            <span className="text-base font-semibold text-slate-950 sm:text-lg">{formatPrice(product.pricePaise)}</span>
-            {off > 0 ? <span className="text-xs font-semibold text-save">{off}% off</span> : null}
+            <span className="text-[15px] font-bold text-slate-950 sm:text-base">{formatPrice(product.pricePaise)}</span>
+            {off > 0 ? <span className="text-xs text-slate-400">MRP <span className="line-through">{formatPrice(product.compareAtPaise!)}</span></span> : null}
           </p>
-          <p className="h-4 text-xs leading-4 text-slate-500">{off > 0 ? <>MRP <span className="line-through">{formatPrice(product.compareAtPaise!)}</span></> : null}</p>
+          <p className="h-4 text-xs font-semibold leading-4 text-save">{off > 0 ? `${off}% off` : null}</p>
         </div>
-        {product.coupon ? <span className="mt-2 block"><CouponChip code={product.coupon.code} text={product.coupon.text} /></span> : null}
+        {product.coupon ? <span className="mt-1.5 block"><CouponChip code={product.coupon.code} text={product.coupon.text} size="plain" /></span> : null}
       </div>
     </>
   );

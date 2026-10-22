@@ -42,12 +42,12 @@ function CategoryRail({ rail, activeId }: { rail: RailCategory[]; activeId: stri
   const top = rail.filter((c) => !c.parentId && shown(c) && (!openParent || c.id === openParent));
   const item = (selected: boolean) =>
     "group relative flex flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-center transition lg:flex-row lg:gap-3 lg:px-2.5 lg:text-left " +
-    (selected ? "bg-white shadow-card ring-1 ring-brand/30" : "hover:bg-white/70");
-  const bar = (selected: boolean) => (selected ? <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-brand" aria-hidden="true" /> : null);
+    (selected ? "bg-slate-100" : "hover:bg-slate-50");
+  const bar = (selected: boolean) => (selected ? <span className="absolute inset-y-2 left-0 w-0.5 bg-slate-950" aria-hidden="true" /> : null);
   const label = (selected: boolean) => "line-clamp-2 text-[11px] leading-tight lg:text-sm " + (selected ? "font-semibold text-slate-950" : "font-medium text-slate-700 group-hover:text-slate-950");
 
   return (
-    <nav aria-label="Categories" className="sticky top-[136px] max-h-[calc(100vh-148px)] overflow-y-auto overscroll-contain rounded-2xl bg-slate-100/80 p-1.5 [scrollbar-width:none] lg:top-[132px] lg:max-h-[calc(100vh-150px)] lg:p-2">
+    <nav aria-label="Categories" className="sticky top-[136px] max-h-[calc(100vh-148px)] overflow-y-auto overscroll-contain border-r border-slate-200 bg-white p-1.5 pr-2 [scrollbar-width:none] lg:top-[132px] lg:max-h-[calc(100vh-150px)] lg:p-2">
       <p className="hidden px-2.5 pb-2 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400 lg:block">Categories</p>
       <ul className="space-y-1">
         {openParent ? (
@@ -149,7 +149,7 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
   const control = "h-9 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:border-slate-900";
 
   return (
-    <main className="min-h-[60vh] bg-canvas px-3 py-5 sm:px-6 sm:py-10">
+    <main className="min-h-[60vh] bg-white px-3 py-5 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-[1440px]">
         <nav aria-label="Breadcrumb" className="text-xs text-slate-500">
           <Link href="/" className="hover:text-slate-900">Home</Link><span className="mx-1.5">/</span>
@@ -164,7 +164,7 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
           <section aria-label="Products" className="min-w-0">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
-                <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.03em] sm:text-[34px]">{title}</h1>
+                <h1 className="text-[22px] font-bold leading-tight tracking-[-0.02em] sm:text-[32px]">{title}</h1>
                 <p className="mt-1 text-xs text-slate-500 sm:text-sm">{loading ? "Loading products…" : `${items.length} product${items.length === 1 ? "" : "s"} from verified sellers`}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -179,11 +179,11 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
             {error ? <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
             {loading ? (
- <div className="mt-5 grid grid-cols-2 gap-1.5 sm:gap-2 md:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="animate-pulse border border-slate-200 bg-white p-3"><div className="aspect-square bg-slate-100" /><div className="mt-3 h-4 rounded bg-slate-100" /><div className="mt-2 h-4 w-2/3 rounded bg-slate-100" /></div>)}</div>
+ <div className="mt-5 grid grid-cols-2 gap-x-1.5 gap-y-6 sm:gap-x-2 sm:gap-y-8 md:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="animate-pulse bg-white"><div className="aspect-square bg-slate-100" /><div className="mt-3 h-4 rounded bg-slate-100" /><div className="mt-2 h-4 w-2/3 rounded bg-slate-100" /></div>)}</div>
             ) : items.length === 0 ? (
               <div className="mt-6 rounded-[2rem] border border-dashed border-slate-300 bg-white p-8 text-center sm:p-12"><p className="text-lg font-bold sm:text-xl">No matching products yet.</p><p className="mt-2 text-sm text-slate-500">Try another category, a different search, or clear the price filter.</p><Link href="/products" className="mt-5 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white">See all products</Link></div>
             ) : (
-              <div className="mt-5 grid grid-cols-2 gap-1.5 sm:gap-2 md:grid-cols-3 xl:grid-cols-4">
+              <div className="mt-5 grid grid-cols-2 gap-x-1.5 gap-y-6 sm:gap-x-2 sm:gap-y-8 md:grid-cols-3 xl:grid-cols-4">
                 {[...sponsored.map((s) => ({ product: s.product, bidId: s.bidId })), ...items.filter((p) => !sponsored.some((s) => s.product.id === p.id)).map((product) => ({ product, bidId: "" }))].map(({ product, bidId }) => {
                   const variant = [...product.variants].sort((a, b) => a.pricePaise - b.pricePaise)[0];
                   const image = product.media?.find((media) => media.kind === "IMAGE" && media.storageKey);
@@ -198,7 +198,7 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
               </div>
             )}
             {category?.intro ? (
-              <section aria-labelledby="category-about" className="mt-10 rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-7">
+              <section aria-labelledby="category-about" className="mt-12 border-t border-slate-200 pt-6">
                 <h2 id="category-about" className="text-base font-semibold sm:text-lg">About {category.name}</h2>
                 <p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-600">{category.intro}</p>
               </section>

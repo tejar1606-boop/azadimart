@@ -301,7 +301,7 @@ function CategoryCircles({ categories: all }: { categories: HomeCategory[] }) {
 function ProductGrid({ products }: { products: ProductCardData[] }) {
   const shown = products.length >= 6 ? products.slice(0, products.length - (products.length % 6)) : products;
   return (
-    <div className="mt-5 grid grid-cols-2 gap-1.5 sm:gap-2 sm:grid-cols-3 lg:grid-cols-6">
+    <div className="mt-5 grid grid-cols-2 gap-x-1.5 gap-y-6 sm:mt-7 sm:gap-x-2 sm:gap-y-8 sm:grid-cols-3 lg:grid-cols-6">
       {shown.map((product) => <ProductCard key={product.id} product={product} sizes="(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 16vw" />)}
     </div>
   );

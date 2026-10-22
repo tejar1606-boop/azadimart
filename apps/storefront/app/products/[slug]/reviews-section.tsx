@@ -59,7 +59,7 @@ export default function ReviewsSection({ productId, slug, productTitle, summary,
   const max = Math.max(1, ...Object.values(summary.distribution));
 
   return (
-    <section id="reviews" aria-labelledby="reviews-title" className="mt-12 scroll-mt-32 rounded-[2rem] border border-slate-200 bg-white p-5 sm:p-8">
+    <section id="reviews" aria-labelledby="reviews-title" className="mt-12 scroll-mt-32 border-t border-slate-200 bg-white pt-8 sm:pt-10">
       <h2 id="reviews-title" className="text-xl font-semibold tracking-[-0.02em] sm:text-2xl">Ratings &amp; reviews</h2>
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[300px_minmax(0,1fr)]">

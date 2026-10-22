@@ -42,10 +42,10 @@ export function SelectedPrice({ lowestPrice, priceDrop }: { lowestPrice: number;
   const off = hasDiscount ? Math.round((1 - selected.pricePaise / selected.compareAtPaise!) * 100) : 0;
   return (
     <>
-      <div className="mt-6 flex flex-wrap items-end gap-3">
-        <span className="text-3xl font-bold">{money(selected.pricePaise)}</span>
+      <div className="mt-4 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+        <span className="text-[28px] font-bold">{money(selected.pricePaise)}</span>
         {hasDiscount ? <span className="text-base text-slate-500">MRP <span className="line-through">{money(selected.compareAtPaise!)}</span></span> : null}
-        {hasDiscount ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{off}% off</span> : null}
+        {hasDiscount ? <span className="text-base font-bold text-save">{off}% off</span> : null}
       </div>
       {priceDrop && selected.pricePaise === lowestPrice ? (
         <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-india-light px-2.5 py-1 text-sm font-semibold text-india">
@@ -62,7 +62,7 @@ export function SelectedStock({ hasOptions }: { hasOptions: boolean }) {
   const { variants, selected, select } = useVariant();
   const stock = selected.stock;
   return (
-    <div className="mt-6 rounded-2xl bg-slate-50 p-4">
+    <div className="mt-5 border-t border-slate-200 pt-4">
       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Availability</p>
       <p className={`mt-1 font-bold ${stock > 0 ? "text-emerald-700" : "text-red-600"}`}>{stock > 0 ? stock < 5 ? `Only ${stock} left` : "In stock" : "Currently out of stock"}</p>
       {hasOptions ? (

@@ -198,7 +198,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
   return (
     <>
     <PageBanner pageKey="product" />
-    <main className="min-h-[60vh] bg-canvas px-4 py-8 sm:px-6 sm:py-12">
+    <main className="min-h-[60vh] bg-white px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-[1440px]">
         <nav aria-label="Breadcrumb" className="text-xs text-slate-500">
           <Link href="/" className="hover:text-slate-900">Home</Link><span className="mx-1.5">/</span>
@@ -258,17 +258,16 @@ export default async function ProductDetailPage({ params, searchParams }: { para
           <div className="absolute right-3 top-3 z-10"><WishlistButton productId={first.id} /></div>
           </div>
 
-          <section className="h-fit rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.05)] sm:p-8 lg:sticky lg:top-28">
+          <section className="h-fit bg-white lg:sticky lg:top-28 lg:pt-2">
             {offers.tags.length || offers.priceDrop ? (
               <div className="mb-3 flex flex-wrap gap-1.5">
                 {offers.tags.map((tag) => <OfferBadge key={tag.label} badge={tag} size="md" />)}
                 {offers.priceDrop ? <OfferBadge badge={{ label: "Price drop", tone: "GREEN", kind: "price_drop" }} size="md" /> : null}
               </div>
             ) : null}
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">{first.categoryName}</p>
-            <h1 className="mt-3 text-3xl font-bold tracking-[-0.045em] sm:text-5xl">{first.title}</h1>
-            <p className="mt-3 text-sm text-slate-500">Sold by <span className="font-semibold text-slate-800">{first.sellerName}</span></p>
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <h1 className="text-xl font-semibold leading-snug text-slate-950 sm:text-[28px]">{first.title}</h1>
+            <p className="mt-2 text-xs text-slate-400">Sold by <span className="text-slate-600">{first.sellerName}</span> · <Link href={"/c/" + first.categorySlug} className="hover:text-slate-900">{first.categoryName}</Link></p>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-4">
               {reviewSummary.count ? <a href="#reviews" className="inline-flex hover:opacity-80"><RatingPill average={reviewSummary.average} count={reviewSummary.count} /></a> : <span />}
               <ShareButton path={"/products/" + first.slug} title={first.title} pricePaise={selectedVariant.pricePaise} />
             </div>
@@ -276,11 +275,8 @@ export default async function ProductDetailPage({ params, searchParams }: { para
             <SelectedPrice lowestPrice={lowestPrice} priceDrop={offers.priceDrop ? { savedPaise: offers.priceDrop.savedPaise, beforePaise: offers.priceDrop.beforePaise } : null} />
             <p className="mt-2 text-xs text-slate-400">Inclusive of applicable taxes • Final price shown at checkout</p>
             {offers.coupons.length ? (
-              <div className="mt-4 rounded-2xl border border-[#E4D8FB] bg-white p-3.5">
-                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.12em] text-[#4A1FA8]">
-                  <svg width="14" height="14" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 0 Q23 17 40 20 Q23 23 20 40 Q17 23 0 20 Q17 17 20 0Z" fill="#EF5A8A" /></svg>
-                  Available offers
-                </p>
+              <div className="mt-5 border-t border-slate-200 pt-4">
+                <p className="text-sm font-bold text-slate-950">Available offers</p>
                 <ul className="mt-2.5 space-y-2.5">
                   {offers.coupons.map((c) => (
                     <li key={c.code}><CouponChip code={c.code} text={c.text} size="offer" /></li>
@@ -296,19 +292,18 @@ export default async function ProductDetailPage({ params, searchParams }: { para
               <SelectedAddToCart />
             </div>
             {/* Trust markers, highlighted right under the buttons where shoppers decide to buy. */}
-            <section aria-label="The loimart promise" className="mt-4 rounded-2xl bg-gradient-to-br from-[#F1E8FF] via-[#FBF0FF] to-[#FFE8F0] p-3.5 ring-1 ring-[#E3D3FF] sm:p-4">
-              <p className="text-center text-[11px] font-bold uppercase tracking-[0.16em] text-[#6A2CD6]">The loimart promise</p>
-              <ul className="mt-3 grid grid-cols-4 gap-2 sm:gap-3">
+            <section aria-label="The loimart promise" className="mt-6 border-y border-slate-200 py-4">
+              <ul className="grid grid-cols-4 gap-2 sm:gap-3">
                 {[
-                  { Icon: BadgeIcon, label: "Verified seller", note: "KYC-checked", tint: "bg-[#6A2CD6]" },
-                  { Icon: ShieldIcon, label: "Quality checked", note: "Before listing", tint: "bg-india" },
-                  { Icon: LockIcon, label: "Secure checkout", note: "COD available", tint: "bg-navy" },
-                  { Icon: SupportIcon, label: "Customer support", note: "Live chat help", tint: "bg-[#EF5A8A]" },
-                ].map(({ Icon, label, note, tint }) => (
-                  <li key={label} className="flex flex-col items-center gap-1.5 text-center">
-                    <span className={"grid h-11 w-11 place-items-center rounded-full text-white shadow-md sm:h-12 sm:w-12 " + tint}><Icon size={22} /></span>
-                    <span className="text-[11px] font-bold leading-tight text-slate-900 sm:text-xs">{label}</span>
-                    <span className="-mt-0.5 text-[10px] leading-tight text-slate-500 sm:text-[11px]">{note}</span>
+                  { Icon: BadgeIcon, label: "Verified seller", note: "KYC-checked" },
+                  { Icon: ShieldIcon, label: "Quality checked", note: "Before listing" },
+                  { Icon: LockIcon, label: "Secure checkout", note: "COD available" },
+                  { Icon: SupportIcon, label: "Customer support", note: "Live chat help" },
+                ].map(({ Icon, label, note }) => (
+                  <li key={label} className="flex flex-col items-center gap-1 text-center">
+                    <Icon size={24} className="text-slate-800" />
+                    <span className="text-[11px] font-semibold leading-tight text-slate-900 sm:text-xs">{label}</span>
+                    <span className="text-[10px] leading-tight text-slate-500 sm:text-[11px]">{note}</span>
                   </li>
                 ))}
               </ul>
@@ -319,12 +314,12 @@ export default async function ProductDetailPage({ params, searchParams }: { para
               <div className="mt-6">
                 <p className="text-sm font-semibold">Specifications</p>
                 {/* Seller rows are plain text rendered by React (escaped), never seller HTML. */}
-                <table className="mt-2 w-full overflow-hidden rounded-xl text-sm ring-1 ring-slate-200">
+                <table className="mt-2 w-full text-sm">
                   <tbody>
                     {first.specifications.map((row, i) => (
-                      <tr key={i} className={i % 2 ? "bg-white" : "bg-slate-50"}>
-                        <th scope="row" className="w-[38%] border-b border-slate-100 px-3 py-2.5 text-left align-top font-semibold text-slate-700">{row.label}</th>
-                        <td className="whitespace-pre-line border-b border-slate-100 px-3 py-2.5 align-top text-slate-600">{row.value}</td>
+                      <tr key={i}>
+                        <th scope="row" className="w-[38%] border-b border-slate-100 py-2.5 pr-3 text-left align-top font-normal text-slate-500">{row.label}</th>
+                        <td className="whitespace-pre-line border-b border-slate-100 py-2.5 align-top text-slate-900">{row.value}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -338,8 +333,7 @@ export default async function ProductDetailPage({ params, searchParams }: { para
 
         {aplusBlocks.length ? (
           <section aria-label="From the seller" className="mt-12 border-t border-slate-200 pt-10">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">From the seller</p>
-            <h2 className="mt-2 mb-6 text-2xl font-bold tracking-tight sm:text-3xl">Product details</h2>
+            <h2 className="mb-6 text-[22px] font-bold tracking-[-0.01em] sm:text-[28px]">Product details</h2>
             <AplusContent blocks={aplusBlocks} product={{ id: first.id, title: first.title, imageUrl: aplusSummaries[first.id]?.imageUrl ?? null, pricePaise: selectedVariant.pricePaise }} compared={aplusCompared} />
           </section>
         ) : null}
@@ -349,10 +343,10 @@ export default async function ProductDetailPage({ params, searchParams }: { para
         {relatedRows.length > 0 ? (
           <section className="mt-12 border-t border-slate-200 pt-10">
             <div className="flex items-end justify-between gap-4">
-              <div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-600">More to explore</p><h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">You may also like</h2></div>
+              <h2 className="text-[22px] font-bold tracking-[-0.01em] sm:text-[28px]">You may also like</h2>
               <Link href="/products" className="text-sm font-bold text-slate-500 hover:text-slate-950">View all →</Link>
             </div>
-            <div className="mt-5 grid grid-cols-2 gap-1.5 sm:gap-2 sm:grid-cols-4">
+            <div className="mt-5 grid grid-cols-2 gap-x-1.5 gap-y-6 sm:gap-x-2 sm:gap-y-8 sm:grid-cols-4">
               {relatedRows.map((item) => <ProductCard key={item.id} product={{ ...item, badge: relatedBadges[item.id] ?? null, coupon: relatedCoupons[item.id] ?? null }} />)}
             </div>
           </section>

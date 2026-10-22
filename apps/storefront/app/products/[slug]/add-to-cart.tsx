@@ -62,10 +62,10 @@ export default function AddToCart({ variantId, availableQuantity }: { variantId:
       </div>
       {availableQuantity > 0 ? (
         <div className="mt-4 grid grid-cols-2 gap-2.5">
-          <button type="button" onClick={() => void add(quantity)} disabled={Boolean(busy)} className="rounded-full border-2 border-brand bg-white px-4 py-3 text-sm font-semibold text-brand-700 transition hover:bg-brand-50 disabled:opacity-60">
+          <button type="button" onClick={() => void add(quantity)} disabled={Boolean(busy)} className="border border-slate-950 bg-white px-4 py-3.5 text-sm font-semibold uppercase tracking-[0.06em] text-slate-950 transition hover:bg-slate-50 disabled:opacity-60">
             {busy === "add" ? "Adding…" : "Add to cart"}
           </button>
-          <button type="button" onClick={() => void add(quantity, true)} disabled={Boolean(busy)} className="rounded-full bg-brand px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-60">
+          <button type="button" onClick={() => void add(quantity, true)} disabled={Boolean(busy)} className="bg-brand px-4 py-3.5 text-sm font-semibold uppercase tracking-[0.06em] text-white transition hover:bg-brand-600 disabled:opacity-60">
             {busy === "buy" ? "Please wait…" : "Buy now"}
           </button>
         </div>
