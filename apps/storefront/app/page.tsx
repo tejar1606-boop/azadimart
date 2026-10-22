@@ -45,6 +45,9 @@ type HomeCoupon = {
   endsAt: Date | null;
 };
 /** imageSrc: the photo uploaded in Admin, else one of the category's product photos. */
+type CategoryOffer = { maxOffPct: number; minPricePaise: number };
+/** Offer line under a tile, Tata CLiQ style: the best discount, else the lowest price. */
+const offerText = (o: CategoryOffer | undefined) => (!o ? "Coming soon" : o.maxOffPct >= 10 ? `Up to ${o.maxOffPct}% off` : `From ₹${Math.round(o.minPricePaise / 100).toLocaleString("en-IN")}`);
 type HomeCategory = { id: string; name: string; slug: string; imageSrc: string | null; productCount: number; minPricePaise: number | null };
 
 const str = (settings: Settings, key: string, fallback = "") => (typeof settings[key] === "string" && String(settings[key]).trim() ? String(settings[key]) : fallback);
@@ -167,7 +170,17 @@ async function getHome() {
     } catch { /* ads must never break the home page */ }
   }
 
-  return { sections, coupons: activeCoupons, products: liveProducts as ProductCardData[], categories: homeCategories, rail, showcaseProducts, sponsored: await sponsoredSlides(db), sponsoredProducts };
+  // Each category's best offer for its tile: "UP TO 60% OFF", else "FROM ₹499" (a parent includes its sub-categories).
+  const offers: Record<string, CategoryOffer> = {};
+  for (const p of allLive) {
+    const off = p.compareAtPaise && p.compareAtPaise > p.pricePaise ? Math.floor((1 - p.pricePaise / p.compareAtPaise) * 100) : 0;
+    for (const id of [p.categoryId, parentOf.get(p.categoryId)]) {
+      if (!id) continue;
+      const o = offers[id] ?? { maxOffPct: 0, minPricePaise: p.pricePaise };
+      offers[id] = { maxOffPct: Math.max(o.maxOffPct, off), minPricePaise: Math.min(o.minPricePaise, p.pricePaise) };
+    }
+  }
+  return { sections, coupons: activeCoupons, products: liveProducts as ProductCardData[], categories: homeCategories, rail, showcaseProducts, offers, sponsored: await sponsoredSlides(db), sponsoredProducts };
 }
 
 /** Today's winning seller ads for the main banner, shown first and labelled "Sponsored". */
@@ -215,7 +228,7 @@ export default async function HomePage() {
   const showsProducts = sections.some((section) => section.type === "featured_products");
 
   return (
-    <main className="bg-canvas">
+    <main className="bg-white">
       {/* Tells Google who runs the site and enables the search box in results. */}
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd([
         { "@context": "https://schema.org", "@type": "Organization", name: SITE_NAME, url: SITE_URL, logo: absoluteUrl("/icon.png") },
@@ -232,7 +245,7 @@ export default async function HomePage() {
       })}
       {!showsProducts && data.products.length ? (
         <Container className="py-10 sm:py-14">
-          <SectionHeading eyebrow="Just in" heading="Fresh from our sellers" actionLabel="Shop all" actionHref="/products" />
+          <SectionHeading heading="Fresh from our sellers" actionLabel="Shop all" actionHref="/products" />
           <ProductGrid products={data.products.slice(0, 12)} />
         </Container>
       ) : null}
@@ -315,8 +328,8 @@ function StoreSection({ section, data }: { section: HomeSection; data: HomeData 
     case "marquee": return <OfferStrip s={s} coupon={data.coupons[0]} />;
     case "promo_banner": return <PromoBanner s={s} />;
     case "banner_row": return <BannerRow s={s} />;
-    case "category_showcase": return <CategoryShowcase s={s} rail={data.rail} products={data.showcaseProducts} />;
-    case "category_grid": return <CategoryGrid s={s} categories={data.categories} />;
+    case "category_showcase": return <CategoryShowcase s={s} rail={data.rail} products={data.showcaseProducts} offers={data.offers} />;
+    case "category_grid": return <CategoryGrid s={s} categories={data.categories} offers={data.offers} />;
     case "featured_products": return <FeaturedProducts s={s} products={data.products} />;
     case "sponsored_products": return <SponsoredProducts s={s} items={data.sponsoredProducts} />;
     case "sales_coupons": return <Coupons s={s} coupons={data.coupons} />;
@@ -479,7 +492,7 @@ const SHOWCASE_STYLE: Record<string, { panel: string; text: string; sub: string;
   sand: { panel: "bg-gradient-to-br from-amber-100 via-orange-50 to-white", text: "text-amber-950", sub: "text-amber-900/75", button: "bg-navy text-white hover:bg-navy-deep", tile: "bg-amber-50" },
 };
 
-type ShowcaseTile = { label: string; href: string; imageSrc: string | null };
+type ShowcaseTile = { label: string; href: string; imageSrc: string | null; offer?: string };
 
 /**
  * "Top category" banner (like Meesho's Top Categories): a coloured panel with
@@ -487,7 +500,7 @@ type ShowcaseTile = { label: string; href: string; imageSrc: string | null };
  * the right. Tiles are the admin's own, or else the category's
  * sub-categories, or else its newest live products.
  */
-function CategoryShowcase({ s, rail, products: byCategory }: { s: Settings; rail: RailCategory[]; products: Record<string, ProductCardData[]> }) {
+function CategoryShowcase({ s, rail, products: byCategory, offers }: { s: Settings; rail: RailCategory[]; products: Record<string, ProductCardData[]>; offers: Record<string, CategoryOffer> }) {
   const category = rail.find((c) => c.id === str(s, "categoryId"));
   if (!category) return null;
   const style = SHOWCASE_STYLE[str(s, "theme", "saffron")] ?? SHOWCASE_STYLE.saffron!;
@@ -498,27 +511,19 @@ function CategoryShowcase({ s, rail, products: byCategory }: { s: Settings; rail
   const tiles: ShowcaseTile[] = (custom.length
     ? custom
     : children.length
-      ? [{ label: "All " + category.name, href: "/c/" + category.slug, imageSrc: category.imageSrc }, ...children.map((c) => ({ label: c.name, href: "/c/" + c.slug, imageSrc: c.imageSrc }))]
-      : (byCategory[category.id] ?? []).map((p) => ({ label: p.title, href: "/products/" + p.slug, imageSrc: p.mediaStorageKey ? "/media/" + p.mediaStorageKey : null }))
+      ? [{ label: "All " + category.name, href: "/c/" + category.slug, imageSrc: category.imageSrc, offer: offerText(offers[category.id]) }, ...children.map((c) => ({ label: c.name, href: "/c/" + c.slug, imageSrc: c.imageSrc, offer: offerText(offers[c.id]) }))]
+      : (byCategory[category.id] ?? []).map((p) => ({ label: p.title, href: "/products/" + p.slug, imageSrc: p.mediaStorageKey ? "/media/" + p.mediaStorageKey : null, offer: offerText({ maxOffPct: p.compareAtPaise && p.compareAtPaise > p.pricePaise ? Math.floor((1 - p.pricePaise / p.compareAtPaise) * 100) : 0, minPricePaise: p.pricePaise }).replace("From", "Now") }))
   ).slice(0, 6);
   const heading = str(s, "heading", category.name);
 
   return (
-    <Container className="py-6 sm:py-8">
-      <SectionHeading eyebrow={str(s, "eyebrow", "Top category")} heading={heading} subtitle={str(s, "subtitle")} actionLabel={str(s, "buttonLabel", "View all")} actionHref={"/c/" + category.slug} />
+    <Container className="py-8 sm:py-12">
+      <SectionHeading heading={heading} actionLabel={str(s, "buttonLabel", "View all")} actionHref={"/c/" + category.slug} />
       {tiles.length ? (
-        <ul className="-mx-4 mt-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:justify-center sm:gap-4 sm:overflow-visible sm:px-0">
+        <ul className="-mx-4 mt-5 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:mt-7 sm:flex-wrap sm:justify-center sm:gap-x-6 sm:gap-y-9 sm:overflow-visible sm:px-0">
           {tiles.map((tile) => (
-            <li key={tile.href + tile.label} className="w-[44%] shrink-0 snap-start sm:w-[calc((100%-48px)/4)] lg:w-[calc((100%-80px)/6)]">
-              <Link href={tile.href} className="group flex h-full flex-col overflow-hidden rounded-none border border-slate-200/80 bg-white transition hover:-translate-y-0.5 hover:shadow-lift">
-                <span className="relative block aspect-square overflow-hidden bg-[#F3EDFD]">
-                  {tile.imageSrc ? <Image src={tile.imageSrc} alt="" fill sizes="(max-width:640px) 44vw, (max-width:1024px) 24vw, 220px" className="object-cover transition duration-500 group-hover:scale-[1.04]" /> : null}
-                </span>
-                <span className="flex flex-1 flex-col justify-between gap-2 p-2.5 sm:p-3">
-                  <span className="line-clamp-2 min-h-[2.5em] text-[13px] font-semibold leading-tight text-slate-900 sm:text-[14px]">{tile.label}</span>
-                  <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-[#6A2CD6]">Shop now<ArrowRightIcon size={13} className="transition group-hover:translate-x-0.5" /></span>
-                </span>
-              </Link>
+            <li key={tile.href + tile.label} className="w-[40%] shrink-0 snap-start sm:w-[calc((100%-72px)/4)] lg:w-[calc((100%-96px)/5)]">
+              <CleanTile href={tile.href} imageSrc={tile.imageSrc} label={tile.label} offer={tile.offer} className="w-full" />
             </li>
           ))}
         </ul>
@@ -604,45 +609,45 @@ function OfferStrip({ s, coupon }: { s: Settings; coupon?: HomeCoupon }) {
 
 const rupees = (paise: number) => "₹" + Math.round(paise / 100).toLocaleString("en-IN");
 
-/** Photo tiles, 3 across on phones and 6 on desktop: name top-left, "From ₹" price tag bottom-left. */
-function CategoryGrid({ s, categories: all }: { s: Settings; categories: HomeCategory[] }) {
+/** Clean photo tiles (no card or border): square photo, category name and its best offer underneath. 3 across on phones, 6 on desktop. */
+function CategoryGrid({ s, categories: all, offers }: { s: Settings; categories: HomeCategory[]; offers: Record<string, CategoryOffer> }) {
   // Show the categories named in the admin (matched to real ones), else every active category.
   const wanted = list(s, "categories").map((name) => name.toLowerCase());
   const matched = wanted.length ? all.filter((category) => wanted.includes(category.name.toLowerCase())) : [];
   const tiles = (matched.length ? matched : all).slice(0, 12);
   if (!tiles.length) return null;
   return (
-    <Container className="py-6 sm:py-8">
-      <SectionHeading eyebrow="Explore" heading={str(s, "heading", "Shop by category")} subtitle={str(s, "subtitle")} />
-      <div className="mt-4 flex flex-wrap justify-center gap-2.5 sm:gap-4">
-        {tiles.map((category) => (
-          <Link key={category.id} href={"/c/" + category.slug} className="group flex w-[calc((100%-20px)/3)] flex-col overflow-hidden rounded-none border border-slate-200/80 bg-white transition hover:-translate-y-0.5 hover:shadow-lift sm:w-[calc((100%-32px)/3)] lg:w-[calc((100%-80px)/6)]">
-            <span className="relative block aspect-square overflow-hidden bg-[#F3EDFD]">
-              {category.imageSrc ? (
-                <Image src={category.imageSrc} alt="" unoptimized={category.imageSrc.startsWith("https://")} fill sizes="(max-width:1024px) 32vw, 220px" className="object-cover transition duration-500 group-hover:scale-[1.05]" />
-              ) : (
-                <span aria-hidden="true" className="grid h-full place-items-center"><svg width="34" height="34" viewBox="0 0 40 40"><path d="M20 0 Q23 17 40 20 Q23 23 20 40 Q17 23 0 20 Q17 17 20 0Z" fill="#6A2CD6" /></svg></span>
-              )}
-            </span>
-            <span className="flex flex-1 flex-col justify-between gap-1 px-2.5 py-2 sm:px-3.5 sm:py-3">
-              <span className="line-clamp-2 min-h-[2.5em] text-[12.5px] font-semibold leading-tight text-[#2A0E5F] sm:text-[15px]">{category.name}</span>
-              <span className="flex items-center justify-between gap-1">
-                <span className="text-[11px] font-semibold text-[#EF5A8A] sm:text-[13px]">{category.minPricePaise !== null ? <>From {rupees(category.minPricePaise)}</> : "Coming soon"}</span>
-                <ArrowRightIcon size={14} className="hidden shrink-0 text-[#6A2CD6] transition group-hover:translate-x-0.5 sm:block" />
-              </span>
-            </span>
-          </Link>
-        ))}
+    <Container className="py-8 sm:py-12">
+      <SectionHeading heading={str(s, "heading", "Shop by category")} />
+      <div className="mt-5 flex flex-wrap justify-center gap-x-3 gap-y-6 sm:mt-7 sm:gap-x-6 sm:gap-y-9">
+        {tiles.map((category) => <CleanTile key={category.id} href={"/c/" + category.slug} imageSrc={category.imageSrc} label={category.name} offer={offerText(offers[category.id])} className="w-[calc((100%-24px)/3)] sm:w-[calc((100%-48px)/3)] lg:w-[calc((100%-120px)/6)]" />)}
       </div>
     </Container>
+  );
+}
+
+/** A borderless tile: square photo with sharp corners, then the name and an offer line, centred. */
+function CleanTile({ href, imageSrc, label, offer, className }: { href: string; imageSrc: string | null; label: string; offer?: string; className: string }) {
+  return (
+    <Link href={href} className={"group flex flex-col items-center text-center " + className}>
+      <span className="relative block aspect-square w-full overflow-hidden bg-slate-100">
+        {imageSrc ? (
+          <Image src={imageSrc} alt="" unoptimized={imageSrc.startsWith("https://")} fill sizes="(max-width:640px) 32vw, (max-width:1024px) 30vw, 230px" className="object-cover transition duration-500 group-hover:scale-[1.04]" />
+        ) : (
+          <span aria-hidden="true" className="grid h-full place-items-center"><svg width="34" height="34" viewBox="0 0 40 40"><path d="M20 0 Q23 17 40 20 Q23 23 20 40 Q17 23 0 20 Q17 17 20 0Z" fill="#6A2CD6" /></svg></span>
+        )}
+      </span>
+      <span className="mt-2.5 line-clamp-2 text-[11.5px] font-semibold uppercase leading-tight tracking-[0.04em] text-slate-900 sm:mt-3 sm:line-clamp-1 sm:text-[14px]">{label}</span>
+      {offer ? <span className="mt-0.5 text-[11.5px] font-bold uppercase tracking-[0.02em] text-slate-900 sm:text-[15px]">{offer}</span> : null}
+    </Link>
   );
 }
 
 function FeaturedProducts({ s, products }: { s: Settings; products: ProductCardData[] }) {
   const limit = Math.max(1, Math.min(24, Math.floor(num(s, "limit", 12))));
   return (
-    <Container className="py-6 sm:py-8">
-      <SectionHeading eyebrow="Curated" heading={str(s, "heading", "Trending on LOIMART")} subtitle={str(s, "subtitle", "Handpicked products from verified sellers")} actionLabel="View all" actionHref="/products" />
+    <Container className="py-8 sm:py-12">
+      <SectionHeading heading={str(s, "heading", "Trending on LOIMART")} actionLabel="View all" actionHref="/products" />
       {products.length ? (
         <ProductGrid products={products.slice(0, limit)} />
       ) : (
@@ -658,7 +663,7 @@ function SponsoredProducts({ s, items }: { s: Settings; items: HomeData["sponsor
   const limit = Math.max(1, Math.min(20, Math.floor(num(s, "limit", 10))));
   return (
     <Container className="py-10 sm:py-14">
-      <SectionHeading eyebrow="Sponsored" heading={str(s, "heading", "Sponsored picks")} subtitle={str(s, "subtitle", "Featured by LOIMART sellers")} />
+      <SectionHeading heading={str(s, "heading", "Sponsored picks")} subtitle="Sponsored" />
       <SponsoredRow items={items.slice(0, limit)} />
     </Container>
   );
@@ -670,7 +675,7 @@ function Coupons({ s, coupons }: { s: Settings; coupons: HomeCoupon[] }) {
   return (
     <section className="bg-brand-50 py-10 sm:py-14">
       <Container>
-        <SectionHeading eyebrow="Offers" heading={str(s, "heading", "Extra savings, today")} subtitle={str(s, "subtitle", "Copy a code and apply it at checkout.")} />
+        <SectionHeading heading={str(s, "heading", "Extra savings, today")} subtitle={str(s, "subtitle", "Copy a code and apply it at checkout.")} />
         <div className="mt-6 grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
           {coupons.slice(0, limit).map((coupon) => <CouponCard key={coupon.id} coupon={coupon} />)}
         </div>
