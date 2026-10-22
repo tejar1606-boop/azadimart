@@ -19,14 +19,17 @@ export const STAFF_PERMISSIONS = {
   security: { label: "Security & audit", description: "Audit log and security settings" },
   team: { label: "Team & roles", description: "Add team members, assign roles, edit roles" },
   banners: { label: "Banner Studio", description: "Home page banners, page banners and seller ad approvals (separate Banner Studio app)" },
+  payroll: { label: "Payroll (confidential)", description: "Employees, salaries and payslips (separate Payroll app). Only give this to HR and the founders." },
 } as const;
+/** Confidential areas that "full access" doesn't need (an admin isn't automatically HR). */
+export const CONFIDENTIAL_PERMISSIONS: StaffPermission[] = ["payroll"];
 export type StaffPermission = keyof typeof STAFF_PERMISSIONS;
 export const STAFF_PERMISSION_KEYS = Object.keys(STAFF_PERMISSIONS) as StaffPermission[];
 export const isStaffPermission = (v: unknown): v is StaffPermission => typeof v === "string" && v in STAFF_PERMISSIONS;
 
 /** Ready-made roles, created on first use; they can be edited (not deleted). */
 export const DEFAULT_STAFF_ROLES: Array<{ name: string; description: string; permissions: StaffPermission[] }> = [
-  { name: "Admin", description: "Everything, including the team", permissions: [...STAFF_PERMISSION_KEYS] },
+  { name: "Admin", description: "Everything, including the team (not payroll)", permissions: STAFF_PERMISSION_KEYS.filter((k) => !CONFIDENTIAL_PERMISSIONS.includes(k)) },
   { name: "Operations", description: "Day-to-day orders, shipping and support", permissions: ["dashboard", "orders", "logistics", "support", "livechat"] },
   { name: "Catalogue & QC", description: "Checks and manages products", permissions: ["dashboard", "catalog"] },
   { name: "Seller onboarding", description: "Approves sellers and their KYC", permissions: ["dashboard", "sellers", "support"] },
@@ -34,6 +37,7 @@ export const DEFAULT_STAFF_ROLES: Array<{ name: string; description: string; per
   { name: "Marketing", description: "Store design, banners, coupons and ads", permissions: ["dashboard", "storefront", "marketing", "banners"] },
   { name: "Banner team", description: "Only the Banner Studio: upload and schedule banners, approve seller ads", permissions: ["banners"] },
   { name: "Support agent", description: "Answers customer and seller requests", permissions: ["support", "livechat"] },
+  { name: "HR & payroll", description: "Only the Payroll app: employees, salaries and payslips", permissions: ["payroll"] },
 ];
 
 /** Which area each admin page belongs to (longest matching prefix wins). */
@@ -56,11 +60,13 @@ export function adminPagePermission(pathname: string): StaffPermission | null {
   return match ? match[1] : null;
 }
 /** Address of the separate Banner Studio app (banners moved out of Admin). */
+/** Address of the separate Payroll app. */
+export const PAYROLL_URL = (process.env.NEXT_PUBLIC_PAYROLL_URL || (process.env.NODE_ENV === "production" ? "https://payroll.loimart.com" : "http://localhost:3004")).replace(/\/$/, "");
 export const STUDIO_URL = (process.env.NEXT_PUBLIC_STUDIO_URL || (process.env.NODE_ENV === "production" ? "https://banners.loimart.com" : "http://localhost:3003")).replace(/\/$/, "");
 /** Where to send someone after sign-in: the first page they may open. */
 export function firstAdminPage(permissions: readonly string[]): string {
   // Banner-team members have no Admin pages: send them to the Banner Studio.
-  return ADMIN_PAGE_PERMISSIONS.find(([, p]) => permissions.includes(p))?.[0] ?? (permissions.includes("banners") ? STUDIO_URL : "/login");
+  return ADMIN_PAGE_PERMISSIONS.find(([, p]) => permissions.includes(p))?.[0] ?? (permissions.includes("banners") ? STUDIO_URL : permissions.includes("payroll") ? PAYROLL_URL : "/login");
 }
 
 const permissionList = z.array(z.enum(STAFF_PERMISSION_KEYS as [StaffPermission, ...StaffPermission[]])).min(1, "Choose at least one area").max(STAFF_PERMISSION_KEYS.length);

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { PortalShell, type PortalNavSection } from "@azadimart/ui";
-import { STAFF_PERMISSION_KEYS, STUDIO_URL, adminPagePermission, firstAdminPage } from "@azadimart/shared";
+import { CONFIDENTIAL_PERMISSIONS, PAYROLL_URL, STAFF_PERMISSION_KEYS, STUDIO_URL, adminPagePermission, firstAdminPage } from "@azadimart/shared";
 
 export type AdminCounts = { liveWaiting: number; role: string; roleName: string; displayName: string | null; permissions: string[]; support: number; sellers: number; qc: number; approvals: number; aplus: number; ads: number; walletTopUps: number };
 
@@ -67,7 +67,7 @@ export default function AdminChrome({ counts, children }: { counts: AdminCounts 
       { href: "/security", label: "Security & audit", icon: "security" },
     ] },
     { title: "Support", items: supportItems },
-    { title: "Team", items: [{ href: "/team", label: "Team & roles", icon: "customers" }] },
+    { title: "Team", items: [{ href: "/team", label: "Team & roles", icon: "customers" }, ...(permissions?.includes("payroll") ? [{ href: PAYROLL_URL, label: "Payroll ↗", icon: "finance" as const }] : [])] },
   ];
   const sections = all.map((section) => ({ ...section, items: section.items.filter((item) => allowed(item.href)) })).filter((section) => section.items.length);
 
@@ -76,7 +76,7 @@ export default function AdminChrome({ counts, children }: { counts: AdminCounts 
   }
 
   return (
-    <PortalShell product={counts.permissions.length >= STAFF_PERMISSION_KEYS.length ? "Admin console" : `Admin · ${counts.roleName}`} sections={sections} pathname={pathname} Link={Link} onSignOut={() => void signOut()}>
+    <PortalShell product={STAFF_PERMISSION_KEYS.every((k) => CONFIDENTIAL_PERMISSIONS.includes(k) || counts.permissions.includes(k)) ? "Admin console" : `Admin · ${counts.roleName}`} sections={sections} pathname={pathname} Link={Link} onSignOut={() => void signOut()}>
       {children}
     </PortalShell>
   );

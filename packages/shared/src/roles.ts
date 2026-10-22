@@ -1,9 +1,10 @@
-/** SUPPORT: a support-team agent; signs in to the admin portal but only works the Support desk. */
-export const ROLES = ["CUSTOMER", "SELLER", "ADMIN", "SUPER_ADMIN", "SUPPORT"] as const;
+/** SUPPORT: a support-team agent; signs in to the admin portal but only works the Support desk.
+ * EMPLOYEE: a LOIMART employee who only signs in to the Payroll app to see their own payslips. */
+export const ROLES = ["CUSTOMER", "SELLER", "ADMIN", "SUPER_ADMIN", "SUPPORT", "EMPLOYEE"] as const;
 
 export type Role = (typeof ROLES)[number];
 
-export const APP_AUDIENCES = ["storefront", "seller", "admin"] as const;
+export const APP_AUDIENCES = ["storefront", "seller", "admin", "payroll"] as const;
 
 export type AppAudience = (typeof APP_AUDIENCES)[number];
 
@@ -13,6 +14,7 @@ export const ROLE_AUDIENCE: Record<Role, AppAudience> = {
   ADMIN: "admin",
   SUPER_ADMIN: "admin",
   SUPPORT: "admin",
+  EMPLOYEE: "payroll",
 };
 
 export const PRIVILEGED_ROLES: readonly Role[] = ["ADMIN", "SUPER_ADMIN"];

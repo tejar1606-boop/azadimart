@@ -11,9 +11,9 @@ OUT="$HOME/Desktop/LOIMART links.txt"
 mkdir -p "$LOGS"
 pkill -f "cloudflared tunnel" 2>/dev/null; sleep 2
 
-typeset -A NAMES=(3000 "Shop" 3001 "Seller Centre" 3002 "Admin" 3003 "Banner Studio")
+typeset -A NAMES=(3000 "Shop" 3001 "Seller Centre" 3002 "Admin" 3003 "Banner Studio" 3004 "Payroll")
 lines=()
-for port in 3000 3001 3002 3003; do
+for port in 3000 3001 3002 3003 3004; do
   log="$LOGS/$port.log"
   nohup "$CLOUDFLARED" tunnel --no-autoupdate --url "http://localhost:$port" > "$log" 2>&1 &
   link=""

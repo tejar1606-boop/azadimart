@@ -344,6 +344,20 @@
       "when": 1792651329098,
       "tag": "20261022064209_settlement_adjustments",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1792683742036,
+      "tag": "20261022154222_payroll",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1792683835583,
+      "tag": "20261022154355_employee_role",
+      "breakpoints": true
     }
   ]
 }

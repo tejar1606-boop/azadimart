@@ -17,7 +17,7 @@ const PARALLELIZATION = 1;
  * ports. The storefront keeps the original name so customers stay signed in.
  */
 const APP = process.env.AZADIMART_APP;
-export const SESSION_COOKIE_NAME = APP === "admin" || APP === "seller" || APP === "studio" ? `azadimart_${APP}_session` : "azadimart_session";
+export const SESSION_COOKIE_NAME = APP === "admin" || APP === "seller" || APP === "studio" || APP === "payroll" ? `azadimart_${APP}_session` : "azadimart_session";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 function hashToken(token: string): string {

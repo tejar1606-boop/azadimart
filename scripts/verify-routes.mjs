@@ -79,6 +79,20 @@ const catalog = {
     "/api/v1/page-banners",
     "/api/v1/ads/slots",
   ],
+  payroll: [
+    "/",
+    "/login",
+    "/payroll",
+    "/employees",
+    "/employees/new",
+    "/my",
+    "/my/password",
+    "/api/health",
+    "/api/v1/employees",
+    "/api/v1/runs",
+    "/api/v1/my/payslips",
+    "/api/v1/my/password",
+  ],
 };
 
 function fileFor(app, route) {

@@ -1,5 +1,5 @@
 import { createDatabase, roles, staffMembers, type Database } from "@azadimart/database";
-import { AppError, STAFF_PERMISSION_KEYS, isStaffPermission, type StaffPermission } from "@azadimart/shared";
+import { AppError, STAFF_PERMISSION_KEYS, isStaffPermission, type StaffPermission, CONFIDENTIAL_PERMISSIONS } from "@azadimart/shared";
 import { eq } from "drizzle-orm";
 import { requireAudience } from "./guards";
 import { getSessionPrincipal } from "./session";
@@ -33,7 +33,7 @@ export async function getStaffAccess(db: Database, principal: SessionPrincipal):
     const saved = member.permissions.filter(isStaffPermission);
     // Banners used to be part of "Online store"; roles saved before the Banner Studio keep that access.
     const permissions = saved.includes("storefront") && !saved.includes("banners") ? [...saved, "banners" as const] : saved;
-    return { ...base, permissions, roleName: member.roleName, roleId: member.roleId, displayName: member.displayName, fullAccess: STAFF_PERMISSION_KEYS.every((p) => permissions.includes(p)) };
+    return { ...base, permissions, roleName: member.roleName, roleId: member.roleId, displayName: member.displayName, fullAccess: STAFF_PERMISSION_KEYS.every((p) => CONFIDENTIAL_PERMISSIONS.includes(p) || permissions.includes(p)) };
   }
   if (principal.role === "ADMIN") return { ...base, permissions: [...STAFF_PERMISSION_KEYS], roleName: "Admin (full access)", roleId: null, displayName: null, fullAccess: true };
   if (principal.role === "SUPPORT") return { ...base, permissions: ["support"], roleName: "Support agent", roleId: null, displayName: null, fullAccess: false };

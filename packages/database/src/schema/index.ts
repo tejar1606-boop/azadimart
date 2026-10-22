@@ -10,10 +10,11 @@ export * from "./cms";
 export * from "./support";
 export * from "./audit";
 export * from "./reviews";
+export * from "./payroll";
 
 export const MARKETPLACE_TABLES = [
   "users","roles","user_roles","sessions","customers","customer_addresses","sellers","seller_documents",
-  "seller_bank_accounts","seller_wallet_transactions","seller_wallet_top_ups","platform_settings","seller_commission_free_periods","product_price_history","invoices","invoice_counters","fee_invoices","settlement_adjustments","seller_verifications","seller_settings","categories","brands","products",
+  "seller_bank_accounts","seller_wallet_transactions","seller_wallet_top_ups","platform_settings","seller_commission_free_periods","product_price_history","invoices","invoice_counters","fee_invoices","settlement_adjustments","employees","payroll_runs","payslips","seller_verifications","seller_settings","categories","brands","products",
   "product_attributes","product_variants","product_media","product_aplus_content","inventory",
   "inventory_movements","wishlists","wishlist_items","carts","cart_items","orders","order_items",
   "payments","payment_events","refunds","shipments","shipment_events","delivery_providers","serviceability",

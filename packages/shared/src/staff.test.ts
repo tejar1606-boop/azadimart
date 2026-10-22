@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ADMIN_PAGE_PERMISSIONS, DEFAULT_STAFF_ROLES, STAFF_PERMISSION_KEYS, STUDIO_URL, adminPagePermission, firstAdminPage, staffRoleSchema } from "./staff";
+import { ADMIN_PAGE_PERMISSIONS, DEFAULT_STAFF_ROLES, PAYROLL_URL, STAFF_PERMISSION_KEYS, STUDIO_URL, adminPagePermission, firstAdminPage, staffRoleSchema } from "./staff";
 
 describe("team roles", () => {
   it("maps admin pages to areas by the longest prefix", () => {
@@ -18,14 +18,16 @@ describe("team roles", () => {
     expect(firstAdminPage([])).toBe("/login");
   });
 
-  it("ready-made roles are valid and Admin has everything", () => {
+  it("ready-made roles are valid and Admin has everything except confidential payroll", () => {
     for (const role of DEFAULT_STAFF_ROLES) expect(staffRoleSchema.safeParse(role).success).toBe(true);
-    expect(DEFAULT_STAFF_ROLES.find((r) => r.name === "Admin")?.permissions).toEqual(STAFF_PERMISSION_KEYS);
+    expect(DEFAULT_STAFF_ROLES.find((r) => r.name === "Admin")?.permissions).toEqual(STAFF_PERMISSION_KEYS.filter((k) => k !== "payroll"));
+    expect(DEFAULT_STAFF_ROLES.find((r) => r.name === "HR & payroll")?.permissions).toEqual(["payroll"]);
+    expect(firstAdminPage(["payroll"])).toBe(PAYROLL_URL);
     expect(new Set(DEFAULT_STAFF_ROLES.map((r) => r.name)).size).toBe(DEFAULT_STAFF_ROLES.length);
   });
 
   it("every area has at least one page (banners live in the separate Banner Studio)", () => {
-    for (const key of STAFF_PERMISSION_KEYS.filter((k) => k !== "banners")) expect(ADMIN_PAGE_PERMISSIONS.some(([, p]) => p === key)).toBe(true);
+    for (const key of STAFF_PERMISSION_KEYS.filter((k) => k !== "banners" && k !== "payroll")) expect(ADMIN_PAGE_PERMISSIONS.some(([, p]) => p === key)).toBe(true);
     expect(ADMIN_PAGE_PERMISSIONS.some(([, p]) => p === "banners")).toBe(false);
   });
   it("banner-only roles are sent to the Banner Studio", () => {
