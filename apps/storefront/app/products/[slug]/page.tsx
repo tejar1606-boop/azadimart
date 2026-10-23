@@ -1,10 +1,8 @@
 import Link from "next/link";
-import ProductGallery from "./product-gallery";
 import { ColorGallery, SelectedAddToCart, SelectedPrice, SelectedStock, VariantProvider } from "./variant-state";
 import { notFound } from "next/navigation";
 import { createDatabase, inventory, mediaAssets, productMedia, productVariants, products, sellers, categories, productAplusContent, productSummaries } from "@azadimart/database";
 import { and, asc, desc, eq, inArray, ne, notInArray, or, type SQL } from "drizzle-orm";
-import AddToCart from "./add-to-cart";
 import ProductCard from "../../components/product-card";
 import { type AplusBlock, aplusComparedProductIds } from "@azadimart/shared";
 import { AplusContent } from "@azadimart/ui";
@@ -112,7 +110,6 @@ async function moreToExplore(db: ReturnType<typeof createDatabase>, product: { i
 
 export const dynamic = "force-dynamic";
 
-const money = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
 
 export default async function ProductDetailPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ variant?: string }> }) {
   const { slug } = await params;
@@ -177,8 +174,6 @@ export default async function ProductDetailPage({ params, searchParams }: { para
   const pickerVariants = [...variants].sort((a, b) => (hasOptions ? a.variantCreatedAt.getTime() - b.variantCreatedAt.getTime() : 0) || a.pricePaise - b.pricePaise || a.variantId.localeCompare(b.variantId))
     .map((v) => ({ id: v.variantId, title: v.variantTitle, sku: v.sku, pricePaise: v.pricePaise, compareAtPaise: v.compareAtPaise, stock: stockOf(v), color: v.attributes?.color, colorHex: v.attributes?.colorHex, size: v.attributes?.size, sizeLabel: v.attributes?.sizeLabel }));
 
-  const hasDiscount = Boolean(selectedVariant.compareAtPaise && selectedVariant.compareAtPaise > selectedVariant.pricePaise);
-  const discountPercent = hasDiscount ? Math.round((1 - selectedVariant.pricePaise / (selectedVariant.compareAtPaise ?? selectedVariant.pricePaise)) * 100) : 0;
   const relatedRows = await moreToExplore(db, first);
 
   const lowestPrice = Math.min(...variants.map((v) => v.pricePaise));

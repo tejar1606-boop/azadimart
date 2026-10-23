@@ -125,7 +125,7 @@ const audits = await sql`select action from audit_logs where entity_id = ${targe
 check("submissions and decisions audited", ["APLUS_SUBMITTED", "APLUS_REJECTED", "APLUS_APPROVED"].every((a) => audits.some((x) => x.action === a)));
 
 // --- "More to explore": chosen products first, in order; the rest fills automatically
-const explore = (html) => { const at = html.indexOf("More to explore"); if (at < 0) return []; return [...new Set([...html.slice(at, at + 60000).matchAll(/href="\/products\/([^"?#]+)"/g)].map((m) => m[1]))]; };
+const explore = (html) => { const at = html.indexOf("You may also like"); if (at < 0) return []; return [...new Set([...html.slice(at, at + 60000).matchAll(/href="\/products\/([^"?#]+)"/g)].map((m) => m[1]))]; };
 const [{ related_product_ids: originalRelated }] = await sql`select related_product_ids from products where id = ${target.id}`;
 const [hidden] = await sql`select id from products where status <> 'LIVE' and id <> ${target.id} limit 1`;
 let rel = await admin(`/api/v1/catalog/products/${target.id}/related`, { method: "PUT", body: { productIds: [other2.id, other1.id, target.id, ...(hidden ? [hidden.id] : [])] } });

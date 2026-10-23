@@ -483,27 +483,16 @@ function PromoBanner({ s }: { s: Settings }) {
   );
 }
 
-const SHOWCASE_STYLE: Record<string, { panel: string; text: string; sub: string; button: string; tile: string }> = {
-  saffron: { panel: "bg-gradient-to-br from-[#ffb366] via-brand-500 to-brand-600", text: "text-white", sub: "text-white/85", button: "bg-white text-navy hover:bg-brand-50", tile: "bg-brand-50" },
-  green: { panel: "bg-gradient-to-br from-[#2fa52a] via-india to-india-dark", text: "text-white", sub: "text-white/85", button: "bg-white text-india-dark hover:bg-india-light", tile: "bg-india-light" },
-  navy: { panel: "bg-gradient-to-br from-navy-soft via-navy to-navy-deep", text: "text-white", sub: "text-white/80", button: "bg-tiranga-saffron text-white hover:bg-brand-600", tile: "bg-slate-100" },
-  rose: { panel: "bg-gradient-to-br from-rose-100 via-rose-50 to-white", text: "text-rose-950", sub: "text-rose-900/75", button: "bg-rose-600 text-white hover:bg-rose-700", tile: "bg-rose-50" },
-  sky: { panel: "bg-gradient-to-br from-sky-100 via-sky-50 to-white", text: "text-sky-950", sub: "text-sky-900/75", button: "bg-sky-700 text-white hover:bg-sky-800", tile: "bg-sky-50" },
-  sand: { panel: "bg-gradient-to-br from-amber-100 via-orange-50 to-white", text: "text-amber-950", sub: "text-amber-900/75", button: "bg-navy text-white hover:bg-navy-deep", tile: "bg-amber-50" },
-};
-
 type ShowcaseTile = { label: string; href: string; imageSrc: string | null; offer?: string };
 
 /**
- * "Top category" banner (like Meesho's Top Categories): a coloured panel with
- * the category name and View all on the left, and up to six photo tiles on
- * the right. Tiles are the admin's own, or else the category's
+ * "Top category" section: the category name with View all, and up to six
+ * clean photo tiles with their best offer. Tiles are the admin's own, or else the category's
  * sub-categories, or else its newest live products.
  */
 function CategoryShowcase({ s, rail, products: byCategory, offers }: { s: Settings; rail: RailCategory[]; products: Record<string, ProductCardData[]>; offers: Record<string, CategoryOffer> }) {
   const category = rail.find((c) => c.id === str(s, "categoryId"));
   if (!category) return null;
-  const style = SHOWCASE_STYLE[str(s, "theme", "saffron")] ?? SHOWCASE_STYLE.saffron!;
   const custom = (Array.isArray(s.tiles) ? s.tiles : [])
     .filter((t): t is Settings => Boolean(t) && typeof t === "object" && Boolean(str(t as Settings, "imageUrl")) && Boolean(str(t as Settings, "label")))
     .map((t) => ({ label: str(t, "label"), href: safeHref(str(t, "href")) ?? "/c/" + category.slug, imageSrc: str(t, "imageUrl") }));
@@ -607,7 +596,6 @@ function OfferStrip({ s, coupon }: { s: Settings; coupon?: HomeCoupon }) {
   );
 }
 
-const rupees = (paise: number) => "₹" + Math.round(paise / 100).toLocaleString("en-IN");
 
 /** Clean photo tiles (no card or border): square photo, category name and its best offer underneath. 3 across on phones, 6 on desktop. */
 function CategoryGrid({ s, categories: all, offers }: { s: Settings; categories: HomeCategory[]; offers: Record<string, CategoryOffer> }) {
