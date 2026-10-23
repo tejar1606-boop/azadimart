@@ -116,6 +116,10 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
   useEffect(() => { setQuery(urlQuery); }, [urlQuery]);
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
+  // Size filter (shoes, clothing): the sizes in stock here, and the ones the shopper picked.
+  const [sizeOptions, setSizeOptions] = useState<string[]>([]);
+  const [pickedSizes, setPickedSizes] = useState<string[]>([]);
+  useEffect(() => { setPickedSizes([]); }, [categoryId]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -128,6 +132,7 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
       if (search.trim()) params.set("q", search.trim());
       if (minPrice) params.set("minPrice", String(Number(minPrice) * 100));
       if (maxPrice) params.set("maxPrice", String(Number(maxPrice) * 100));
+      if (pickedSizes.length) params.set("size", pickedSizes.join(","));
       const adParams = new URLSearchParams();
       if (categoryId) adParams.set("categoryId", categoryId);
       if (params.get("q")) adParams.set("q", params.get("q")!);
@@ -136,12 +141,13 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error ?? "Unable to load products.");
       setItems(body.items ?? []);
+      if (!pickedSizes.length) setSizeOptions(body.sizeOptions ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load products.");
     } finally {
       setLoading(false);
     }
-  }, [categoryId, sort, minPrice, maxPrice]);
+  }, [categoryId, sort, minPrice, maxPrice, pickedSizes]);
 
   useEffect(() => { void load(query); }, [load, query]);
 
@@ -175,6 +181,17 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
                 <input inputMode="numeric" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value.replace(/\D/g, ""))} placeholder="Max ₹" className={control + " w-[4.5rem]"} aria-label="Maximum price" />
               </div>
             </div>
+
+            {sizeOptions.length > 1 ? (
+              <div className="mt-4 flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by size">
+                <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Size</span>
+                {sizeOptions.map((size) => {
+                  const on = pickedSizes.includes(size);
+                  return <button key={size} type="button" aria-pressed={on} onClick={() => setPickedSizes((list) => (on ? list.filter((s) => s !== size) : [...list, size]))} className={"min-w-[2.75rem] border px-2.5 py-1.5 text-xs font-semibold transition " + (on ? "border-slate-950 bg-slate-950 text-white" : "border-slate-300 bg-white text-slate-800 hover:border-slate-950")}>{size}</button>;
+                })}
+                {pickedSizes.length ? <button type="button" onClick={() => setPickedSizes([])} className="ml-1 text-xs font-semibold text-slate-500 underline">Clear</button> : null}
+              </div>
+            ) : null}
 
             {error ? <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 

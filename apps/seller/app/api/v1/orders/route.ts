@@ -62,7 +62,7 @@ export async function GET(request: Request) {
       // Cash on Delivery: what the courier collects for this seller's parcel (their share when several sellers ship one order).
       const codCollectPaise=row.paymentMethod==="COD"&&!["CAPTURED","REFUNDED","PARTIALLY_REFUNDED"].includes(row.paymentStatus??"")
         ?(share===1?grandTotalPaise:Math.max(0,mine-Math.round(discountPaise*share)+Math.round(shippingPaise*share))):null;
-      return { ...row, invoices: docs.filter((d)=>d.orderId===row.id).map(({orderId:_o,...d})=>d), sellerSubtotalPaise: mine, sharedWithOtherSellers: shared.has(row.id), cancelRequestedByMe: cancelRequestedBySellerId===principal.sellerId, shipTo: shipToFor(row.status, shippingAddress), codCollectPaise };
+      return { ...row, invoices: docs.filter((d)=>d.orderId===row.id).map((d)=>({id:d.id,kind:d.kind,number:d.number})), sellerSubtotalPaise: mine, sharedWithOtherSellers: shared.has(row.id), cancelRequestedByMe: cancelRequestedBySellerId===principal.sellerId, shipTo: shipToFor(row.status, shippingAddress), codCollectPaise };
     }) });
   } catch(error) {
     const {status,body}=toApiError(error,requestId);

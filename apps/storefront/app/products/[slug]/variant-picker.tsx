@@ -1,6 +1,7 @@
 "use client";
 
-import { compareSizes, swatchBackground } from "@azadimart/shared";
+import { compareSizes, isShoeSize, swatchBackground } from "@azadimart/shared";
+import ShoeSizeChart from "./shoe-size-chart";
 
 export type PickerVariant = { id: string; title: string; color?: string; colorHex?: string; size?: string; sizeLabel?: string; stock: number; pricePaise: number };
 
@@ -50,7 +51,10 @@ export default function VariantPicker({ variants, selectedId, onSelect }: { vari
 
       {sizes.length ? (
         <div>
-          <p className="text-sm"><span className="font-semibold text-slate-500">{variants.find((v) => v.sizeLabel)?.sizeLabel ?? "Size"}:</span> <span className="font-bold">{selected.size}</span></p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm"><span className="font-semibold text-slate-500">{variants.find((v) => v.sizeLabel)?.sizeLabel ?? "Size"}:</span> <span className="font-bold">{selected.size}</span></p>
+            {sizes.some(isShoeSize) ? <ShoeSizeChart kids={sizes.some((s) => /^kids/i.test(s))} /> : null}
+          </div>
           <div className="mt-2.5 flex flex-wrap gap-2" role="radiogroup" aria-label="Choose a size">
             {sizes.map((size) => {
               const target = sizeTarget(size);

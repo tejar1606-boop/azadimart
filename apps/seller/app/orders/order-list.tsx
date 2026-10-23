@@ -344,7 +344,7 @@ export default function OrderList() {
       ) : (
     <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card">
       <div className="divide-y divide-slate-100">
-        {shown.map((item, index) => {
+        {shown.map((item) => {
           const shipment = shipments.find((entry) => entry.orderId === item.id);
           const nextStatus = shipment
             ? NEXT_SHIPMENT_STATUS[shipment.status] ?? null

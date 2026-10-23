@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { CouponLimitHelp, CouponLimitSelect } from "../coupon-limit";
 import { useRouter } from "next/navigation";
 import { DescriptionStyleToggle, SpecTableEditor, directUpload, readImageSize, type SpecRow } from "@azadimart/ui";
-import { GST_RATES_BPS, compareSizes, formatGstRate } from "@azadimart/shared";
+import { FOOTWEAR_SPEC_ROWS, GST_RATES_BPS, compareSizes, formatGstRate } from "@azadimart/shared";
 import VariantEditor, { autoSku, type VariantState } from "./variant-editor";
 
 type LoadedVariant = { id?: string; sku: string; title?: string; pricePaise: number; compareAtPaise: number | null; onHand?: number | null; attributes?: Record<string, string> };
@@ -60,6 +60,9 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
   const [loaded,setLoaded] = useState(!productId);
   const isLive = Boolean(editInfo && LIVE_STATUSES.includes(editInfo.status));
   const categoryGst = categories.find(c=>c.id===form.categoryId)?.gst ?? null;
+  // Footwear: offer the details shoppers look for (material, sole, closure…).
+  const isFootwear = /foot ?wear|shoe|chappal|sandal|sneaker/i.test(categories.find((c) => c.id === form.categoryId)?.name ?? "");
+  const addFootwearRows = () => { setDetailStyle("table"); setSpecs((rows) => [...rows.filter((r) => r.label.trim() || r.value.trim()), ...FOOTWEAR_SPEC_ROWS.filter((l) => !rows.some((r) => r.label === l)).map((label) => ({ label, value: "" }))]); };
   const gstPayload = () => (ownGst||!categoryGst) ? {hsnCode:hsn.trim(),gstRateBps:Number(gstRate)} : null;
   const set=(key:keyof typeof form,value:string)=>setForm(v=>({...v,[key]:value}));
   useEffect(()=>{
@@ -224,6 +227,7 @@ export default function ProductBuilder({ productId }: { productId?: string } = {
         <div className="sm:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">Product details</p><DescriptionStyleToggle value={detailStyle} onChange={setDetailStyle}/></div>
           <p className="mt-1 text-xs text-slate-500">{detailStyle==="text"?"Describe the product in your own words.":"Best for specifications like size, material and warranty. Paste a table or add rows."} Only the selected style is saved.</p>
+          {isFootwear?<p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">Shoes? Shoppers check the material, sole and fit before buying. <button type="button" onClick={addFootwearRows} className="font-bold underline">Add footwear details</button> (upper, sole, closure, heel height, toe, occasion, care). Then in step 3 use a <b>Footwear</b> size set (UK, EU, half sizes or kids).</p>:null}
           <div className="mt-3">{detailStyle==="text"
             ?<textarea className="min-h-36 w-full rounded-xl border border-slate-200 p-3" aria-label="Description" value={form.description} onChange={e=>set("description",e.target.value)}/>
             :<SpecTableEditor rows={specs} onChange={setSpecs}/>}</div>

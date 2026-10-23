@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { KIDS_SHOE_ORDER } from "./footwear";
 
 /** Up to this many colour × size combinations per product. */
 export const MAX_VARIANTS = 100;
@@ -19,7 +20,12 @@ export const SIZE_PRESETS: Array<{ label: string; sizes: string[] }> = [
   { label: "Free size", sizes: ["Free Size"] },
   { label: "Waist (inches)", sizes: ["28", "30", "32", "34", "36", "38", "40"] },
   { label: "Kids (age)", sizes: ["0-6M", "6-12M", "1-2Y", "2-3Y", "3-4Y", "4-5Y", "5-6Y", "6-7Y", "7-8Y", "8-9Y", "9-10Y"] },
-  { label: "Footwear (UK)", sizes: ["UK 5", "UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"] },
+  { label: "Footwear UK (men)", sizes: ["UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11", "UK 12"] },
+  { label: "Footwear UK (women)", sizes: ["UK 3", "UK 4", "UK 5", "UK 6", "UK 7", "UK 8"] },
+  { label: "Footwear UK (unisex)", sizes: ["UK 5", "UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"] },
+  { label: "Footwear UK half sizes", sizes: ["UK 5", "UK 5.5", "UK 6", "UK 6.5", "UK 7", "UK 7.5", "UK 8", "UK 8.5", "UK 9", "UK 9.5", "UK 10"] },
+  { label: "Footwear EU", sizes: ["EU 36", "EU 37", "EU 38", "EU 39", "EU 40", "EU 41", "EU 42", "EU 43", "EU 44", "EU 45", "EU 46"] },
+  { label: "Footwear (kids)", sizes: KIDS_SHOE_ORDER },
   { label: "Bra", sizes: ["32B", "34B", "36B", "32C", "34C", "36C"] },
   { label: "Luggage / trolley", sizes: ["Backpack", "Cabin", "Medium", "Large", "Cabin + Medium", "Cabin + Medium + Large"] },
 ];
@@ -32,6 +38,8 @@ const LUGGAGE_ORDER = ["backpack", "cabin", "small", "medium", "large", "extra l
 const LETTER_ORDER = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "2XL", "3XL", "4XL", "5XL"];
 /** Sorts sizes the way shoppers expect: XS→3XL, then numbers ascending, else as given. */
 export function compareSizes(a: string, b: string): number {
+  const ka = KIDS_SHOE_ORDER.indexOf(a), kb = KIDS_SHOE_ORDER.indexOf(b);
+  if (ka >= 0 && kb >= 0) return ka - kb;
   const ga = LUGGAGE_ORDER.indexOf(a.toLowerCase().replace(/\s*\+\s*/g, " + ").trim()), gb = LUGGAGE_ORDER.indexOf(b.toLowerCase().replace(/\s*\+\s*/g, " + ").trim());
   if (ga >= 0 && gb >= 0) return ga - gb;
   const la = LETTER_ORDER.indexOf(a.toUpperCase()), lb = LETTER_ORDER.indexOf(b.toUpperCase());

@@ -30,3 +30,4 @@ export const testProvidersAllowed = () => process.env.NODE_ENV !== "production" 
 export * from "./price-changes";
 export * from "./gst";
 export * from "./payroll";
+export * from "./footwear";

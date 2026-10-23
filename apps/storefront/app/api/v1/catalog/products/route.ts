@@ -1,6 +1,7 @@
 import { loadCardBadges, loadCardCoupons } from "../../../../lib/offers";
 import { createDatabase, inventory, productMedia, productVariants, products, categories, mediaAssets, sellers } from "@azadimart/database";
-import { and, asc, desc, eq, gte, ilike, inArray, lte, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
+import { compareSizes } from "@azadimart/shared";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,15 @@ export async function GET(request: Request) {
     if (query) filters.push(or(ilike(products.title, "%" + query + "%"), ilike(products.description, "%" + query + "%"))!);
     if (Number.isFinite(minPrice) && minPrice >= 0) filters.push(gte(productVariants.pricePaise, minPrice));
     if (Number.isFinite(maxPrice) && maxPrice > 0) filters.push(lte(productVariants.pricePaise, maxPrice));
+    // Sizes the shopper can choose here (in stock, before the size filter itself), e.g. UK 7, UK 8.
+    const inStock = sql`coalesce(${inventory.onHand}, 0) - coalesce(${inventory.reserved}, 0) > 0`;
+    const sizeRows = await db.selectDistinct({ size: sql<string>`${productVariants.attributes}->>'size'` }).from(products)
+      .innerJoin(productVariants, eq(productVariants.productId, products.id)).leftJoin(inventory, eq(inventory.variantId, productVariants.id))
+      .where(and(...filters, inStock, sql`${productVariants.attributes} ? 'size'`)).limit(200);
+    const sizeOptions = sizeRows.map((r) => r.size).filter(Boolean).sort(compareSizes);
+    // Size filter: only sizes that are in stock (the card then shows the price of those sizes).
+    const sizes = (searchParams.get("size") ?? "").split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20);
+    if (sizes.length) filters.push(inArray(sql<string>`${productVariants.attributes}->>'size'`, sizes), inStock);
 
     const rows = await db.select({
       id: products.id,
@@ -153,6 +163,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       categories: categoryRows,
       items,
+      sizeOptions,
       nextCursor: null,
       requestId,
     });
