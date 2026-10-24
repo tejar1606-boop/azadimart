@@ -37,7 +37,7 @@ export default function SiteFooter({ chrome }: { chrome: StoreChrome }) {
             </div>
 
             <nav aria-label="Footer" className="grid grid-cols-2 content-start gap-x-8 gap-y-4 text-[15px] text-white/80">
-              {[...shopLinks, { label: "About us", href: "/about" }, { label: "My orders", href: "/account" }, { label: "Wishlist", href: "/wishlist" }, { label: "Cart", href: "/cart" }].map((link) => (
+              {[...shopLinks, { label: "About us", href: "/about" }, { label: "My orders", href: "/account" }, { label: "My wallet", href: "/account/wallet" }, { label: "Wishlist", href: "/wishlist" }, { label: "Cart", href: "/cart" }].map((link) => (
                 <Link key={link.href + link.label} href={link.href} className="transition hover:text-white">{link.label}</Link>
               ))}
               <FooterAccountLink className="transition hover:text-white" />

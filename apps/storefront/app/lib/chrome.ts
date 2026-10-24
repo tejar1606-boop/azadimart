@@ -1,4 +1,4 @@
-import { categories, createDatabase, navigation, navigationItems, themes } from "@azadimart/database";
+import { categories, createDatabase, navigation, navigationItems, themes, walletSettings } from "@azadimart/database";
 import { and, asc, eq } from "drizzle-orm";
 
 export type ChromeLink = { label: string; href: string };
@@ -20,6 +20,8 @@ export type StoreChrome = {
   navigation: ChromeLink[];
   /** Main categories in admin order; children = their active sub-categories (for the phone menu). */
   categories: Array<{ id: string; name: string; href: string; children: Array<{ id: string; name: string; href: string }> }>;
+  /** Welcome bonus a new shopper gets in their wallet (0 = switched off). */
+  welcomeBonusPaise: number;
 };
 
 const SELLER_URL = process.env.NEXT_PUBLIC_SELLER_URL || "https://seller.loimart.com";
@@ -80,17 +82,21 @@ export async function getStoreChrome(): Promise<StoreChrome> {
       ? String((theme!.settings as Record<string, unknown>).announcement)
       : "";
     const announcements = announcement.split(/[|•]/).map((part) => part.trim()).filter(Boolean);
+    const wallet = await walletSettings(db);
+    const bonus = wallet.enabled ? wallet.bonusPaise : 0;
+    const bonusNote = bonus > 0 ? [`New here? Sign up & get ₹${Math.round(bonus / 100)} in your LOIMART wallet`] : [];
 
     const link = (category: { id: string; name: string; slug: string }) => ({ id: category.id, name: category.name, href: "/c/" + category.slug });
     const categoryLinks = categoryRows.filter((category) => !category.parentId).slice(0, 12)
       .map((category) => ({ ...link(category), children: categoryRows.filter((child) => child.parentId === category.id).map(link) }));
     return {
       intro: readIntro(theme?.settings as Record<string, unknown> | undefined),
-      announcements: announcements.length ? announcements : DEFAULT_ANNOUNCEMENTS,
+      announcements: [...bonusNote, ...(announcements.length ? announcements : DEFAULT_ANNOUNCEMENTS)],
       navigation: navLinks.length ? navLinks : categoryLinks.slice(0, 8).map((category) => ({ label: category.name, href: category.href })),
       categories: categoryLinks,
+      welcomeBonusPaise: bonus,
     };
   } catch {
-    return { intro: null, announcements: DEFAULT_ANNOUNCEMENTS, navigation: [], categories: [] };
+    return { intro: null, announcements: DEFAULT_ANNOUNCEMENTS, navigation: [], categories: [], welcomeBonusPaise: 0 };
   }
 }

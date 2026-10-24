@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 import { BrandMark, BrandWordmark, HELP_CHAT_OPEN_EVENT } from "@azadimart/ui";
 import type { StoreChrome } from "../lib/chrome";
-import { BagIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon, GridIcon, HeartIcon, MenuIcon, SearchIcon, UserIcon } from "./icons";
+import { BagIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon, GridIcon, HeartIcon, MenuIcon, SearchIcon, UserIcon, WalletIcon } from "./icons";
 
 /** The LOIMART logo: bag icon + "loimart" in the logo colours. Icon scales with the font size. */
 export function Wordmark({ className = "", onDark = false }: { className?: string; onDark?: boolean }) {
@@ -65,6 +65,8 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
   const [cartCount, setCartCount] = useState(0);
   // undefined = still checking, null = signed out
   const [me, setMe] = useState<{ name: string | null; email: string | null } | null | undefined>(undefined);
+  const [walletPaise, setWalletPaise] = useState<number | null>(null);
+  const [bonusOpen, setBonusOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // Phone menu: the main category whose sub-categories are showing (null = top level).
   const [menuCategoryId, setMenuCategoryId] = useState<string | null>(null);
@@ -78,12 +80,22 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
     fetch("/api/auth/session", { cache: "no-store" }).then(async (response) => {
       const body = response.ok ? await response.json() : null;
       setMe(body ? { name: body.name ?? null, email: body.email ?? null } : null);
+      if (!body) return setWalletPaise(null);
+      const wallet = await fetch("/api/v1/wallet", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      setWalletPaise(typeof wallet?.balancePaise === "number" ? wallet.balancePaise : null);
+      setBonusOpen(wallet?.bonus?.state === "VERIFY_PHONE" || wallet?.bonus?.state === "READY");
     }).catch(() => setMe(null));
   }, [pathname]);
 
   async function signOut() {
     try { await fetch("/api/auth/logout", { method: "POST" }); } finally { window.location.href = "/"; }
   }
+  const bonusRupees = Math.round(chrome.welcomeBonusPaise / 100);
+  const rupees = (paise: number) => "₹" + Math.floor(paise / 100).toLocaleString("en-IN");
+  // Signed in: the wallet and its balance. Signed out: the welcome bonus, which needs an account.
+  const wallet = me && bonusOpen && bonusRupees > 0 && !walletPaise ? { href: "/account/wallet", label: `Get ₹${bonusRupees}`, aria: `Verify your mobile and get ₹${bonusRupees} in your wallet` }
+    : me ? { href: "/account/wallet", label: walletPaise === null ? "Wallet" : rupees(walletPaise), aria: walletPaise === null ? "My wallet" : `My wallet, balance ${rupees(walletPaise)}` }
+    : me === null && bonusRupees > 0 ? { href: "/register?next=/account/wallet", label: `Get ₹${bonusRupees}`, aria: `Sign up and get ₹${bonusRupees} in your wallet` } : null;
   const firstName = me?.name?.trim().split(/\s+/)[0] || me?.email?.split("@")[0] || "";
 
   useEffect(() => setMenuOpen(false), [pathname]);
@@ -117,6 +129,12 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
           <SearchForm className="hidden w-full max-w-xl md:block" />
           <nav aria-label="Account" className="ml-auto flex items-center justify-end gap-0.5 sm:gap-1 lg:gap-2">
             <Link href="/products" className={navLink + " hidden lg:flex"}><GridIcon size={20} /><span className={navLabel}>Categories</span></Link>
+            {wallet ? (
+              <Link href={wallet.href} className={navLink} aria-label={wallet.aria}>
+                <WalletIcon size={20} /><span className={navLabel + (wallet.label.startsWith("Get") ? " font-semibold text-[#6A2CD6]" : "")}>{wallet.label}</span>
+                {me && walletPaise ? <span aria-hidden="true" className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[#F9CB5B] ring-2 ring-white lg:hidden" /> : null}
+              </Link>
+            ) : null}
             <Link href="/wishlist" className={navLink} aria-label="Wishlist"><HeartIcon size={20} /><span className={navLabel}>Wishlist</span></Link>
             <Link href="/cart" className={navLink} aria-label={cartCount ? `Cart, ${cartCount} items` : "Cart"}>
               <span className="relative"><BagIcon size={20} />
@@ -174,6 +192,7 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
               ))}
               <p className="mt-4 px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Your account</p>
               {me ? <p className="mx-3 mb-1 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">Signed in as <b className="break-all text-slate-900">{me.email}</b></p> : null}
+              {wallet ? <Link href={wallet.href} className="flex items-center justify-between rounded-lg px-3 py-3 text-[15px] font-medium hover:bg-slate-50">{me ? "My wallet" : `Sign up & get ₹${bonusRupees}`}{me && walletPaise !== null ? <b className="text-[#6A2CD6]">{rupees(walletPaise)}</b> : null}</Link> : null}
               {([["My orders", "/account"], ["Wishlist", "/wishlist"], ["Cart", "/cart"]] as const).map(([label, href]) => (
                 <Link key={href} href={href} className="block rounded-lg px-3 py-3 text-[15px] font-medium hover:bg-slate-50">{label}</Link>
               ))}
