@@ -112,7 +112,7 @@ html = await page(a.slug);
 check("coupon offer shown on matching product", r.status < 300 && html.includes("Available offers") && html.includes(code) && html.includes("Extra 15% off"), r.status + " " + JSON.stringify(r.json?.error ?? ""));
 // Only product B's own offers count: its "You may also like" row may show product A with its coupon.
 check("coupon not shown on other categories", !(await page(b.slug)).split("You may also like")[0].includes(code));
-await sql`update coupons set is_active = false where code = ${code}`;
+await sql`update coupons set is_active = false, deleted_at = now() where code = ${code}`;
 check("inactive coupon disappears", !(await page(a.slug)).includes(code));
 
 const audits = await sql`select action from audit_logs where action like 'OFFER_TAG_%' and created_at > now() - interval '10 minutes'`;

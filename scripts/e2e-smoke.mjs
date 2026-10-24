@@ -91,7 +91,7 @@ check("double cancel rejected", r.status === 409, String(r.status));
 
 // refunds (admin) on COD payment
 const [pay] = await sql`select id from payments where order_id=${order.orderId}`;
-if (!pay) { console.log("FAIL payment row missing; skipping refund checks"); process.exit(1); }
+if (!pay) { console.log("FAIL payment row missing; skipping refund checks"); await sql`update coupons set is_active = false, deleted_at = now() where code = ${code}`; process.exit(1); }
 r = await admin("/api/v1/payments/refunds", { method: "POST", body: { paymentId: pay.id, amountPaise: 1000, idempotencyKey: "e2e-" + code, manual: true } });
 check("COD manual refund request (was SQL error)", r.status === 202, r.status + " " + JSON.stringify(r.json?.error ?? ""));
 r = await admin("/api/v1/payments/refunds", { method: "POST", body: { paymentId: pay.id, amountPaise: 1000, idempotencyKey: "e2e-" + code, manual: true } });
@@ -99,5 +99,6 @@ check("refund idempotent replay", r.status === 200 && r.json?.idempotent === tru
 r = await admin("/api/v1/payments/refunds", { method: "POST", body: { paymentId: pay.id, amountPaise: 999999999, idempotencyKey: "e2e2-" + code, manual: true } });
 check("over-refund rejected", r.status === 409, String(r.status));
 
+await sql`update coupons set is_active = false, deleted_at = now() where code = ${code}`; // test coupon: never left on in the shop
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
