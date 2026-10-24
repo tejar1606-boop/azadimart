@@ -74,6 +74,16 @@ export function LiveChat({ apiBase, topics, ticketsPath, storageKey, onBack }: L
     }).catch(() => setAvail({ online: 0, waitSeconds: null, openChatId: null, signedIn: false }));
   }, [apiBase, storageKey]);
 
+  // Who's online changes while the shopper or seller is looking: check again every 10 s, and as soon as the tab is back in view.
+  useEffect(() => {
+    if (chatId) return;
+    const refresh = () => { if (!document.hidden) void fetch(apiBase, { cache: "no-store" }).then((r) => r.json()).then((a: Availability) => setAvail((prev) => ({ ...a, signedIn: a.signedIn ?? prev?.signedIn ?? false }))).catch(() => undefined); };
+    const timer = setInterval(refresh, 10_000);
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", refresh); window.removeEventListener("focus", refresh); };
+  }, [apiBase, chatId]);
+
   const apply = useCallback((data: { chat: ChatState; messages: Msg[]; lastSeq: number }) => {
     setChat(data.chat);
     if (data.messages.length) {

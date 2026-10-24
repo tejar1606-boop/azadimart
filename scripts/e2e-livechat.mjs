@@ -207,6 +207,17 @@ con = (await admin("/api/v1/live-chat")).json;
 check("history lists ended chats; today's numbers count them", hist.items.some((h) => h.id === c1 && h.rating === 5) && con.today.chats >= 5 && con.today.missed >= 1);
 check("audit trail for take, transfer and requests", (await sql`select count(*)::int n from audit_logs where action in ('LIVE_CHAT_TAKEN', 'LIVE_CHAT_TRANSFERRED', 'LIVE_CHAT_TO_TICKET') and entity_id = any(${[c2, c5]})`).at(0)?.n >= 2);
 
+// --- staying online on other Admin pages
+await admin("/api/v1/live-chat/presence", { method: "POST", body: { status: "ONLINE", maxChats: 3 } });
+await sql`update live_chat_agents set last_seen_at = now() - interval '5 minutes' where user_id <> ${adminUser.id}`; // only the admin is around
+await sql`update live_chat_agents set last_seen_at = now() - interval '60 seconds' where user_id = ${adminUser.id}`; // a background tab checks in about once a minute
+check("an agent whose tab checked in a minute ago still shows online", ((await guest("/api/v1/live-chat")).json?.online ?? 0) >= 1);
+await sql`update live_chat_agents set last_seen_at = now() - interval '3 minutes' where user_id = ${adminUser.id}`;
+check("…but not after 3 minutes without checking in", (await guest("/api/v1/live-chat")).json?.online === 0);
+r = await admin("/api/v1/live-chat/heartbeat", { method: "POST" });
+check("any Admin page keeps an Online agent online", r.status === 200 && r.json.status === "ONLINE" && (await guest("/api/v1/live-chat")).json?.online >= 1, JSON.stringify(r.json));
+check("only live-chat agents can check in", (await catalogOnly("/api/v1/live-chat/heartbeat", { method: "POST" })).status === 403);
+
 await tidy();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

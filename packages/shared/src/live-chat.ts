@@ -14,8 +14,8 @@ export type LiveAgentStatus = (typeof LIVE_AGENT_STATUSES)[number];
 
 /** How long things may take before the system steps in (seconds). */
 export const LIVE_CHAT_TIMING = {
-  /** An agent counts as online while their console has checked in this recently. */
-  agentHeartbeat: 45,
+  /** An agent counts as online while Admin (any page) has checked in this recently. Above 60 s because Chrome slows background tabs to a check a minute. */
+  agentHeartbeat: 75,
   /** A waiting requester who stopped checking in this long ago has left. */
   requesterGone: 90,
   /** An active chat whose requester has been gone this long is ended. */

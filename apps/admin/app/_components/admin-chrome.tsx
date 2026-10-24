@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import CallAlert from "./call-alert";
+import LiveChatHeartbeat from "./live-chat-heartbeat";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { PortalShell, type PortalNavSection } from "@azadimart/ui";
@@ -82,6 +83,7 @@ export default function AdminChrome({ counts, children }: { counts: AdminCounts 
     <PortalShell product={STAFF_PERMISSION_KEYS.every((k) => CONFIDENTIAL_PERMISSIONS.includes(k) || counts.permissions.includes(k)) ? "Admin console" : `Admin · ${counts.roleName}`} sections={sections} pathname={pathname} Link={Link} onSignOut={() => void signOut()}>
       {children}
       {permissions?.includes("support") ? <CallAlert /> : null}
+      {permissions?.includes("livechat") ? <LiveChatHeartbeat onConsole={pathname === "/live-chat"} /> : null}
     </PortalShell>
   );
 }

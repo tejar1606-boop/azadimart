@@ -1,7 +1,7 @@
 import { requireStaff } from "@azadimart/auth";
 import {
   agentCanSend, agentConsole, agentLiveChat, agentLiveEnd, agentLiveSend, agentLiveTake, agentLiveToTicket, agentLiveTransfer, agentLiveTyping,
-  auditLogs, createDatabase, liveChatHistory, liveChatReport, liveChatReportCsv, liveChatReportRows, orders, products, sellers, setAgentPresence, supportCannedReplies,
+  auditLogs, createDatabase, liveChatAgents, liveChatHistory, liveChats, liveChatReport, liveChatReportCsv, liveChatReportRows, orders, products, sellers, setAgentPresence, supportCannedReplies,
 } from "@azadimart/database";
 import { AppError, LIVE_CHAT_FILE_MAX_BYTES, liveAgentPresenceSchema, liveChatReportQuerySchema, liveChatMessageSchema, liveChatTransferSchema, toApiError, uuidSchema } from "@azadimart/shared";
 import { and, count, desc, eq } from "drizzle-orm";
@@ -77,6 +77,7 @@ export async function GET(request: Request, { params }: Params) {
 
 /**
  * POST /live-chat/presence {status, maxChats?}
+ * POST /live-chat/heartbeat            keeps an Online agent online on any Admin page; returns their status and open chats
  * POST /live-chat/chats/{id}/messages|attachments|typing|take|transfer|end|ticket
  */
 export async function POST(request: Request, { params }: Params) {
@@ -89,6 +90,12 @@ export async function POST(request: Request, { params }: Params) {
       const input = liveAgentPresenceSchema.parse(await json());
       await setAgentPresence(db, me.userId, input.status, input.maxChats);
       return ok(await agentConsole(db, me.userId));
+    }
+    if (section === "heartbeat") {
+      await setAgentPresence(db, me.userId);
+      const [agent] = await db.select({ status: liveChatAgents.status }).from(liveChatAgents).where(eq(liveChatAgents.userId, me.userId)).limit(1);
+      const [mine] = await db.select({ n: count() }).from(liveChats).where(and(eq(liveChats.status, "ACTIVE"), eq(liveChats.assignedAgentId, me.userId)));
+      return ok({ status: agent?.status ?? "OFFLINE", activeChats: Number(mine?.n ?? 0) });
     }
     if (section !== "chats" || !chatId) throw new AppError("NOT_FOUND", "Unknown live chat path");
     const id = uuidSchema.parse(chatId);
