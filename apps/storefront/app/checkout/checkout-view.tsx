@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { walletUsable } from "@azadimart/shared";
 
 type CartItem={variantId:string;title:string;variantTitle:string;sku:string;quantity:number;pricePaise:number;lineTotalPaise:number;isAvailable?:boolean};
 type Address={id:string;label:string|null;line1:string;line2:string|null;city:string;state:string;postalCode:string;country:string;isDefault:boolean};
@@ -24,6 +25,10 @@ export default function CheckoutView(){
   const [showAddressForm,setShowAddressForm]=useState(false);
   // Buy now (/checkout?buy=<variantId>): order only that item; the rest of the cart stays saved.
   const [buyOnly,setBuyOnly]=useState<string[]>();
+  // LOIMART wallet (e.g. the ₹101 welcome bonus): ticked by default when there's money to use.
+  const [wallet,setWallet]=useState<{balancePaise:number;rules:{enabled:boolean;maxPerOrderPaise:number;minOrderPaise:number}}|null>(null);
+  const [useWallet,setUseWallet]=useState(true);
+  useEffect(()=>{void fetch("/api/v1/wallet",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setWallet).catch(()=>setWallet(null));},[]);
 
   async function load(){
     setBusy(true);setError("");
@@ -47,7 +52,10 @@ export default function CheckoutView(){
   }
   useEffect(()=>{void load()},[]);
 
-  const total=Math.max(0,(cart?.subtotalPaise??0)-discount);
+  const afterCoupon=Math.max(0,(cart?.subtotalPaise??0)-discount);
+  const walletCan=wallet?walletUsable(wallet.balancePaise,afterCoupon,wallet.rules):0;
+  const walletUse=useWallet?walletCan:0;
+  const total=Math.max(0,afterCoupon-walletUse);
   const unavailableItems=(cart?.items??[]).filter(item=>item.isAvailable===false);
 
   async function applyCoupon(){
@@ -79,7 +87,7 @@ export default function CheckoutView(){
     if(!selectedAddress||!cart)return;
     setWorking(true);setError("");
     try{
-      const response=await fetch("/api/v1/checkout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({shippingAddressId:selectedAddress,couponCode:appliedCoupon,paymentMethod:"COD",variantIds:buyOnly})});
+      const response=await fetch("/api/v1/checkout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({shippingAddressId:selectedAddress,couponCode:appliedCoupon,paymentMethod:"COD",variantIds:buyOnly,useWallet:walletUse>0})});
       const body=await response.json();if(!response.ok)throw new Error(body?.error?.message??"Unable to place order.");
       window.location.href="/account/orders/"+encodeURIComponent(body.orderId);
     }catch(err){setError(err instanceof Error?err.message:"Unable to place order.");}
@@ -109,7 +117,10 @@ export default function CheckoutView(){
           <div className="mt-5 flex gap-2"><input value={coupon} onChange={e=>{setCoupon(e.target.value.toUpperCase());setDiscount(0);setAppliedCoupon(undefined);setCouponMessage("")}} placeholder="Coupon code" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm uppercase"/><button type="button" disabled={working||!coupon.trim()} onClick={()=>void applyCoupon()} className="rounded-xl border px-4 text-xs font-bold">Apply</button></div>
           {couponMessage?<p className="mt-2 text-xs text-slate-500">{couponMessage}</p>:null}
           {unavailableItems.length?<p className="mt-4 rounded-xl bg-red-50 p-3 text-xs font-semibold text-red-700">Not available in the requested quantity: {unavailableItems.map(item=>item.title).join(", ")}. <Link href="/cart" className="underline">Update your cart</Link> to continue.</p>:null}
-          <div className="mt-6 space-y-3 border-t border-slate-100 pt-5 text-sm"><Row label="Subtotal" value={money(cart.subtotalPaise)}/><Row label="Discount" value={"−"+money(discount)}/><Row label="Shipping" value="Free"/><Row label="Total" value={money(total)} strong/></div>
+          {wallet&&wallet.balancePaise>0?(walletCan>0
+            ?<label className="mt-4 flex cursor-pointer items-start gap-3 border border-[#E4D8FB] bg-[#F6F1FE] p-3 text-sm"><input type="checkbox" checked={useWallet} onChange={e=>setUseWallet(e.target.checked)} className="mt-0.5"/><span><b>Use {money(walletCan)} from your LOIMART wallet</b><span className="block text-xs text-slate-500">Balance {money(wallet.balancePaise)} · up to {money(wallet.rules.maxPerOrderPaise)} per order</span></span></label>
+            :<p className="mt-4 bg-slate-50 p-3 text-xs text-slate-500">You have {money(wallet.balancePaise)} in your LOIMART wallet. Use it on orders of {money(wallet.rules.minOrderPaise)} or more.</p>):null}
+          <div className="mt-6 space-y-3 border-t border-slate-100 pt-5 text-sm"><Row label="Subtotal" value={money(cart.subtotalPaise)}/><Row label="Discount" value={"−"+money(discount)}/>{walletUse>0?<Row label="LOIMART wallet" value={"−"+money(walletUse)}/>:null}<Row label="Shipping" value="Free"/><Row label="Total" value={money(total)} strong/></div>
           <div className="mt-5 rounded-2xl border border-slate-200 p-4"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-full bg-slate-950 text-xs font-bold text-white">₹</span><div><p className="text-sm font-bold">Cash on Delivery</p><p className="mt-1 text-xs text-slate-500">Available for this checkout.</p></div></div></div>
           {selected?<p className="mt-4 text-xs text-slate-500">Delivering to {selected.city}, {selected.state}.</p>:null}
           <button type="button" disabled={working||!selectedAddress||addresses.length===0||unavailableItems.length>0} onClick={()=>void placeOrder()} className="mt-5 w-full rounded-full bg-brand px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-40">{working?"Processing…":"Place COD order"}</button><p className="mt-3 text-center text-[11px] leading-5 text-slate-400">By placing the order, you confirm the delivery address and order details shown above, and agree to our <Link href="/terms" className="underline underline-offset-2 hover:text-slate-600">Terms</Link> and <Link href="/privacy" className="underline underline-offset-2 hover:text-slate-600">Privacy Policy</Link>.</p>

@@ -1,4 +1,5 @@
 import { AppError } from "@azadimart/shared";
+import { refundWalletForOrder } from "./customer-wallet";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import type { Database } from "./client";
 import {
@@ -70,6 +71,9 @@ export async function cancelOrderInTransaction(
       createdByUserId: input.actorUserId,
     });
   }
+
+  // Wallet money used on the order goes back to the shopper's wallet.
+  await refundWalletForOrder(tx, input.orderId);
 
   const redemptions = await tx
     .delete(couponRedemptions)

@@ -110,7 +110,8 @@ export async function issueSellerInvoice(tx: Tx, input: { orderId: string; selle
   }), { interState, charged });
   // A coupon LOIMART pays for: this seller's share of it, by value (the customer paid that much less).
   const orderGross = allItems.reduce((n, i) => n + i.unitPricePaise * i.quantity, 0);
-  const platformDiscount = Math.max(0, order.discountPaise - allItems.reduce((n, i) => n + i.sellerDiscountPaise, 0));
+  // Includes wallet money (also LOIMART's): the seller still gets the full price.
+  const platformDiscount = Math.max(0, order.discountPaise + order.walletPaise - allItems.reduce((n, i) => n + i.sellerDiscountPaise, 0));
   const platformDiscountPaise = orderGross ? Math.round(platformDiscount * computed.totals.grossPaise / orderGross) : 0;
 
   const details: InvoiceDetails = {

@@ -65,6 +65,8 @@ export const orders = pgTable(
     status: orderStatusEnum("status").notNull().default("CREATED"),
     subtotalPaise: integer("subtotal_paise").notNull().default(0),
     discountPaise: integer("discount_paise").notNull().default(0),
+    /** LOIMART wallet money used on this order (paid by LOIMART, like its own coupon). */
+    walletPaise: integer("wallet_paise").notNull().default(0),
     shippingPaise: integer("shipping_paise").notNull().default(0),
     grandTotalPaise: integer("grand_total_paise").notNull(),
     couponCode: text("coupon_code"),

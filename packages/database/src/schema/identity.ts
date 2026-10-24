@@ -8,6 +8,8 @@ export const users = pgTable(
     id,
     email: text("email").notNull(),
     phone: text("phone"),
+    /** When the phone number was proved by an OTP (needed for the welcome bonus). */
+    phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }),
     passwordHash: text("password_hash"),
     role: userRoleEnum("role").notNull(),
     status: userStatusEnum("status").notNull().default("PENDING"),

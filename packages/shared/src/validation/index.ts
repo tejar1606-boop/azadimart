@@ -220,6 +220,8 @@ export const checkoutSchema = z.object({
   variantIds: checkoutVariantIdsSchema,
   couponCode:z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,32}$/).optional(),
   paymentMethod:z.enum(["COD","RAZORPAY","CASHFREE"]).default("COD"),
+  /** Use LOIMART wallet money (up to the per-order limit). */
+  useWallet:z.boolean().optional().default(false),
 });
 export const orderStatusUpdateSchema = z.object({
   status:z.enum(["PAID","CONFIRMED","PACKED","CANCELLED"]),

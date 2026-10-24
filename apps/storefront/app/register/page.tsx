@@ -28,7 +28,8 @@ export default function CustomerRegisterPage() {
       if(!response.ok) throw new Error(body?.error?.message ?? "Unable to create your account.");
       // Straight on to sign in, keeping where the shopper was going.
       const next = new URLSearchParams(window.location.search).get("next") ?? "";
-      router.replace("/login?registered=1" + (/^\/(?![/\\])/.test(next) ? "&next=" + encodeURIComponent(next) : ""));
+      // New shoppers go on to their wallet to verify their mobile and get the welcome bonus.
+      router.replace("/login?registered=1&next=" + encodeURIComponent(/^\/(?![/\\])/.test(next) ? next : "/account/wallet"));
     }catch(err){setError(err instanceof Error ? err.message : "Unable to create your account.");}
     finally{setBusy(false);captchaRef.current?.reset();}
   }

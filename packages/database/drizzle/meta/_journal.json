@@ -365,6 +365,13 @@
       "when": 1792690320434,
       "tag": "20261022173200_call_centre",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1792808478441,
+      "tag": "20261024022118_customer_wallet",
+      "breakpoints": true
     }
   ]
 }

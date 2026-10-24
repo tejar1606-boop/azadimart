@@ -50,7 +50,7 @@ export default function CustomerLoginPage() {
         <p className="mt-8 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">Welcome back</p>
         <h1 className="mt-2 text-3xl font-bold tracking-[-0.04em]">Sign in to shop</h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">Access your cart, orders, addresses and personalized shopping experience.</p>
-        {justRegistered ? <p role="status" className="mt-6 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">Your account is ready. Sign in to continue.</p> : null}
+        {justRegistered ? <p role="status" className="mt-6 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">Your account is ready. Sign in to continue, then verify your mobile to get your <b>₹101 welcome bonus</b>.</p> : null}
         {otpAvailable ? <div className="mt-7"><LoginMethodTabs method={method} onChange={(m) => { setMethod(m); setError(""); }} /></div> : null}
         {otpAvailable && method === "otp" ? (
           <div className="mt-6"><OtpLoginForm onSuccess={goNext} buttonClassName="w-full rounded-full bg-brand px-5 py-3.5 text-[15px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(229,133,48,0.9)] transition hover:bg-brand-600 disabled:opacity-50" /></div>

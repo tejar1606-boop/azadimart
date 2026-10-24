@@ -132,6 +132,48 @@ export async function verifyLoginOtp(
   if (!user || user.status !== "ACTIVE") throw wrong;
 
   const token = await createSession(db, user.id);
-  await db.update(users).set({ lastLoginAt: new Date(), updatedAt: sql`now()` }).where(eq(users.id, user.id));
+  // Signing in with a texted code proves the phone belongs to them.
+  await db.update(users).set({ lastLoginAt: new Date(), phoneVerifiedAt: sql`coalesce(${users.phoneVerifiedAt}, now())`, updatedAt: sql`now()` }).where(eq(users.id, user.id));
   return { token, userId: user.id, role: user.role as Role };
+}
+
+const VERIFY_AUDIENCE = "verify-phone";
+
+/** Texts a code to the signed-in shopper's own phone, to prove it's theirs (e.g. for the welcome bonus). */
+export async function requestPhoneVerification(db: Database, request: Request, userId: string): Promise<{ sent: true; phone: string; devCode?: string }> {
+  if (!isOtpLoginAvailable()) throw new AppError("UNPROCESSABLE", "Mobile verification isn't available right now. Please try again later.");
+  const user = (await db.select({ phone: users.phone, verified: users.phoneVerifiedAt }).from(users).where(eq(users.id, userId)).limit(1))[0];
+  if (!user?.phone) throw new AppError("UNPROCESSABLE", "Add a mobile number to your account first");
+  await enforceRateLimit(db, request, "otpRequest");
+  await enforceRateLimit(db, request, "otpRequestPhone", { subject: `${VERIFY_AUDIENCE}:${user.phone}` });
+  const last = (await db.select({ createdAt: loginOtps.createdAt }).from(loginOtps)
+    .where(and(eq(loginOtps.phone, user.phone), eq(loginOtps.audience, VERIFY_AUDIENCE))).orderBy(desc(loginOtps.createdAt)).limit(1))[0];
+  if (last && Date.now() - last.createdAt.getTime() < OTP_RESEND_SECONDS * 1000) {
+    throw new AppError("RATE_LIMITED", `Please wait ${OTP_RESEND_SECONDS} seconds before asking for a new code.`, { retryAfterSeconds: OTP_RESEND_SECONDS });
+  }
+  const code = generateOtp();
+  await db.update(loginOtps).set({ consumedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(loginOtps.phone, user.phone), eq(loginOtps.audience, VERIFY_AUDIENCE), isNull(loginOtps.consumedAt)));
+  await db.insert(loginOtps).values({ userId, phone: user.phone, audience: VERIFY_AUDIENCE, codeHash: hashOtp(code, user.phone), expiresAt: new Date(Date.now() + OTP_TTL_SECONDS * 1000) });
+  await sendOtpSms(user.phone, code);
+  const masked = "******" + user.phone.slice(-4);
+  return smsProvider() === "console" ? { sent: true, phone: masked, devCode: code } : { sent: true, phone: masked };
+}
+
+/** Checks the code from requestPhoneVerification and marks the phone verified. */
+export async function confirmPhoneVerification(db: Database, request: Request, userId: string, code: string): Promise<void> {
+  await enforceRateLimit(db, request, "otpVerify");
+  const wrong = new AppError("UNAUTHORIZED", "That code is incorrect or has expired. Please request a new one.");
+  const challenge = (await db.select().from(loginOtps)
+    .where(and(eq(loginOtps.userId, userId), eq(loginOtps.audience, VERIFY_AUDIENCE), isNull(loginOtps.consumedAt))).orderBy(desc(loginOtps.createdAt)).limit(1))[0];
+  if (!challenge || challenge.expiresAt.getTime() < Date.now() || challenge.attempts >= OTP_MAX_ATTEMPTS) throw wrong;
+  if (!otpMatches(code, challenge.phone, challenge.codeHash)) {
+    const attempts = challenge.attempts + 1;
+    await db.update(loginOtps).set({ attempts, ...(attempts >= OTP_MAX_ATTEMPTS ? { consumedAt: new Date() } : {}), updatedAt: new Date() }).where(eq(loginOtps.id, challenge.id));
+    throw wrong;
+  }
+  const claimed = await db.update(loginOtps).set({ consumedAt: new Date(), updatedAt: new Date() }).where(and(eq(loginOtps.id, challenge.id), isNull(loginOtps.consumedAt))).returning({ id: loginOtps.id });
+  if (!claimed.length) throw wrong;
+  // Only if the account still has that number (it could have been changed meanwhile).
+  await db.update(users).set({ phoneVerifiedAt: new Date(), updatedAt: new Date() }).where(and(eq(users.id, userId), eq(users.phone, challenge.phone)));
 }

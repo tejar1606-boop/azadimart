@@ -58,6 +58,7 @@ export default function AdminChrome({ counts, children }: { counts: AdminCounts 
       ...(permissions?.includes("banners") ? [{ href: STUDIO_URL, label: "Banner Studio ↗", icon: "sparkle" as const, badge: badge(counts.ads) }] : []),
       { href: "/marketing/coupons", label: "Coupons", icon: "coupons" },
       { href: "/marketing/offer-tags", label: "Offer tags", icon: "sparkle" },
+      { href: "/marketing/wallet", label: "Wallet & bonus", icon: "payments" },
       { href: "/marketing", label: "Marketing", icon: "marketing" },
     ] },
     { title: "Operations", items: [

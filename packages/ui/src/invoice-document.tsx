@@ -136,7 +136,7 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceView }) {
           </div>
           <dl className="min-w-56 self-start border border-slate-300 p-3">
             <div className="flex justify-between gap-6"><dt>{invoice.kind === "CREDIT_NOTE" ? "Credit value" : "Invoice value"}</dt><dd className="font-bold">{rs(total)}</dd></div>
-            {d.platformDiscountPaise ? <div className="mt-1 flex justify-between gap-6 text-slate-600"><dt>LOIMART coupon{invoice.kind === "CREDIT_NOTE" ? " (not refunded)" : " (paid by LOIMART)"}</dt><dd>−{rs(d.platformDiscountPaise)}</dd></div> : null}
+            {d.platformDiscountPaise ? <div className="mt-1 flex justify-between gap-6 text-slate-600"><dt>LOIMART coupon / wallet{invoice.kind === "CREDIT_NOTE" ? " (not refunded)" : " (paid by LOIMART)"}</dt><dd>−{rs(d.platformDiscountPaise)}</dd></div> : null}
             <div className="mt-2 flex justify-between gap-6 border-t border-slate-300 pt-2 text-sm font-black"><dt>{invoice.kind === "CREDIT_NOTE" ? "Refund value" : "Customer paid"}</dt><dd>{rs(paid)}</dd></div>
             <p className="mt-1 text-[10px] text-slate-500">Payment: {d.paymentMethod}</p>
           </dl>

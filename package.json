@@ -48,7 +48,8 @@
     "e2e:settlements": "node scripts/e2e-settlements.mjs",
     "e2e:payroll": "node scripts/e2e-payroll.mjs",
     "e2e:calls": "node scripts/e2e-calls.mjs",
-    "e2e:footwear": "node scripts/e2e-footwear.mjs"
+    "e2e:footwear": "node scripts/e2e-footwear.mjs",
+    "e2e:customer-wallet": "node scripts/e2e-customer-wallet.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
