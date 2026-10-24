@@ -4,7 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { ChevronLeftIcon } from "../components/icons";
+import { ChevronLeftIcon, CloseIcon } from "../components/icons";
+import FilterPanel, { priceLabel, type PriceRange } from "./filter-panel";
 import ProductCard from "../components/product-card";
 import type { RailCategory } from "../lib/category-rail";
 import { countAdView } from "../lib/ad-tracking";
@@ -114,8 +115,10 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
   const [sort, setSort] = useState("featured");
   const [query, setQuery] = useState(urlQuery);
   useEffect(() => { setQuery(urlQuery); }, [urlQuery]);
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
+  const [price, setPrice] = useState<PriceRange>({ min: "", max: "" });
+  const { min: minPrice, max: maxPrice } = price;
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const closeFilters = useCallback(() => setFiltersOpen(false), []);
   // Size filter (shoes, clothing): the sizes in stock here, and the ones the shopper picked.
   const [sizeOptions, setSizeOptions] = useState<string[]>([]);
   const [pickedSizes, setPickedSizes] = useState<string[]>([]);
@@ -152,7 +155,9 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
   useEffect(() => { void load(query); }, [load, query]);
 
   const title = query ? `Results for “${query}”` : category?.name ?? rail.find((c) => c.id === categoryId)?.name ?? "All products";
-  const control = "h-9 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:border-slate-900";
+  const barButton = "flex h-10 min-w-0 items-center justify-center gap-2 whitespace-nowrap border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:border-slate-950";
+  const activeCount = (minPrice || maxPrice ? 1 : 0) + pickedSizes.length;
+  const chip = "inline-flex items-center gap-1.5 border border-slate-300 bg-slate-50 py-1 pl-3 pr-1.5 text-xs font-semibold";
 
   return (
     <main className="min-h-[60vh] bg-white px-3 py-5 sm:px-6 sm:py-10">
@@ -173,25 +178,30 @@ export default function CatalogView({ category, rail = [] }: { category?: FixedC
                 <h1 className="text-[22px] font-bold leading-tight tracking-[-0.02em] sm:text-[32px]">{title}</h1>
                 <p className="mt-1 text-xs text-slate-500 sm:text-sm">{loading ? "Loading products…" : `${items.length} product${items.length === 1 ? "" : "s"} from verified sellers`}</p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <select value={sort} onChange={(e) => setSort(e.target.value)} className={control} aria-label="Sort products">
-                  {SORTS.map(([value, text]) => <option key={value} value={value}>{text}</option>)}
-                </select>
-                <input inputMode="numeric" value={minPrice} onChange={(e) => setMinPrice(e.target.value.replace(/\D/g, ""))} placeholder="Min ₹" className={control + " w-[4.5rem]"} aria-label="Minimum price" />
-                <input inputMode="numeric" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value.replace(/\D/g, ""))} placeholder="Max ₹" className={control + " w-[4.5rem]"} aria-label="Maximum price" />
-              </div>
             </div>
 
-            {sizeOptions.length > 1 ? (
-              <div className="mt-4 flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by size">
-                <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Size</span>
-                {sizeOptions.map((size) => {
-                  const on = pickedSizes.includes(size);
-                  return <button key={size} type="button" aria-pressed={on} onClick={() => setPickedSizes((list) => (on ? list.filter((s) => s !== size) : [...list, size]))} className={"min-w-[2.75rem] border px-2.5 py-1.5 text-xs font-semibold transition " + (on ? "border-slate-950 bg-slate-950 text-white" : "border-slate-300 bg-white text-slate-800 hover:border-slate-950")}>{size}</button>;
-                })}
-                {pickedSizes.length ? <button type="button" onClick={() => setPickedSizes([])} className="ml-1 text-xs font-semibold text-slate-500 underline">Clear</button> : null}
+            {/* Sort + Filters bar, like the big shopping apps; chosen filters show as removable chips. */}
+            <div className="mt-4 flex items-center gap-2">
+              <label className={barButton + " relative flex-1 sm:flex-none"}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4" /></svg>
+                <span className="truncate whitespace-nowrap"><span className="sm:hidden">{sort === "featured" ? "Sort" : SORTS.find(([v]) => v === sort)?.[1]}</span><span className="hidden sm:inline">Sort: {SORTS.find(([v]) => v === sort)?.[1]}</span></span>
+                <select value={sort} onChange={(e) => setSort(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Sort products">
+                  {SORTS.map(([value, text]) => <option key={value} value={value}>{text}</option>)}
+                </select>
+              </label>
+              <button type="button" onClick={() => setFiltersOpen(true)} className={barButton + " flex-1 sm:flex-none"}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>
+                Filters{activeCount ? <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#6A2CD6] px-1 text-[11px] font-bold text-white">{activeCount}</span> : null}
+              </button>
+            </div>
+            {activeCount ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {minPrice || maxPrice ? <span className={chip}>{priceLabel(price)}<button type="button" aria-label="Remove price filter" onClick={() => setPrice({ min: "", max: "" })} className="grid h-5 w-5 place-items-center text-slate-500 hover:text-slate-950"><CloseIcon size={14} /></button></span> : null}
+                {pickedSizes.map((s) => <span key={s} className={chip}>{s}<button type="button" aria-label={"Remove size " + s} onClick={() => setPickedSizes((l) => l.filter((x) => x !== s))} className="grid h-5 w-5 place-items-center text-slate-500 hover:text-slate-950"><CloseIcon size={14} /></button></span>)}
+                <button type="button" onClick={() => { setPrice({ min: "", max: "" }); setPickedSizes([]); }} className="text-xs font-semibold text-[#6A2CD6] underline underline-offset-2">Clear all</button>
               </div>
             ) : null}
+            <FilterPanel open={filtersOpen} onClose={closeFilters} price={price} sizes={pickedSizes} sizeOptions={sizeOptions} onApply={(p, sz) => { setPrice(p); setPickedSizes(sz); }} />
 
             {error ? <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
