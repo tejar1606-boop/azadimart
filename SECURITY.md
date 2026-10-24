@@ -1,4 +1,4 @@
-# AzadiMart — Security Specification
+# LOIMART — Security Specification
 
 ## Core
 Use least privilege, secure defaults, server-side authorization, input validation, auditability and defense in depth.

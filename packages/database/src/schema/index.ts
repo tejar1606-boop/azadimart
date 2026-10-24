@@ -1,47 +1,29 @@
+// LOIMART database schema source of truth.
 export * from "./enums";
 export * from "./identity";
 export * from "./sellers";
 export * from "./catalog";
 export * from "./commerce";
+export * from "./discounts";
 export * from "./fulfillment";
 export * from "./cms";
 export * from "./support";
 export * from "./audit";
+export * from "./reviews";
+export * from "./payroll";
+export * from "./calls";
+export * from "./customer-wallet";
 
 export const MARKETPLACE_TABLES = [
-  "users",
-  "customers",
-  "customer_addresses",
-  "sellers",
-  "seller_documents",
-  "seller_bank_accounts",
-  "seller_verifications",
-  "categories",
-  "products",
-  "product_variants",
-  "product_media",
-  "product_aplus_content",
-  "inventory",
-  "wishlists",
-  "carts",
-  "cart_items",
-  "orders",
-  "order_items",
-  "payments",
-  "refunds",
-  "shipments",
-  "shipment_events",
-  "delivery_providers",
-  "qc_submissions",
-  "returns",
-  "payouts",
-  "support_tickets",
-  "banners",
-  "pages",
-  "page_sections",
-  "themes",
-  "theme_revisions",
-  "navigation",
-  "media_assets",
-  "audit_logs",
+  "users","roles","user_roles","sessions","customers","customer_addresses","sellers","seller_documents",
+  "seller_bank_accounts","seller_wallet_transactions","seller_wallet_top_ups","platform_settings","seller_commission_free_periods","product_price_history","invoices","invoice_counters","fee_invoices","settlement_adjustments","employees","payroll_runs","payslips","call_agents","calls","customer_wallet_entries","signup_bonus_claims","seller_verifications","seller_settings","categories","brands","products",
+  "product_attributes","product_variants","product_media","product_aplus_content","inventory",
+  "inventory_movements","wishlists","wishlist_items","carts","cart_items","orders","order_items",
+  "payments","payment_events","refunds","shipments","shipment_events","delivery_providers","serviceability",
+  "qc_submissions","qc_issues","returns","return_items","payouts","payout_items","support_tickets",
+  "support_messages","banners","pages","page_sections","themes","theme_revisions","navigation",
+  "navigation_items","media_assets","coupons","coupon_redemptions","audit_logs","login_attempts","rate_limit_buckets",
+  "product_reviews","product_review_media","offer_tags","seller_notifications","push_subscriptions",
 ] as const;
+export * from "./ads";
+export * from "./live-chat";

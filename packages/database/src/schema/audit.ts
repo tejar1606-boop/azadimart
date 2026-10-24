@@ -1,4 +1,4 @@
-import { index, jsonb, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { id, timestamps } from "./columns";
 import { users } from "./identity";
 
@@ -20,3 +20,11 @@ export const auditLogs = pgTable(
     index("audit_logs_entity_idx").on(table.entityType, table.entityId),
   ],
 );
+
+/** Store-wide settings edited in Admin (one JSON value per key), e.g. the bank details sellers pay wallet top-ups to. */
+export const platformSettings = pgTable("platform_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedByUserId: uuid("updated_by_user_id").references(() => users.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

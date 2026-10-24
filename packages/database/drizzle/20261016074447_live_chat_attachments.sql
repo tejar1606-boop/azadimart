@@ -1,0 +1,1 @@
+ALTER TABLE "live_chat_messages" ADD COLUMN "attachment" jsonb;

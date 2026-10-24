@@ -1,4 +1,4 @@
-# AzadiMart — API Design
+# LOIMART — API Design
 
 ## Principles
 - REST-style APIs under /api

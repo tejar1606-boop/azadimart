@@ -1,4 +1,4 @@
-import { boolean, index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { id, timestamps } from "./columns";
 import { userRoleEnum, userStatusEnum } from "./enums";
 
@@ -8,6 +8,8 @@ export const users = pgTable(
     id,
     email: text("email").notNull(),
     phone: text("phone"),
+    /** When the phone number was proved by an OTP (needed for the welcome bonus). */
+    phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }),
     passwordHash: text("password_hash"),
     role: userRoleEnum("role").notNull(),
     status: userStatusEnum("status").notNull().default("PENDING"),
@@ -18,6 +20,96 @@ export const users = pgTable(
     uniqueIndex("users_email_unique").on(table.email),
     uniqueIndex("users_phone_unique").on(table.phone),
     index("users_role_idx").on(table.role),
+  ],
+);
+
+/**
+ * One-time login codes sent by SMS (OTP login for shoppers and sellers).
+ * Only an HMAC of the code is stored. A code is single-use, expires after a
+ * few minutes and is locked after too many wrong tries.
+ */
+export const loginOtps = pgTable(
+  "login_otps",
+  {
+    id,
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    phone: text("phone").notNull(),
+    audience: text("audience").notNull(),
+    codeHash: text("code_hash").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [index("login_otps_phone_audience_idx").on(table.phone, table.audience, table.createdAt)],
+);
+
+/** A team role in the admin portal: a named set of areas (see STAFF_PERMISSIONS). */
+export const roles = pgTable("roles", {
+  id,
+  name: text("name").notNull(),
+  description: text("description"),
+  permissions: text("permissions").array().notNull().default([]),
+  /** Ready-made roles can be edited but not deleted. */
+  isSystem: boolean("is_system").notNull().default(false),
+  ...timestamps,
+}, (table) => [uniqueIndex("roles_name_unique").on(table.name)]);
+
+/** A team member of the admin portal: name on replies, role and on/off switch. */
+export const staffMembers = pgTable("staff_members", {
+  userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  displayName: text("display_name").notNull(),
+  roleId: uuid("role_id").notNull().references(() => roles.id, { onDelete: "restrict" }),
+  isActive: boolean("is_active").notNull().default(true),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id),
+  ...timestamps,
+}, (table) => [index("staff_members_role_idx").on(table.roleId)]);
+
+export const userRoles = pgTable(
+  "user_roles",
+  {
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    roleId: uuid("role_id").notNull().references(() => roles.id, { onDelete: "cascade" }),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("user_roles_user_role_unique").on(table.userId, table.roleId)],
+);
+
+export const sessions = pgTable(
+  "sessions",
+  {
+    id,
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("sessions_token_hash_unique").on(table.tokenHash),
+    index("sessions_user_id_idx").on(table.userId),
+  ],
+);
+
+// Every login attempt (success or failure) for brute-force protection and audit.
+// Keyed by the submitted email, not user id, so unknown emails are throttled
+// the same way as real accounts.
+export const loginAttempts = pgTable(
+  "login_attempts",
+  {
+    id,
+    email: text("email").notNull(),
+    ipAddress: text("ip_address").notNull(),
+    audience: text("audience").notNull(),
+    success: boolean("success").notNull(),
+    reason: text("reason"),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("login_attempts_email_created_idx").on(table.email, table.createdAt),
+    index("login_attempts_ip_created_idx").on(table.ipAddress, table.createdAt),
   ],
 );
 
@@ -48,4 +140,18 @@ export const customerAddresses = pgTable(
     ...timestamps,
   },
   (table) => [index("customer_addresses_customer_id_idx").on(table.customerId)],
+);
+
+/**
+ * Fixed-window request counters for rate limiting (e.g. "register:ip:203.0.113.7").
+ * Kept in Postgres so limits hold across all server instances.
+ */
+export const rateLimitBuckets = pgTable(
+  "rate_limit_buckets",
+  {
+    key: text("key").primaryKey(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull(),
+  },
+  (table) => [index("rate_limit_buckets_window_start_idx").on(table.windowStart)],
 );

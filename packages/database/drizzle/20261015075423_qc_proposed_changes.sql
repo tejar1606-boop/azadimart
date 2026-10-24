@@ -1,0 +1,1 @@
+ALTER TABLE "qc_submissions" ADD COLUMN "proposed_changes" jsonb;
