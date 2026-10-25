@@ -15,9 +15,14 @@ export type WalletSettings = {
   expiryDays: number;
   /** Welcome bonuses allowed from one internet connection (IP) per day. */
   maxBonusesPerIpPerDay: number;
+  /** Refer & earn: a shopper with an order of their own gets this when a friend they invited has their first order delivered. */
+  referralEnabled: boolean;
+  referralRewardPaise: number;
+  /** Most referral rewards one shopper can earn (0 = no limit). */
+  maxReferralRewards: number;
 };
 export const CUSTOMER_WALLET_KEY = "customer_wallet";
-export const DEFAULT_WALLET_SETTINGS: WalletSettings = { enabled: true, bonusPaise: 10100, maxPerOrderPaise: 5000, minOrderPaise: 29900, expiryDays: 30, maxBonusesPerIpPerDay: 3 };
+export const DEFAULT_WALLET_SETTINGS: WalletSettings = { enabled: true, bonusPaise: 10100, maxPerOrderPaise: 5000, minOrderPaise: 29900, expiryDays: 30, maxBonusesPerIpPerDay: 3, referralEnabled: true, referralRewardPaise: 10100, maxReferralRewards: 50 };
 /** A cancelled order gives wallet money back with at least this long left to use it. */
 export const WALLET_REFUND_GRACE_DAYS = 7;
 
@@ -29,6 +34,9 @@ export const walletSettingsSchema = z.object({
   minOrderPaise: rupeesPaise(1_00_000_00),
   expiryDays: z.number().int().min(1).max(3650),
   maxBonusesPerIpPerDay: z.number().int().min(1).max(1000),
+  referralEnabled: z.boolean().default(DEFAULT_WALLET_SETTINGS.referralEnabled),
+  referralRewardPaise: rupeesPaise(1_000_00).default(DEFAULT_WALLET_SETTINGS.referralRewardPaise),
+  maxReferralRewards: z.number().int().min(0).max(100_000).default(DEFAULT_WALLET_SETTINGS.maxReferralRewards),
 });
 
 /** How much wallet money this order can use: up to the per-order limit, only on orders worth the minimum. */

@@ -372,6 +372,13 @@
       "when": 1792808478441,
       "tag": "20261024022118_customer_wallet",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1792939049888,
+      "tag": "20261025143729_customer_referrals",
+      "breakpoints": true
     }
   ]
 }

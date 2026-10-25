@@ -1,4 +1,4 @@
-import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { id, timestamps } from "./columns";
 import { userRoleEnum, userStatusEnum } from "./enums";
 
@@ -119,8 +119,16 @@ export const customers = pgTable("customers", {
     .notNull()
     .references(() => users.id, { onDelete: "restrict" }),
   fullName: text("full_name").notNull(),
+  /** Refer & earn code, created once the shopper has an order of their own. */
+  referralCode: text("referral_code"),
+  /** The shopper who invited them (their referral code at sign-up). */
+  referredByCustomerId: uuid("referred_by_customer_id").references((): AnyPgColumn => customers.id, { onDelete: "set null" }),
   ...timestamps,
-}, (table) => [uniqueIndex("customers_user_id_unique").on(table.userId)]);
+}, (table) => [
+  uniqueIndex("customers_user_id_unique").on(table.userId),
+  uniqueIndex("customers_referral_code_unique").on(table.referralCode),
+  index("customers_referred_by_idx").on(table.referredByCustomerId),
+]);
 
 export const customerAddresses = pgTable(
   "customer_addresses",

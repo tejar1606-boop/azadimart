@@ -1,5 +1,5 @@
 import { getClientIp, hashPassword, verifyCaptcha, enforceRateLimit } from "@azadimart/auth";
-import { createDatabase, customers, users } from "@azadimart/database";
+import { createDatabase, customers, referrerForSignup, users } from "@azadimart/database";
 import { AppError, customerRegistrationSchema, toApiError } from "@azadimart/shared";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -19,6 +19,7 @@ export async function POST(request: Request) {
 
     if (existingEmail[0]) throw new AppError("CONFLICT", "An account already exists with this email.");
     if (existingPhone[0]) throw new AppError("CONFLICT", "An account already exists with this phone number.");
+    const referredByCustomerId = await referrerForSignup(db, input.referralCode);
 
     const passwordHash = await hashPassword(input.password);
     const insertedUsers = await db.insert(users).values({
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
       const insertedCustomers = await db.insert(customers).values({
         userId: user.id,
         fullName: input.fullName,
+        referredByCustomerId,
       }).returning({ id: customers.id });
       const customer = insertedCustomers[0];
       if (!customer) throw new AppError("INTERNAL", "Customer profile creation failed", undefined, false);

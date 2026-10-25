@@ -15,7 +15,7 @@ export const customerWalletEntries = pgTable(
   {
     id,
     customerId: uuid("customer_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
-    kind: text("kind").$type<"SIGNUP_BONUS" | "ORDER_SPEND" | "ORDER_REFUND" | "ADJUSTMENT">().notNull(),
+    kind: text("kind").$type<"SIGNUP_BONUS" | "REFERRAL_REWARD" | "ORDER_SPEND" | "ORDER_REFUND" | "ADJUSTMENT">().notNull(),
     /** + money in, − money out. */
     amountPaise: integer("amount_paise").notNull(),
     remainingPaise: integer("remaining_paise").notNull().default(0),
@@ -57,5 +57,29 @@ export const signupBonusClaims = pgTable(
     index("signup_bonus_device_idx").on(table.deviceId),
     index("signup_bonus_fingerprint_idx").on(table.fingerprint),
     index("signup_bonus_ip_idx").on(table.ipAddress, table.createdAt),
+  ],
+);
+
+/**
+ * Refer & earn: one row per invited shopper, written when their first order is
+ * delivered. GRANTED pays the shopper who invited them (walletEntryId);
+ * BLOCKED keeps why not (same device, limit reached…) for Admin.
+ */
+export const customerReferralRewards = pgTable(
+  "customer_referral_rewards",
+  {
+    id,
+    referrerCustomerId: uuid("referrer_customer_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
+    referredCustomerId: uuid("referred_customer_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
+    orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+    status: text("status").$type<"GRANTED" | "BLOCKED">().notNull(),
+    reason: text("reason"),
+    amountPaise: integer("amount_paise").notNull().default(0),
+    walletEntryId: uuid("wallet_entry_id").references(() => customerWalletEntries.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("customer_referral_rewards_referred_unique").on(table.referredCustomerId),
+    index("customer_referral_rewards_referrer_idx").on(table.referrerCustomerId, table.createdAt),
   ],
 );

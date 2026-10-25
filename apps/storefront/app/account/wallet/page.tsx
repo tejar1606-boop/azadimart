@@ -15,7 +15,11 @@ type Summary = {
 };
 const rs = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-const KIND: Record<string, string> = { SIGNUP_BONUS: "Welcome bonus", ORDER_SPEND: "Used on an order", ORDER_REFUND: "Order cancelled: money back", ADJUSTMENT: "Adjustment by LOIMART" };
+type Referrals = {
+  enabled: boolean; unlocked: boolean; code: string | null; rewardPaise: number; expiryDays: number; earnedPaise: number;
+  friends: Array<{ name: string; joinedAt: string; state: "JOINED" | "ORDERED" | "REWARDED" | "NOT_ELIGIBLE"; reason: string | null; amountPaise: number }>;
+};
+const KIND: Record<string, string> = { SIGNUP_BONUS: "Welcome bonus", REFERRAL_REWARD: "Referral reward", ORDER_SPEND: "Used on an order", ORDER_REFUND: "Order cancelled: money back", ADJUSTMENT: "Adjustment by LOIMART" };
 
 async function api(path: string, body?: unknown) {
   const r = await fetch(path, { method: body === undefined ? "GET" : "POST", headers: body === undefined ? undefined : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });
@@ -28,6 +32,7 @@ async function api(path: string, body?: unknown) {
 /** The shopper's LOIMART wallet: welcome bonus (verify mobile → claim), balance, expiry and history. */
 export default function WalletPage() {
   const [w, setW] = useState<Summary | null>(null);
+  const [refer, setRefer] = useState<Referrals | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [code, setCode] = useState("");
   const [sent, setSent] = useState<{ phone: string; devCode?: string } | null>(null);
@@ -35,7 +40,7 @@ export default function WalletPage() {
   const tried = useRef(false);
 
   const load = useCallback(async () => { try { setW(await api("/api/v1/wallet")); } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : "Couldn't load your wallet" }); } }, []);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(); fetch("/api/v1/wallet/referrals", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then(setRefer).catch(() => undefined); }, [load]);
 
   const claim = useCallback(async () => {
     setBusy(true); setMsg(null);
@@ -89,6 +94,8 @@ export default function WalletPage() {
         ) : w.bonus.state === "NOT_ELIGIBLE" ? <p className="mt-5 border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">The welcome bonus isn&apos;t available for this account: {w.bonus.reason}</p> : null}
         {msg ? <p className={"mt-4 px-4 py-3 text-sm " + (msg.ok ? "bg-green-50 text-green-800" : "bg-red-50 text-red-700")}>{msg.text}</p> : null}
 
+        {refer?.enabled ? <ReferAndEarn r={refer} /> : null}
+
         <h2 className="mt-10 text-lg font-bold">History</h2>
         {w.entries.length ? (
           <ul className="mt-3 divide-y divide-slate-100 border-y border-slate-200">
@@ -102,5 +109,54 @@ export default function WalletPage() {
         ) : <p className="mt-2 text-sm text-slate-500">Nothing yet.</p>}
       </div>
     </main>
+  );
+}
+
+const FRIEND_STATE = {
+  JOINED: { text: "Signed up: waiting for their first order", cls: "text-slate-500" },
+  ORDERED: { text: "Ordered: you get paid when it's delivered", cls: "text-amber-700" },
+  REWARDED: { text: "Delivered: reward added", cls: "text-green-700" },
+  NOT_ELIGIBLE: { text: "No reward", cls: "text-red-700" },
+} as const;
+
+/** Refer & earn: unlocked by the shopper's first order; pays when an invited friend's first order is delivered. */
+function ReferAndEarn({ r }: { r: Referrals }) {
+  const [copied, setCopied] = useState(false);
+  const link = r.code && typeof window !== "undefined" ? `${window.location.origin}/register?ref=${r.code}` : "";
+  const message = `Join me on LOIMART! Sign up with my code ${r.code} and get ${rs(r.rewardPaise)} in your wallet: ${link}`;
+  async function share() {
+    if (navigator.share) { try { await navigator.share({ title: "LOIMART", text: message }); return; } catch { /* closed: fall back to copy */ } }
+    await navigator.clipboard?.writeText(message).catch(() => undefined);
+    setCopied(true); setTimeout(() => setCopied(false), 2000);
+  }
+  return (
+    <section id="refer" className="mt-8 scroll-mt-24 border border-slate-200 p-5 sm:p-6">
+      <p className="text-lg font-bold">🤝 Refer &amp; earn {rs(r.rewardPaise)}</p>
+      <p className="mt-1 text-sm text-slate-600">Invite friends to LOIMART. When a friend you invited gets their <b>first order delivered</b>, {rs(r.rewardPaise)} lands in your wallet. Every friend who orders can then invite their own friends too.</p>
+      {!r.unlocked ? (
+        <div className="mt-4 bg-slate-50 p-4 text-sm text-slate-700">🔒 Place your first order to unlock your referral code. <Link href="/products" className="font-bold text-[#6A2CD6] underline">Shop now</Link></div>
+      ) : (
+        <>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="border-2 border-dashed border-[#6A2CD6] px-4 py-2 font-mono text-xl font-black tracking-widest text-[#2A0E5F]">{r.code}</span>
+            <button type="button" onClick={() => void share()} className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-bold text-white">{copied ? "Copied ✓" : "Share"}</button>
+            <a href={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer" className="rounded-full bg-[#25D366] px-5 py-2.5 text-sm font-bold text-white">WhatsApp</a>
+          </div>
+          <p className="mt-2 break-all text-xs text-slate-500">{link}</p>
+          <p className="mt-4 text-sm"><b>{r.friends.length}</b> invited · <b>{r.friends.filter((f) => f.state === "REWARDED").length}</b> rewarded · <b className="text-green-700">{rs(r.earnedPaise)}</b> earned</p>
+          {r.friends.length ? (
+            <ul className="mt-3 divide-y divide-slate-100 border-y border-slate-200">
+              {r.friends.map((f, i) => (
+                <li key={i} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                  <span><span className="font-semibold">{f.name}</span><span className="block text-xs text-slate-500">Joined {day(f.joinedAt)}</span></span>
+                  <span className={"text-right text-xs font-semibold " + FRIEND_STATE[f.state].cls}>{f.state === "REWARDED" ? `+${rs(f.amountPaise)} · ` : ""}{FRIEND_STATE[f.state].text}{f.reason ? <span className="block font-normal">{f.reason}</span> : null}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="mt-3 text-xs text-slate-500">Rewards are LOIMART wallet money: use within {r.expiryDays} days, like the welcome bonus. Your friend must use a different phone and their own mobile number.</p>
+        </>
+      )}
+    </section>
   );
 }

@@ -247,6 +247,8 @@ export const customerRegistrationSchema = z.object({
   phone: z.string().regex(/^[6-9]\d{9}$/, "Enter a valid Indian mobile number"),
   password: z.string().min(8).max(256),
   captchaToken: z.string().max(2048).optional(),
+  /** A friend's Refer & earn code (optional). */
+  referralCode: z.string().trim().max(20).optional(),
 });
 export const roleSchema = z.enum(ROLES);export const mediaUploadRequestSchema = z.object({
   purpose: z.enum(["SITE_IMAGE", "SITE_VIDEO", "PRODUCT_IMAGE", "PRODUCT_VIDEO", "APLUS_IMAGE", "REVIEW_IMAGE", "AD_IMAGE"]),
