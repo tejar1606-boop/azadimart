@@ -1,6 +1,7 @@
 // End-to-end test for shopper Refer & earn: the referral code unlocks only
-// after the shopper's own order; a friend who signs up with it and gets their
-// first order delivered earns the inviter the reward (₹101) once; the friend
+// after the shopper's own order; a friend who signs up with it and keeps their
+// first delivered order past the return window (no return or replacement)
+// earns the inviter the reward (₹101) once, paid by the daily job; the friend
 // can then invite their own friends (and so on); second accounts on the same
 // device and the Admin limit get nothing, with the reason shown.
 // Requires the demo seed + catalogue seed and the apps (test server, console
@@ -45,6 +46,10 @@ const [product] = await sql`select v.id variant_id, p.seller_id from product_var
 if (!product) throw new Error("Need a stocked live demo-seller product between ₹400 and ₹2,000.");
 
 async function tidy() {
+  if (orders.length) {
+    await sql`delete from return_items where return_id in (select id from returns where order_id = any(${orders}::uuid[]))`;
+    await sql`delete from returns where order_id = any(${orders}::uuid[])`;
+  }
   for (const id of orders) await sql`update orders set status = 'CANCELLED' where id = ${id} and status <> 'CANCELLED'`;
   if (delivered) await sql`update inventory set on_hand = on_hand + ${delivered} where variant_id = ${product.variant_id}`;
   await sql`delete from platform_settings where key = 'customer_wallet'`;
@@ -88,6 +93,12 @@ async function deliver(orderId) {
   if (d.status !== 200) throw new Error("Delivery failed: " + JSON.stringify(d.json));
   delivered++;
 }
+// The return window closes (as if 8 days passed) and the daily job runs.
+async function windowCloses(orderId) {
+  await sql`update orders set delivered_at = now() - interval '8 days' where id = ${orderId}`;
+  return admin("/api/cron/referral-rewards", { method: "POST" });
+}
+async function deliverAndKeep(orderId) { await deliver(orderId); return windowCloses(orderId); }
 const refer = (s) => s.c("/api/v1/wallet/referrals").then((r) => r.json);
 const balance = (s) => s.c("/api/v1/wallet").then((r) => r.json.balancePaise);
 
@@ -114,30 +125,49 @@ const before = await balance(a);
 const bOrder = await order(b);
 check("the friend has ordered: still no reward until delivery", (await balance(a)) === before && (await refer(a)).friends[0]?.state === "ORDERED");
 await deliver(bOrder);
+let rf = (await refer(a)).friends[0];
+check("delivered, but no reward while the friend can still return it", (await balance(a)) === before && rf?.state === "DELIVERED" && rf.dueAt && (new Date(rf.dueAt) - Date.now()) / 86400000 > 6.9, JSON.stringify(rf));
+r = await admin("/api/cron/referral-rewards", { method: "POST" });
+check("…the daily job doesn't pay it early", r.status === 200 && (await balance(a)) === before, JSON.stringify(r.json));
+r = await windowCloses(bOrder);
 let w = (await a.c("/api/v1/wallet")).json;
-check("the friend's first order is delivered: ₹101 lands in the inviter's wallet", w.balancePaise === before + 10100 && w.entries.some((e) => e.kind === "REFERRAL_REWARD" && e.amountPaise === 10100), String(w.balancePaise - before));
+check("return window over with no return: ₹101 lands in the inviter's wallet", r.json?.granted >= 1 && w.balancePaise === before + 10100 && w.entries.some((e) => e.kind === "REFERRAL_REWARD" && e.amountPaise === 10100), String(w.balancePaise - before));
 ra = await refer(a);
 check("…and Refer & earn shows the friend rewarded and ₹101 earned", ra.friends[0]?.state === "REWARDED" && ra.earnedPaise === 10100);
-await deliver(await order(b));
+await deliverAndKeep(await order(b));
 check("the friend's second order pays nothing more", (await balance(a)) === before + 10100);
+check("a shopper can't run the daily job", [401, 403].includes((await a.c(`${AD}/api/cron/referral-rewards`, { method: "POST" })).status));
 
 // --- the same for everyone: the friend now invites their own friend
 const rb = await refer(b);
 check("the friend's own code is unlocked by their order", rb.unlocked && rb.code !== ra.code);
 const c = await signUp("E2E Refer Chitra", rb.code);
 await welcomeBonus(c, device());
-await deliver(await order(c));
+await deliverAndKeep(await order(c));
 check("the friend's friend's first delivery pays the friend ₹101", (await balance(b)) === 10100 + 10100, String(await balance(b)));
 check("…and nothing extra to the first shopper", (await balance(a)) === before + 10100);
+
+// --- a return or replacement request means no reward for that order
+const g = await signUp("E2E Refer Gopi", rb.code);
+await welcomeBonus(g, device());
+const gOrder = await order(g);
+await deliver(gOrder);
+const [line] = await sql`select id from order_items where order_id = ${gOrder}`;
+r = await g.c(`/api/v1/orders/${gOrder}/returns`, { method: "POST", body: { items: [{ orderItemId: line.id, quantity: 1, reason: "Wrong size, want a replacement" }], reason: "Wrong size" } });
+await windowCloses(gOrder);
+let gf = (await refer(b)).friends.find((f) => f.state !== "REWARDED");
+check("the friend asked for a return/replacement: no reward, even after the window", r.status < 300 && (await balance(b)) === 20200 && gf?.state === "RETURNED", JSON.stringify({ status: r.status, err: r.json?.error, gf }));
+await deliverAndKeep(await order(g));
+check("…their next order they keep earns it", (await balance(b)) === 30300, String(await balance(b)));
 
 // --- abuse: a second account on the inviter's own phone
 const devB = device();
 await sql`update signup_bonus_claims set device_id = ${devB.deviceId}, fingerprint = ${devB.fingerprint} where customer_id = ${b.customerId}`;
 const fake = await signUp("E2E Refer Second Phone", rb.code);
 const bonus = await welcomeBonus(fake, devB);
-await deliver(await order(fake));
+await deliverAndKeep(await order(fake));
 const rb2 = await refer(b);
-check("an account on the inviter's own device earns nothing", bonus?.granted === false && (await balance(b)) === 20200 && rb2.friends.some((f) => f.state === "NOT_ELIGIBLE" && /device/.test(f.reason ?? "")), JSON.stringify(rb2.friends));
+check("an account on the inviter's own device earns nothing", bonus?.granted === false && (await balance(b)) === 30300 && rb2.friends.some((f) => f.state === "NOT_ELIGIBLE" && /device/.test(f.reason ?? "")), JSON.stringify(rb2.friends));
 
 // --- Admin
 r = await admin("/api/v1/marketing/wallet");
@@ -146,13 +176,13 @@ check("Admin sees referral rewards and refused ones with why", r.status === 200 
 r = await admin("/api/v1/marketing/wallet", { method: "PUT", body: { ...settings, maxReferralRewards: 1 } });
 const d = await signUp("E2E Refer Deepa", ra.code);
 await welcomeBonus(d, device());
-await deliver(await order(d));
+await deliverAndKeep(await order(d));
 check("Admin's limit (1 per shopper) stops further rewards", r.status === 200 && (await balance(a)) === before + 10100 && (await refer(a)).friends.some((f) => f.state === "NOT_ELIGIBLE" && /limit/.test(f.reason ?? "")));
 r = await admin("/api/v1/marketing/wallet", { method: "PUT", body: { ...settings, referralRewardPaise: 5100 } });
 const e = await signUp("E2E Refer Esha", rb.code);
 await welcomeBonus(e, device());
-await deliver(await order(e));
-check("Admin changes the reward (₹51) and new rewards follow", r.status === 200 && (await balance(b)) === 20200 + 5100, String(await balance(b)));
+await deliverAndKeep(await order(e));
+check("Admin changes the reward (₹51) and new rewards follow", r.status === 200 && (await balance(b)) === 30300 + 5100, String(await balance(b)));
 await admin("/api/v1/marketing/wallet", { method: "PUT", body: { ...settings, referralEnabled: false } });
 check("switching referrals off hides Refer & earn", (await refer(a)).enabled === false);
 check("shoppers can't change the rules", [401, 403].includes((await a.c(`${AD}/api/v1/marketing/wallet`, { method: "PUT", body: settings })).status));

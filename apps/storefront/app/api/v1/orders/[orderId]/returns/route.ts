@@ -1,11 +1,11 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, orderItems, orders, returnItems, returns } from "@azadimart/database";
+import { createDatabase, orderItems, orders, returnItems, returnWindowDays, returns } from "@azadimart/database";
 import { AppError, toApiError } from "@azadimart/shared";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-/** Days after delivery during which a customer may request a return. */
-const RETURN_WINDOW_DAYS = Number(process.env.RETURN_WINDOW_DAYS ?? 7) || 7;
+/** Days after delivery during which a customer may request a return (the referral reward waits for it too). */
+const RETURN_WINDOW_DAYS = returnWindowDays();
 
 export async function POST(
   request: Request,

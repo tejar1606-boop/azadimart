@@ -41,7 +41,7 @@ export default function WalletAdmin() {
 
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
-      <PortalPageHeader eyebrow="Marketing" title="Wallet, welcome bonus & referrals" description="New shoppers get a welcome bonus in their LOIMART wallet after verifying their mobile by OTP: once per mobile number and once per device (device ID + fingerprint), with a daily limit per internet connection. After their first order, shoppers can refer friends: when a friend's first order is delivered, the shopper who invited them gets the referral reward. LOIMART pays for wallet money; sellers get their full price." />
+      <PortalPageHeader eyebrow="Marketing" title="Wallet, welcome bonus & referrals" description="New shoppers get a welcome bonus in their LOIMART wallet after verifying their mobile by OTP: once per mobile number and once per device (device ID + fingerprint), with a daily limit per internet connection. After their first order, shoppers can refer friends: when a friend's first order is delivered and kept past the return window (no return or replacement), the shopper who invited them gets the referral reward (checked daily). LOIMART pays for wallet money; sellers get their full price." />
       <div className="mt-5 grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
         {([["Bonuses given", `${t.bonuses} · ${rs(t.given)}`], ["Referral rewards", `${t.referralRewards} · ${rs(t.referralGiven)}`], ["Used on orders", rs(t.spent - t.refunded)], ["Still in wallets", rs(t.outstanding)], ["Expired unused", rs(t.expired)], ["Blocked attempts", String(data.reasons.reduce((n, r) => n + r.n, 0))]] as const).map(([l, v]) => (
           <div key={l} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-card"><p className="text-xs text-slate-500">{l}</p><p className="mt-1 text-xl font-bold">{v}</p></div>
@@ -80,7 +80,7 @@ export default function WalletAdmin() {
         )}
       </section>
       <section className="mt-4 rounded-2xl border border-slate-200 bg-white shadow-card">
-        <h2 className="border-b border-slate-100 px-5 py-3 font-semibold">Recent referrals <span className="text-xs font-normal text-slate-500">(written when the invited friend&apos;s first order is delivered)</span></h2>
+        <h2 className="border-b border-slate-100 px-5 py-3 font-semibold">Recent referrals <span className="text-xs font-normal text-slate-500">(written once the invited friend&apos;s first order is delivered and the return window closes without a return)</span></h2>
         {!data.referrals.length ? <p className="p-6 text-sm text-slate-500">No referral rewards yet.</p> : (
           <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-sm">
             <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-2.5">When</th><th className="px-3">Invited by</th><th className="px-3">Friend</th><th className="px-5">Result</th></tr></thead>

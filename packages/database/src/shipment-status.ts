@@ -4,7 +4,6 @@ import type { Database } from "./client";
 import { auditLogs, inventory, inventoryMovements, orderItems, orders, payments, shipmentEvents, shipments } from "./schema/index";
 import { refundCourierToWallet } from "./seller-wallet";
 import { rewardReferralOnFirstDelivery } from "./seller-referrals";
-import { rewardCustomerReferralOnDelivery } from "./customer-referrals";
 import { issueCreditNote, issueSellerInvoice } from "./invoices";
 import { recordReturnAfterSettlement } from "./fee-invoices";
 
@@ -120,8 +119,6 @@ export async function advanceShipmentStatus(tx: Tx, input: { shipmentId: string;
   }
   await tx.insert(shipmentEvents).values({ shipmentId: shipment.id, status: input.status as typeof shipments.$inferSelect.status, description: input.notes ?? "Shipment status updated" });
   await syncOrderFulfillmentStatus(tx, shipment.orderId);
-  // An invited shopper's first delivered order pays the shopper who invited them.
-  if (input.status === "DELIVERED") await rewardCustomerReferralOnDelivery(tx, shipment.orderId);
   await tx.insert(auditLogs).values({
     actorUserId: input.actorUserId, action: "SHIPMENT_STATUS_" + input.status, entityType: "shipment", entityId: shipment.id,
     metadata: { orderId: shipment.orderId, from: shipment.status, to: input.status, notes: input.notes ?? null },

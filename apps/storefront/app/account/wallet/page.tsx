@@ -16,8 +16,8 @@ type Summary = {
 const rs = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 type Referrals = {
-  enabled: boolean; unlocked: boolean; code: string | null; rewardPaise: number; expiryDays: number; earnedPaise: number;
-  friends: Array<{ name: string; joinedAt: string; state: "JOINED" | "ORDERED" | "REWARDED" | "NOT_ELIGIBLE"; reason: string | null; amountPaise: number }>;
+  enabled: boolean; unlocked: boolean; code: string | null; rewardPaise: number; expiryDays: number; returnWindowDays: number; earnedPaise: number;
+  friends: Array<{ name: string; joinedAt: string; state: "JOINED" | "ORDERED" | "DELIVERED" | "RETURNED" | "REWARDED" | "NOT_ELIGIBLE"; dueAt: string | null; reason: string | null; amountPaise: number }>;
 };
 const KIND: Record<string, string> = { SIGNUP_BONUS: "Welcome bonus", REFERRAL_REWARD: "Referral reward", ORDER_SPEND: "Used on an order", ORDER_REFUND: "Order cancelled: money back", ADJUSTMENT: "Adjustment by LOIMART" };
 
@@ -114,8 +114,10 @@ export default function WalletPage() {
 
 const FRIEND_STATE = {
   JOINED: { text: "Signed up: waiting for their first order", cls: "text-slate-500" },
-  ORDERED: { text: "Ordered: you get paid when it's delivered", cls: "text-amber-700" },
-  REWARDED: { text: "Delivered: reward added", cls: "text-green-700" },
+  ORDERED: { text: "Ordered: waiting for delivery", cls: "text-amber-700" },
+  DELIVERED: { text: "Delivered: reward if not returned", cls: "text-amber-700" },
+  RETURNED: { text: "Returned: waiting for an order they keep", cls: "text-slate-500" },
+  REWARDED: { text: "Reward added", cls: "text-green-700" },
   NOT_ELIGIBLE: { text: "No reward", cls: "text-red-700" },
 } as const;
 
@@ -132,7 +134,7 @@ function ReferAndEarn({ r }: { r: Referrals }) {
   return (
     <section id="refer" className="mt-8 scroll-mt-24 border border-slate-200 p-5 sm:p-6">
       <p className="text-lg font-bold">🤝 Refer &amp; earn {rs(r.rewardPaise)}</p>
-      <p className="mt-1 text-sm text-slate-600">Invite friends to LOIMART. When a friend you invited gets their <b>first order delivered</b>, {rs(r.rewardPaise)} lands in your wallet. Every friend who orders can then invite their own friends too.</p>
+      <p className="mt-1 text-sm text-slate-600">Invite friends to LOIMART. When a friend you invited gets their first order <b>delivered and keeps it</b> (no return or replacement within {r.returnWindowDays} days of delivery), {rs(r.rewardPaise)} lands in your wallet. Every friend who orders can then invite their own friends too.</p>
       {!r.unlocked ? (
         <div className="mt-4 bg-slate-50 p-4 text-sm text-slate-700">🔒 Place your first order to unlock your referral code. <Link href="/products" className="font-bold text-[#6A2CD6] underline">Shop now</Link></div>
       ) : (
@@ -149,7 +151,7 @@ function ReferAndEarn({ r }: { r: Referrals }) {
               {r.friends.map((f, i) => (
                 <li key={i} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                   <span><span className="font-semibold">{f.name}</span><span className="block text-xs text-slate-500">Joined {day(f.joinedAt)}</span></span>
-                  <span className={"text-right text-xs font-semibold " + FRIEND_STATE[f.state].cls}>{f.state === "REWARDED" ? `+${rs(f.amountPaise)} · ` : ""}{FRIEND_STATE[f.state].text}{f.reason ? <span className="block font-normal">{f.reason}</span> : null}</span>
+                  <span className={"text-right text-xs font-semibold " + FRIEND_STATE[f.state].cls}>{f.state === "REWARDED" ? `+${rs(f.amountPaise)} · ` : ""}{FRIEND_STATE[f.state].text}{f.dueAt ? <span className="block font-normal">on {day(f.dueAt)}</span> : null}{f.reason ? <span className="block font-normal">{f.reason}</span> : null}</span>
                 </li>
               ))}
             </ul>
