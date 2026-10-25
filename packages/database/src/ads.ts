@@ -1,7 +1,8 @@
-import { AD_BOOKING_DAYS_AHEAD, AD_DEFAULT_CREDIT_LIMIT_PAISE, adChargeFor, addDays, biddingClosesAt, istDayKey, minimumNextBid } from "@azadimart/shared";
-import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { AD_BOOKING_DAYS_AHEAD, AD_DEFAULT_CREDIT_LIMIT_PAISE, AD_FESTIVAL_DAYS_KEY, FREE_AD_PLACEMENTS, adChargeFor, addDays, biddingClosesAt, istDayKey, minimumNextBid, type AdPlacement } from "@azadimart/shared";
+import { and, asc, count, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import type { Database } from "./client";
-import { adBids, adCampaigns, adSlotClosedDays, adSlots, sellerCharges } from "./schema/ads";
+import { getPlatformSetting } from "./platform-settings";
+import { adBids, adCampaigns, adSlotClosedDays, adSlots, sellerAdCredits, sellerCharges } from "./schema/ads";
 import { sellers } from "./schema/sellers";
 import { unpaidSettlementLines } from "./settlements";
 
@@ -37,8 +38,22 @@ function dedupeLosses(events: AdEvent[]) {
   return events.filter((e) => e.kind !== "LOST" || (!seen.has(e.sellerId + e.day) && seen.add(e.sellerId + e.day)));
 }
 
+/** Festival and sale days LOIMART marks (free ad days can't be used on them). */
+export async function adFestivalDays(db: Pick<Database, "select">): Promise<Set<string>> {
+  return new Set((await getPlatformSetting<{ days: string[] }>(db, AD_FESTIVAL_DAYS_KEY))?.days ?? []);
+}
+
+/** A seller's free ad days: how many they can still use and have used. */
+export async function freeAdDays(db: Pick<Database, "select">, sellerId: string) {
+  const rows = await db.select({ status: sellerAdCredits.status, n: count() }).from(sellerAdCredits).where(eq(sellerAdCredits.sellerId, sellerId)).groupBy(sellerAdCredits.status);
+  const of = (status: string) => Number(rows.find((r) => r.status === status)?.n ?? 0);
+  return { available: of("AVAILABLE"), used: of("USED") };
+}
+
 export type AdDay = {
   day: string;
+  /** A festival or sale day: free ad days can't be used on it. */
+  festival: boolean;
   status: "OPEN" | "BIDDING" | "BOOKED" | "CLOSED" | "UNAVAILABLE";
   closesAt: string;
   topBidPaise: number | null;
@@ -54,9 +69,10 @@ export async function adCalendar(db: Database, slotId: string, options: { seller
   const slot = (await db.select().from(adSlots).where(eq(adSlots.id, slotId)).limit(1))[0];
   if (!slot) return null;
   const first = istDayKey(now), last = addDays(first, (options.days ?? AD_BOOKING_DAYS_AHEAD) - 1);
-  const [bids, closed] = await Promise.all([
+  const [bids, closed, festival] = await Promise.all([
     db.select().from(adBids).where(and(eq(adBids.slotId, slotId), gte(adBids.day, first), lte(adBids.day, last), inArray(adBids.status, ["ACTIVE", "OUTBID", "WON", "LOST"]))),
     db.select({ day: adSlotClosedDays.day }).from(adSlotClosedDays).where(and(eq(adSlotClosedDays.slotId, slotId), gte(adSlotClosedDays.day, first), lte(adSlotClosedDays.day, last))),
+    adFestivalDays(db),
   ]);
   const closedDays = new Set(closed.map((c) => c.day));
   const days: AdDay[] = [];
@@ -70,6 +86,7 @@ export async function adCalendar(db: Database, slotId: string, options: { seller
     const mine = mineList.find((b) => b.status === "WON" || b.status === "ACTIVE") ?? mineList[0];
     days.push({
       day,
+      festival: festival.has(day),
       status: winner ? "BOOKED" : closedDays.has(day) || !slot.isActive ? "CLOSED" : closesAt <= now ? "UNAVAILABLE" : top ? "BIDDING" : "OPEN",
       closesAt: closesAt.toISOString(),
       topBidPaise: top?.amountPaise ?? null,
@@ -107,7 +124,7 @@ export async function adBudget(db: Database, sellerId: string, now = new Date())
 export type BidResult = { day: string; ok: boolean; status?: "ACTIVE" | "WON"; amountPaise?: number; reason?: string };
 
 /** Places a bid (or books instantly) on each requested day. Each day succeeds or fails on its own. */
-export async function placeAdBids(db: Database, input: { sellerId: string; campaignId: string; days: string[]; mode: "BID" | "BUY_NOW"; amountPaise?: number; now?: Date }): Promise<{ results: BidResult[]; events: AdEvent[] }> {
+export async function placeAdBids(db: Database, input: { sellerId: string; campaignId: string; days: string[]; mode: "BID" | "BUY_NOW" | "FREE"; amountPaise?: number; now?: Date }): Promise<{ results: BidResult[]; events: AdEvent[] }> {
   const now = input.now ?? new Date();
   const events = await settleClosedAuctions(db, now);
   const campaign = (await db.select().from(adCampaigns).where(and(eq(adCampaigns.id, input.campaignId), eq(adCampaigns.sellerId, input.sellerId))).limit(1))[0];
@@ -117,6 +134,7 @@ export async function placeAdBids(db: Database, input: { sellerId: string; campa
   const today = istDayKey(now), lastDay = addDays(today, AD_BOOKING_DAYS_AHEAD - 1);
   const results: BidResult[] = [];
   let available = (await adBudget(db, input.sellerId, now)).availablePaise;
+  const festival = input.mode === "FREE" ? await adFestivalDays(db) : new Set<string>();
 
   for (const day of [...input.days].sort()) {
     const fail = (reason: string) => results.push({ day, ok: false, reason });
@@ -143,6 +161,23 @@ export async function placeAdBids(db: Database, input: { sellerId: string; campa
           await tx.update(adBids).set({ status, updatedAt: now }).where(eq(adBids.id, top.id));
           if (top.sellerId !== input.sellerId) dayEvents.push({ kind: status === "LOST" ? "LOST" : "OUTBID", sellerId: top.sellerId, slotName: slot.name, day, amountPaise: top.amountPaise, bidId: top.id });
         };
+
+        if (input.mode === "FREE") {
+          // A free ad day: one product, one open day nobody has bid on, not a festival day, approved ad.
+          if (!FREE_AD_PLACEMENTS.includes(slot.placement as AdPlacement)) return { ok: false as const, reason: "Free ad days are for product ad spaces (Sponsored products, top of search or a category)" };
+          if (campaign.status !== "APPROVED") return { ok: false as const, reason: "Your ad must be approved by LOIMART before you use a free ad day" };
+          if (festival.has(day)) return { ok: false as const, reason: "Free ad days can't be used on festival or sale days" };
+          if (current.length || (await tx.select({ id: adBids.id }).from(adBids).where(and(eq(adBids.slotId, slot.id), eq(adBids.day, day), eq(adBids.status, "OUTBID"))).limit(1)).length) {
+            return { ok: false as const, reason: "This day already has bids; free ad days are for open days only" };
+          }
+          const credit = (await tx.select({ id: sellerAdCredits.id }).from(sellerAdCredits)
+            .where(and(eq(sellerAdCredits.sellerId, input.sellerId), eq(sellerAdCredits.status, "AVAILABLE"))).orderBy(asc(sellerAdCredits.createdAt)).limit(1).for("update"))[0];
+          if (!credit) return { ok: false as const, reason: "You have no free ad days left" };
+          const [won] = await tx.insert(adBids).values({ slotId: slot.id, campaignId: campaign.id, sellerId: input.sellerId, day, amountPaise: 0, kind: "FREE", status: "WON" }).returning({ id: adBids.id });
+          await tx.update(sellerAdCredits).set({ status: "USED", bidId: won!.id, usedAt: now, updatedAt: now }).where(eq(sellerAdCredits.id, credit.id));
+          dayEvents.push({ kind: "WON", sellerId: input.sellerId, slotName: slot.name, day, amountPaise: 0, bidId: won!.id });
+          return { ok: true as const, status: "WON" as const, amountPaise: 0, events: dayEvents };
+        }
 
         if (input.mode === "BUY_NOW") {
           if (slot.buyNowPricePaise == null) return { ok: false as const, reason: "Book now isn't offered for this ad space; place a bid" };
@@ -191,7 +226,8 @@ export async function chargeFinishedAdDays(db: Database, now = new Date()): Prom
   const today = istDayKey(now);
   const finished = await db.select({ bid: adBids, slotName: adSlots.name }).from(adBids)
     .innerJoin(adCampaigns, eq(adCampaigns.id, adBids.campaignId)).innerJoin(adSlots, eq(adSlots.id, adBids.slotId))
-    .where(and(eq(adBids.status, "WON"), sql`${adBids.day} < ${today}`, eq(adCampaigns.status, "APPROVED"),
+    // Free ad days (amount 0) are never charged.
+    .where(and(eq(adBids.status, "WON"), sql`${adBids.day} < ${today}`, eq(adCampaigns.status, "APPROVED"), gt(adBids.amountPaise, 0),
       sql`not exists (select 1 from seller_charges c where c.kind = 'AD' and c.reference_id = ${adBids.id})`));
   const events: AdEvent[] = [];
   for (const { bid, slotName } of finished) {

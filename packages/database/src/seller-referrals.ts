@@ -1,8 +1,8 @@
 import { randomInt } from "node:crypto";
-import { COMMISSION_RATE_BPS, REFERRAL_BONUS_MONTHS, REFERRAL_MAX_REWARDS, commissionFreeUntil } from "@azadimart/shared";
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { REFERRAL_MAX_REWARDS } from "@azadimart/shared";
+import { and, count, eq, sql } from "drizzle-orm";
 import type { createDatabase } from "./client";
-import { auditLogs, sellerCommissionFreePeriods, sellerNotifications, sellers } from "./schema/index";
+import { auditLogs, sellerAdCredits, sellerNotifications, sellers } from "./schema/index";
 
 type Db = ReturnType<typeof createDatabase>;
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -35,44 +35,36 @@ export async function findReferrer(db: Db, code: string): Promise<{ id: string; 
   return row && row.status !== "SUSPENDED" ? { id: row.id, storeName: row.storeName } : null;
 }
 
-const addMonths = (date: Date, months: number) => { const d = new Date(date); d.setMonth(d.getMonth() + months); return d; };
 
 /**
- * When a referred seller's first order is delivered, their referrer earns
- * REFERRAL_BONUS_MONTHS more commission-free months (up to REFERRAL_MAX_REWARDS
- * referrals). The new period starts when the referrer's current free time
- * ends, or now if it already ended, so earlier orders are never affected.
- * Runs once per referred seller (inside the delivery transaction).
- * Paused while sellers pay no commission (free months would be worth nothing).
+ * When a referred seller's first order is delivered, their referrer earns a
+ * free ad day (one product, one day; see FREE_AD_DAY_TERMS), up to
+ * REFERRAL_MAX_REWARDS referrals, never for the same business (same GSTIN or
+ * PAN). Runs once per referred seller (inside the delivery transaction).
+ * (Commission-free months were the reward before LOIMART went 0% commission.)
  */
 export async function rewardReferralOnFirstDelivery(tx: Tx, referredSellerId: string): Promise<void> {
-  if (COMMISSION_RATE_BPS === 0) return;
   const referred = (await tx.select({ referredBy: sellers.referredBySellerId, rewardedAt: sellers.referralRewardedAt, status: sellers.status, gstin: sellers.gstin, pan: sellers.pan, storeName: sellers.storeName })
     .from(sellers).where(eq(sellers.id, referredSellerId)).limit(1).for("update"))[0];
   if (!referred?.referredBy || referred.rewardedAt || referred.status !== "ACTIVE") return;
-  const referrer = (await tx.select({ id: sellers.id, approvedAt: sellers.approvedAt, gstin: sellers.gstin, pan: sellers.pan, status: sellers.status })
+  const referrer = (await tx.select({ id: sellers.id, gstin: sellers.gstin, pan: sellers.pan, status: sellers.status })
     .from(sellers).where(eq(sellers.id, referred.referredBy)).limit(1).for("update"))[0];
   await tx.update(sellers).set({ referralRewardedAt: new Date() }).where(eq(sellers.id, referredSellerId));
   if (!referrer || referrer.status === "SUSPENDED") return;
   // The same business can't refer itself through a second account.
   const sameBusiness = (referred.gstin && referred.gstin === referrer.gstin) || (referred.pan && referred.pan === referrer.pan);
-  const [earned] = await tx.select({ n: count() }).from(sellerCommissionFreePeriods).where(and(eq(sellerCommissionFreePeriods.sellerId, referrer.id), eq(sellerCommissionFreePeriods.reason, "REFERRAL")));
+  const [earned] = await tx.select({ n: count() }).from(sellerAdCredits).where(and(eq(sellerAdCredits.sellerId, referrer.id), eq(sellerAdCredits.reason, "REFERRAL")));
   const capped = Number(earned?.n ?? 0) >= REFERRAL_MAX_REWARDS;
   if (sameBusiness || capped) {
     await tx.insert(auditLogs).values({ actorUserId: null, action: "SELLER_REFERRAL_NOT_REWARDED", entityType: "seller", entityId: referrer.id, metadata: { referredSellerId, reason: sameBusiness ? "same business" : "limit reached" } });
     return;
   }
-  const lastPeriod = (await tx.select({ endsAt: sellerCommissionFreePeriods.endsAt }).from(sellerCommissionFreePeriods)
-    .where(eq(sellerCommissionFreePeriods.sellerId, referrer.id)).orderBy(desc(sellerCommissionFreePeriods.endsAt)).limit(1))[0];
-  const now = new Date();
-  const freeUntil = [now, referrer.approvedAt ? commissionFreeUntil(referrer.approvedAt) : now, lastPeriod?.endsAt ?? now].reduce((a, b) => (b > a ? b : a));
-  const endsAt = addMonths(freeUntil, REFERRAL_BONUS_MONTHS);
-  await tx.insert(sellerCommissionFreePeriods).values({ sellerId: referrer.id, startsAt: freeUntil, endsAt, reason: "REFERRAL", referredSellerId });
-  await tx.insert(auditLogs).values({ actorUserId: null, action: "SELLER_REFERRAL_REWARDED", entityType: "seller", entityId: referrer.id, metadata: { referredSellerId, startsAt: freeUntil.toISOString(), endsAt: endsAt.toISOString() } });
+  await tx.insert(sellerAdCredits).values({ sellerId: referrer.id, reason: "REFERRAL", referredSellerId }).onConflictDoNothing();
+  await tx.insert(auditLogs).values({ actorUserId: null, action: "SELLER_REFERRAL_REWARDED", entityType: "seller", entityId: referrer.id, metadata: { referredSellerId, reward: "FREE_AD_DAY" } });
   await tx.insert(sellerNotifications).values({
     sellerId: referrer.id, kind: "REFERRAL_REWARD",
-    title: `You earned ${REFERRAL_BONUS_MONTHS} more months with no commission`,
-    body: `${referred.storeName} delivered their first order. No commission or platform fee on your orders until ${endsAt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
-    href: "/referrals", dedupeKey: `REFERRAL_REWARD:${referredSellerId}`,
+    title: "You earned a free ad day",
+    body: `${referred.storeName} delivered their first order. Advertise one of your products for a day at no cost: open Ads, pick a product ad space and an open day.`,
+    href: "/ads", dedupeKey: `REFERRAL_REWARD:${referredSellerId}`,
   }).onConflictDoNothing();
 }

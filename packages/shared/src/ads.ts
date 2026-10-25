@@ -80,10 +80,30 @@ export const adCampaignSchema = z.object({
   mobileImageAssetId: z.string().uuid().nullable().optional().default(null),
 });
 
+/**
+ * Free ad days (a seller's reward for referring another seller): one day of a
+ * product ad for one product, at no cost. Only in product placements, only on
+ * a day nobody has bid on or booked, never on festival/sale days that LOIMART
+ * marks (platform setting AD_FESTIVAL_DAYS_KEY), and only for an approved ad.
+ */
+export const FREE_AD_PLACEMENTS: readonly AdPlacement[] = ["HOME_PRODUCTS", "SEARCH_TOP", "CATEGORY_TOP"];
+export const AD_FESTIVAL_DAYS_KEY = "ad_festival_days";
+export const FREE_AD_DAY_TERMS = [
+  "One free ad day = one day of a product ad (Sponsored products row, top of search or top of a category) for one of your products.",
+  "Use it on any day in the next 60 days that is still open: no other seller has bid on or booked it.",
+  "Not on festival and sale days that LOIMART marks as special (shown as ★ in the calendar).",
+  "Your ad must be approved by LOIMART first. Once used, the day is yours and isn't charged.",
+  "A free ad gives your product more visibility and a better chance of getting more orders; it doesn't guarantee orders or sales.",
+  "Free ad days have no cash value and can't be transferred to another seller.",
+] as const;
+
+export const adFestivalDaysSchema = z.object({ days: z.array(dayKeySchema).max(366).refine((d) => new Set(d).size === d.length, "Each day only once") });
+
 export const adBidSchema = z.object({
   campaignId: z.string().uuid(),
   days: z.array(dayKeySchema).min(1, "Pick at least one day").max(AD_MAX_DAYS_PER_REQUEST, `Pick at most ${AD_MAX_DAYS_PER_REQUEST} days at a time`)
     .refine((d) => new Set(d).size === d.length, "Each day only once"),
-  mode: z.enum(["BID", "BUY_NOW"]),
+  mode: z.enum(["BID", "BUY_NOW", "FREE"]),
   amountPaise: z.number().int().positive().optional(), // per day; required for BID
-}).refine((b) => b.mode === "BUY_NOW" || (b.amountPaise ?? 0) > 0, { message: "Enter your bid per day", path: ["amountPaise"] });
+}).refine((b) => b.mode !== "BID" || (b.amountPaise ?? 0) > 0, { message: "Enter your bid per day", path: ["amountPaise"] })
+  .refine((b) => b.mode !== "FREE" || b.days.length === 1, { message: "A free ad day is for one day: pick just one", path: ["days"] });

@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { directUpload, StatCard } from "@azadimart/ui";
-import { adNeedsBanner } from "@azadimart/shared";
+import { FREE_AD_DAY_TERMS, adNeedsBanner } from "@azadimart/shared";
 
-type Slot = { id: string; name: string; placement: string; categoryName: string | null; placementLabel: string; description: string; basePricePaise: number; buyNowPricePaise: number | null; bidIncrementPaise: number; closeHoursBefore: number };
+type Slot = { id: string; name: string; placement: string; categoryName: string | null; placementLabel: string; freeAdDaysAllowed?: boolean; description: string; basePricePaise: number; buyNowPricePaise: number | null; bidIncrementPaise: number; closeHoursBefore: number };
 type Campaign = { id: string; slotId: string; productId: string; productTitle: string; headline: string; status: "PENDING_REVIEW" | "APPROVED" | "REJECTED"; reviewNote: string | null; desktopImageAssetId: string | null; mobileImageAssetId: string | null; desktopImageUrl: string | null; mobileImageUrl: string | null };
 type Bid = { id: string; slotId: string; slotName: string; campaignId: string; day: string; amountPaise: number; kind: string; status: "ACTIVE" | "OUTBID" | "WON" | "LOST" | "CANCELLED"; impressions: number; clicks: number };
 type Charge = { id: string; description: string; basePaise: number; gstPaise: number; amountPaise: number; status: string; createdAt: string; day: string | null; slotName: string | null; impressions: number | null; clicks: number | null; paidAt: string | null };
-type Data = { today: string; slots: Slot[]; campaigns: Campaign[]; bids: Bid[]; charges: Charge[]; budget: { creditLimitPaise: number; earningsPaise: number; usedPaise: number; availablePaise: number }; totals: { impressions: number; clicks: number; pendingChargesPaise: number } };
-type Day = { day: string; status: "OPEN" | "BIDDING" | "BOOKED" | "CLOSED" | "UNAVAILABLE"; closesAt: string; topBidPaise: number | null; bidCount: number; minimumBidPaise: number; buyNowPaise: number | null; mine: { status: string; amountPaise: number } | null };
+type Data = { today: string; slots: Slot[]; campaigns: Campaign[]; bids: Bid[]; charges: Charge[]; budget: { creditLimitPaise: number; earningsPaise: number; usedPaise: number; availablePaise: number }; totals: { impressions: number; clicks: number; pendingChargesPaise: number }; freeAdDays?: { available: number; used: number } };
+type Day = { day: string; festival?: boolean; status: "OPEN" | "BIDDING" | "BOOKED" | "CLOSED" | "UNAVAILABLE"; closesAt: string; topBidPaise: number | null; bidCount: number; minimumBidPaise: number; buyNowPaise: number | null; mine: { status: string; amountPaise: number } | null };
 type Product = { id: string; title: string; status: string };
 
 const money = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -88,7 +88,7 @@ function AdForm({ slot, existing, products, onSaved }: { slot: Slot; existing: C
 }
 
 /** 60-day calendar: pick days, then bid or book instantly. */
-function Calendar({ slot, campaign, onDone }: { slot: Slot; campaign: Campaign | null; onDone: () => void }) {
+function Calendar({ slot, campaign, freeLeft, onDone }: { slot: Slot; campaign: Campaign | null; freeLeft: number; onDone: () => void }) {
   const [days, setDays] = useState<Day[] | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [amount, setAmount] = useState("");
@@ -108,7 +108,10 @@ function Calendar({ slot, campaign, onDone }: { slot: Slot; campaign: Campaign |
   useEffect(() => { if (minBid && Number(amount) * 100 < minBid) setAmount(String(Math.ceil(minBid / 100))); }, [minBid]); // eslint-disable-line react-hooks/exhaustive-deps
   const buyNow = chosen.length && chosen.every((d) => d.buyNowPaise != null) ? chosen.reduce((s, d) => s + d.buyNowPaise!, 0) : null;
 
-  async function submit(mode: "BID" | "BUY_NOW") {
+  // A free ad day: exactly one open day (no bids), not a festival day, approved ad, product ad space.
+  const freeDay = chosen.length === 1 && chosen[0]!.status === "OPEN" && !chosen[0]!.festival ? chosen[0]! : null;
+  const canUseFree = freeLeft > 0 && slot.freeAdDaysAllowed && campaign?.status === "APPROVED";
+  async function submit(mode: "BID" | "BUY_NOW" | "FREE") {
     setBusy(true); setError(""); setResults([]);
     try {
       const response = await fetch("/api/v1/ads/bids", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campaignId: campaign?.id, days: picked, mode, amountPaise: mode === "BID" ? Math.round(Number(amount) * 100) : undefined }) });
@@ -136,6 +139,7 @@ function Calendar({ slot, campaign, onDone }: { slot: Slot; campaign: Campaign |
         <span className="flex items-center gap-1.5"><i className="h-3 w-3 rounded bg-amber-100 ring-1 ring-amber-300" />Bidding (top bid shown)</span>
         <span className="flex items-center gap-1.5"><i className="h-3 w-3 rounded bg-slate-300" />Booked</span>
         <span className="flex items-center gap-1.5"><i className="h-3 w-3 rounded bg-brand" />Picked</span>
+        <span className="flex items-center gap-1.5"><b className="text-amber-500">★</b>Festival / sale day (no free ad days)</span>
       </div>
       <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase text-slate-400 sm:gap-1.5">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <span key={d}>{d}</span>)}
@@ -147,7 +151,7 @@ function Calendar({ slot, campaign, onDone }: { slot: Slot; campaign: Campaign |
             <button key={d.day} type="button" disabled={!selectable(d)} onClick={() => setPicked((p) => (on ? p.filter((x) => x !== d.day) : [...p, d.day]))}
               title={d.status === "BIDDING" ? `Top bid ${money(d.topBidPaise!)} · ${d.bidCount} seller(s) · closes ${new Date(d.closesAt).toLocaleString("en-IN")}` : d.status === "OPEN" ? `From ${money(d.minimumBidPaise)} · bidding closes ${new Date(d.closesAt).toLocaleString("en-IN")}` : undefined}
               className={"flex min-h-[58px] flex-col items-center justify-center rounded-lg px-0.5 py-1 text-[11px] normal-case ring-1 transition sm:min-h-[68px] " + (on ? "bg-brand text-white ring-brand" : mineWon ? "bg-green-600 text-white ring-green-600" : cell[d.status])}>
-              <span className="text-[13px] font-bold">{dayLabel(d.day, { day: "numeric" })}</span>
+              <span className="text-[13px] font-bold">{d.festival ? <span title="Festival or sale day: free ad days can't be used" className="mr-0.5 text-amber-500">★</span> : null}{dayLabel(d.day, { day: "numeric" })}</span>
               <span className="hidden text-[10px] font-medium sm:block">{dayLabel(d.day, { month: "short" })}</span>
               <span className="mt-0.5 text-[10px] font-semibold leading-tight">
                 {mineWon ? "Yours" : d.status === "BOOKED" ? "Booked" : d.status === "CLOSED" ? "Closed" : d.status === "UNAVAILABLE" ? "—" : d.status === "BIDDING" ? (d.mine?.status === "ACTIVE" ? "You lead" : money(d.topBidPaise!)) : money(d.minimumBidPaise)}
@@ -168,20 +172,35 @@ function Calendar({ slot, campaign, onDone }: { slot: Slot; campaign: Campaign |
                 <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder={String(minBid / 100)} className="mt-1 block h-11 w-40 rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-slate-900" />
               </label>
               <button type="button" disabled={busy || Number(amount) * 100 < minBid} title={Number(amount) * 100 < minBid ? `Enter at least ${money(minBid)}` : undefined} onClick={() => void submit("BID")} className="h-11 rounded-full bg-chrome px-5 text-sm font-semibold text-white disabled:opacity-40">{busy ? "Placing…" : `Place bid${amount ? ` · ${money(withGst(Number(amount) * 100 * picked.length))} incl. GST` : ""}`}</button>
+              {canUseFree ? <button type="button" disabled={busy || !freeDay} title={freeDay ? undefined : "Pick one open day (no bids, not a ★ festival day)"} onClick={() => void submit("FREE")} className="h-11 rounded-full bg-green-700 px-5 text-sm font-semibold text-white hover:bg-green-800 disabled:opacity-40">Use free ad day ({freeLeft} left)</button> : null}
               {buyNow != null ? <button type="button" disabled={busy} onClick={() => void submit("BUY_NOW")} className="h-11 rounded-full bg-brand px-5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-40">Book now · {money(buyNow)} + GST</button> : null}
             </div>
+            {canUseFree && !freeDay ? <p className="mt-2 text-xs text-slate-600">To use a free ad day, pick just one open (green) day that isn&apos;t a ★ festival day.</p> : null}
             {Number(amount) * 100 < minBid ? <p className="mt-2 text-xs font-semibold text-red-700">Your bid must be at least {money(minBid)} per day.</p> : null}
             <p className="mt-2 text-[11px] text-slate-500">Minimum bid {money(minBid)} per day, plus 18% GST. Highest bid when bidding closes ({slot.closeHoursBefore} h before the day starts) wins. You pay only for days you win and your ad runs, taken from your next payment.</p>
           </>
         )}
         {results.length ? (
           <ul className="mt-3 space-y-1 text-xs">
-            {results.map((r) => <li key={r.day} className={r.ok ? "text-green-700" : "text-red-700"}>{dayLabel(r.day)}: {r.ok ? (r.status === "WON" ? `Booked for ${money(r.amountPaise!)}` : `You're the top bidder at ${money(r.amountPaise!)}`) : r.reason}</li>)}
+            {results.map((r) => <li key={r.day} className={r.ok ? "text-green-700" : "text-red-700"}>{dayLabel(r.day)}: {r.ok ? (r.status === "WON" ? (r.amountPaise === 0 ? "Booked with your free ad day" : `Booked for ${money(r.amountPaise!)}`) : `You're the top bidder at ${money(r.amountPaise!)}`) : r.reason}</li>)}
           </ul>
         ) : null}
         {error ? <p role="alert" className="mt-2 text-sm text-red-700">{error}</p> : null}
       </div>
     </div>
+  );
+}
+
+/** Free ad days earned by referring sellers, and their terms. */
+function FreeAdDaysBox({ free }: { free: { available: number; used: number } }) {
+  return (
+    <section className="rounded-2xl border border-green-200 bg-gradient-to-r from-green-50 to-white p-5">
+      <p className="font-semibold text-green-900">{free.available ? `You have ${free.available} free ad day${free.available === 1 ? "" : "s"}` : "You've used all your free ad days"}{free.used ? <span className="font-normal text-green-800"> · {free.used} used</span> : null}</p>
+      <p className="mt-0.5 text-sm text-green-800">Choose a product ad space below, save your ad and wait for approval, then pick one open day and tap <b>Use free ad day</b>.</p>
+      <details className="mt-2 text-xs text-slate-600"><summary className="cursor-pointer font-semibold">Terms &amp; conditions</summary>
+        <ul className="mt-2 list-disc space-y-1 pl-5">{FREE_AD_DAY_TERMS.map((t) => <li key={t}>{t}</li>)}</ul>
+      </details>
+    </section>
   );
 }
 
@@ -219,6 +238,7 @@ export default function AdsView() {
         <StatCard label="Clicks to your products" value={data.totals.clicks.toLocaleString("en-IN")} hint={data.totals.impressions ? `${((data.totals.clicks / data.totals.impressions) * 100).toFixed(1)}% click rate` : undefined} icon="sparkle" tone="good" />
         <StatCard label="Ad budget available" value={money(data.budget.availablePaise)} hint={`Upcoming earnings ${money(data.budget.earningsPaise)} + ad credit ${money(data.budget.creditLimitPaise)} − ${money(data.budget.usedPaise)} committed (incl. GST)`} icon="payments" />
       </div>
+      {data.freeAdDays && (data.freeAdDays.available || data.freeAdDays.used) ? <FreeAdDaysBox free={data.freeAdDays} /> : null}
       {data.totals.pendingChargesPaise ? <p className="rounded-xl bg-slate-50 px-4 py-2.5 text-sm text-slate-600">{money(data.totals.pendingChargesPaise)} of ad charges will be taken from your next payment.</p> : null}
 
       {data.slots.length === 0 ? <p className="rounded-2xl bg-white p-8 text-center text-sm text-slate-500 shadow-card">No ad spaces are on sale right now. Check back soon.</p> : (
@@ -262,7 +282,7 @@ export default function AdsView() {
         <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card">
           <h2 className="flex items-center gap-2 font-semibold"><span className="grid h-7 w-7 place-items-center rounded-full bg-brand text-xs font-bold text-white">2</span>Pick your days</h2>
           <p className="mb-3 mt-1 text-xs text-slate-500">Booked days are blocked for everyone else. Other sellers&apos; names are never shown.</p>
-          <Calendar key={slot.id + (campaign?.id ?? "")} slot={slot} campaign={campaign} onDone={() => void load()} />
+          <Calendar key={slot.id + (campaign?.id ?? "")} slot={slot} campaign={campaign} freeLeft={data.freeAdDays?.available ?? 0} onDone={() => void load()} />
         </section>
       ) : null}
 
@@ -277,7 +297,7 @@ export default function AdsView() {
                   <tr key={b.id}>
                     <td className="px-5 py-2.5">{dayLabel(b.day)}{b.day === data.today && b.status === "WON" ? <span className="ml-2 rounded-full bg-green-600 px-2 py-0.5 text-[10px] font-bold text-white">LIVE</span> : null}</td>
                     <td className="px-3 py-2.5 text-slate-600">{b.slotName}</td>
-                    <td className="px-3 py-2.5 text-right">{money(b.amountPaise)}{b.kind === "BUY_NOW" ? <span className="block text-[10px] text-slate-400">booked now</span> : null}</td>
+                    <td className="px-3 py-2.5 text-right">{b.kind === "FREE" ? "Free" : money(b.amountPaise)}{b.kind === "BUY_NOW" ? <span className="block text-[10px] text-slate-400">booked now</span> : b.kind === "FREE" ? <span className="block text-[10px] text-slate-400">free ad day</span> : null}</td>
                     <td className="px-3 py-2.5"><span className={"rounded-full px-2.5 py-1 text-[11px] font-bold " + BID_STATUS[b.status].tone}>{BID_STATUS[b.status].label}</span></td>
                     <td className="px-3 py-2.5 text-right">{b.status === "WON" ? b.impressions.toLocaleString("en-IN") : "—"}</td>
                     <td className="px-5 py-2.5 text-right">{b.status === "WON" ? b.clicks.toLocaleString("en-IN") : "—"}</td>

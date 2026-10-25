@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     const { results, events } = await placeAdBids(db, { sellerId, campaignId: input.campaignId, days: input.days, mode: input.mode, amountPaise: input.amountPaise });
     await notifyAdEvents(db, events);
     const ok = results.filter((r) => r.ok);
-    if (ok.length) await db.insert(auditLogs).values({ actorUserId: userId, action: input.mode === "BUY_NOW" ? "AD_BOOKED" : "AD_BID", entityType: "ad_campaign", entityId: input.campaignId, metadata: { days: ok.map((r) => r.day), amountPaise: ok[0]!.amountPaise } });
+    if (ok.length) await db.insert(auditLogs).values({ actorUserId: userId, action: input.mode === "BUY_NOW" ? "AD_BOOKED" : input.mode === "FREE" ? "AD_FREE_DAY_USED" : "AD_BID", entityType: "ad_campaign", entityId: input.campaignId, metadata: { days: ok.map((r) => r.day), amountPaise: ok[0]!.amountPaise } });
     return NextResponse.json({ results }, { status: ok.length ? 200 : 409 });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);

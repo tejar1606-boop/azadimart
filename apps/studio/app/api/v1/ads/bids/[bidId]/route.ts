@@ -1,5 +1,5 @@
 import { requireStaff } from "@azadimart/auth";
-import { adBids, auditLogs, createDatabase } from "@azadimart/database";
+import { adBids, auditLogs, createDatabase, sellerAdCredits } from "@azadimart/database";
 import { notifySeller } from "@azadimart/notify";
 import { AppError, istDayKey, toApiError, uuidSchema } from "@azadimart/shared";
 import { and, eq, gte, inArray } from "drizzle-orm";
@@ -19,8 +19,10 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ b
     const [bid] = await db.update(adBids).set({ status: "CANCELLED", updatedAt: new Date() })
       .where(and(eq(adBids.id, bidId), inArray(adBids.status, ["WON", "ACTIVE"]), gte(adBids.day, istDayKey()))).returning();
     if (!bid) throw new AppError("CONFLICT", "Only upcoming bookings and bids can be withdrawn");
+    // A withdrawn free ad day goes back to the seller to use again.
+    const refunded = bid.kind === "FREE" ? (await db.update(sellerAdCredits).set({ status: "AVAILABLE", bidId: null, usedAt: null, updatedAt: new Date() }).where(eq(sellerAdCredits.bidId, bid.id)).returning({ id: sellerAdCredits.id })).length > 0 : false;
     await db.insert(auditLogs).values({ actorUserId: principal.userId, action: "AD_BOOKING_WITHDRAWN", entityType: "ad_bid", entityId: bidId, metadata: { reason: text, day: bid.day, amountPaise: bid.amountPaise } });
-    await notifySeller(db, { sellerId: bid.sellerId, kind: "AD_LOST", dedupeKey: `AD_WITHDRAWN:${bidId}`, href: "/ads", title: `Your ad booking for ${bid.day} was withdrawn`, body: `${text}. You won't be charged for it.` });
+    await notifySeller(db, { sellerId: bid.sellerId, kind: "AD_LOST", dedupeKey: `AD_WITHDRAWN:${bidId}`, href: "/ads", title: `Your ad booking for ${bid.day} was withdrawn`, body: refunded ? `${text}. Your free ad day is back: use it on another open day.` : `${text}. You won't be charged for it.` });
     return NextResponse.json({ ok: true });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);

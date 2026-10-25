@@ -97,6 +97,40 @@ function AdminCalendar({ slot, onChanged }: { slot: Slot; onChanged: () => void 
   );
 }
 
+/** Festival and sale days: free ad days (seller referral rewards) can't be used on them. */
+function FestivalDays() {
+  const [days, setDays] = useState<string[] | null>(null);
+  const [add, setAdd] = useState("");
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => { void fetch("/api/v1/ads/festival-days", { cache: "no-store" }).then((r) => r.json()).then((b) => setDays(b.days ?? [])).catch(() => setDays([])); }, []);
+  async function save(next: string[]) {
+    setMsg(null);
+    const response = await fetch("/api/v1/ads/festival-days", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ days: next }) });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) { setMsg({ ok: false, text: body?.error?.message ?? "Couldn't save" }); return; }
+    setDays(body.days); setAdd(""); setMsg({ ok: true, text: "Saved." });
+  }
+  return (
+    <section className="mt-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card">
+      <h2 className="font-semibold">Festival &amp; sale days</h2>
+      <p className="mt-1 text-xs text-slate-500">Sellers can still bid on or book these days, but free ad days (their reward for referring another seller) can&apos;t be used on them. Sellers see them as ★ in the calendar.</p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {(days ?? []).map((d) => (
+          <span key={d} className="flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-900 ring-1 ring-amber-200">★ {dayLabel(d)}
+            <button type="button" aria-label={`Remove ${d}`} onClick={() => void save((days ?? []).filter((x) => x !== d))} className="text-amber-700 hover:text-red-700">×</button>
+          </span>
+        ))}
+        {days && !days.length ? <span className="text-xs text-slate-500">None marked.</span> : null}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <input type="date" value={add} min={todayKey()} onChange={(e) => setAdd(e.target.value)} className="h-10 rounded-xl border border-slate-300 px-3 text-sm" />
+        <button type="button" disabled={!add || (days ?? []).includes(add)} onClick={() => void save([...(days ?? []), add])} className="h-10 rounded-full bg-chrome px-4 text-xs font-semibold text-white disabled:opacity-40">Mark as festival day</button>
+        {msg ? <span className={"text-xs " + (msg.ok ? "text-green-700" : "text-red-700")}>{msg.text}</span> : null}
+      </div>
+    </section>
+  );
+}
+
 export default function AdsAdmin({ storefrontUrl }: { storefrontUrl: string }) {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -157,6 +191,7 @@ export default function AdsAdmin({ storefrontUrl }: { storefrontUrl: string }) {
         </div>
       ) : null}
 
+      <FestivalDays />
       <section className="mt-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold">Ad spaces and prices</h2>
@@ -230,7 +265,7 @@ export default function AdsAdmin({ storefrontUrl }: { storefrontUrl: string }) {
                     <td className="px-5 py-2.5">{dayLabel(b.day)}{b.day === today && b.status === "WON" ? <span className="ml-2 rounded-full bg-green-600 px-2 py-0.5 text-[10px] font-bold text-white">LIVE</span> : null}</td>
                     <td className="px-3 py-2.5"><b>{b.storeName}</b><span className="block text-xs text-slate-500">{b.headline}{b.campaignStatus !== "APPROVED" ? " · ad not approved yet" : ""}</span></td>
                     <td className="px-3 py-2.5 text-slate-600">{slotName(b.slotId)}</td>
-                    <td className="px-3 py-2.5 text-right">{money(b.amountPaise)}<span className="block text-[10px] text-slate-400">{b.kind === "BUY_NOW" ? "booked now" : "bid"}</span></td>
+                    <td className="px-3 py-2.5 text-right">{b.kind === "FREE" ? "Free" : money(b.amountPaise)}<span className="block text-[10px] text-slate-400">{b.kind === "BUY_NOW" ? "booked now" : b.kind === "FREE" ? "free ad day (referral)" : "bid"}</span></td>
                     <td className="px-3 py-2.5"><span className={"rounded-full px-2.5 py-1 text-[11px] font-bold " + (b.status === "WON" ? "bg-green-50 text-green-700" : "bg-sky-50 text-sky-700")}>{b.status === "WON" ? "Booked" : "Top bid"}</span></td>
                     <td className="px-3 py-2.5 text-right">{b.status === "WON" ? `${b.impressions.toLocaleString("en-IN")} · ${b.clicks.toLocaleString("en-IN")}` : "—"}</td>
                     <td className="px-5 py-2.5 text-right">{b.day >= today ? <button type="button" onClick={() => void withdraw(b)} className="text-xs font-semibold text-red-700">Withdraw</button> : null}</td>

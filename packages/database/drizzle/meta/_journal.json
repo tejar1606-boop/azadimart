@@ -393,6 +393,13 @@
       "when": 1792951239896,
       "tag": "20261025180039_order_cashback",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1792955598547,
+      "tag": "20261025191318_seller_ad_credits",
+      "breakpoints": true
     }
   ]
 }

@@ -61,7 +61,8 @@ export const adBids = pgTable("ad_bids", {
   sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "cascade" }),
   day: date("day").notNull(),
   amountPaise: integer("amount_paise").notNull(),
-  kind: text("kind").$type<"BID" | "BUY_NOW">().notNull(),
+  /** FREE = a free ad day used (amount 0, never charged). */
+  kind: text("kind").$type<"BID" | "BUY_NOW" | "FREE">().notNull(),
   status: text("status").$type<"ACTIVE" | "OUTBID" | "WON" | "LOST" | "CANCELLED">().notNull(),
   impressions: integer("impressions").notNull().default(0),
   clicks: integer("clicks").notNull().default(0),
@@ -91,4 +92,23 @@ export const sellerCharges = pgTable("seller_charges", {
 }, (t) => [
   uniqueIndex("seller_charges_reference_unique").on(t.kind, t.referenceId),
   index("seller_charges_seller_status_idx").on(t.sellerId, t.status),
+]);
+
+/**
+ * Free ad days a seller has earned (e.g. for referring another seller whose
+ * first order was delivered). AVAILABLE until used on a day (bidId); a day
+ * LOIMART withdraws gives the credit back.
+ */
+export const sellerAdCredits = pgTable("seller_ad_credits", {
+  id,
+  sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "cascade" }),
+  reason: text("reason").$type<"REFERRAL">().notNull(),
+  referredSellerId: uuid("referred_seller_id").references(() => sellers.id, { onDelete: "set null" }),
+  status: text("status").$type<"AVAILABLE" | "USED">().notNull().default("AVAILABLE"),
+  bidId: uuid("bid_id").references(() => adBids.id, { onDelete: "set null" }),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  ...timestamps,
+}, (t) => [
+  index("seller_ad_credits_seller_idx").on(t.sellerId, t.status),
+  uniqueIndex("seller_ad_credits_referred_unique").on(t.referredSellerId),
 ]);

@@ -1,6 +1,6 @@
-import { adBids, adBudget, adCampaigns, adSlots, categories, mediaAssets, payouts, products, sellerCharges } from "@azadimart/database";
+import { adBids, adBudget, adCampaigns, adSlots, categories, freeAdDays, mediaAssets, payouts, products, sellerCharges } from "@azadimart/database";
 import { settleAdAuctions } from "@azadimart/notify";
-import { AD_PLACEMENT_LABELS, istDayKey, toApiError, type AdPlacement } from "@azadimart/shared";
+import { AD_PLACEMENT_LABELS, FREE_AD_PLACEMENTS, istDayKey, toApiError, type AdPlacement } from "@azadimart/shared";
 import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { NextResponse } from "next/server";
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const { db, sellerId } = await requireAdSeller(request);
     await settleAdAuctions(db);
     const desktop = alias(mediaAssets, "desktop"), mobile = alias(mediaAssets, "mobile");
-    const [slots, campaigns, bids, charges, budget] = await Promise.all([
+    const [slots, campaigns, bids, charges, budget, free] = await Promise.all([
       db.select({ id: adSlots.id, name: adSlots.name, placement: adSlots.placement, categoryName: categories.name, description: adSlots.description, basePricePaise: adSlots.basePricePaise, buyNowPricePaise: adSlots.buyNowPricePaise, bidIncrementPaise: adSlots.bidIncrementPaise, closeHoursBefore: adSlots.closeHoursBefore })
         .from(adSlots).leftJoin(categories, eq(categories.id, adSlots.categoryId)).where(eq(adSlots.isActive, true)).orderBy(asc(adSlots.createdAt)),
       db.select({ id: adCampaigns.id, slotId: adCampaigns.slotId, productId: adCampaigns.productId, productTitle: products.title, headline: adCampaigns.headline, status: adCampaigns.status, reviewNote: adCampaigns.reviewNote,
@@ -31,6 +31,7 @@ export async function GET(request: Request) {
         .from(sellerCharges).leftJoin(adBids, eq(adBids.id, sellerCharges.referenceId)).leftJoin(adSlots, eq(adSlots.id, adBids.slotId)).leftJoin(payouts, eq(payouts.id, sellerCharges.payoutId))
         .where(and(eq(sellerCharges.sellerId, sellerId), eq(sellerCharges.kind, "AD"))).orderBy(desc(sellerCharges.createdAt)).limit(100),
       adBudget(db, sellerId),
+      freeAdDays(db, sellerId),
     ]);
     // A seller may have bid several times on a day; show their best/latest state per day.
     const seen = new Set<string>();
@@ -39,7 +40,9 @@ export async function GET(request: Request) {
     const won = bids.filter((b) => b.status === "WON");
     return NextResponse.json({
       today: istDayKey(),
-      slots: slots.map((s) => ({ ...s, placementLabel: AD_PLACEMENT_LABELS[s.placement as AdPlacement] ?? s.placement })),
+      slots: slots.map((s) => ({ ...s, placementLabel: AD_PLACEMENT_LABELS[s.placement as AdPlacement] ?? s.placement, freeAdDaysAllowed: FREE_AD_PLACEMENTS.includes(s.placement as AdPlacement) })),
+      // Free ad days earned (e.g. by referring sellers): one product, one open day each.
+      freeAdDays: free,
       campaigns: campaigns.map(({ desktopKey, mobileKey, ...c }) => ({ ...c, desktopImageUrl: desktopKey ? "/media/" + desktopKey : null, mobileImageUrl: mobileKey ? "/media/" + mobileKey : null })),
       bids: myDays,
       charges,

@@ -137,7 +137,7 @@ export async function notifyAdEvents(db: Db, events: Array<{ kind: "OUTBID" | "W
   for (const e of events) {
     const text = {
       OUTBID: { kind: "AD_OUTBID" as const, title: `You've been outbid for ${when(e.day)}`, body: `Another seller bid more than your ${money(e.amountPaise)} for ${e.slotName}. Bid again before bidding closes.` },
-      WON: { kind: "AD_WON" as const, title: `${e.slotName} is yours on ${when(e.day)}`, body: `Booked for ${money(e.amountPaise)}. Make sure your ad is approved before the day starts; you're charged only if it runs.` },
+      WON: { kind: "AD_WON" as const, title: `${e.slotName} is yours on ${when(e.day)}`, body: e.amountPaise === 0 ? "Booked with your free ad day: nothing to pay." : `Booked for ${money(e.amountPaise)}. Make sure your ad is approved before the day starts; you're charged only if it runs.` },
       LOST: { kind: "AD_LOST" as const, title: `${when(e.day)} went to another seller`, body: `Your bid for ${e.slotName} didn't win. Other days are still open.` },
       CHARGED: { kind: "AD_CHARGED" as const, title: `Ad charge ${money(e.amountPaise)} for ${when(e.day)}`, body: `${e.slotName}. It will be taken from your next payment.` },
     }[e.kind];
