@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getCategoryRail } from "../lib/category-rail";
 import CountUp from "./count-up";
-import { COMMISSION_FREE_MONTHS, PAYOUT_HOLD_DAYS } from "@azadimart/shared";
+import { PAYOUT_HOLD_DAYS } from "@azadimart/shared";
 import { OpenHelpChatButton } from "@azadimart/ui";
 import { BadgeIcon, CashIcon, CheckIcon, ReturnIcon, ShieldIcon, TruckIcon } from "../components/icons";
 
@@ -228,7 +228,7 @@ export default async function AboutPage() {
           </div>
           <ul className="space-y-3 text-[15px]">
             {[
-              `No commission for your first ${COMMISSION_FREE_MONTHS} months`,
+              "0% commission on every order",
               `Payouts to your bank ${PAYOUT_HOLD_DAYS} days after delivery`,
               "LOIMART books the courier and it picks up from you",
               "Easy listing: one product or hundreds with bulk upload",

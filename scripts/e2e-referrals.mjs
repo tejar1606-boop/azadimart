@@ -1,7 +1,7 @@
 // End-to-end test for seller referrals: every seller gets a code and link;
 // a new seller signs up with it; when the referred seller (approved) has
-// their first order delivered, the referrer earns 3 more commission-free
-// months (once per referred seller, never for the same business, up to 4).
+// their first order delivered. The reward (3 more commission-free months) is
+// paused while LOIMART charges sellers 0% commission.
 // Requires the demo seed + catalogue seed and all three apps against a
 // NON-PRODUCTION database.
 //   ALLOW_E2E=YES SELLER_URL=… ADMIN_URL=… STOREFRONT_URL=… pnpm e2e:referrals
@@ -93,20 +93,12 @@ async function deliverFor(sellerId) {
   lentTo = null;
   return res;
 }
+// Commission is 0% for every seller, so referral rewards (free months) are paused.
 r = await deliverFor(b.sellerId);
-const periods = await sql`select starts_at, ends_at, referred_seller_id from seller_commission_free_periods where seller_id = ${me.id} and referred_seller_id = ${b.sellerId}`;
-check("first delivery earns the referrer a bonus period", r.status === 200 && periods.length === 1, String(r.status));
-const months = periods[0] ? (periods[0].ends_at.getFullYear() - periods[0].starts_at.getFullYear()) * 12 + periods[0].ends_at.getMonth() - periods[0].starts_at.getMonth() : 0;
-check("the bonus is 3 months", months === 3, String(months));
-const startsAt = periods[0]?.starts_at;
-check("it starts when the current free time ends (or now)", Boolean(startsAt) && (!freeBefore || Math.abs(startsAt - Math.max(freeBefore, Date.now() - 60000)) < 120000), JSON.stringify({ startsAt, freeBefore }));
-r = await referrer("/api/v1/referrals");
-check("referrer sees 3 free months earned and a later free-until date", r.json?.earned >= 1 && r.json.referrals.some((x) => x.stage === "REWARDED") && new Date(r.json.freeUntil) > (freeBefore ?? new Date(0)), JSON.stringify({ earned: r.json?.earned, freeUntil: r.json?.freeUntil }));
+const periods = await sql`select 1 from seller_commission_free_periods where seller_id = ${me.id} and referred_seller_id = ${b.sellerId}`;
+check("delivery works; no free months are given while commission is 0%", r.status === 200 && periods.length === 0, String(r.status));
 const [alert] = await sql`select title from seller_notifications where seller_id = ${me.id} and dedupe_key = ${"REFERRAL_REWARD:" + b.sellerId}`;
-check("referrer gets an alert", Boolean(alert?.title));
-r = await deliverFor(b.sellerId);
-const again2 = await sql`select count(*)::int n from seller_commission_free_periods where referred_seller_id = ${b.sellerId}`;
-check("a second delivery doesn't reward again", again2[0].n === 1);
+check("…and no 'free months' alert promising something worthless", !alert);
 
 // (Commission inside a bonus period is covered by the settlement unit tests in packages/shared.)
 

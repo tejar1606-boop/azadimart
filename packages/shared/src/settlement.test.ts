@@ -4,32 +4,39 @@ import { sellerBankAccountSchema } from "./validation";
 
 const approved = new Date("2026-01-15T10:00:00Z");
 
+// The rate if a commission is ever brought back (today it's 0%).
+const r5 = { commissionRateBps: 500 };
+
 describe("seller settlement", () => {
+  it("no commission for sellers, ever: sale price less only TCS and TDS", () => {
+    const s = calculateSettlement({ grossPaise: 100_000, orderedAt: new Date("2027-06-01T00:00:00Z"), sellerApprovedAt: approved, gstRegistered: true });
+    expect(s).toMatchObject({ commissionFree: true, commissionRateBps: 0, commissionPaise: 0, gstOnCommissionPaise: 0, tcsPaise: 500, tdsPaise: 100, netPaise: 99_400 });
+  });
   it("first 3 months after approval are commission-free", () => {
     expect(commissionFreeUntil(approved).toISOString()).toBe("2026-04-15T10:00:00.000Z");
-    const s = calculateSettlement({ grossPaise: 100_000, orderedAt: new Date("2026-04-14T00:00:00Z"), sellerApprovedAt: approved, gstRegistered: true });
+    const s = calculateSettlement({ grossPaise: 100_000, orderedAt: new Date("2026-04-14T00:00:00Z"), sellerApprovedAt: approved, gstRegistered: true, ...r5 });
     expect(s).toMatchObject({ commissionFree: true, commissionRateBps: 0, commissionPaise: 0, gstOnCommissionPaise: 0 });
   });
-  it("after 3 months: 5% commission + 18% GST on it, TCS 0.5%, TDS 0.1%", () => {
-    const s = calculateSettlement({ grossPaise: 100_000, orderedAt: new Date("2026-04-16T00:00:00Z"), sellerApprovedAt: approved, gstRegistered: true });
+  it("if a rate is set, after 3 months: 5% commission + 18% GST on it, TCS 0.5%, TDS 0.1%", () => {
+    const s = calculateSettlement({ grossPaise: 100_000, orderedAt: new Date("2026-04-16T00:00:00Z"), sellerApprovedAt: approved, gstRegistered: true, ...r5 });
     // ₹1,000 order: commission ₹50, GST ₹9, TCS ₹5, TDS ₹1 → seller gets ₹935
     expect(s).toEqual({ grossPaise: 100_000, sellerDiscountPaise: 0, commissionFree: false, commissionRateBps: 500, commissionPaise: 5_000, gstOnCommissionPaise: 900, tcsPaise: 500, tdsPaise: 100, shippingFeePaise: 0, cashbackPaise: 0, netPaise: 93_500 });
   });
   it("a coupon the seller pays comes off first; commission and taxes are on the price after it", () => {
-    const s = calculateSettlement({ grossPaise: 100_000, sellerDiscountPaise: 10_000, orderedAt: new Date("2026-04-16T00:00:00Z"), sellerApprovedAt: approved, gstRegistered: true });
+    const s = calculateSettlement({ grossPaise: 100_000, sellerDiscountPaise: 10_000, orderedAt: new Date("2026-04-16T00:00:00Z"), sellerApprovedAt: approved, gstRegistered: true, ...r5 });
     // ₹1,000 item, ₹100 coupon paid by the seller → sold for ₹900: commission ₹45, GST ₹8.10, TCS ₹4.50, TDS ₹0.90 → ₹841.50
     expect(s).toMatchObject({ grossPaise: 100_000, sellerDiscountPaise: 10_000, commissionPaise: 4_500, gstOnCommissionPaise: 810, tcsPaise: 450, tdsPaise: 90, netPaise: 84_150 });
   });
   it("the seller's cashback share comes off the payout; commission and taxes stay on the sale price", () => {
-    const s = calculateSettlement({ grossPaise: 100_000, cashbackPaise: 2_000, orderedAt: new Date("2026-04-16T00:00:00Z"), sellerApprovedAt: approved, gstRegistered: true });
+    const s = calculateSettlement({ grossPaise: 100_000, cashbackPaise: 2_000, orderedAt: new Date("2026-04-16T00:00:00Z"), sellerApprovedAt: approved, gstRegistered: true, ...r5 });
     expect(s).toMatchObject({ commissionPaise: 5_000, tcsPaise: 500, tdsPaise: 100, cashbackPaise: 2_000, netPaise: 91_500 });
   });
   it("goes by the order date, not the payout date", () => {
-    const s = calculateSettlement({ grossPaise: 100_000, orderedAt: new Date("2026-04-15T09:59:59Z"), sellerApprovedAt: approved, gstRegistered: false });
+    const s = calculateSettlement({ grossPaise: 100_000, orderedAt: new Date("2026-04-15T09:59:59Z"), sellerApprovedAt: approved, gstRegistered: false, ...r5 });
     expect(s.commissionFree).toBe(true);
   });
   it("no TCS for sellers without GSTIN (Enrolment ID)", () => {
-    const s = calculateSettlement({ grossPaise: 100_000, orderedAt: new Date("2026-06-01T00:00:00Z"), sellerApprovedAt: approved, gstRegistered: false });
+    const s = calculateSettlement({ grossPaise: 100_000, orderedAt: new Date("2026-06-01T00:00:00Z"), sellerApprovedAt: approved, gstRegistered: false, ...r5 });
     expect(s.tcsPaise).toBe(0);
     expect(s.netPaise).toBe(100_000 - 5_000 - 900 - 100);
   });
@@ -59,7 +66,7 @@ describe("bank account details", () => {
 });
 
 describe("referral bonus months", () => {
-  const long = { grossPaise: 100000, sellerApprovedAt: new Date("2025-01-01"), orderedAt: new Date("2026-06-01"), gstRegistered: true };
+  const long = { grossPaise: 100000, sellerApprovedAt: new Date("2025-01-01"), orderedAt: new Date("2026-06-01"), gstRegistered: true, ...r5 };
   it("charges commission after the first free months", () => {
     expect(calculateSettlement(long).commissionFree).toBe(false);
   });

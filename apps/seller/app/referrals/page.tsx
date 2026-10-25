@@ -23,17 +23,17 @@ function Copy({ value, label }: { value: string; label: string }) {
   return <button type="button" onClick={() => { void navigator.clipboard?.writeText(value).then(() => { setDone(true); window.setTimeout(() => setDone(false), 1500); }); }} className="shrink-0 rounded-full px-4 py-2 text-xs font-semibold ring-1 ring-slate-300 hover:ring-slate-900">{done ? "Copied" : label}</button>;
 }
 
-/** Refer & earn: invite other sellers; each one's first delivery gives you 3 more months with no commission. */
+/** Invite other sellers. The reward (free months) is paused while LOIMART charges no commission; the link and list still work. */
 export default function ReferralsPage() {
   const [data, setData] = useState<Data | null>(null);
   useEffect(() => { void fetch("/api/v1/referrals", { cache: "no-store" }).then((r) => r.json()).then(setData).catch(() => undefined); }, []);
-  const message = data ? `Start selling on LOIMART: no commission for your first 3 months, KYC-verified marketplace, LOIMART ships your orders. Join with my link: ${data.link}` : "";
+  const message = data ? `Start selling on LOIMART: 0% commission on every order, KYC-verified marketplace, LOIMART ships your orders. Join with my link: ${data.link}` : "";
 
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
-      <PortalPageHeader eyebrow="Grow sales" title="Refer & earn" description="Invite another business to sell on LOIMART. When they're approved and deliver their first order, you get 3 more months with no commission and no platform fee." />
+      <PortalPageHeader eyebrow="Grow sales" title="Invite sellers" description="Invite another business to sell on LOIMART with your link or code. Referral rewards (free months) are paused: LOIMART now takes 0% commission from every seller, so there is nothing extra to earn." />
 
-      <section className="mt-6 grid gap-4 lg:grid-cols-[1.3fr_1fr]">
+      <section className="mt-6 grid gap-4">
         <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-card">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Your referral code</p>
           <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -47,24 +47,8 @@ export default function ReferralsPage() {
           </div>
           {data ? <a href={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-full bg-[#25D366] px-5 py-2.5 text-sm font-semibold text-white">Share on WhatsApp</a> : null}
         </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-card">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Free months earned</p>
-          <p className="mt-1 text-3xl font-semibold">{data ? data.earned * data.bonusMonths : "…"} <span className="text-base font-normal text-slate-500">of {data ? data.maxRewards * data.bonusMonths : 12}</span></p>
-          <div className="mt-3 flex gap-1.5">{Array.from({ length: data?.maxRewards ?? 4 }).map((_, i) => <span key={i} className={"h-2 flex-1 rounded-full " + (data && i < data.earned ? "bg-green-600" : "bg-slate-100")} />)}</div>
-          {data?.freeUntil ? <p className="mt-4 text-sm">No commission on your orders until <b>{date(data.freeUntil)}</b>.</p> : <p className="mt-4 text-sm text-slate-500">Your free months start when LOIMART approves your account.</p>}
-          {data ? <p className="mt-1 text-xs text-slate-500">{data.remaining ? `${data.remaining} more referral${data.remaining === 1 ? "" : "s"} can earn free months.` : "You've earned the maximum free months. Thank you!"}</p> : null}
-        </div>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-card">
-        <h2 className="font-semibold">How it works</h2>
-        <ol className="mt-3 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
-          {["Share your link or code with a business that wants to sell online.", "They sign up with it and LOIMART approves their KYC.", "When their first order is delivered, you get 3 more months with no commission (up to 12 months)."].map((t, i) => (
-            <li key={i} className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-950 text-xs font-bold text-white">{i + 1}</span><span>{t}</span></li>
-          ))}
-        </ol>
-        <p className="mt-4 text-xs text-slate-400">The extra months start when your current free time ends (or right away if it already ended). Referrals of your own business (same GSTIN or PAN) don&apos;t count.</p>
-      </section>
 
       <section className="mt-6 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-card">
         <h2 className="font-semibold">Sellers you referred</h2>

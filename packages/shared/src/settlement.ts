@@ -2,9 +2,10 @@
  * Seller settlement rules: what LOIMART keeps and what the seller is paid
  * for their part of an order. All amounts are in paise.
  *
- * - Commission: free for the seller's first 3 months after approval (by
- *   order date), then 5% of the seller's order value, plus 18% GST on the
- *   commission (a service LOIMART charges).
+ * - Commission: none. LOIMART takes 0% commission from sellers (decided
+ *   2026-10-26; it earns from the shopper platform fee, ads and shipping).
+ *   The commission machinery (rate, free period, GST on it) stays so a rate
+ *   could be brought back later without rebuilding payouts.
  * - TCS under GST section 52 (0.5% of the net taxable value) applies to
  *   GST-registered sellers only.
  * - TDS under Income-tax section 194-O (0.1% of the gross amount).
@@ -14,7 +15,7 @@
  * Tax rates must be confirmed with LOIMART's CA before going live.
  */
 export const COMMISSION_FREE_MONTHS = 3;
-export const COMMISSION_RATE_BPS = 500; // 5%
+export const COMMISSION_RATE_BPS = 0; // 0%: no commission for sellers
 export const GST_ON_FEES_BPS = 1800; // 18%
 export const TCS_RATE_BPS = 50; // 0.5%
 export const TDS_RATE_BPS = 10; // 0.1%
@@ -40,6 +41,8 @@ export type SettlementInput = {
   shippingFeePaise?: number;
   /** The seller's share of the cashback the shopper got for this order. */
   cashbackPaise?: number;
+  /** Commission rate to use (defaults to COMMISSION_RATE_BPS, which is 0). */
+  commissionRateBps?: number;
   /** The order falls in an extra commission-free period (e.g. 3 months earned by a referral). */
   inBonusFreePeriod?: boolean;
 };
@@ -66,8 +69,9 @@ export function calculateSettlement(input: SettlementInput): SettlementBreakdown
   // What the customer actually paid for these items: commission and taxes are worked out on this.
   const sold = gross - sellerDiscount;
   // A seller without an approval date hasn't started the free period, so it's treated as free.
-  const commissionFree = !input.sellerApprovedAt || input.orderedAt < commissionFreeUntil(input.sellerApprovedAt) || Boolean(input.inBonusFreePeriod);
-  const commissionRateBps = commissionFree ? 0 : COMMISSION_RATE_BPS;
+  const rate = input.commissionRateBps ?? COMMISSION_RATE_BPS;
+  const commissionFree = rate === 0 || !input.sellerApprovedAt || input.orderedAt < commissionFreeUntil(input.sellerApprovedAt) || Boolean(input.inBonusFreePeriod);
+  const commissionRateBps = commissionFree ? 0 : rate;
   const commissionPaise = bps(sold, commissionRateBps);
   const gstOnCommissionPaise = bps(commissionPaise, GST_ON_FEES_BPS);
   const tcsPaise = input.gstRegistered ? bps(input.taxableValuePaise ?? sold, TCS_RATE_BPS) : 0;

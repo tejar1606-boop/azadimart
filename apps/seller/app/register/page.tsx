@@ -181,7 +181,7 @@ export default function RegisterPage() {
           <label className="text-sm font-medium sm:col-span-2">
             Referral code <span className="font-normal text-slate-400">(optional)</span>
             <input className="mt-2 w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2.5 font-mono uppercase" value={form.referralCode} maxLength={20} placeholder="e.g. LOI7K2QXM" onChange={(e) => setField("referralCode", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} />
-            <span className="mt-1 block text-xs font-normal text-slate-500">Invited by another LOIMART seller? Enter their code. It doesn&apos;t change anything for you: you still get your first 3 months with no commission.</span>
+            <span className="mt-1 block text-xs font-normal text-slate-500">Invited by another LOIMART seller? Enter their code. It doesn&apos;t change anything for you: selling on LOIMART has 0% commission for everyone.</span>
           </label>
 
           <label className="text-sm font-medium sm:col-span-2">

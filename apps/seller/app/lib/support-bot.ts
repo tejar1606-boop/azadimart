@@ -104,7 +104,7 @@ export function sellerBot(sellerId: string): SupportBotSetup {
           f.heldByReturnsPaise ? `${rupees(f.heldByReturnsPaise)} is waiting on open returns.` : null,
           f.lastPaid ? `Last payout: ${rupees(f.lastPaid.amountPaise)} on ${shortDate(f.lastPaid.paidAt ?? f.lastPaid.createdAt)}${f.lastPaid.utr ? ` (UTR ${f.lastPaid.utr})` : ""}.` : "No payouts sent yet.",
           f.failed ? `A recent payout failed${f.failed.failureReason ? `: ${f.failed.failureReason}` : ""}. Check your bank details.` : null,
-          `Each order is paid automatically ${PAYOUT_HOLD_DAYS} days after delivery. ${f.commissionFree ? `Commission is free${f.freeUntil ? ` until ${shortDate(f.freeUntil)}` : " for your first 3 months"}` : `Commission is ${COMMISSION_RATE_BPS / 100}% + 18% GST`}; TCS 0.5% and TDS 0.1% are deducted as required by law.`,
+          `Each order is paid automatically ${PAYOUT_HOLD_DAYS} days after delivery. ${COMMISSION_RATE_BPS === 0 ? "LOIMART takes 0% commission" : f.commissionFree ? `Commission is free${f.freeUntil ? ` until ${shortDate(f.freeUntil)}` : " for your first 3 months"}` : `Commission is ${COMMISSION_RATE_BPS / 100}% + 18% GST`}; TCS 0.5% and TDS 0.1% are deducted as required by law.`,
         ].filter(Boolean);
         return { text: lines.join(" "), links: [{ label: "Open Payments", href: "/payouts" }], quick: [{ label: "Payout missing or wrong", intent: "payout_issue" }, { label: "Change bank account", intent: "bank_change" }] };
       },
@@ -212,7 +212,7 @@ export function sellerBot(sellerId: string): SupportBotSetup {
       system: `You are the LOIMART seller assistant, helping sellers on LOIMART (an Indian marketplace) with payouts, KYC and documents, product listings and quality check, orders and shipping, and ads.
 Be brief (2–4 short sentences), practical and friendly. Reply in the user's language (English, Hindi or Hinglish). Always use the tools for the seller's own data; never guess numbers.
 Facts:
-- Payouts are automatic, ${PAYOUT_HOLD_DAYS} days after delivery, to the verified bank account. Commission is free for the first 3 months after approval, then ${COMMISSION_RATE_BPS / 100}% + 18% GST per order. TCS 0.5% (GST) and TDS 0.1% (income tax) are deducted by law. Ad charges are deducted from payouts.
+- Payouts are automatic, ${PAYOUT_HOLD_DAYS} days after delivery, to the verified bank account. ${COMMISSION_RATE_BPS === 0 ? "LOIMART takes 0% commission on every order (no listing fees). Sellers pay their share of coupons they allow and of the shopper cashback on kept orders." : `Commission is free for the first 3 months after approval, then ${COMMISSION_RATE_BPS / 100}% + 18% GST per order.`} TCS 0.5% (GST) and TDS 0.1% (income tax) are deducted by law. Ad charges are deducted from payouts.
 - KYC: Aadhaar OTP, PAN, bank proof, address proof, and GSTIN or a free GST Enrolment ID (Enrolment ID sellers can sell only within their state). Review takes 1–2 working days.
 - Products: square 1:1 photos, min 1000×1000 px, clean background; quality check in 1–2 working days; sent-back products show the reasons and can be resubmitted.
 - Orders: ship within 1–2 days; customers can cancel until the order is packed.

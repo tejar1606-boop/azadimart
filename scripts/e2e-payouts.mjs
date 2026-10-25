@@ -1,7 +1,7 @@
 // End-to-end test for automatic seller payouts: bank account rules, Cash on
 // Delivery counted as paid on delivery, 7-day wait after delivery, holds
-// (unverified bank, admin hold, open return), commission-free first 3 months
-// then 5% + GST, TCS/TDS, partial returns, a bank rejecting the transfer,
+// (unverified bank, admin hold, open return), no commission (0%, also after
+// the first 3 months), TCS/TDS, partial returns, a bank rejecting the transfer,
 // no double payments, alerts and access. Uses test mode (no money moves).
 // Requires the demo seed + catalogue seed and all three apps against a
 // NON-PRODUCTION database.
@@ -47,7 +47,12 @@ const expectedNet = async (gross, commissionBps) => { const c = pct(gross, commi
 // These checks pay the same seller several times in a row: run in daily mode (15-day cycles: see e2e:settlements).
 const [cycleBefore] = await sql`select value from platform_settings where key = 'settlement_cycle'`;
 await sql`insert into platform_settings (key, value) values ('settlement_cycle', '"DAILY"'::jsonb) on conflict (key) do update set value = excluded.value`;
+// Order cashback off, so payouts here are sale price less taxes only (the cashback share has its own test).
+const [cashbackBefore] = await sql`select value from platform_settings where key = 'order_cashback'`;
+await sql`insert into platform_settings (key, value) values ('order_cashback', ${JSON.stringify({ enabled: false, percentBps: 200, maxPaise: 5000 })}::jsonb) on conflict (key) do update set value = excluded.value`;
 const restore = async () => {
+  await sql`delete from platform_settings where key = 'order_cashback'`;
+  if (cashbackBefore) await sql`insert into platform_settings (key, value) values ('order_cashback', ${JSON.stringify(cashbackBefore.value)}::jsonb)`;
   await sql`update sellers set approved_at = ${me.approved_at}, payout_hold_reason = ${me.payout_hold_reason} where id = ${me.id}`;
   if (cycleBefore) await sql`update platform_settings set value = ${cycleBefore.value} where key = 'settlement_cycle'`;
   else await sql`delete from platform_settings where key = 'settlement_cycle'`;
@@ -97,7 +102,7 @@ let mine = (await seller("/api/v1/payouts")).json;
 const up1 = mine?.upcoming?.find((u) => u.orderNumber === o1.order_number);
 const gross1 = o1.unit * 2;
 check("seller sees it as upcoming, payable 7 days after delivery", up1 && Math.abs(new Date(up1.eligibleAt) - new Date(o1.delivered_at) - 7 * 864e5) < 1000, JSON.stringify(up1 && { eligibleAt: up1.eligibleAt }));
-check("commission-free in the first 3 months", mine?.commission?.isFreeNow === true && up1?.commissionPaise === 0 && up1.netPaise === (await expectedNet(gross1, 0)), JSON.stringify(up1 && { c: up1.commissionPaise, net: up1.netPaise, want: (await expectedNet(gross1, 0)) }));
+check("no commission (0%)", mine?.commission?.rateBps === 0 && up1?.commissionPaise === 0 && up1.netPaise === (await expectedNet(gross1, 0)), JSON.stringify(up1 && { c: up1.commissionPaise, net: up1.netPaise, want: (await expectedNet(gross1, 0)) }));
 await run();
 check("not paid before 7 days", !(await payoutFor(o1.id)));
 
@@ -122,7 +127,7 @@ const runAgain = (await run()).json;
 check("running again never pays twice", (await sql`select count(*)::int n from payout_items pi join order_items oi on oi.id = pi.order_item_id where oi.order_id = ${o1.id}`)[0].n === 1 && (await sql`select count(*)::int n from payouts where id = ${p1.id} and status = 'PAID'`)[0].n === 1, JSON.stringify(runAgain));
 check("already-sent payout can't be retried", (await admin(`/api/v1/payouts/${p1.id}`, { method: "POST", body: { action: "RETRY" } })).status === 409);
 
-// --- after 3 months: 5% commission + GST; open return holds, partial return deducted
+// --- after 3 months: still no commission (LOIMART takes 0%); open return holds, partial return deducted
 await sql`update sellers set approved_at = now() - interval '4 months' where id = ${me.id}`;
 const o2 = await deliveredOrder(2);
 const [line2] = await sql`select id from order_items where order_id = ${o2.id}`;
@@ -138,7 +143,7 @@ await run();
 const p2 = await payoutFor(o2.id);
 const [i2] = await itemsFor(o2.id);
 check("after the return: paid for the 1 unit kept", p2?.status === "PAID" && i2.quantity === 1 && i2.gross_amount_paise === o2.unit, JSON.stringify(i2 && { q: i2.quantity, g: i2.gross_amount_paise }));
-check("5% commission + 18% GST, TCS 0.5%, TDS 0.1%", i2.commission_rate_bps === 500 && i2.commission_paise === pct(o2.unit, 500) && i2.gst_on_commission_paise === pct(pct(o2.unit, 500), 1800) && i2.tds_paise === pct(o2.unit, 10) && i2.net_amount_paise === (await expectedNet(o2.unit, 500)), JSON.stringify(i2));
+check("after 3 months: still 0% commission (no GST on it); only TCS 0.5% and TDS 0.1%", i2.commission_rate_bps === 0 && i2.commission_paise === 0 && i2.gst_on_commission_paise === 0 && i2.tds_paise === pct(o2.unit, 10) && i2.net_amount_paise === (await expectedNet(o2.unit, 0)), JSON.stringify(i2));
 
 // --- admin hold
 r = await admin(`/api/v1/sellers/${me.id}/payout-hold`, { method: "POST", body: { hold: true } });
@@ -180,7 +185,7 @@ const detail = (await admin(`/api/v1/payouts/${p2.id}`)).json;
 check("admin sees the order-by-order breakdown", detail?.items?.[0]?.orderNumber === o2.order_number && detail.items[0].netPaise === i2.net_amount_paise);
 mine = (await seller("/api/v1/payouts")).json;
 check("seller sees sent payments with UTR", mine?.payouts?.some((p) => p.id === p1.id && p.status === "PAID" && p.utr) && mine.summary.paid30dPaise >= p1.amount_paise);
-check("seller sees the breakdown of their payment", (await seller(`/api/v1/payouts/${p2.id}`)).json?.items?.[0]?.commissionRateBps === 500);
+check("seller sees the breakdown of their payment", (await seller(`/api/v1/payouts/${p2.id}`)).json?.items?.[0]?.commissionRateBps === 0);
 const audits = await sql`select action from audit_logs where entity_id in (${p1.id}, ${me.id}) and created_at > now() - interval '15 minutes'`;
 check("payouts, holds and bank checks audited", ["PAYOUT_PAID", "PAYOUTS_HELD", "PAYOUTS_RELEASED", "BANK_ACCOUNT_VERIFIED"].every((a) => audits.some((x) => x.action === a)));
 

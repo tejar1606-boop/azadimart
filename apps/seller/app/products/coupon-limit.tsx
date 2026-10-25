@@ -20,7 +20,7 @@ export function CouponLimitHelp({ pct, pricePaise }: { pct: number; pricePaise: 
   return (
     <p className="mt-2 text-xs leading-5 text-slate-500">
       LOIMART runs coupons like &ldquo;10% off&rdquo; to bring you more buyers. Your product joins a coupon only if it&apos;s within the limit you set, and the
-      discount is taken from your payout for that order (commission is charged on the lower price).
+      discount is taken from your payout for that order.
       {pct > 0 && pricePaise ? <> Example: on your price of {money(pricePaise)}, the most a coupon can cost you is <b>{money(Math.floor((pricePaise * pct) / 100))}</b>.</> : null}
       {pct === 0 ? " With coupons off, LOIMART's own coupons can still apply at no cost to you." : null}
     </p>

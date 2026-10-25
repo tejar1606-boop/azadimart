@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import { REFERRAL_BONUS_MONTHS, REFERRAL_MAX_REWARDS, commissionFreeUntil } from "@azadimart/shared";
+import { COMMISSION_RATE_BPS, REFERRAL_BONUS_MONTHS, REFERRAL_MAX_REWARDS, commissionFreeUntil } from "@azadimart/shared";
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import type { createDatabase } from "./client";
 import { auditLogs, sellerCommissionFreePeriods, sellerNotifications, sellers } from "./schema/index";
@@ -43,8 +43,10 @@ const addMonths = (date: Date, months: number) => { const d = new Date(date); d.
  * referrals). The new period starts when the referrer's current free time
  * ends, or now if it already ended, so earlier orders are never affected.
  * Runs once per referred seller (inside the delivery transaction).
+ * Paused while sellers pay no commission (free months would be worth nothing).
  */
 export async function rewardReferralOnFirstDelivery(tx: Tx, referredSellerId: string): Promise<void> {
+  if (COMMISSION_RATE_BPS === 0) return;
   const referred = (await tx.select({ referredBy: sellers.referredBySellerId, rewardedAt: sellers.referralRewardedAt, status: sellers.status, gstin: sellers.gstin, pan: sellers.pan, storeName: sellers.storeName })
     .from(sellers).where(eq(sellers.id, referredSellerId)).limit(1).for("update"))[0];
   if (!referred?.referredBy || referred.rewardedAt || referred.status !== "ACTIVE") return;

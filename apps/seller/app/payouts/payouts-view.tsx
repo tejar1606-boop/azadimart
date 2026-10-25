@@ -107,7 +107,10 @@ export default function PayoutsView() {
   return (
     <div className="mt-6 space-y-5">
       <div className={"rounded-2xl border p-4 sm:p-5 " + (commission.isFreeNow ? "border-green-200 bg-gradient-to-r from-green-50 to-white" : "border-slate-200 bg-white")}>
-        {commission.isFreeNow ? (
+        {commission.rateBps === 0 ? (
+          <><p className="font-semibold text-green-900">0% commission on every order</p>
+            <p className="mt-0.5 text-sm text-green-800">LOIMART takes no commission: you keep your sale price, minus the taxes the law requires (TCS and TDS){data.cashback?.enabled ? ", your share of the shopper's cashback" : ""} and any coupon you allow.</p></>
+        ) : commission.isFreeNow ? (
           <><p className="font-semibold text-green-900">No commission{commission.freeUntil ? ` until ${date(commission.freeUntil)}` : " during your first 3 months"}</p>
             <p className="mt-0.5 text-sm text-green-800">Your first 3 months on LOIMART have no commission: you keep your sale price, minus the taxes the law requires (TCS and TDS){data.cashback?.enabled ? " and your share of the shopper's cashback" : ""}. After that, commission is {commission.rateBps / 100}% per order.</p></>
         ) : (
@@ -217,7 +220,7 @@ export default function PayoutsView() {
         <h2 className="font-semibold">How your payment is calculated</h2>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-slate-600">
           <li><b>Sale price</b> of your items the customer kept (returned items are left out).</li>
-          <li><b>Commission</b>: none in your first 3 months; then {commission.rateBps / 100}% of the sale price, plus 18% GST on the commission (you can claim this GST as input credit).</li>
+          <li><b>Commission</b>: {commission.rateBps === 0 ? "none. LOIMART takes 0% commission on every order." : <>none in your first 3 months; then {commission.rateBps / 100}% of the sale price, plus 18% GST on the commission (you can claim this GST as input credit).</>}</li>
           {data.cashback?.enabled ? <li><b>Shopper cashback</b>: shoppers get {data.cashback.percentBps / 100}% of what they pay as cashback in their LOIMART wallet{data.cashback.maxPaise ? ` (up to ${money(data.cashback.maxPaise)} per order)` : ""}, only when they keep the whole order past the return window. You pay the part for your items, from that order&apos;s payment. No cashback, nothing taken, if anything in the order is returned.</li> : null}
           <li><b>TCS</b> (0.5%, GST law, GST-registered sellers only) and <b>TDS</b> (0.1%, Income-tax law) are deducted and deposited with the government in your name; claim them in your returns.</li>
           <li>{data.settlement.cycle === "FORTNIGHTLY" ? `Settled on the 1st and 16th of every month for orders whose ${commission.holdDays}-day return window has closed.` : `Paid ${commission.holdDays} days after delivery, once the return window has closed.`} Cash on Delivery orders count from delivery too.</li>
