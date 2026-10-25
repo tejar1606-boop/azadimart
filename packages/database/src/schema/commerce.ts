@@ -68,6 +68,8 @@ export const orders = pgTable(
     /** LOIMART wallet money used on this order (paid by LOIMART, like its own coupon). */
     walletPaise: integer("wallet_paise").notNull().default(0),
     shippingPaise: integer("shipping_paise").notNull().default(0),
+    /** Platform fee charged to the shopper once per order (kept by LOIMART, not paid to sellers). */
+    platformFeePaise: integer("platform_fee_paise").notNull().default(0),
     grandTotalPaise: integer("grand_total_paise").notNull(),
     couponCode: text("coupon_code"),
     shippingAddressSnapshot: jsonb("shipping_address_snapshot").$type<{

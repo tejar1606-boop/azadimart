@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { walletUsable } from "@azadimart/shared";
+import { PlatformFeeRow } from "../components/platform-fee-row";
 
 type CartItem={variantId:string;title:string;variantTitle:string;sku:string;quantity:number;pricePaise:number;lineTotalPaise:number;isAvailable?:boolean};
 type Address={id:string;label:string|null;line1:string;line2:string|null;city:string;state:string;postalCode:string;country:string;isDefault:boolean};
 const money=(p:number)=>"₹"+(p/100).toLocaleString("en-IN",{maximumFractionDigits:0});
 
 export default function CheckoutView(){
-  const [cart,setCart]=useState<{cartId:string;items:CartItem[];subtotalPaise:number}|null>(null);
+  const [cart,setCart]=useState<{cartId:string;items:CartItem[];subtotalPaise:number;platformFeePaise?:number}|null>(null);
   const [addresses,setAddresses]=useState<Address[]>([]);
   const [selectedAddress,setSelectedAddress]=useState("");
   const [coupon,setCoupon]=useState("");
@@ -55,7 +56,8 @@ export default function CheckoutView(){
   const afterCoupon=Math.max(0,(cart?.subtotalPaise??0)-discount);
   const walletCan=wallet?walletUsable(wallet.balancePaise,afterCoupon,wallet.rules):0;
   const walletUse=useWallet?walletCan:0;
-  const total=Math.max(0,afterCoupon-walletUse);
+  const platformFee=cart?.platformFeePaise??0;
+  const total=Math.max(0,afterCoupon-walletUse)+platformFee;
   const unavailableItems=(cart?.items??[]).filter(item=>item.isAvailable===false);
 
   async function applyCoupon(){
@@ -120,7 +122,7 @@ export default function CheckoutView(){
           {wallet&&wallet.balancePaise>0?(walletCan>0
             ?<label className="mt-4 flex cursor-pointer items-start gap-3 border border-[#E4D8FB] bg-[#F6F1FE] p-3 text-sm"><input type="checkbox" checked={useWallet} onChange={e=>setUseWallet(e.target.checked)} className="mt-0.5"/><span><b>Use {money(walletCan)} from your LOIMART wallet</b><span className="block text-xs text-slate-500">Balance {money(wallet.balancePaise)} · up to {money(wallet.rules.maxPerOrderPaise)} per order</span></span></label>
             :<p className="mt-4 bg-slate-50 p-3 text-xs text-slate-500">You have {money(wallet.balancePaise)} in your LOIMART wallet. Use it on orders of {money(wallet.rules.minOrderPaise)} or more.</p>):null}
-          <div className="mt-6 space-y-3 border-t border-slate-100 pt-5 text-sm"><Row label="Subtotal" value={money(cart.subtotalPaise)}/><Row label="Discount" value={"−"+money(discount)}/>{walletUse>0?<Row label="LOIMART wallet" value={"−"+money(walletUse)}/>:null}<Row label="Shipping" value="Free"/><Row label="Total" value={money(total)} strong/></div>
+          <div className="mt-6 space-y-3 border-t border-slate-100 pt-5 text-sm"><Row label="Subtotal" value={money(cart.subtotalPaise)}/><Row label="Discount" value={"−"+money(discount)}/>{walletUse>0?<Row label="LOIMART wallet" value={"−"+money(walletUse)}/>:null}<Row label="Shipping" value="Free"/><PlatformFeeRow feePaise={platformFee}/><Row label="Total" value={money(total)} strong/></div>
           <div className="mt-5 rounded-2xl border border-slate-200 p-4"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-full bg-slate-950 text-xs font-bold text-white">₹</span><div><p className="text-sm font-bold">Cash on Delivery</p><p className="mt-1 text-xs text-slate-500">Available for this checkout.</p></div></div></div>
           {selected?<p className="mt-4 text-xs text-slate-500">Delivering to {selected.city}, {selected.state}.</p>:null}
           <button type="button" disabled={working||!selectedAddress||addresses.length===0||unavailableItems.length>0} onClick={()=>void placeOrder()} className="mt-5 w-full rounded-full bg-brand px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-40">{working?"Processing…":"Place COD order"}</button><p className="mt-3 text-center text-[11px] leading-5 text-slate-400">By placing the order, you confirm the delivery address and order details shown above, and agree to our <Link href="/terms" className="underline underline-offset-2 hover:text-slate-600">Terms</Link> and <Link href="/privacy" className="underline underline-offset-2 hover:text-slate-600">Privacy Policy</Link>.</p>

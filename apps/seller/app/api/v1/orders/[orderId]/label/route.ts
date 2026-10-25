@@ -24,7 +24,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     if (!seller || seller.status !== "ACTIVE") throw new AppError("FORBIDDEN", "Seller account is not active");
 
     const order = (await db.select({ id: orders.id, orderNumber: orders.orderNumber, status: orders.status, createdAt: orders.createdAt, address: orders.shippingAddressSnapshot,
-      grandTotalPaise: orders.grandTotalPaise, discountPaise: orders.discountPaise, shippingPaise: orders.shippingPaise, paymentMethod: payments.provider, paymentStatus: payments.status })
+      grandTotalPaise: orders.grandTotalPaise, discountPaise: orders.discountPaise, shippingPaise: orders.shippingPaise, walletPaise: orders.walletPaise, platformFeePaise: orders.platformFeePaise, paymentMethod: payments.provider, paymentStatus: payments.status })
       .from(orders).leftJoin(payments, eq(payments.orderId, orders.id)).where(eq(orders.id, orderId)).limit(1))[0];
     const items = order ? await db.select({ title: orderItems.title, sku: orderItems.sku, quantity: orderItems.quantity, unitPricePaise: orderItems.unitPricePaise, weightGrams: productVariants.weightGrams, variant: productVariants.title })
       .from(orderItems).leftJoin(productVariants, eq(productVariants.id, orderItems.variantId))
@@ -51,7 +51,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
       shipFrom: pickup.success ? { storeName: seller.storeName, ...pickup.data.pickup, gstin: seller.gstin } : null,
       items: items.map((i) => ({ title: i.title, variant: i.variant && i.variant !== "Default" ? i.variant : null, sku: i.sku, quantity: i.quantity, unitPricePaise: i.unitPricePaise })),
       weightGrams: items.reduce((n, i) => n + i.quantity * (i.weightGrams ?? 0), 0),
-      payment: cod ? { mode: "COD", collectPaise: share === 1 ? order.grandTotalPaise : Math.max(0, mine - Math.round(order.discountPaise * share) + Math.round(order.shippingPaise * share)) } : { mode: "PREPAID", collectPaise: 0 },
+      payment: cod ? { mode: "COD", collectPaise: share === 1 ? order.grandTotalPaise : Math.max(0, mine - Math.round(order.discountPaise * share) - Math.round(order.walletPaise * share)) + Math.round(order.shippingPaise * share) + Math.round(order.platformFeePaise * share) } : { mode: "PREPAID", collectPaise: 0 },
       shipment,
     });
   } catch (error) {

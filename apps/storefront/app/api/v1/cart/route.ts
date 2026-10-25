@@ -5,11 +5,12 @@ import {
   createDatabase,
   inventory,
   mediaAssets,
+  platformFeeSettings,
   productMedia,
   productVariants,
   products,
 } from "@azadimart/database";
-import { AppError, cartItemMutationSchema, cartRemoveSchema, toApiError } from "@azadimart/shared";
+import { AppError, cartItemMutationSchema, cartRemoveSchema, platformFeeFor, toApiError } from "@azadimart/shared";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -87,6 +88,8 @@ async function readCart(db: ReturnType<typeof createDatabase>, customerId: strin
     // Matches what checkout and coupon validation will accept.
     subtotalPaise: items.filter((item) => item.isAvailable).reduce((sum, item) => sum + item.lineTotalPaise, 0),
     unavailableCount: items.filter((item) => !item.isAvailable).length,
+    /** Added once at checkout (see Admin → Finance). */
+    platformFeePaise: platformFeeFor(await platformFeeSettings(db)),
     itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
   };
 }

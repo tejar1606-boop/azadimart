@@ -379,6 +379,13 @@
       "when": 1792939049888,
       "tag": "20261025143729_customer_referrals",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1792942964402,
+      "tag": "20261025154244_order_platform_fee",
+      "breakpoints": true
     }
   ]
 }

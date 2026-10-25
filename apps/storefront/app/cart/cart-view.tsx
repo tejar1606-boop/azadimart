@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import SignInPrompt from "../components/sign-in-prompt";
+import { PlatformFeeRow } from "../components/platform-fee-row";
 
 type CartItem = {
   id: string;
@@ -23,6 +24,7 @@ type CartState = {
   cartId: string;
   items: CartItem[];
   subtotalPaise: number;
+  platformFeePaise?: number;
   itemCount: number;
 };
 
@@ -141,8 +143,9 @@ export default function CartView() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300">Order summary</p>
               <div className="mt-6 space-y-3 text-sm">
                 <div className="flex justify-between text-white/65"><span>Subtotal</span><span>{money(cart?.subtotalPaise ?? 0)}</span></div>
-                <div className="flex justify-between text-white/65"><span>Shipping</span><span>Calculated at checkout</span></div>
-                <div className="flex justify-between border-t border-white/10 pt-4 text-base font-bold"><span>Total</span><span>{money(cart?.subtotalPaise ?? 0)}</span></div>
+                <div className="flex justify-between text-white/65"><span>Shipping</span><span>Free</span></div>
+                <PlatformFeeRow feePaise={cart?.subtotalPaise ? cart.platformFeePaise ?? 0 : 0} dark />
+                <div className="flex justify-between border-t border-white/10 pt-4 text-base font-bold"><span>Total</span><span>{money((cart?.subtotalPaise ?? 0) + (cart?.subtotalPaise ? cart.platformFeePaise ?? 0 : 0))}</span></div>
               </div>
               <Link href="/checkout" className="mt-6 flex min-h-12 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600">Proceed to checkout</Link>
               <p className="mt-3 text-center text-[11px] text-white/45">Your final payable amount is confirmed at checkout after coupon validation.</p>

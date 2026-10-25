@@ -34,7 +34,7 @@ export async function GET(request: Request) {
       cancelRequestedAt:orders.cancelRequestedAt,cancelRequestedBySellerId:orders.cancelRequestedBySellerId,cancelRequestReason:orders.cancelRequestReason,
       orderItemId:orderItems.id,productTitle:orderItems.title,sku:orderItems.sku,quantity:orderItems.quantity,unitPricePaise:orderItems.unitPricePaise,
       productId:orderItems.productId,paymentStatus:payments.status,paymentMethod:payments.provider,
-      shippingAddress:orders.shippingAddressSnapshot,grandTotalPaise:orders.grandTotalPaise,discountPaise:orders.discountPaise,shippingPaise:orders.shippingPaise,
+      shippingAddress:orders.shippingAddressSnapshot,grandTotalPaise:orders.grandTotalPaise,discountPaise:orders.discountPaise,shippingPaise:orders.shippingPaise,walletPaise:orders.walletPaise,platformFeePaise:orders.platformFeePaise,
     }).from(orderItems)
       .innerJoin(orders,eq(orders.id,orderItems.orderId))
       .leftJoin(payments,eq(payments.orderId,orders.id))
@@ -56,12 +56,12 @@ export async function GET(request: Request) {
     }
     // This seller's invoices and credit notes for these orders.
     const docs=orderIds.length?await db.select({id:invoices.id,orderId:invoices.orderId,kind:invoices.kind,number:invoices.number}).from(invoices).where(and(eq(invoices.sellerId,principal.sellerId),inArray(invoices.orderId,orderIds))).orderBy(invoices.issuedAt):[];
-    return NextResponse.json({ items:rows.map(({cancelRequestedBySellerId,shippingAddress,grandTotalPaise,discountPaise,shippingPaise,...row})=>{
+    return NextResponse.json({ items:rows.map(({cancelRequestedBySellerId,shippingAddress,grandTotalPaise,discountPaise,shippingPaise,walletPaise,platformFeePaise,...row})=>{
       const mine=sellerTotals.get(row.id)??0;
       const share=shared.has(row.id)&&orderTotals.get(row.id)?mine/orderTotals.get(row.id)!:1;
       // Cash on Delivery: what the courier collects for this seller's parcel (their share when several sellers ship one order).
       const codCollectPaise=row.paymentMethod==="COD"&&!["CAPTURED","REFUNDED","PARTIALLY_REFUNDED"].includes(row.paymentStatus??"")
-        ?(share===1?grandTotalPaise:Math.max(0,mine-Math.round(discountPaise*share)+Math.round(shippingPaise*share))):null;
+        ?(share===1?grandTotalPaise:Math.max(0,mine-Math.round(discountPaise*share)-Math.round(walletPaise*share))+Math.round(shippingPaise*share)+Math.round(platformFeePaise*share)):null;
       return { ...row, invoices: docs.filter((d)=>d.orderId===row.id).map((d)=>({id:d.id,kind:d.kind,number:d.number})), sellerSubtotalPaise: mine, sharedWithOtherSellers: shared.has(row.id), cancelRequestedByMe: cancelRequestedBySellerId===principal.sellerId, shipTo: shipToFor(row.status, shippingAddress), codCollectPaise };
     }) });
   } catch(error) {

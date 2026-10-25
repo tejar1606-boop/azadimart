@@ -15,7 +15,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     const order = (await db.select({
       id: orders.id, customerId: orders.customerId, orderNumber: orders.orderNumber, status: orders.status,
       subtotalPaise: orders.subtotalPaise, discountPaise: orders.discountPaise, walletPaise: orders.walletPaise,
-      shippingPaise: orders.shippingPaise, grandTotalPaise: orders.grandTotalPaise,
+      shippingPaise: orders.shippingPaise, platformFeePaise: orders.platformFeePaise, grandTotalPaise: orders.grandTotalPaise,
       couponCode: orders.couponCode, shippingAddressSnapshot: orders.shippingAddressSnapshot,
       currency: orders.currency, createdAt: orders.createdAt, cancelledBy: orders.cancelledBy, cancellationReason: orders.cancellationReason, paymentStatus: payments.status, paymentMethod: payments.provider,
     }).from(orders).leftJoin(payments, eq(payments.orderId, orders.id))

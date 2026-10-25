@@ -62,7 +62,7 @@ const addressId = r.json?.address?.id ?? r.json?.item?.id ?? r.json?.id;
 r = await shop("/api/v1/checkout", { method: "POST", body: { shippingAddressId: addressId, couponCode: code, paymentMethod: "COD" } });
 check("COD checkout with coupon (transaction)", r.status === 201, r.status + " " + JSON.stringify(r.json?.error ?? ""));
 const order = r.json ?? {};
-check("discount = 10% of 2 x ₹1,299", order.subtotalPaise === 259800 && order.discountPaise === 25980 && order.grandTotalPaise === 233820, JSON.stringify({ s: order.subtotalPaise, d: order.discountPaise, t: order.grandTotalPaise }));
+check("discount = 10% of 2 x ₹1,299, plus the ₹8 platform fee", order.subtotalPaise === 259800 && order.discountPaise === 25980 && order.platformFeePaise === 800 && order.grandTotalPaise === 233820 + 800, JSON.stringify({ s: order.subtotalPaise, d: order.discountPaise, t: order.grandTotalPaise }));
 let s = await stock();
 check("inventory reserved +2", s.reserved === before.reserved + 2, JSON.stringify(s));
 const [cp] = await sql`select usage_count from coupons where code=${code}`;

@@ -1,9 +1,9 @@
 import { requireApiAccess, enforceRateLimit } from "@azadimart/auth";
 import {
-  cartItems, carts, couponRedemptions, coupons, createDatabase, customerAddresses, orderLineGst, productGstRules, spendWallet, walletBalance, walletSettings,
+  cartItems, carts, couponRedemptions, coupons, createDatabase, customerAddresses, orderLineGst, platformFeeSettings, productGstRules, spendWallet, walletBalance, walletSettings,
   customers, inventory, orderItems, orders, payments, productVariants, products, sellers, users,
 } from "@azadimart/database";
-import { AppError, SHIP_BY_DAYS, allocateCoupon, checkoutSchema, checkSellerSupplyToState, toApiError, walletUsable } from "@azadimart/shared";
+import { AppError, SHIP_BY_DAYS, allocateCoupon, checkoutSchema, checkSellerSupplyToState, platformFeeFor, toApiError, walletUsable } from "@azadimart/shared";
 import { notifySellersOfNewOrder } from "@azadimart/notify";
 import { getPaymentProvider } from "@azadimart/payments";
 import { and, asc, count, eq, gte, inArray, ne, sql } from "drizzle-orm";
@@ -108,10 +108,12 @@ export async function POST(request:Request){
       const shipping=0;
       // LOIMART wallet money (e.g. the welcome bonus): up to the per-order limit, on orders worth the minimum.
       const wallet=input.useWallet?walletUsable(await walletBalance(tx,session.customerId!),subtotal-discount,await walletSettings(tx)):0;
-      const grandTotal=Math.max(0,subtotal-discount-wallet+shipping);
+      // Platform fee: once per order, kept by LOIMART (sellers' payouts don't change).
+      const platformFee=platformFeeFor(await platformFeeSettings(tx));
+      const grandTotal=Math.max(0,subtotal-discount-wallet)+shipping+platformFee;
       const order=(await tx.insert(orders).values({
         orderNumber:orderNumber(),customerId:session.customerId!,shippingAddressId:address.id,status:"CONFIRMED",shipByAt:new Date(Date.now()+SHIP_BY_DAYS*24*60*60*1000),
-        subtotalPaise:subtotal,discountPaise:discount,walletPaise:wallet,shippingPaise:shipping,grandTotalPaise:grandTotal,couponCode:couponCode??null,
+        subtotalPaise:subtotal,discountPaise:discount,walletPaise:wallet,shippingPaise:shipping,platformFeePaise:platformFee,grandTotalPaise:grandTotal,couponCode:couponCode??null,
         shippingAddressSnapshot:{name:address.customerName,phone:address.customerPhone,line1:address.line1,line2:address.line2,city:address.city,state:address.state,postalCode:address.postalCode,country:address.country},
       }).returning()).at(0);
       if(!order)throw new AppError("INTERNAL","Order creation failed",undefined,false);
@@ -150,7 +152,7 @@ export async function POST(request:Request){
       }
 
       await tx.delete(cartItems).where(and(eq(cartItems.cartId,cart.id),inArray(cartItems.id,rawLines.map(line=>line.cartItemId))));
-      return {orderId:order.id,orderNumber:order.orderNumber,subtotalPaise:subtotal,discountPaise:discount,walletPaise:wallet,shippingPaise:shipping,grandTotalPaise:grandTotal,paymentStatus:"PENDING"};
+      return {orderId:order.id,orderNumber:order.orderNumber,subtotalPaise:subtotal,discountPaise:discount,walletPaise:wallet,shippingPaise:shipping,platformFeePaise:platformFee,grandTotalPaise:grandTotal,paymentStatus:"PENDING"};
     });
     // Alert each seller in the order (after commit; never blocks the customer's checkout).
     if(result.orderId)await notifySellersOfNewOrder(db,result.orderId);

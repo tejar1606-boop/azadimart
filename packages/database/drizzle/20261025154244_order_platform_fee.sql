@@ -1,0 +1,1 @@
+ALTER TABLE "orders" ADD COLUMN "platform_fee_paise" integer DEFAULT 0 NOT NULL;

@@ -50,7 +50,8 @@
     "e2e:calls": "node scripts/e2e-calls.mjs",
     "e2e:footwear": "node scripts/e2e-footwear.mjs",
     "e2e:customer-wallet": "node scripts/e2e-customer-wallet.mjs",
-    "e2e:customer-referrals": "node scripts/e2e-customer-referrals.mjs"
+    "e2e:customer-referrals": "node scripts/e2e-customer-referrals.mjs",
+    "e2e:platform-fee": "node scripts/e2e-platform-fee.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

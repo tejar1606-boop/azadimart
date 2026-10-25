@@ -142,8 +142,8 @@ check("not ticking the wallet keeps the balance", r.status === 201 && (await a.c
 await a.c(`/api/v1/orders/${r.json.orderId}/cancel`, { method: "POST", body: {} });
 r = await buy(product.variant_id, true);
 const orderId = r.json?.orderId;
-const [order] = await sql`select wallet_paise, subtotal_paise, discount_paise, shipping_paise, grand_total_paise from orders where id = ${orderId}`;
-check("₹50 of the wallet comes off a ₹299+ order", r.status === 201 && order.wallet_paise === 5000 && order.grand_total_paise === order.subtotal_paise - order.discount_paise - 5000 + order.shipping_paise, JSON.stringify(order));
+const [order] = await sql`select wallet_paise, subtotal_paise, discount_paise, shipping_paise, platform_fee_paise, grand_total_paise from orders where id = ${orderId}`;
+check("₹50 of the wallet comes off a ₹299+ order", r.status === 201 && order.wallet_paise === 5000 && order.grand_total_paise === order.subtotal_paise - order.discount_paise - 5000 + order.shipping_paise + order.platform_fee_paise, JSON.stringify(order));
 w = (await a.c("/api/v1/wallet")).json;
 check("the wallet shows ₹51 left and the order it went on", w.balancePaise === 5100 && w.entries.some((e) => e.kind === "ORDER_SPEND" && e.orderId === orderId && e.amountPaise === -5000));
 check("the shopper's order shows the wallet line", (await a.c(`/api/v1/orders/${orderId}`)).json?.order?.walletPaise === 5000 || (await a.c(`/api/v1/orders/${orderId}`)).json?.walletPaise === 5000);

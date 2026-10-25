@@ -60,6 +60,7 @@ export default function FinanceView() {
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
       <PortalPageHeader eyebrow="Finance" title="Seller payouts" description="Sellers are paid automatically from LOIMART's current account for orders whose 7-day return window has closed, every 15 days (1st and 16th) or daily. Each payout comes with a settlement statement and LOIMART's fee invoice. No commission in a seller's first 3 months, then 5% per order (+18% GST)." />
       <CycleSetting />
+      <PlatformFeeSetting />
       {data?.mode === "TEST" ? <p className="mt-5 rounded-2xl border border-purple-200 bg-purple-50 p-4 text-sm text-purple-900"><b>Test mode:</b> payouts are calculated and marked as sent, but no money leaves the bank. Connect your bank&apos;s payout API to go live.</p> : null}
       {data?.mode === "NOT_SET_UP" ? <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><b>Bank connection not set up.</b> Payouts are calculated and wait here until LOIMART&apos;s bank payout API is connected.</p> : null}
 
@@ -152,6 +153,34 @@ function CycleSetting() {
       <button type="button" disabled={saving} onClick={() => void choose("FORTNIGHTLY")} className={chip(cycle === "FORTNIGHTLY")}>Every 15 days (1st &amp; 16th)</button>
       <button type="button" disabled={saving} onClick={() => void choose("DAILY")} className={chip(cycle === "DAILY")}>Daily</button>
       {nextAt ? <span className="text-xs text-slate-500">Next settlement: <b>{new Date(nextAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</b></span> : null}
+    </div>
+  );
+}
+
+/** Platform fee shoppers pay once per order (kept by LOIMART; sellers' payouts don't change). */
+function PlatformFeeSetting() {
+  const [data, setData] = useState<{ settings: { enabled: boolean; feePaise: number }; totals: { orders: number; collectedPaise: number; pendingPaise: number } } | null>(null);
+  const [rupees, setRupees] = useState("");
+  const [enabled, setEnabled] = useState(true);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const load = () => fetch("/api/v1/finance/platform-fee", { cache: "no-store" }).then((r) => r.json()).then((b) => { setData(b); setRupees(String(b.settings.feePaise / 100)); setEnabled(b.settings.enabled); }).catch(() => undefined);
+  useEffect(() => { void load(); }, []);
+  async function save() {
+    setMsg(null);
+    const r = await fetch("/api/v1/finance/platform-fee", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled, feePaise: Math.round(Number(rupees) * 100) }) });
+    const b = await r.json().catch(() => null);
+    setMsg(r.ok ? { ok: true, text: "Saved. Applies to new orders." } : { ok: false, text: b?.error?.details?.[0]?.message ?? b?.error?.message ?? "Couldn't save" });
+    if (r.ok) void load();
+  }
+  if (!data) return null;
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-card">
+      <span className="font-semibold">Platform fee (per order)</span>
+      <label className="flex items-center gap-1">₹<input value={rupees} onChange={(e) => setRupees(e.target.value.replace(/[^\d.]/g, ""))} inputMode="decimal" className="w-16 rounded-lg border border-slate-300 px-2 py-1" /></label>
+      <label className="flex items-center gap-1.5 text-xs font-semibold"><input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />Charge it</label>
+      <button type="button" onClick={() => void save()} className="rounded-full bg-chrome px-4 py-1.5 text-xs font-semibold text-white">Save</button>
+      {msg ? <span className={"text-xs " + (msg.ok ? "text-green-700" : "text-red-700")}>{msg.text}</span> : null}
+      <span className="text-xs text-slate-500">{data.totals.orders} orders · collected {money(data.totals.collectedPaise)} · on the way {money(data.totals.pendingPaise)}</span>
     </div>
   );
 }
