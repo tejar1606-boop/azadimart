@@ -38,7 +38,7 @@ const testIp = () => `10.${Math.floor(Math.random() * 250)}.${Math.floor(Math.ra
 const device = () => ({ deviceId: randomBytes(16).toString("hex"), fingerprint: randomBytes(32).toString("hex") });
 const freePhone = async () => { for (;;) { const p = "6" + String(Math.floor(Math.random() * 1e9)).padStart(9, "0"); if (!(await sql`select 1 from users where phone = ${p}`).length) return p; } };
 const users = [], orders = [];
-let delivered = 0, savedSettings;
+let delivered = 0, savedSettings, savedCashback;
 
 const [product] = await sql`select v.id variant_id, p.seller_id from product_variants v join products p on p.id = v.product_id join inventory i on i.variant_id = v.id
   join sellers sl on sl.id = p.seller_id join users su on su.id = sl.user_id
@@ -53,12 +53,17 @@ async function tidy() {
   for (const id of orders) await sql`update orders set status = 'CANCELLED' where id = ${id} and status <> 'CANCELLED'`;
   if (delivered) await sql`update inventory set on_hand = on_hand + ${delivered} where variant_id = ${product.variant_id}`;
   await sql`delete from platform_settings where key = 'customer_wallet'`;
+  await sql`delete from platform_settings where key = 'order_cashback'`;
+  if (savedCashback) await sql`insert into platform_settings (key, value) values ('order_cashback', ${JSON.stringify(savedCashback)}::jsonb)`;
   if (savedSettings) await sql`insert into platform_settings (key, value) values ('customer_wallet', ${JSON.stringify(savedSettings)}::jsonb)`;
   for (const email of users) await sql`update users set status = 'DISABLED' where email = ${email}`;
 }
 for (const event of ["uncaughtException", "unhandledRejection"]) process.on(event, (e) => { console.error(e); tidy().finally(() => process.exit(1)); });
 savedSettings = (await sql`select value from platform_settings where key = 'customer_wallet'`)[0]?.value;
 await sql`delete from platform_settings where key = 'customer_wallet'`; // run on the default rules
+// Order cashback off, so wallet balances here are referral money only (cashback has its own test).
+savedCashback = (await sql`select value from platform_settings where key = 'order_cashback'`)[0]?.value;
+await sql`insert into platform_settings (key, value) values ('order_cashback', ${JSON.stringify({ enabled: false, percentBps: 200, maxPaise: 5000 })}::jsonb) on conflict (key) do update set value = excluded.value`;
 
 async function signUp(name, referralCode) {
   const c = client(SF, testIp());

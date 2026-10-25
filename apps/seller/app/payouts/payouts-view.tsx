@@ -5,7 +5,7 @@ import { StatCard } from "@azadimart/ui";
 import { toCsv } from "@azadimart/shared";
 
 type Bank = { accountHolderName: string; last4: string; ifsc: string; status: "PENDING" | "VERIFIED" | "REJECTED"; rejectionReason: string | null } | null;
-type Breakdown = { grossPaise: number; sellerDiscountPaise?: number; shippingFeePaise?: number; commissionRateBps: number; commissionPaise: number; gstOnCommissionPaise: number; tcsPaise: number; tdsPaise: number; netPaise: number };
+type Breakdown = { grossPaise: number; sellerDiscountPaise?: number; shippingFeePaise?: number; cashbackPaise?: number; commissionRateBps: number; commissionPaise: number; gstOnCommissionPaise: number; tcsPaise: number; tdsPaise: number; netPaise: number };
 type Upcoming = Breakdown & { orderNumber: string; title: string; quantity: number; deliveredAt: string; eligibleAt: string; openReturn: boolean };
 type Payout = { id: string; status: string; amountPaise: number; grossPaise: number; deductionsPaise: number; itemCount: number; utr: string | null; mode: string; failureReason: string | null; paidAt: string | null; createdAt: string; periodStart: string | null; periodEnd: string | null; feeInvoiceId: string | null; feeInvoiceNumber: string | null };
 type Item = Breakdown & { orderNumber: string; title: string; quantity: number };
@@ -13,6 +13,7 @@ type Data = {
   bankAccount: Bank; holdReason: string | null;
   commission: { freeUntil: string | null; isFreeNow: boolean; rateBps: number; holdDays: number };
   settlement: { cycle: "FORTNIGHTLY" | "DAILY"; nextAt: string };
+  cashback?: { enabled: boolean; percentBps: number; maxPaise: number };
   summary: { paid30dPaise: number; waitingPaise: number; upcomingPaise: number; heldByReturnsPaise: number; nextPayoutAt: string | null };
   upcoming: Upcoming[]; payouts: Payout[];
   feeCreditNotes?: Array<{ id: string; number: string; issuedAt: string; totalPaise: number }>;
@@ -20,7 +21,7 @@ type Data = {
 
 const money = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { minimumFractionDigits: p % 100 ? 2 : 0, maximumFractionDigits: 2 });
 const date = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-const deductions = (b: Breakdown) => (b.sellerDiscountPaise ?? 0) + (b.shippingFeePaise ?? 0) + b.commissionPaise + b.gstOnCommissionPaise + b.tcsPaise + b.tdsPaise;
+const deductions = (b: Breakdown) => (b.sellerDiscountPaise ?? 0) + (b.shippingFeePaise ?? 0) + (b.cashbackPaise ?? 0) + b.commissionPaise + b.gstOnCommissionPaise + b.tcsPaise + b.tdsPaise;
 const STATUS: Record<string, { label: string; tone: string }> = {
   PAID: { label: "Sent", tone: "bg-green-50 text-green-700" },
   PROCESSING: { label: "On its way", tone: "bg-sky-50 text-sky-700" },
@@ -67,6 +68,7 @@ function BreakdownRows({ b }: { b: Breakdown }) {
       {b.commissionRateBps ? `Commission ${b.commissionRateBps / 100}% ${money(b.commissionPaise)} + GST ${money(b.gstOnCommissionPaise)}` : "No commission"}
       {b.tcsPaise ? ` · TCS ${money(b.tcsPaise)}` : ""}{b.tdsPaise ? ` · TDS ${money(b.tdsPaise)}` : ""}
       {b.shippingFeePaise ? <span className="text-slate-700"> · LOIMART shipping {money(b.shippingFeePaise)}</span> : null}
+      {b.cashbackPaise ? <span className="text-slate-700"> · Shopper cashback (your share) {money(b.cashbackPaise)}</span> : null}
     </span>
   );
 }
@@ -107,7 +109,7 @@ export default function PayoutsView() {
       <div className={"rounded-2xl border p-4 sm:p-5 " + (commission.isFreeNow ? "border-green-200 bg-gradient-to-r from-green-50 to-white" : "border-slate-200 bg-white")}>
         {commission.isFreeNow ? (
           <><p className="font-semibold text-green-900">No commission{commission.freeUntil ? ` until ${date(commission.freeUntil)}` : " during your first 3 months"}</p>
-            <p className="mt-0.5 text-sm text-green-800">Your first 3 months on LOIMART are free: you keep your full sale price, minus only the taxes the law requires (TCS and TDS). After that, commission is {commission.rateBps / 100}% per order.</p></>
+            <p className="mt-0.5 text-sm text-green-800">Your first 3 months on LOIMART have no commission: you keep your sale price, minus the taxes the law requires (TCS and TDS){data.cashback?.enabled ? " and your share of the shopper's cashback" : ""}. After that, commission is {commission.rateBps / 100}% per order.</p></>
         ) : (
           <><p className="font-semibold">Commission: {commission.rateBps / 100}% per order</p>
             <p className="mt-0.5 text-sm text-slate-600">Plus 18% GST on the commission. Your free period ended{commission.freeUntil ? ` on ${date(commission.freeUntil)}` : ""}. Orders placed during it stay commission-free.</p></>
@@ -216,6 +218,7 @@ export default function PayoutsView() {
         <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-slate-600">
           <li><b>Sale price</b> of your items the customer kept (returned items are left out).</li>
           <li><b>Commission</b>: none in your first 3 months; then {commission.rateBps / 100}% of the sale price, plus 18% GST on the commission (you can claim this GST as input credit).</li>
+          {data.cashback?.enabled ? <li><b>Shopper cashback</b>: shoppers get {data.cashback.percentBps / 100}% of what they pay as cashback in their LOIMART wallet{data.cashback.maxPaise ? ` (up to ${money(data.cashback.maxPaise)} per order)` : ""}, only when they keep the whole order past the return window. You pay the part for your items, from that order&apos;s payment. No cashback, nothing taken, if anything in the order is returned.</li> : null}
           <li><b>TCS</b> (0.5%, GST law, GST-registered sellers only) and <b>TDS</b> (0.1%, Income-tax law) are deducted and deposited with the government in your name; claim them in your returns.</li>
           <li>{data.settlement.cycle === "FORTNIGHTLY" ? `Settled on the 1st and 16th of every month for orders whose ${commission.holdDays}-day return window has closed.` : `Paid ${commission.holdDays} days after delivery, once the return window has closed.`} Cash on Delivery orders count from delivery too.</li>
         </ul>

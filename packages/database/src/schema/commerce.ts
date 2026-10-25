@@ -70,6 +70,8 @@ export const orders = pgTable(
     shippingPaise: integer("shipping_paise").notNull().default(0),
     /** Platform fee charged to the shopper once per order (kept by LOIMART, not paid to sellers). */
     platformFeePaise: integer("platform_fee_paise").notNull().default(0),
+    /** Cashback promised at checkout: added to the shopper's wallet once the order is delivered and kept (paid by the sellers). */
+    cashbackPaise: integer("cashback_paise").notNull().default(0),
     grandTotalPaise: integer("grand_total_paise").notNull(),
     couponCode: text("coupon_code"),
     shippingAddressSnapshot: jsonb("shipping_address_snapshot").$type<{
@@ -120,6 +122,8 @@ export const orderItems = pgTable(
     unitPricePaise: integer("unit_price_paise").notNull(),
     /** Coupon discount on this line paid by the seller (taken from their payout). */
     sellerDiscountPaise: integer("seller_discount_paise").notNull().default(0),
+    /** This line's share of the order's cashback, paid by the seller (from their payout, only if the shopper gets it). */
+    cashbackPaise: integer("cashback_paise").notNull().default(0),
     /** GST at the time of the order (for the invoice): HSN code and rate in basis points. */
     hsnCode: text("hsn_code"),
     gstRateBps: integer("gst_rate_bps"),

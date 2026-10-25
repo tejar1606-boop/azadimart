@@ -18,7 +18,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ payo
     const items = await db.select({
       orderNumber: orders.orderNumber, title: orderItems.title, quantity: payoutItems.quantity, grossPaise: payoutItems.grossAmountPaise,
       commissionRateBps: payoutItems.commissionRateBps, commissionPaise: payoutItems.commissionPaise, gstOnCommissionPaise: payoutItems.gstOnCommissionPaise,
-      tcsPaise: payoutItems.tcsPaise, tdsPaise: payoutItems.tdsPaise, sellerDiscountPaise: payoutItems.sellerDiscountPaise, shippingFeePaise: payoutItems.shippingFeePaise, netPaise: payoutItems.netAmountPaise,
+      tcsPaise: payoutItems.tcsPaise, tdsPaise: payoutItems.tdsPaise, sellerDiscountPaise: payoutItems.sellerDiscountPaise, shippingFeePaise: payoutItems.shippingFeePaise, cashbackPaise: payoutItems.cashbackPaise, netPaise: payoutItems.netAmountPaise,
     }).from(payoutItems).innerJoin(orderItems, eq(orderItems.id, payoutItems.orderItemId)).innerJoin(orders, eq(orders.id, orderItems.orderId))
       .where(eq(payoutItems.payoutId, payoutId));
     const charges = await db.select({ description: sellerCharges.description, amountPaise: sellerCharges.amountPaise }).from(sellerCharges).where(eq(sellerCharges.payoutId, payoutId));

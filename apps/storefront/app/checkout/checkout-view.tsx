@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { walletUsable } from "@azadimart/shared";
+import { cashbackFor, walletUsable, type CashbackSettings } from "@azadimart/shared";
+import { CashbackRow } from "../components/cashback-row";
 import { PlatformFeeRow } from "../components/platform-fee-row";
 
 type CartItem={variantId:string;title:string;variantTitle:string;sku:string;quantity:number;pricePaise:number;lineTotalPaise:number;isAvailable?:boolean};
@@ -10,7 +11,7 @@ type Address={id:string;label:string|null;line1:string;line2:string|null;city:st
 const money=(p:number)=>"₹"+(p/100).toLocaleString("en-IN",{maximumFractionDigits:0});
 
 export default function CheckoutView(){
-  const [cart,setCart]=useState<{cartId:string;items:CartItem[];subtotalPaise:number;platformFeePaise?:number}|null>(null);
+  const [cart,setCart]=useState<{cartId:string;items:CartItem[];subtotalPaise:number;platformFeePaise?:number;cashback?:CashbackSettings}|null>(null);
   const [addresses,setAddresses]=useState<Address[]>([]);
   const [selectedAddress,setSelectedAddress]=useState("");
   const [coupon,setCoupon]=useState("");
@@ -41,6 +42,7 @@ export default function CheckoutView(){
       if(!addressResponse.ok) throw new Error(addressBody?.error?.message??"Unable to load addresses.");
       const buy=new URLSearchParams(window.location.search).get("buy")?.split(",").filter(Boolean);
       const chosen=buy?(cartBody.items as CartItem[]).filter(item=>buy.includes(item.variantId)):[];
+      void applyBestOffer(cartBody.cartId,buy&&chosen.length?chosen.map(item=>item.variantId):undefined);
       if(buy&&chosen.length){
         setBuyOnly(chosen.map(item=>item.variantId));
         setCart({...cartBody,items:chosen,subtotalPaise:chosen.filter(item=>item.isAvailable!==false).reduce((sum,item)=>sum+item.lineTotalPaise,0)});
@@ -58,7 +60,18 @@ export default function CheckoutView(){
   const walletUse=useWallet?walletCan:0;
   const platformFee=cart?.platformFeePaise??0;
   const total=Math.max(0,afterCoupon-walletUse)+platformFee;
+  const cashback=cart?.cashback?cashbackFor(cart.cashback,afterCoupon):0;
   const unavailableItems=(cart?.items??[]).filter(item=>item.isAvailable===false);
+
+  // The best LOIMART offer is applied automatically (no code needed); typing another code replaces it.
+  async function applyBestOffer(cartId:string,variantIds?:string[]){
+    try{
+      const response=await fetch("/api/v1/coupons/best",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cartId,variantIds})});
+      const body=await response.json();
+      if(!response.ok||!body.code)return;
+      setCoupon(body.code);setDiscount(body.discountPaise??0);setAppliedCoupon(body.code);setCouponMessage("Best offer applied automatically.");
+    }catch{/* no offer: checkout works as before */}
+  }
 
   async function applyCoupon(){
     if(!coupon.trim()||!cart)return;
@@ -116,13 +129,13 @@ export default function CheckoutView(){
         </div>
         <aside className="h-fit rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7 lg:sticky lg:top-24">
           <h2 className="text-lg font-bold">Order summary</h2>
-          <div className="mt-5 flex gap-2"><input value={coupon} onChange={e=>{setCoupon(e.target.value.toUpperCase());setDiscount(0);setAppliedCoupon(undefined);setCouponMessage("")}} placeholder="Coupon code" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm uppercase"/><button type="button" disabled={working||!coupon.trim()} onClick={()=>void applyCoupon()} className="rounded-xl border px-4 text-xs font-bold">Apply</button></div>
+          <div className="mt-5 flex gap-2"><input value={coupon} onChange={e=>{setCoupon(e.target.value.toUpperCase());setDiscount(0);setAppliedCoupon(undefined);setCouponMessage("")}} placeholder="Offer code" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm uppercase"/><button type="button" disabled={working||!coupon.trim()} onClick={()=>void applyCoupon()} className="rounded-xl border px-4 text-xs font-bold">Apply</button></div>
           {couponMessage?<p className="mt-2 text-xs text-slate-500">{couponMessage}</p>:null}
           {unavailableItems.length?<p className="mt-4 rounded-xl bg-red-50 p-3 text-xs font-semibold text-red-700">Not available in the requested quantity: {unavailableItems.map(item=>item.title).join(", ")}. <Link href="/cart" className="underline">Update your cart</Link> to continue.</p>:null}
           {wallet&&wallet.balancePaise>0?(walletCan>0
             ?<label className="mt-4 flex cursor-pointer items-start gap-3 border border-[#E4D8FB] bg-[#F6F1FE] p-3 text-sm"><input type="checkbox" checked={useWallet} onChange={e=>setUseWallet(e.target.checked)} className="mt-0.5"/><span><b>Use {money(walletCan)} from your LOIMART wallet</b><span className="block text-xs text-slate-500">Balance {money(wallet.balancePaise)} · up to {money(wallet.rules.maxPerOrderPaise)} per order</span></span></label>
             :<p className="mt-4 bg-slate-50 p-3 text-xs text-slate-500">You have {money(wallet.balancePaise)} in your LOIMART wallet. Use it on orders of {money(wallet.rules.minOrderPaise)} or more.</p>):null}
-          <div className="mt-6 space-y-3 border-t border-slate-100 pt-5 text-sm"><Row label="Subtotal" value={money(cart.subtotalPaise)}/><Row label="Discount" value={"−"+money(discount)}/>{walletUse>0?<Row label="LOIMART wallet" value={"−"+money(walletUse)}/>:null}<Row label="Shipping" value="Free"/><PlatformFeeRow feePaise={platformFee}/><Row label="Total" value={money(total)} strong/></div>
+          <div className="mt-6 space-y-3 border-t border-slate-100 pt-5 text-sm"><Row label="Subtotal" value={money(cart.subtotalPaise)}/>{discount>0?<Row label="LOIMART offer" value={"−"+money(discount)}/>:null}{walletUse>0?<Row label="LOIMART wallet" value={"−"+money(walletUse)}/>:null}<Row label="Shipping" value="Free"/><PlatformFeeRow feePaise={platformFee}/><Row label="Total" value={money(total)} strong/><CashbackRow cashbackPaise={cashback}/></div>
           <div className="mt-5 rounded-2xl border border-slate-200 p-4"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-full bg-slate-950 text-xs font-bold text-white">₹</span><div><p className="text-sm font-bold">Cash on Delivery</p><p className="mt-1 text-xs text-slate-500">Available for this checkout.</p></div></div></div>
           {selected?<p className="mt-4 text-xs text-slate-500">Delivering to {selected.city}, {selected.state}.</p>:null}
           <button type="button" disabled={working||!selectedAddress||addresses.length===0||unavailableItems.length>0} onClick={()=>void placeOrder()} className="mt-5 w-full rounded-full bg-brand px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-40">{working?"Processing…":"Place COD order"}</button><p className="mt-3 text-center text-[11px] leading-5 text-slate-400">By placing the order, you confirm the delivery address and order details shown above, and agree to our <Link href="/terms" className="underline underline-offset-2 hover:text-slate-600">Terms</Link> and <Link href="/privacy" className="underline underline-offset-2 hover:text-slate-600">Privacy Policy</Link>.</p>

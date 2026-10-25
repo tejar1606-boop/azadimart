@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import SignInPrompt from "../components/sign-in-prompt";
+import { cashbackFor, type CashbackSettings } from "@azadimart/shared";
+import { CashbackRow } from "../components/cashback-row";
 import { PlatformFeeRow } from "../components/platform-fee-row";
 
 type CartItem = {
@@ -25,6 +27,7 @@ type CartState = {
   items: CartItem[];
   subtotalPaise: number;
   platformFeePaise?: number;
+  cashback?: CashbackSettings;
   itemCount: number;
 };
 
@@ -147,8 +150,9 @@ export default function CartView() {
                 <PlatformFeeRow feePaise={cart?.subtotalPaise ? cart.platformFeePaise ?? 0 : 0} dark />
                 <div className="flex justify-between border-t border-white/10 pt-4 text-base font-bold"><span>Total</span><span>{money((cart?.subtotalPaise ?? 0) + (cart?.subtotalPaise ? cart.platformFeePaise ?? 0 : 0))}</span></div>
               </div>
+              {cart?.cashback ? <div className="mt-4"><CashbackRow cashbackPaise={cashbackFor(cart.cashback, cart.subtotalPaise)} dark /></div> : null}
               <Link href="/checkout" className="mt-6 flex min-h-12 items-center justify-center rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600">Proceed to checkout</Link>
-              <p className="mt-3 text-center text-[11px] text-white/45">Your final payable amount is confirmed at checkout after coupon validation.</p>
+              <p className="mt-3 text-center text-[11px] text-white/45">Your final payable amount is confirmed at checkout after any offers are applied.</p>
               <p className="mt-3 text-center text-[11px] text-white/45">You can review your address and available payment options next.</p>
               <div className="mt-5 space-y-2 text-xs text-white/50"><p>✓ Secure payment flow</p><p>✓ Seller-level fulfillment checks</p><p>✓ Coupons applied at checkout</p></div>
             </aside>

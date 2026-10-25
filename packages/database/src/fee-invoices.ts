@@ -86,7 +86,7 @@ export async function loadSettlementStatement(db: Pick<Db, "select">, payoutId: 
     db.select({
       orderNumber: orders.orderNumber, orderedAt: orders.createdAt, deliveredAt: orders.deliveredAt, title: orderItems.title, sku: orderItems.sku, quantity: payoutItems.quantity,
       grossPaise: payoutItems.grossAmountPaise, sellerDiscountPaise: payoutItems.sellerDiscountPaise, commissionRateBps: payoutItems.commissionRateBps, commissionPaise: payoutItems.commissionPaise,
-      gstOnCommissionPaise: payoutItems.gstOnCommissionPaise, shippingFeePaise: payoutItems.shippingFeePaise, tcsPaise: payoutItems.tcsPaise, tdsPaise: payoutItems.tdsPaise, netPaise: payoutItems.netAmountPaise,
+      gstOnCommissionPaise: payoutItems.gstOnCommissionPaise, shippingFeePaise: payoutItems.shippingFeePaise, cashbackPaise: payoutItems.cashbackPaise, tcsPaise: payoutItems.tcsPaise, tdsPaise: payoutItems.tdsPaise, netPaise: payoutItems.netAmountPaise,
     }).from(payoutItems).innerJoin(orderItems, eq(orderItems.id, payoutItems.orderItemId)).innerJoin(orders, eq(orders.id, orderItems.orderId))
       .where(eq(payoutItems.payoutId, payoutId)).orderBy(orders.createdAt),
     db.select({ kind: sellerCharges.kind, description: sellerCharges.description, amountPaise: sellerCharges.amountPaise }).from(sellerCharges).where(eq(sellerCharges.payoutId, payoutId)),
@@ -101,7 +101,7 @@ export async function loadSettlementStatement(db: Pick<Db, "select">, payoutId: 
     charges, feeInvoice: invoice,
     totals: {
       grossPaise: sum("grossPaise"), sellerDiscountPaise: sum("sellerDiscountPaise"), commissionPaise: sum("commissionPaise"), gstOnCommissionPaise: sum("gstOnCommissionPaise"),
-      shippingFeePaise: sum("shippingFeePaise"), tcsPaise: sum("tcsPaise"), tdsPaise: sum("tdsPaise"), chargesPaise: charges.reduce((n, c) => n + c.amountPaise, 0),
+      shippingFeePaise: sum("shippingFeePaise"), cashbackPaise: sum("cashbackPaise"), tcsPaise: sum("tcsPaise"), tdsPaise: sum("tdsPaise"), chargesPaise: charges.reduce((n, c) => n + c.amountPaise, 0),
       adsPaise: charges.filter((c) => c.kind === "AD").reduce((n, c) => n + c.amountPaise, 0), recoveriesPaise: charges.filter((c) => c.kind === "RETURN_RECOVERY").reduce((n, c) => n + c.amountPaise, 0), netPaise: payout.amountPaise,
     },
   };
@@ -112,7 +112,7 @@ export type SettlementStatement = NonNullable<Awaited<ReturnType<typeof loadSett
  * Goods returned after the seller was paid for them (a return received or a
  * delivered parcel sent back late). For each returned piece already in a
  * payout: the seller gives back what they were paid for it (sale price less
- * commission, its GST and the TCS), taken from their next payout, and a fee
+ * commission, its GST, the TCS and their cashback share), taken from their next payout, and a fee
  * credit note gives back that commission and its GST. Safe to call twice.
  */
 export async function recordReturnAfterSettlement(tx: Tx, input: { sellerId: string; sourceKey: string; quantities: Map<string, number>; actorUserId?: string | null }) {
@@ -120,7 +120,7 @@ export async function recordReturnAfterSettlement(tx: Tx, input: { sellerId: str
   if (!ids.length) return null;
   const paid = await tx.select({
     orderItemId: payoutItems.orderItemId, payoutId: payoutItems.payoutId, quantity: payoutItems.quantity, grossPaise: payoutItems.grossAmountPaise, sellerDiscountPaise: payoutItems.sellerDiscountPaise,
-    commissionPaise: payoutItems.commissionPaise, gstPaise: payoutItems.gstOnCommissionPaise, tcsPaise: payoutItems.tcsPaise, title: orderItems.title, orderNumber: orders.orderNumber,
+    commissionPaise: payoutItems.commissionPaise, gstPaise: payoutItems.gstOnCommissionPaise, tcsPaise: payoutItems.tcsPaise, cashbackPaise: payoutItems.cashbackPaise, title: orderItems.title, orderNumber: orders.orderNumber,
   }).from(payoutItems).innerJoin(orderItems, eq(orderItems.id, payoutItems.orderItemId)).innerJoin(orders, eq(orders.id, orderItems.orderId))
     .where(and(inArray(payoutItems.orderItemId, ids), eq(orderItems.sellerId, input.sellerId)));
   const made: Array<typeof settlementAdjustments.$inferSelect & { payoutId: string }> = [];
@@ -131,7 +131,8 @@ export async function recordReturnAfterSettlement(tx: Tx, input: { sellerId: str
     if (qty <= 0 || p.quantity <= 0) continue;
     const share = (paise: number) => Math.round(paise * qty / p.quantity);
     const sold = share(p.grossPaise - p.sellerDiscountPaise), commission = share(p.commissionPaise), gst = share(p.gstPaise), tcs = share(p.tcsPaise);
-    const recovery = Math.max(0, sold - commission - gst - tcs);
+    // The shopper keeps cashback already given, so the seller doesn't give back their share of it.
+    const recovery = Math.max(0, sold - commission - gst - tcs - share(p.cashbackPaise));
     const row = (await tx.insert(settlementAdjustments).values({
       sellerId: input.sellerId, orderItemId: p.orderItemId, payoutId: p.payoutId, sourceKey: input.sourceKey, quantity: qty,
       soldPaise: sold, commissionPaise: commission, gstOnCommissionPaise: gst, tcsPaise: tcs, recoveryPaise: recovery,

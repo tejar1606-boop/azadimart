@@ -13,12 +13,16 @@ describe("seller settlement", () => {
   it("after 3 months: 5% commission + 18% GST on it, TCS 0.5%, TDS 0.1%", () => {
     const s = calculateSettlement({ grossPaise: 100_000, orderedAt: new Date("2026-04-16T00:00:00Z"), sellerApprovedAt: approved, gstRegistered: true });
     // ₹1,000 order: commission ₹50, GST ₹9, TCS ₹5, TDS ₹1 → seller gets ₹935
-    expect(s).toEqual({ grossPaise: 100_000, sellerDiscountPaise: 0, commissionFree: false, commissionRateBps: 500, commissionPaise: 5_000, gstOnCommissionPaise: 900, tcsPaise: 500, tdsPaise: 100, shippingFeePaise: 0, netPaise: 93_500 });
+    expect(s).toEqual({ grossPaise: 100_000, sellerDiscountPaise: 0, commissionFree: false, commissionRateBps: 500, commissionPaise: 5_000, gstOnCommissionPaise: 900, tcsPaise: 500, tdsPaise: 100, shippingFeePaise: 0, cashbackPaise: 0, netPaise: 93_500 });
   });
   it("a coupon the seller pays comes off first; commission and taxes are on the price after it", () => {
     const s = calculateSettlement({ grossPaise: 100_000, sellerDiscountPaise: 10_000, orderedAt: new Date("2026-04-16T00:00:00Z"), sellerApprovedAt: approved, gstRegistered: true });
     // ₹1,000 item, ₹100 coupon paid by the seller → sold for ₹900: commission ₹45, GST ₹8.10, TCS ₹4.50, TDS ₹0.90 → ₹841.50
     expect(s).toMatchObject({ grossPaise: 100_000, sellerDiscountPaise: 10_000, commissionPaise: 4_500, gstOnCommissionPaise: 810, tcsPaise: 450, tdsPaise: 90, netPaise: 84_150 });
+  });
+  it("the seller's cashback share comes off the payout; commission and taxes stay on the sale price", () => {
+    const s = calculateSettlement({ grossPaise: 100_000, cashbackPaise: 2_000, orderedAt: new Date("2026-04-16T00:00:00Z"), sellerApprovedAt: approved, gstRegistered: true });
+    expect(s).toMatchObject({ commissionPaise: 5_000, tcsPaise: 500, tdsPaise: 100, cashbackPaise: 2_000, netPaise: 91_500 });
   });
   it("goes by the order date, not the payout date", () => {
     const s = calculateSettlement({ grossPaise: 100_000, orderedAt: new Date("2026-04-15T09:59:59Z"), sellerApprovedAt: approved, gstRegistered: false });

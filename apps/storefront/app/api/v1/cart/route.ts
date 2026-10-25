@@ -2,6 +2,7 @@ import { getSessionPrincipal, enforceRateLimit } from "@azadimart/auth";
 import {
   carts,
   cartItems,
+  cashbackSettings,
   createDatabase,
   inventory,
   mediaAssets,
@@ -90,6 +91,8 @@ async function readCart(db: ReturnType<typeof createDatabase>, customerId: strin
     unavailableCount: items.filter((item) => !item.isAvailable).length,
     /** Added once at checkout (see Admin → Finance). */
     platformFeePaise: platformFeeFor(await platformFeeSettings(db)),
+    /** Cashback rules, so the cart and checkout can show what goes into the wallet after delivery. */
+    cashback: await cashbackSettings(db),
     itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
   };
 }

@@ -1,5 +1,5 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, feeInvoices, getPlatformSetting, payouts, sellerBankAccounts, sellers, unpaidSettlementLines } from "@azadimart/database";
+import { cashbackSettings, createDatabase, feeInvoices, getPlatformSetting, payouts, sellerBankAccounts, sellers, unpaidSettlementLines } from "@azadimart/database";
 import { AppError, COMMISSION_RATE_BPS, DEFAULT_SETTLEMENT_CYCLE, PAYOUT_HOLD_DAYS, SETTLEMENT_CYCLE_KEY, commissionFreeUntil, nextSettlementDate, toApiError, type SettlementCycle } from "@azadimart/shared";
 import { and, desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -33,6 +33,8 @@ export async function GET(request: Request) {
       holdReason: seller?.holdReason ?? null,
       commission: { freeUntil, isFreeNow: !freeUntil || freeUntil.getTime() > now, rateBps: COMMISSION_RATE_BPS, holdDays: PAYOUT_HOLD_DAYS },
       settlement: { cycle, nextAt: nextSettlementDate(new Date(), cycle) },
+      // Shopper cashback rules (each seller pays the share for their items).
+      cashback: await cashbackSettings(db),
       summary: {
         paid30dPaise: sent.filter((p) => p.status === "PAID" && p.paidAt && p.paidAt.getTime() > monthAgo).reduce((s, p) => s + p.amountPaise, 0),
         waitingPaise: waiting.reduce((s, p) => s + p.amountPaise, 0),

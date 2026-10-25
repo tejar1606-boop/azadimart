@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PortalPageHeader } from "@azadimart/ui";
+import CashbackRules from "./cashback-rules";
 
 type Settings = { enabled: boolean; bonusPaise: number; maxPerOrderPaise: number; minOrderPaise: number; expiryDays: number; maxBonusesPerIpPerDay: number; referralEnabled: boolean; referralRewardPaise: number; maxReferralRewards: number };
 type Data = {
@@ -41,7 +42,7 @@ export default function WalletAdmin() {
 
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
-      <PortalPageHeader eyebrow="Marketing" title="Wallet, welcome bonus & referrals" description="New shoppers get a welcome bonus in their LOIMART wallet after verifying their mobile by OTP: once per mobile number and once per device (device ID + fingerprint), with a daily limit per internet connection. After their first order, shoppers can refer friends: when a friend's first order is delivered and kept past the return window (no return or replacement), the shopper who invited them gets the referral reward (checked daily). LOIMART pays for wallet money; sellers get their full price." />
+      <PortalPageHeader eyebrow="Marketing" title="Wallet, bonus, referrals & cashback" description="New shoppers get a welcome bonus in their LOIMART wallet after verifying their mobile by OTP: once per mobile number and once per device (device ID + fingerprint), with a daily limit per internet connection. After their first order, shoppers can refer friends: when a friend's first order is delivered and kept past the return window (no return or replacement), the shopper who invited them gets the referral reward (checked daily). LOIMART pays for wallet money; sellers get their full price." />
       <div className="mt-5 grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
         {([["Bonuses given", `${t.bonuses} · ${rs(t.given)}`], ["Referral rewards", `${t.referralRewards} · ${rs(t.referralGiven)}`], ["Used on orders", rs(t.spent - t.refunded)], ["Still in wallets", rs(t.outstanding)], ["Expired unused", rs(t.expired)], ["Blocked attempts", String(data.reasons.reduce((n, r) => n + r.n, 0))]] as const).map(([l, v]) => (
           <div key={l} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-card"><p className="text-xs text-slate-500">{l}</p><p className="mt-1 text-xl font-bold">{v}</p></div>
@@ -66,6 +67,7 @@ export default function WalletAdmin() {
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3"><button className="rounded-full bg-chrome px-5 py-2 text-sm font-semibold text-white">Save rules</button>{msg ? <span className={"text-sm " + (msg.ok ? "text-green-700" : "text-red-700")}>{msg.text}</span> : null}</div>
       </form>
+      <CashbackRules />
 
       {data.reasons.length ? <div className="mt-5 flex flex-wrap gap-2">{data.reasons.map((r) => <span key={r.reason ?? "?"} className="rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-800">{r.n} × {r.reason}</span>)}</div> : null}
       <section className="mt-4 rounded-2xl border border-slate-200 bg-white shadow-card">

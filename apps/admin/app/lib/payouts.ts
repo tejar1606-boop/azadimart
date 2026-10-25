@@ -1,5 +1,5 @@
 import { decryptSecret } from "@azadimart/auth";
-import { auditLogs, chargeFinishedAdDays, getPlatformSetting, issueFeeInvoice, payoutItems, payouts, sellerBankAccounts, sellerCharges, sellers, unpaidSettlementLines, type Database, type SettlementLine } from "@azadimart/database";
+import { auditLogs, chargeFinishedAdDays, creditDueOrderCashback, getPlatformSetting, issueFeeInvoice, payoutItems, payouts, sellerBankAccounts, sellerCharges, sellers, unpaidSettlementLines, type Database, type SettlementLine } from "@azadimart/database";
 import { notifyAdEvents, notifySeller, settleAdAuctions } from "@azadimart/notify";
 import { DEFAULT_SETTLEMENT_CYCLE, SETTLEMENT_CYCLE_KEY, previousCycleStart, settlementCycleStart, type SettlementCycle } from "@azadimart/shared";
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
@@ -66,7 +66,7 @@ export async function createDuePayouts(db: Database, now = new Date()) {
   const periodEnd = cycle === "DAILY" ? now : settlementCycleStart(now, cycle);
   const periodStart = cycle === "DAILY" ? settlementCycleStart(now, "DAILY") : previousCycleStart(periodEnd, cycle);
   const settled = cycle === "DAILY" ? new Set<string>() : new Set((await db.select({ sellerId: payouts.sellerId }).from(payouts).where(eq(payouts.periodEnd, periodEnd))).map((p) => p.sellerId));
-  const due = (await unpaidSettlementLines(db)).filter((line) => line.eligibleAt <= periodEnd && !line.openReturn && !settled.has(line.sellerId));
+  const due = (await unpaidSettlementLines(db)).filter((line) => line.eligibleAt <= periodEnd && !line.openReturn && !line.cashbackPending && !settled.has(line.sellerId));
   const bySeller = new Map<string, SettlementLine[]>();
   for (const line of due) bySeller.set(line.sellerId, [...(bySeller.get(line.sellerId) ?? []), line]);
   let created = 0;
@@ -93,7 +93,7 @@ export async function createDuePayouts(db: Database, now = new Date()) {
           grossAmountPaise: l.breakdown.grossPaise, deductionsPaise: l.breakdown.grossPaise - l.breakdown.netPaise, netAmountPaise: l.breakdown.netPaise,
           commissionRateBps: l.breakdown.commissionRateBps, commissionPaise: l.breakdown.commissionPaise,
           gstOnCommissionPaise: l.breakdown.gstOnCommissionPaise, tcsPaise: l.breakdown.tcsPaise, tdsPaise: l.breakdown.tdsPaise, sellerDiscountPaise: l.breakdown.sellerDiscountPaise,
-          shippingFeePaise: l.breakdown.shippingFeePaise,
+          cashbackPaise: l.breakdown.cashbackPaise, shippingFeePaise: l.breakdown.shippingFeePaise,
         })));
         if (taken.length) await tx.update(sellerCharges).set({ status: "SETTLED", payoutId: payout!.id, updatedAt: now }).where(inArray(sellerCharges.id, taken));
         // LOIMART's tax invoice for its fees in this settlement (commission, courier, ads).
@@ -188,10 +188,12 @@ export async function processPayout(db: Database, payoutId: string, options: { a
   return "FAILED";
 }
 
-/** The daily job: close ad auctions and charge finished ad days, create due payouts, then send everything that's waiting. */
+/** The daily job: close ad auctions and charge finished ad days, add due cashback, create due payouts, then send everything that's waiting. */
 export async function runPayouts(db: Database, now = new Date()) {
   await settleAdAuctions(db, now);
   await notifyAdEvents(db, await chargeFinishedAdDays(db, now));
+  // Shoppers' cashback first, so each seller's share is known before their payout is made.
+  await creditDueOrderCashback(db, now);
   const created = await createDuePayouts(db, now);
   const waiting = await db.select({ id: payouts.id }).from(payouts).where(inArray(payouts.status, ["PENDING", "FAILED", "ON_HOLD"])).orderBy(payouts.createdAt);
   const summary: Record<Outcome, number> & { created: number } = { created, PAID: 0, PROCESSING: 0, ON_HOLD: 0, WAITING_APPROVAL: 0, FAILED: 0, NOT_SET_UP: 0, SKIPPED: 0 };

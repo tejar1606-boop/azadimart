@@ -34,10 +34,10 @@ export type StatementView = {
   payout: { reference: string | null; status: string; amountPaise: number; utr: string | null; mode: string; paidAt: string | null; createdAt: string; periodStart: string | null; periodEnd: string | null };
   seller: { legalName: string; storeName: string; gstin: string | null; pan: string | null };
   company: { legalName: string; gstin: string | null; address: string };
-  lines: Array<{ orderNumber: string; deliveredAt: string | null; title: string; quantity: number; grossPaise: number; sellerDiscountPaise: number; commissionRateBps: number; commissionPaise: number; gstOnCommissionPaise: number; shippingFeePaise: number; tcsPaise: number; tdsPaise: number; netPaise: number }>;
+  lines: Array<{ orderNumber: string; deliveredAt: string | null; title: string; quantity: number; grossPaise: number; sellerDiscountPaise: number; commissionRateBps: number; commissionPaise: number; gstOnCommissionPaise: number; shippingFeePaise: number; cashbackPaise?: number; tcsPaise: number; tdsPaise: number; netPaise: number }>;
   charges: Array<{ description: string; amountPaise: number }>;
   feeInvoice: { id: string; number: string; totalPaise: number } | null;
-  totals: { grossPaise: number; sellerDiscountPaise: number; commissionPaise: number; gstOnCommissionPaise: number; shippingFeePaise: number; tcsPaise: number; tdsPaise: number; chargesPaise: number; adsPaise?: number; recoveriesPaise?: number; netPaise: number };
+  totals: { grossPaise: number; sellerDiscountPaise: number; commissionPaise: number; gstOnCommissionPaise: number; shippingFeePaise: number; cashbackPaise?: number; tcsPaise: number; tdsPaise: number; chargesPaise: number; adsPaise?: number; recoveriesPaise?: number; netPaise: number };
 };
 
 /** A seller's settlement statement: what was sold in the cycle, every deduction and what was paid. */
@@ -46,6 +46,7 @@ export function SettlementStatementDocument({ statement: s, feeInvoiceHref }: { 
   const rows: Array<[string, number, string?]> = [
     ["Sales (items delivered and kept)", t.grossPaise],
     ["Coupons you funded", -t.sellerDiscountPaise],
+    ["Cashback to shoppers (your share)", -(t.cashbackPaise ?? 0), "given only on orders kept with no return"],
     ["Commission", -t.commissionPaise, "LOIMART fee invoice"],
     ["GST on commission (18%)", -t.gstOnCommissionPaise, "claim as input tax credit"],
     ["LOIMART courier (not covered by your wallet)", -t.shippingFeePaise],
@@ -89,7 +90,7 @@ export function SettlementStatementDocument({ statement: s, feeInvoiceHref }: { 
       <h2 className="mt-5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Orders in this settlement</h2>
       <div className="mt-2 overflow-x-auto">
         <table className="w-full min-w-[640px] border-collapse text-[10.5px]">
-          <thead className="bg-slate-100 text-left"><tr><th className={cell}>Order</th><th className={cell}>Item</th><th className={cell + " text-right"}>Sale</th><th className={cell + " text-right"}>Coupon</th><th className={cell + " text-right"}>Commission + GST</th><th className={cell + " text-right"}>Courier</th><th className={cell + " text-right"}>TCS</th><th className={cell + " text-right"}>TDS</th><th className={cell + " text-right"}>Net</th></tr></thead>
+          <thead className="bg-slate-100 text-left"><tr><th className={cell}>Order</th><th className={cell}>Item</th><th className={cell + " text-right"}>Sale</th><th className={cell + " text-right"}>Coupon</th><th className={cell + " text-right"}>Cashback</th><th className={cell + " text-right"}>Commission + GST</th><th className={cell + " text-right"}>Courier</th><th className={cell + " text-right"}>TCS</th><th className={cell + " text-right"}>TDS</th><th className={cell + " text-right"}>Net</th></tr></thead>
           <tbody>
             {s.lines.map((l, i) => (
               <tr key={i} className="align-top">
@@ -97,6 +98,7 @@ export function SettlementStatementDocument({ statement: s, feeInvoiceHref }: { 
                 <td className={cell}>{l.title} × {l.quantity}</td>
                 <td className={cell + " text-right"}>{rs(l.grossPaise)}</td>
                 <td className={cell + " text-right"}>{l.sellerDiscountPaise ? "−" + rs(l.sellerDiscountPaise) : "—"}</td>
+                <td className={cell + " text-right"}>{l.cashbackPaise ? "−" + rs(l.cashbackPaise) : "—"}</td>
                 <td className={cell + " text-right"}>{l.commissionRateBps ? `−${rs(l.commissionPaise + l.gstOnCommissionPaise)}` : "Free"}</td>
                 <td className={cell + " text-right"}>{l.shippingFeePaise ? "−" + rs(l.shippingFeePaise) : "—"}</td>
                 <td className={cell + " text-right"}>{l.tcsPaise ? "−" + rs(l.tcsPaise) : "—"}</td>
@@ -104,7 +106,7 @@ export function SettlementStatementDocument({ statement: s, feeInvoiceHref }: { 
                 <td className={cell + " text-right font-semibold"}>{rs(l.netPaise)}</td>
               </tr>
             ))}
-            {s.charges.map((c, i) => <tr key={"c" + i}><td className={cell} colSpan={8}>{c.description}</td><td className={cell + " text-right"}>−{rs(c.amountPaise)}</td></tr>)}
+            {s.charges.map((c, i) => <tr key={"c" + i}><td className={cell} colSpan={9}>{c.description}</td><td className={cell + " text-right"}>−{rs(c.amountPaise)}</td></tr>)}
           </tbody>
         </table>
       </div>

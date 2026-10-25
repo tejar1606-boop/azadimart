@@ -119,7 +119,7 @@ check("Seller Centre lists the settlement with its period and fee invoice", list
 r = await seller(`/api/v1/payouts/${pa?.id}/statement`);
 const st = r.json?.statement;
 check("the statement lists the order and adds up to what was paid", r.status === 200 && st.lines.some((l) => l.netPaise > 0) && st.totals.netPaise === pa.amount_paise && st.feeInvoice?.number === fee?.number, JSON.stringify(st?.totals));
-const deductions = st.totals.sellerDiscountPaise + st.totals.commissionPaise + st.totals.gstOnCommissionPaise + st.totals.shippingFeePaise + st.totals.tcsPaise + st.totals.tdsPaise + st.totals.chargesPaise;
+const deductions = st.totals.sellerDiscountPaise + st.totals.commissionPaise + st.totals.gstOnCommissionPaise + st.totals.shippingFeePaise + (st.totals.cashbackPaise ?? 0) + st.totals.tcsPaise + st.totals.tdsPaise + st.totals.chargesPaise;
 check("sales − deductions = paid", st.totals.grossPaise - deductions === st.totals.netPaise, `${st.totals.grossPaise} − ${deductions} vs ${st.totals.netPaise}`);
 check("the seller can open the fee invoice", (await seller(`/api/v1/fee-invoices/${fee?.id}`)).status === 200);
 check("customers can't", [401, 403].includes((await shop(`${SE}/api/v1/fee-invoices/${fee?.id}`)).status) && [401, 403].includes((await shop(`${SE}/api/v1/payouts/${pa?.id}/statement`)).status));
@@ -133,8 +133,9 @@ r = await admin(`/api/v1/shipments/${a.shipmentId}`, { method: "PATCH", body: { 
 const [adj] = await sql`select * from settlement_adjustments where source_key = ${"RTO:" + a.shipmentId}`;
 const [paidItem] = await sql`select pi.* from payout_items pi join order_items oi on oi.id = pi.order_item_id where oi.order_id = ${a.orderId}`;
 check("a parcel sent back after settlement is recorded", r.status === 200 && adj?.quantity === paidItem.quantity, String(r.status));
-const expectRecovery = paidItem.gross_amount_paise - paidItem.seller_discount_paise - paidItem.commission_paise - paidItem.gst_on_commission_paise - paidItem.tcs_paise;
-check("the seller gives back the sale less commission, its GST and TCS (TDS and courier stay)", adj?.recovery_paise === expectRecovery, `${adj?.recovery_paise} vs ${expectRecovery}`);
+// The shopper keeps cashback already given, so the seller's share of it isn't asked back either.
+const expectRecovery = paidItem.gross_amount_paise - paidItem.seller_discount_paise - paidItem.commission_paise - paidItem.gst_on_commission_paise - paidItem.tcs_paise - paidItem.cashback_paise;
+check("the seller gives back the sale less commission, its GST, TCS and cashback share (TDS and courier stay)", adj?.recovery_paise === expectRecovery, `${adj?.recovery_paise} vs ${expectRecovery}`);
 const [charge] = await sql`select * from seller_charges where kind = 'RETURN_RECOVERY' and reference_id = ${adj?.id}`;
 check("…taken from the next payout", charge?.status === "PENDING" && charge.amount_paise === expectRecovery);
 const [cn] = await sql`select * from fee_invoices where kind = 'CREDIT_NOTE' and source_key = ${"RTO:" + a.shipmentId + ":" + me.id}`;

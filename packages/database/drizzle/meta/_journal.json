@@ -386,6 +386,13 @@
       "when": 1792942964402,
       "tag": "20261025154244_order_platform_fee",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1792951239896,
+      "tag": "20261025180039_order_cashback",
+      "breakpoints": true
     }
   ]
 }

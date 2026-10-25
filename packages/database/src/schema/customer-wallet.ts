@@ -15,7 +15,7 @@ export const customerWalletEntries = pgTable(
   {
     id,
     customerId: uuid("customer_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
-    kind: text("kind").$type<"SIGNUP_BONUS" | "REFERRAL_REWARD" | "ORDER_SPEND" | "ORDER_REFUND" | "ADJUSTMENT">().notNull(),
+    kind: text("kind").$type<"SIGNUP_BONUS" | "REFERRAL_REWARD" | "ORDER_CASHBACK" | "ORDER_SPEND" | "ORDER_REFUND" | "ADJUSTMENT">().notNull(),
     /** + money in, − money out. */
     amountPaise: integer("amount_paise").notNull(),
     remainingPaise: integer("remaining_paise").notNull().default(0),
@@ -81,5 +81,29 @@ export const customerReferralRewards = pgTable(
   (table) => [
     uniqueIndex("customer_referral_rewards_referred_unique").on(table.referredCustomerId),
     index("customer_referral_rewards_referrer_idx").on(table.referrerCustomerId, table.createdAt),
+  ],
+);
+
+/**
+ * Cashback on an order, written once its return window has closed: GRANTED
+ * puts the money in the shopper's wallet (walletEntryId) and the sellers pay
+ * their share from that order's payout; FORFEITED (returned or replaced)
+ * keeps why not.
+ */
+export const orderCashbacks = pgTable(
+  "order_cashbacks",
+  {
+    id,
+    orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
+    status: text("status").$type<"GRANTED" | "FORFEITED">().notNull(),
+    reason: text("reason"),
+    amountPaise: integer("amount_paise").notNull().default(0),
+    walletEntryId: uuid("wallet_entry_id").references(() => customerWalletEntries.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("order_cashbacks_order_unique").on(table.orderId),
+    index("order_cashbacks_customer_idx").on(table.customerId, table.createdAt),
   ],
 );

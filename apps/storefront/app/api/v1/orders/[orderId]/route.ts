@@ -1,5 +1,5 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, orderInvoices, orderItems, orders, payments, sellers, products } from "@azadimart/database";
+import { createDatabase, orderCashbackState, orderInvoices, orderItems, orders, payments, sellers, products } from "@azadimart/database";
 import { AppError, toApiError } from "@azadimart/shared";
 import { asc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -15,7 +15,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     const order = (await db.select({
       id: orders.id, customerId: orders.customerId, orderNumber: orders.orderNumber, status: orders.status,
       subtotalPaise: orders.subtotalPaise, discountPaise: orders.discountPaise, walletPaise: orders.walletPaise,
-      shippingPaise: orders.shippingPaise, platformFeePaise: orders.platformFeePaise, grandTotalPaise: orders.grandTotalPaise,
+      shippingPaise: orders.shippingPaise, platformFeePaise: orders.platformFeePaise, grandTotalPaise: orders.grandTotalPaise, cashbackPaise: orders.cashbackPaise, deliveredAt: orders.deliveredAt,
       couponCode: orders.couponCode, shippingAddressSnapshot: orders.shippingAddressSnapshot,
       currency: orders.currency, createdAt: orders.createdAt, cancelledBy: orders.cancelledBy, cancellationReason: orders.cancellationReason, paymentStatus: payments.status, paymentMethod: payments.provider,
     }).from(orders).leftJoin(payments, eq(payments.orderId, orders.id))
@@ -32,7 +32,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
 
     // Invoices (one per seller, issued when the parcel ships) and any credit notes.
     const invoices = (await orderInvoices(db, order.id)).map((inv) => ({ ...inv, sellerName: items.find((i) => i.sellerId === inv.sellerId)?.sellerName ?? null }));
-    return NextResponse.json({ order: { ...order, items, invoices } });
+    const cashback = await orderCashbackState(db, order);
+    return NextResponse.json({ order: { ...order, items, invoices, cashback } });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);
     return NextResponse.json(body, { status });

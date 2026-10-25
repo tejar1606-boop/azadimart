@@ -26,3 +26,4 @@ export * from "./calls";
 export * from "./customer-wallet";
 export * from "./customer-referrals";
 export * from "./platform-fee";
+export * from "./order-cashback";

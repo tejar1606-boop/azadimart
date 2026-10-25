@@ -60,7 +60,7 @@ export async function customerReferralSummary(db: Db, customerId: string) {
   const progress = new Map<string, { ordered: boolean; deliveredAt: Date | null; returned: boolean }>();
   const waiting = friends.filter((f) => !f.status).map((f) => f.id);
   if (waiting.length) {
-    const rows = await db.select({ c: orders.customerId, status: orders.status, deliveredAt: orders.deliveredAt, kept: sql<boolean>`(${kept})` }).from(orders)
+    const rows = await db.select({ c: orders.customerId, status: orders.status, deliveredAt: orders.deliveredAt, kept: sql<boolean>`(${orderKept})` }).from(orders)
       .where(and(inArray(orders.customerId, waiting), notInArray(orders.status, ["CREATED", "PAYMENT_PENDING", "CANCELLED"])));
     for (const r of rows) {
       const p = progress.get(r.c) ?? { ordered: false, deliveredAt: null, returned: false };
@@ -105,7 +105,7 @@ const REASONS = {
 export const returnWindowDays = () => Number(process.env.RETURN_WINDOW_DAYS ?? 7) || 7;
 
 /** A delivered order the shopper kept: no return or replacement asked for (except rejected ones) and no parcel sent back. */
-const kept = sql`not exists (select 1 from returns r where r.order_id = ${orders.id} and r.status <> 'REJECTED')
+export const orderKept = sql`not exists (select 1 from returns r where r.order_id = ${orders.id} and r.status <> 'REJECTED')
   and not exists (select 1 from shipments sh where sh.order_id = ${orders.id} and sh.status = 'RETURNED')`;
 
 /**
@@ -121,7 +121,7 @@ export async function rewardDueCustomerReferrals(db: Db, now = new Date()) {
   const closedBefore = new Date(now.getTime() - returnWindowDays() * DAY);
   const due = await db.selectDistinctOn([orders.customerId], { orderId: orders.id, customerId: orders.customerId }).from(orders)
     .innerJoin(customers, eq(customers.id, orders.customerId))
-    .where(and(sql`${customers.referredByCustomerId} is not null`, eq(orders.status, "DELIVERED"), lte(orders.deliveredAt, closedBefore), kept,
+    .where(and(sql`${customers.referredByCustomerId} is not null`, eq(orders.status, "DELIVERED"), lte(orders.deliveredAt, closedBefore), orderKept,
       sql`not exists (select 1 from customer_referral_rewards rr where rr.referred_customer_id = ${customers.id})`))
     .orderBy(orders.customerId, asc(orders.deliveredAt)).limit(500);
   for (const row of due) {
@@ -140,7 +140,7 @@ export async function rewardDueCustomerReferrals(db: Db, now = new Date()) {
 export async function rewardCustomerReferral(tx: Tx, orderId: string): Promise<"granted" | "blocked" | null> {
   const friend = (await tx.select({ id: customers.id, referredBy: customers.referredByCustomerId, name: customers.fullName }).from(orders)
     .innerJoin(customers, eq(customers.id, orders.customerId))
-    .where(and(eq(orders.id, orderId), eq(orders.status, "DELIVERED"), lte(orders.deliveredAt, new Date(Date.now() - returnWindowDays() * DAY)), kept)).limit(1))[0];
+    .where(and(eq(orders.id, orderId), eq(orders.status, "DELIVERED"), lte(orders.deliveredAt, new Date(Date.now() - returnWindowDays() * DAY)), orderKept)).limit(1))[0];
   if (!friend?.referredBy) return null;
   const referrerId = friend.referredBy;
   // One reward at a time per inviter, so the limit holds when two run together.

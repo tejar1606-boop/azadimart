@@ -19,7 +19,7 @@ type Referrals = {
   enabled: boolean; unlocked: boolean; code: string | null; rewardPaise: number; expiryDays: number; returnWindowDays: number; earnedPaise: number;
   friends: Array<{ name: string; joinedAt: string; state: "JOINED" | "ORDERED" | "DELIVERED" | "RETURNED" | "REWARDED" | "NOT_ELIGIBLE"; dueAt: string | null; reason: string | null; amountPaise: number }>;
 };
-const KIND: Record<string, string> = { SIGNUP_BONUS: "Welcome bonus", REFERRAL_REWARD: "Referral reward", ORDER_SPEND: "Used on an order", ORDER_REFUND: "Order cancelled: money back", ADJUSTMENT: "Adjustment by LOIMART" };
+const KIND: Record<string, string> = { SIGNUP_BONUS: "Welcome bonus", REFERRAL_REWARD: "Referral reward", ORDER_CASHBACK: "Order cashback", ORDER_SPEND: "Used on an order", ORDER_REFUND: "Order cancelled: money back", ADJUSTMENT: "Adjustment by LOIMART" };
 
 async function api(path: string, body?: unknown) {
   const r = await fetch(path, { method: body === undefined ? "GET" : "POST", headers: body === undefined ? undefined : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });

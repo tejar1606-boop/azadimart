@@ -21,7 +21,7 @@ export default async function SellerHomePage() {
   }
 
   return (
-    <PortalAuthLayout product="Seller Centre" headline="Sell to customers across India." points={["0% commission for your first 3 months", "Only 5% per order after that, with no listing fees", "Payouts straight to your bank 7 days after delivery"]}>
+    <PortalAuthLayout product="Seller Centre" headline="Sell to customers across India." points={["0% commission for your first 3 months", "Only 5% per order after that, with no listing fees", "Payouts straight to your bank 7 days after delivery", "You fund a small shopper cashback, only on orders kept with no return"]}>
       <div className="rounded-3xl border border-slate-200/80 bg-white p-7 shadow-card sm:p-9">
         <h1 className="text-2xl font-semibold tracking-[-0.03em]">Start selling on LOIMART</h1>
         <p className="mt-1.5 text-sm text-slate-500">Reach shoppers all over India. Here is how it works:</p>

@@ -8,6 +8,8 @@
  * - TCS under GST section 52 (0.5% of the net taxable value) applies to
  *   GST-registered sellers only.
  * - TDS under Income-tax section 194-O (0.1% of the gross amount).
+ * - Cashback: the seller's share of the cashback the shopper got for the
+ *   order (only when they got it), taken from the payout.
  * - Paid out 7 days after delivery if no return is open.
  * Tax rates must be confirmed with LOIMART's CA before going live.
  */
@@ -36,6 +38,8 @@ export type SettlementInput = {
   gstRegistered: boolean;
   /** LOIMART shipping fee for the parcel (on its first item), when LOIMART shipped it. */
   shippingFeePaise?: number;
+  /** The seller's share of the cashback the shopper got for this order. */
+  cashbackPaise?: number;
   /** The order falls in an extra commission-free period (e.g. 3 months earned by a referral). */
   inBonusFreePeriod?: boolean;
 };
@@ -51,6 +55,8 @@ export type SettlementBreakdown = {
   tdsPaise: number;
   /** LOIMART shipping fee (incl. GST) taken from the payout. */
   shippingFeePaise: number;
+  /** Seller's share of the shopper's cashback, taken from the payout. */
+  cashbackPaise: number;
   netPaise: number;
 };
 
@@ -67,7 +73,8 @@ export function calculateSettlement(input: SettlementInput): SettlementBreakdown
   const tcsPaise = input.gstRegistered ? bps(input.taxableValuePaise ?? sold, TCS_RATE_BPS) : 0;
   const tdsPaise = bps(sold, TDS_RATE_BPS);
   const shippingFeePaise = Math.max(0, Math.round(input.shippingFeePaise ?? 0));
-  return { grossPaise: gross, sellerDiscountPaise: sellerDiscount, commissionFree, commissionRateBps, commissionPaise, gstOnCommissionPaise, tcsPaise, tdsPaise, shippingFeePaise, netPaise: sold - commissionPaise - gstOnCommissionPaise - tcsPaise - tdsPaise - shippingFeePaise };
+  const cashbackPaise = Math.max(0, Math.round(input.cashbackPaise ?? 0));
+  return { grossPaise: gross, sellerDiscountPaise: sellerDiscount, commissionFree, commissionRateBps, commissionPaise, gstOnCommissionPaise, tcsPaise, tdsPaise, shippingFeePaise, cashbackPaise, netPaise: sold - commissionPaise - gstOnCommissionPaise - tcsPaise - tdsPaise - shippingFeePaise - cashbackPaise };
 }
 
 /** When a delivered item's money can be paid out. */

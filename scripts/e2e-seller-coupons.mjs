@@ -118,7 +118,8 @@ if (orderId) {
 }
 const up = ((await seller("/api/v1/payouts")).json?.upcoming ?? []).find((l) => l.orderNumber && l.title === A.title && l.sellerDiscountPaise === discountA);
 const sold = A.price_paise - discountA;
-const fees = (up?.commissionPaise ?? 0) + (up?.gstOnCommissionPaise ?? 0) + (up?.tcsPaise ?? 0) + (up?.tdsPaise ?? 0);
+// Plus the seller's share of the shopper's cashback (on every order now).
+const fees = (up?.commissionPaise ?? 0) + (up?.gstOnCommissionPaise ?? 0) + (up?.tcsPaise ?? 0) + (up?.tdsPaise ?? 0) + (up?.cashbackPaise ?? 0);
 check("the seller's payout shows the coupon share and pays the price after it", up && up.grossPaise === A.price_paise && up.netPaise === sold - fees && up.tdsPaise === Math.round(sold * 10 / 10_000), JSON.stringify(up));
 const upB = ((await seller("/api/v1/payouts")).json?.upcoming ?? []).find((l) => l.title === B.title && l.grossPaise === B.price_paise && l.sellerDiscountPaise === 0);
 check("the product outside coupons is paid in full", Boolean(upB));

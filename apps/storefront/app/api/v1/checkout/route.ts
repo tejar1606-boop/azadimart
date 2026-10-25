@@ -1,9 +1,9 @@
 import { requireApiAccess, enforceRateLimit } from "@azadimart/auth";
 import {
-  cartItems, carts, couponRedemptions, coupons, createDatabase, customerAddresses, orderLineGst, platformFeeSettings, productGstRules, spendWallet, walletBalance, walletSettings,
+  cartItems, carts, cashbackSettings, couponRedemptions, coupons, createDatabase, customerAddresses, orderLineGst, platformFeeSettings, productGstRules, spendWallet, walletBalance, walletSettings,
   customers, inventory, orderItems, orders, payments, productVariants, products, sellers, users,
 } from "@azadimart/database";
-import { AppError, SHIP_BY_DAYS, allocateCoupon, checkoutSchema, checkSellerSupplyToState, platformFeeFor, toApiError, walletUsable } from "@azadimart/shared";
+import { AppError, SHIP_BY_DAYS, allocateCoupon, cashbackFor, splitCashback, checkoutSchema, checkSellerSupplyToState, platformFeeFor, toApiError, walletUsable } from "@azadimart/shared";
 import { notifySellersOfNewOrder } from "@azadimart/notify";
 import { getPaymentProvider } from "@azadimart/payments";
 import { and, asc, count, eq, gte, inArray, ne, sql } from "drizzle-orm";
@@ -81,6 +81,8 @@ export async function POST(request:Request){
       let discount=0;let couponCode:string|undefined;
       // The part of the coupon each line's seller pays (taken from their payout).
       let sellerShare=new Map<string,number>();
+      // The whole coupon on each line, whoever pays it (cashback is on what the shopper pays).
+      let couponPerLine=new Map<string,number>();
 
       if(input.couponCode){
         const coupon=(await tx.select().from(coupons).where(and(eq(coupons.code,input.couponCode),eq(coupons.isActive,true))).limit(1))[0];
@@ -102,6 +104,7 @@ export async function POST(request:Request){
         }
         discount=allocation.discountPaise;
         if(allocation.sellerFunded)sellerShare=allocation.perLine;
+        couponPerLine=allocation.perLine;
         couponCode=coupon.code;
       }
 
@@ -111,9 +114,13 @@ export async function POST(request:Request){
       // Platform fee: once per order, kept by LOIMART (sellers' payouts don't change).
       const platformFee=platformFeeFor(await platformFeeSettings(tx));
       const grandTotal=Math.max(0,subtotal-discount-wallet)+shipping+platformFee;
+      // Cashback: a % of the items after offers, into the wallet once the order is kept; each seller pays their lines' share.
+      const linePaid=rawLines.map(line=>line.unitPricePaise*line.quantity-(couponPerLine.get(line.cartItemId)??0));
+      const cashback=cashbackFor(await cashbackSettings(tx),subtotal-discount);
+      const lineCashback=splitCashback(cashback,linePaid);
       const order=(await tx.insert(orders).values({
         orderNumber:orderNumber(),customerId:session.customerId!,shippingAddressId:address.id,status:"CONFIRMED",shipByAt:new Date(Date.now()+SHIP_BY_DAYS*24*60*60*1000),
-        subtotalPaise:subtotal,discountPaise:discount,walletPaise:wallet,shippingPaise:shipping,platformFeePaise:platformFee,grandTotalPaise:grandTotal,couponCode:couponCode??null,
+        subtotalPaise:subtotal,discountPaise:discount,walletPaise:wallet,shippingPaise:shipping,platformFeePaise:platformFee,cashbackPaise:cashback,grandTotalPaise:grandTotal,couponCode:couponCode??null,
         shippingAddressSnapshot:{name:address.customerName,phone:address.customerPhone,line1:address.line1,line2:address.line2,city:address.city,state:address.state,postalCode:address.postalCode,country:address.country},
       }).returning()).at(0);
       if(!order)throw new AppError("INTERNAL","Order creation failed",undefined,false);
@@ -126,10 +133,11 @@ export async function POST(request:Request){
 
       // GST is saved on each line now, so the invoice uses the rate at the time of the order.
       const gstRules=await productGstRules(tx,rawLines.map(line=>line.productId));
-      await tx.insert(orderItems).values(rawLines.map(line=>{
+      await tx.insert(orderItems).values(rawLines.map((line,index)=>{
         const sellerDiscountPaise=sellerShare.get(line.cartItemId)??0;
         return {
           orderId:order.id,sellerId:line.sellerId,productId:line.productId,variantId:line.variantId,title:line.title,sku:line.sku,quantity:line.quantity,unitPricePaise:line.unitPricePaise,sellerDiscountPaise,
+          cashbackPaise:lineCashback[index]??0,
           ...orderLineGst(gstRules.get(line.productId),{unitPricePaise:line.unitPricePaise,quantity:line.quantity,sellerDiscountPaise}),
         };
       }));
@@ -152,7 +160,7 @@ export async function POST(request:Request){
       }
 
       await tx.delete(cartItems).where(and(eq(cartItems.cartId,cart.id),inArray(cartItems.id,rawLines.map(line=>line.cartItemId))));
-      return {orderId:order.id,orderNumber:order.orderNumber,subtotalPaise:subtotal,discountPaise:discount,walletPaise:wallet,shippingPaise:shipping,platformFeePaise:platformFee,grandTotalPaise:grandTotal,paymentStatus:"PENDING"};
+      return {orderId:order.id,orderNumber:order.orderNumber,subtotalPaise:subtotal,discountPaise:discount,walletPaise:wallet,shippingPaise:shipping,platformFeePaise:platformFee,cashbackPaise:cashback,grandTotalPaise:grandTotal,paymentStatus:"PENDING"};
     });
     // Alert each seller in the order (after commit; never blocks the customer's checkout).
     if(result.orderId)await notifySellersOfNewOrder(db,result.orderId);

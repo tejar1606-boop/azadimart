@@ -107,6 +107,8 @@ export const payoutItems = pgTable(
     tdsPaise: integer("tds_paise").notNull().default(0),
     /** The seller's share of coupon discounts on these items. */
     sellerDiscountPaise: integer("seller_discount_paise").notNull().default(0),
+    /** The seller's share of the cashback the shopper got for this order. */
+    cashbackPaise: integer("cashback_paise").notNull().default(0),
     /** LOIMART shipping fee for the parcel, charged on the parcel's first item. */
     shippingFeePaise: integer("shipping_fee_paise").notNull().default(0),
     ...timestamps,

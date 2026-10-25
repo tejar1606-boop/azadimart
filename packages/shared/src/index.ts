@@ -33,3 +33,4 @@ export * from "./payroll";
 export * from "./footwear";
 export * from "./customer-wallet";
 export * from "./platform-fee";
+export * from "./order-cashback";
