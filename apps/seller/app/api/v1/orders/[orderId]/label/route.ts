@@ -47,7 +47,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     return NextResponse.json({
       orderNumber: order.orderNumber,
       orderedAt: order.createdAt,
-      shipTo: { name: a.name ?? "Customer", phone: a.phone ?? null, line1: a.line1, line2: a.line2 ?? null, city: a.city, state: a.state, postalCode: a.postalCode },
+      // No customer phone on the label: sellers don't see it; the courier gets it when the shipment is booked.
+      shipTo: { name: a.name ?? "Customer", line1: a.line1, line2: a.line2 ?? null, city: a.city, state: a.state, postalCode: a.postalCode },
       shipFrom: pickup.success ? { storeName: seller.storeName, ...pickup.data.pickup, gstin: seller.gstin } : null,
       items: items.map((i) => ({ title: i.title, variant: i.variant && i.variant !== "Default" ? i.variant : null, sku: i.sku, quantity: i.quantity, unitPricePaise: i.unitPricePaise })),
       weightGrams: items.reduce((n, i) => n + i.quantity * (i.weightGrams ?? 0), 0),

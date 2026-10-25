@@ -70,6 +70,9 @@ check("the shopper's order page shows it", (detail?.order ?? detail)?.platformFe
 const [items] = await sql`select sum(unit_price_paise * quantity)::int line from order_items where order_id = ${order.orderId}`;
 check("the seller is owed only the product price (the fee is LOIMART's)", items.line === order.subtotalPaise);
 const mine = (await seller("/api/v1/orders")).json?.items?.find((o) => o.id === order.orderId);
+const label = (await seller(`/api/v1/orders/${order.orderId}/label`)).json;
+const [snap] = await sql`select shipping_address_snapshot->>'phone' phone from orders where id = ${order.orderId}`;
+check("sellers see the address but never the customer's phone (order list or label)", mine?.shipTo?.full && mine.shipTo.line1 && !("phone" in mine.shipTo) && label?.shipTo?.line1 && !("phone" in label.shipTo) && !JSON.stringify([mine, label]).includes(snap.phone ?? "no-phone"), JSON.stringify(label?.shipTo));
 check("the courier collects the full total including the fee", mine?.codCollectPaise === order.grandTotalPaise, JSON.stringify({ c: mine?.codCollectPaise, t: order.grandTotalPaise }));
 
 let r = await admin("/api/v1/finance/platform-fee");

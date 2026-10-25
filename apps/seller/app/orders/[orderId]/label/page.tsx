@@ -4,10 +4,10 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Barcode from "./barcode";
 
-type Addr = { name: string; phone: string | null; line1: string; line2: string | null; city: string; state: string; postalCode: string };
+type Addr = { name: string; line1: string; line2: string | null; city: string; state: string; postalCode: string };
 type Label = {
   orderNumber: string; orderedAt: string; shipTo: Addr;
-  shipFrom: (Addr & { storeName: string; gstin: string | null }) | null;
+  shipFrom: (Addr & { phone: string; storeName: string; gstin: string | null }) | null;
   items: Array<{ title: string; variant: string | null; sku: string; quantity: number; unitPricePaise: number }>;
   weightGrams: number; payment: { mode: "COD" | "PREPAID"; collectPaise: number };
   shipment: { courierName: string | null; awb: string | null; status: string; shippedBy: string } | null;
@@ -69,7 +69,6 @@ export default function ShippingLabelPage() {
               <p className="mt-1 text-[15px] leading-6">{addr(label.shipTo)}</p>
               <p className="text-[15px] leading-6">{label.shipTo.city}, {label.shipTo.state}</p>
               <p className="mt-1 text-3xl font-black tracking-wider">PIN {label.shipTo.postalCode}</p>
-              {label.shipTo.phone ? <p className="mt-1 text-base font-bold">📞 {label.shipTo.phone}</p> : null}
             </div>
             <div className="p-4 text-sm">
               <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Order</p>

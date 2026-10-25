@@ -9,13 +9,14 @@ type Snapshot = { name?: string; phone?: string | null; line1: string; line2?: s
 const ACTIVE = new Set(["CONFIRMED", "PAID", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY"]);
 
 /**
- * Where to send the parcel. The full name, phone and address show only while
- * the seller has to ship it; after delivery or cancellation just the city and
- * PIN stay (the customer's details aren't kept on show).
+ * Where to send the parcel. The name and full address show only while the
+ * seller has to ship it; after delivery or cancellation just the city and PIN
+ * stay. The customer's phone number is never shown to sellers (like the big
+ * marketplaces): it goes only to the courier when the shipment is booked.
  */
 function shipToFor(status: string, a: Snapshot) {
-  if (ACTIVE.has(status)) return { full: true, name: a.name ?? "Customer", phone: a.phone ?? null, line1: a.line1, line2: a.line2 ?? null, city: a.city, state: a.state, postalCode: a.postalCode };
-  return { full: false, name: null, phone: null, line1: null, line2: null, city: a.city, state: a.state, postalCode: a.postalCode };
+  if (ACTIVE.has(status)) return { full: true, name: a.name ?? "Customer", line1: a.line1, line2: a.line2 ?? null, city: a.city, state: a.state, postalCode: a.postalCode };
+  return { full: false, name: null, line1: null, line2: null, city: a.city, state: a.state, postalCode: a.postalCode };
 }
 
 export async function GET(request: Request) {

@@ -26,7 +26,7 @@ type Order = {
   sharedWithOtherSellers: boolean;
   paymentMethod: string | null;
   /** Full details only while the parcel still has to be shipped; afterwards just city/PIN. */
-  shipTo: { full: boolean; name: string | null; phone: string | null; line1: string | null; line2: string | null; city: string; state: string; postalCode: string };
+  shipTo: { full: boolean; name: string | null; line1: string | null; line2: string | null; city: string; state: string; postalCode: string };
   /** Cash on Delivery: what the courier collects for this seller's parcel; null = prepaid. */
   codCollectPaise: number | null;
   /** Invoice issued in the seller's name when the parcel ships, and any credit notes. */
@@ -472,12 +472,12 @@ export default function OrderList() {
   );
 }
 
-/** Where to send the parcel: name, phone, full address (copyable) and the cash to collect. */
+/** Where to send the parcel: name, full address (copyable) and the cash to collect. The customer's phone goes only to the courier. */
 function ShipToBox({ item, shipment, copied, onCopy }: { item: Order; shipment: Shipment | undefined; copied: boolean; onCopy: (text: string) => void }) {
   const a = item.shipTo;
   if (!a) return null;
   if (!a.full) return <p className="mt-4 text-xs text-slate-500">Delivered to {a.city}, {a.state} {a.postalCode}</p>;
-  const text = [a.name, [a.line1, a.line2].filter(Boolean).join(", "), `${a.city}, ${a.state} - ${a.postalCode}`, a.phone ? `Phone: ${a.phone}` : ""].filter(Boolean).join("\n");
+  const text = [a.name, [a.line1, a.line2].filter(Boolean).join(", "), `${a.city}, ${a.state} - ${a.postalCode}`].filter(Boolean).join("\n");
   return (
     <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-[1fr_auto]">
       <div className="min-w-0">
@@ -485,7 +485,7 @@ function ShipToBox({ item, shipment, copied, onCopy }: { item: Order; shipment: 
         <p className="mt-1 font-bold">{a.name}</p>
         <p className="text-sm leading-6 text-slate-700">{[a.line1, a.line2].filter(Boolean).join(", ")}</p>
         <p className="text-sm leading-6 text-slate-700">{a.city}, {a.state} – <b>{a.postalCode}</b></p>
-        {a.phone ? <a href={`tel:${a.phone}`} className="mt-1 inline-block text-sm font-semibold text-slate-900 underline-offset-2 hover:underline">📞 {a.phone}</a> : null}
+        <p className="mt-1 text-xs text-slate-500">The customer&apos;s phone number is shared only with the courier.</p>
         {shipment?.awb ? <p className="mt-2 text-xs text-slate-600">Shipped with <b>{shipment.courierName}</b> · Tracking no. <b className="font-mono">{shipment.awb}</b></p> : null}
       </div>
       <div className="flex flex-row flex-wrap items-start gap-2 sm:flex-col sm:items-end">
