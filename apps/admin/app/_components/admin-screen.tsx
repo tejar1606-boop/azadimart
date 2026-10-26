@@ -3,7 +3,6 @@ import { ComingSoon, type PortalIconName, PortalPageHeader } from "@azadimart/ui
 
 /** What each planned (not yet built) admin section will cover. */
 const PLANNED: Record<string, { icon: PortalIconName; points: string[] }> = {
-  Customers: { icon: "customers", points: ["Search customers", "Order history", "Addresses", "Account status"] },
   Finance: { icon: "finance", points: ["Seller payouts", "Commission & fees", "Refund ledger", "Settlement reports"] },
   Returns: { icon: "returns", points: ["Return requests", "Pickup tracking", "Refund approval", "Seller disputes"] },
   Support: { icon: "support", points: ["Customer tickets", "Seller tickets", "SLAs", "Order-linked conversations"] },
