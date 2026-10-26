@@ -52,6 +52,7 @@
     "e2e:customer-wallet": "node scripts/e2e-customer-wallet.mjs",
     "e2e:customer-referrals": "node scripts/e2e-customer-referrals.mjs",
     "e2e:platform-fee": "node scripts/e2e-platform-fee.mjs",
+    "e2e:returns": "node scripts/e2e-returns.mjs",
     "e2e:customers": "node scripts/e2e-customers.mjs",
     "e2e:sales-report": "node scripts/e2e-sales-report.mjs",
     "e2e:order-cashback": "node scripts/e2e-order-cashback.mjs"

@@ -132,6 +132,8 @@ export const returns = pgTable(
       .references(() => sellers.id),
     status: returnStatusEnum("status").notNull().default("REQUESTED"),
     reason: text("reason"),
+    /** Why the seller or LOIMART rejected it (shown to the customer). */
+    rejectionReason: text("rejection_reason"),
     ...timestamps,
   },
   (table) => [

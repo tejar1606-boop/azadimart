@@ -122,12 +122,17 @@ export async function GET(
     const principal = await requireApiAccess(request, "storefront", ["CUSTOMER"]);
     if (!principal.customerId) throw new AppError("UNAUTHORIZED", "Customer profile required");
     const { orderId } = await context.params;
+    if (!/^[0-9a-f-]{36}$/i.test(orderId)) throw new AppError("NOT_FOUND", "Order not found");
     const db = createDatabase();
+    const order = (await db.select({ status: orders.status, deliveredAt: orders.deliveredAt, updatedAt: orders.updatedAt }).from(orders)
+      .where(and(eq(orders.id, orderId), eq(orders.customerId, principal.customerId!))).limit(1))[0];
+    if (!order) throw new AppError("NOT_FOUND", "Order not found");
     const rows = await db.select({
       id: returns.id,
       sellerId: returns.sellerId,
       status: returns.status,
       reason: returns.reason,
+      rejectionReason: returns.rejectionReason,
       createdAt: returns.createdAt,
       updatedAt: returns.updatedAt,
       orderItemId: returnItems.orderItemId,
@@ -135,9 +140,11 @@ export async function GET(
       itemReason: returnItems.reason,
     }).from(returns)
       .innerJoin(returnItems, eq(returnItems.returnId, returns.id))
-      .innerJoin(orders, eq(orders.id, returns.orderId))
-      .where(and(eq(returns.orderId, orderId), eq(orders.customerId, principal.customerId!)));
-    return NextResponse.json({ items: rows });
+      .where(eq(returns.orderId, orderId));
+    // The return window: open from delivery for RETURN_WINDOW_DAYS days.
+    const deliveredAt = order.status === "DELIVERED" ? order.deliveredAt ?? order.updatedAt : null;
+    const until = deliveredAt ? new Date(deliveredAt.getTime() + RETURN_WINDOW_DAYS * 24 * 60 * 60 * 1000) : null;
+    return NextResponse.json({ items: rows, windowDays: RETURN_WINDOW_DAYS, returnUntil: until, canReturn: !!until && until.getTime() > Date.now() }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);
     return NextResponse.json(body, { status });

@@ -49,6 +49,7 @@ export default function SellerChrome({ counts, children }: { counts: SellerCount
     { items: [{ href: "/dashboard", label: "Home", icon: "dashboard", tone: "indigo" }] },
     { title: "Manage business", items: [
       { href: "/orders", label: "Orders", icon: "orders", tone: "saffron", badge: badge(counts?.toShip ?? 0) },
+      { href: "/returns", label: "Returns", icon: "returns", tone: "rose", badge: badge(counts?.returnsToAct ?? 0) },
       { href: "/products", label: "Products", icon: "products", tone: "sky", badge: badge(counts?.needsWork ?? 0) },
       { href: "/inventory", label: "Inventory", icon: "inventory", tone: "violet", badge: badge(counts?.lowStock ?? 0) },
       { href: "/payouts", label: "Payments", icon: "payouts", tone: "green" },
