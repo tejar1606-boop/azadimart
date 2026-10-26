@@ -1,4 +1,4 @@
-import { AppError, GST_ON_FEES_BPS, returnIsSellerFault, splitGstInclusive, splitReturnShipping } from "@azadimart/shared";
+import { AppError, GST_ON_FEES_BPS, RETURN_DEADLINES, returnIsSellerFault, splitGstInclusive, splitReturnShipping } from "@azadimart/shared";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { createDatabase } from "./client";
 import { returnPickupFee, sellerPickupPlaces } from "./delivery-charges";
@@ -56,7 +56,7 @@ export async function chargeReturnShipping(tx: Tx, ret: { id: string; orderId: s
  * seller is recovered from their next payout, the seller is charged for the
  * return pickup (all of it if it's their fault, else 60%), and the order becomes RETURNED once every piece is back.
  */
-export async function changeReturnStatus(tx: Tx, input: { returnId: string; next: ReturnStatus; actorUserId: string; sellerId?: string; notes?: string | null; by: "SELLER" | "ADMIN" }) {
+export async function changeReturnStatus(tx: Tx, input: { returnId: string; next: ReturnStatus; actorUserId: string; sellerId?: string; notes?: string | null; by: "SELLER" | "ADMIN" | "SYSTEM" }) {
   const current = (await tx.select({ id: returns.id, orderId: returns.orderId, sellerId: returns.sellerId, status: returns.status, reason: returns.reason }).from(returns)
     .where(input.sellerId ? and(eq(returns.id, input.returnId), eq(returns.sellerId, input.sellerId)) : eq(returns.id, input.returnId)).limit(1))[0];
   if (!current) throw new AppError("NOT_FOUND", "Return request not found");
@@ -166,12 +166,22 @@ export type ReturnRow = {
   items: Array<{ orderItemId: string; title: string; sku: string; quantity: number; unitPricePaise: number; reason: string | null }>;
 };
 
+/** Returns past their deadline at the current step (see RETURN_DEADLINES). */
+export function lateReturnsSql() {
+  const d = RETURN_DEADLINES;
+  return sql`((${returns.status} = 'REQUESTED' and ${returns.updatedAt} < now() - make_interval(hours => ${d.replyHours}))
+    or (${returns.status} = 'APPROVED' and ${returns.updatedAt} < now() - make_interval(days => ${d.bookPickupDays}))
+    or (${returns.status} = 'PICKUP_SCHEDULED' and ${returns.updatedAt} < now() - make_interval(days => ${d.receiveDays}))
+    or (${returns.status} = 'RECEIVED' and ${returns.updatedAt} < now() - make_interval(days => ${d.refundDays})))`;
+}
+
 /** Returns, newest first: all of them (LOIMART) or one seller's, by status and search (order number, customer, seller, product). */
-export async function listReturns(db: Db, input: { sellerId?: string; status?: ReturnStatus | "OPEN" | "ALL"; q?: string; page?: number; pageSize?: number }) {
+export async function listReturns(db: Db, input: { sellerId?: string; status?: ReturnStatus | "OPEN" | "LATE" | "ALL"; q?: string; page?: number; pageSize?: number }) {
   const pageSize = input.pageSize ?? 50, page = Math.max(1, input.page ?? 1);
   const where = [];
   if (input.sellerId) where.push(eq(returns.sellerId, input.sellerId));
   if (input.status === "OPEN") where.push(inArray(returns.status, ["REQUESTED", "APPROVED", "PICKUP_SCHEDULED", "RECEIVED"]));
+  else if (input.status === "LATE") where.push(lateReturnsSql());
   else if (input.status && input.status !== "ALL") where.push(eq(returns.status, input.status));
   const q = input.q?.trim().slice(0, 100);
   if (q) {
@@ -199,6 +209,6 @@ export async function listReturns(db: Db, input: { sellerId?: string; status?: R
   const total = filter ? Number((await db.select({ n: sql<number>`count(*)::int` }).from(returns).innerJoin(orders, eq(orders.id, returns.orderId)).innerJoin(customers, eq(customers.id, orders.customerId)).innerJoin(sellers, eq(sellers.id, returns.sellerId)).where(filter))[0]?.n ?? 0) : Object.values(byStatus).reduce((s, n) => s + n, 0);
   return {
     items: rows.map((r) => ({ ...r, items: items.filter((i) => i.returnId === r.id).map(({ returnId: _r, ...i }) => i) })) as ReturnRow[],
-    counts: byStatus, total, page, pages: Math.max(1, Math.ceil(total / pageSize)),
+    counts: byStatus, late: Number((await db.select({ n: sql<number>`count(*)::int` }).from(returns).where(and(lateReturnsSql(), ...(input.sellerId ? [eq(returns.sellerId, input.sellerId)] : []))))[0]?.n ?? 0), total, page, pages: Math.max(1, Math.ceil(total / pageSize)),
   };
 }

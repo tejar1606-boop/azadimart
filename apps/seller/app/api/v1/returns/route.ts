@@ -4,7 +4,7 @@ import { AppError, toApiError } from "@azadimart/shared";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
-const STATUSES = ["OPEN", "ALL", "REQUESTED", "APPROVED", "PICKUP_SCHEDULED", "RECEIVED", "REFUNDED", "REJECTED"] as const;
+const STATUSES = ["OPEN", "LATE", "ALL", "REQUESTED", "APPROVED", "PICKUP_SCHEDULED", "RECEIVED", "REFUNDED", "REJECTED"] as const;
 
 /** This seller's returns, by status and search. */
 export async function GET(request: Request) {
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     if (!principal.sellerId) throw new AppError("FORBIDDEN", "Seller profile is required");
     const url = new URL(request.url);
     const asked = url.searchParams.get("status") ?? "OPEN";
-    const status = (STATUSES as readonly string[]).includes(asked) ? (asked as ReturnStatus | "OPEN" | "ALL") : "OPEN";
+    const status = (STATUSES as readonly string[]).includes(asked) ? (asked as ReturnStatus | "OPEN" | "LATE" | "ALL") : "OPEN";
     const result = await listReturns(createDatabase(), { sellerId: principal.sellerId, status, q: url.searchParams.get("q") ?? "", page: Number(url.searchParams.get("page")) || 1 });
     // Sellers see the customer's first name and city only (the courier has the full address).
     const items = result.items.map(({ customerName, ...r }) => ({ ...r, customerName: customerName.split(" ")[0] ?? "" }));

@@ -3,6 +3,7 @@
   "crons": [
     { "path": "/api/cron/order-deadlines", "schedule": "30 3 * * *" },
     { "path": "/api/cron/payouts", "schedule": "30 4 * * *" },
-    { "path": "/api/cron/referral-rewards", "schedule": "0 5 * * *" }
+    { "path": "/api/cron/referral-rewards", "schedule": "0 5 * * *" },
+    { "path": "/api/cron/return-deadlines", "schedule": "30 5 * * *" }
   ]
 }

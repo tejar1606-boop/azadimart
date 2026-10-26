@@ -54,6 +54,7 @@
     "e2e:platform-fee": "node scripts/e2e-platform-fee.mjs",
     "e2e:delivery-charges": "node scripts/e2e-delivery-charges.mjs",
     "e2e:stock-update": "node scripts/e2e-stock-update.mjs",
+    "e2e:return-deadlines": "node scripts/e2e-return-deadlines.mjs",
     "e2e:returns": "node scripts/e2e-returns.mjs",
     "e2e:customers": "node scripts/e2e-customers.mjs",
     "e2e:sales-report": "node scripts/e2e-sales-report.mjs",

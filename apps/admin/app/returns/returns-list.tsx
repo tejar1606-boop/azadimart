@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { returnIsSellerFault, splitReturnShipping } from "@azadimart/shared";
+import { returnDeadline, returnIsSellerFault, splitReturnShipping } from "@azadimart/shared";
 
 type Status = "REQUESTED" | "APPROVED" | "PICKUP_SCHEDULED" | "RECEIVED" | "REFUNDED" | "REJECTED";
 type Row = {
@@ -10,7 +10,7 @@ type Row = {
   orderNumber: string; deliveredAt: string | null; customerName: string; city: string | null; state: string | null; storeName: string;
   items: Array<{ orderItemId: string; title: string; sku: string; quantity: number; unitPricePaise: number; reason: string | null }>;
 };
-type Data = { items: Row[]; counts: Partial<Record<Status, number>>; total: number; page: number; pages: number };
+type Data = { items: Row[]; counts: Partial<Record<Status, number>>; late: number; total: number; page: number; pages: number };
 type Quote = { goodsPaise: number; lessDiscountPaise: number; toWalletPaise: number; toCustomerPaise: number; payment: { method: "COD" | "RAZORPAY" | "CASHFREE"; refundablePaise: number } | null };
 
 const money = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
@@ -20,11 +20,11 @@ const LABEL: Record<Status, [string, string]> = {
   PICKUP_SCHEDULED: ["Pickup scheduled", "bg-indigo-50 text-indigo-700"], RECEIVED: ["Received · to refund", "bg-brand-50 text-brand-600"],
   REFUNDED: ["Refunded", "bg-green-50 text-green-700"], REJECTED: ["Rejected", "bg-slate-100 text-slate-500"],
 };
-const TABS: Array<[string, string]> = [["OPEN", "Open"], ["REQUESTED", "Requested"], ["APPROVED", "Approved"], ["PICKUP_SCHEDULED", "Pickup"], ["RECEIVED", "To refund"], ["REFUNDED", "Refunded"], ["REJECTED", "Rejected"], ["ALL", "All"]];
+const TABS: Array<[string, string]> = [["OPEN", "Open"], ["LATE", "Late"], ["REQUESTED", "Requested"], ["APPROVED", "Approved"], ["PICKUP_SCHEDULED", "Pickup"], ["RECEIVED", "To refund"], ["REFUNDED", "Refunded"], ["REJECTED", "Rejected"], ["ALL", "All"]];
 const NEXT: Partial<Record<Status, Array<[Status, string]>>> = {
   REQUESTED: [["APPROVED", "Approve"]], APPROVED: [["PICKUP_SCHEDULED", "Pickup scheduled"]], PICKUP_SCHEDULED: [["RECEIVED", "Mark received"]],
 };
-const STUCK_MS = 2 * 24 * 60 * 60 * 1000;
+const due = (d: Date) => d.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
 
 function Refund({ row, done }: { row: Row; done: () => void }) {
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -77,7 +77,7 @@ function Card({ row, reload }: { row: Row; reload: () => void }) {
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const stuck = row.status === "REQUESTED" && Date.now() - new Date(row.createdAt).getTime() > STUCK_MS;
+  const deadline = returnDeadline(row.status, row.updatedAt);
   async function move(status: Status) {
     setBusy(true); setError("");
     const r = await fetch(`/api/v1/returns/${row.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, notes }) });
@@ -94,12 +94,13 @@ function Card({ row, reload }: { row: Row; reload: () => void }) {
           <p className="font-semibold"><Link href={`/orders?q=${encodeURIComponent(row.orderNumber)}`} className="hover:underline">{row.orderNumber}</Link> <span className="font-normal text-slate-500">· {row.customerName}{row.city ? `, ${row.city}` : ""}{row.state ? `, ${row.state}` : ""}</span></p>
           <p className="text-xs text-slate-500">Seller: <b className="text-slate-700">{row.storeName}</b> · requested {date(row.createdAt)}{row.deliveredAt ? ` · delivered ${date(row.deliveredAt)}` : ""}</p>
         </div>
-        <span className="flex items-center gap-2">{stuck ? <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">Seller hasn&apos;t replied in 2+ days</span> : null}<span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + LABEL[row.status][1]}>{LABEL[row.status][0]}</span></span>
+        <span className="flex items-center gap-2">{deadline?.overdue ? <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">{deadline.late}</span> : null}<span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + LABEL[row.status][1]}>{LABEL[row.status][0]}</span></span>
       </div>
       <ul className="mt-3 space-y-1 text-sm">{row.items.map((i) => (
         <li key={i.orderItemId}>{i.quantity} × {i.title} <span className="text-xs text-slate-400">({i.sku}) · {money(i.unitPricePaise)} each</span>{i.reason ? <span className="block text-xs text-slate-600">“{i.reason}”</span> : null}</li>
       ))}</ul>
       {row.reason ? <p className="mt-2 text-sm text-slate-600">Customer&apos;s reason: “{row.reason}”</p> : null}
+      {deadline ? <p className={"mt-2 text-xs font-semibold " + (deadline.overdue ? "text-red-700" : "text-slate-500")}>{deadline.who === "SELLER" ? "Seller" : "LOIMART"}: {deadline.task.toLowerCase()} by {due(deadline.dueAt)}{deadline.overdue ? " (late)" : ""}{row.status === "REQUESTED" ? " · approved automatically if the seller doesn't reply" : ""}</p> : null}
       {row.rejectionReason ? <p className="mt-2 text-sm text-slate-600">Rejected because: “{row.rejectionReason}”</p> : null}
       {row.returnShippingFeePaise ? <p className="mt-2 text-xs text-slate-500">Return pickup courier {money(row.returnShippingFeePaise)}: {returnIsSellerFault(row.reason) ? <>seller pays all of it (seller&apos;s fault), from their payout</> : <>seller {money(splitReturnShipping(row.returnShippingFeePaise).sellerPaise)} (60%, from their payout) · LOIMART {money(splitReturnShipping(row.returnShippingFeePaise).loimartPaise)} (40%)</>}</p> : null}
       <p className="mt-1 text-xs text-slate-400">Item value {money(value)}</p>
@@ -134,7 +135,7 @@ export default function ReturnsList() {
   }, [tab, q, page]);
   useEffect(() => { load(); }, [load]);
   const c = data?.counts ?? {};
-  const count = (key: string) => key === "ALL" ? Object.values(c).reduce((s, n) => s + (n ?? 0), 0) : key === "OPEN" ? (c.REQUESTED ?? 0) + (c.APPROVED ?? 0) + (c.PICKUP_SCHEDULED ?? 0) + (c.RECEIVED ?? 0) : c[key as Status] ?? 0;
+  const count = (key: string) => key === "LATE" ? data?.late ?? 0 : key === "ALL" ? Object.values(c).reduce((s, n) => s + (n ?? 0), 0) : key === "OPEN" ? (c.REQUESTED ?? 0) + (c.APPROVED ?? 0) + (c.PICKUP_SCHEDULED ?? 0) + (c.RECEIVED ?? 0) : c[key as Status] ?? 0;
 
   return (
     <>
