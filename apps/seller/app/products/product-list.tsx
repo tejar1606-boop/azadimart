@@ -133,7 +133,7 @@ export default function ProductList() {
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{product.title}</p>
                       <p className="mt-1 text-xs text-slate-500">
-                        {product.pricePaise !== null ? money(product.pricePaise) : "No price"} · <span className={product.available === 0 ? "font-semibold text-red-600" : product.available <= 5 ? "font-semibold text-amber-700" : ""}>{product.available === 0 ? "Out of stock" : product.available + " in stock"}</span>
+                        {product.pricePaise !== null ? money(product.pricePaise) : "No price"} · <span className={product.available === 0 ? "font-semibold text-red-600" : product.available <= 5 ? "font-semibold text-amber-700" : ""}>{product.available === 0 ? "Out of stock" : product.available + " in stock"}</span>{product.available <= 5 && product.status !== "ARCHIVED" ? <> · <Link href={`/inventory?filter=${product.available === 0 ? "out" : "all"}&q=${encodeURIComponent(product.title)}`} className="font-semibold text-brand-600 hover:underline">Update stock</Link></> : null}
                       </p>
                       <span className="mt-1.5 flex flex-wrap items-center gap-2">
                         <span className={"inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold " + status.tone}>{status.label}</span>

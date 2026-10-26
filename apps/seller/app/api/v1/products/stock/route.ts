@@ -1,7 +1,7 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { auditLogs, createDatabase, inventory, productVariants, products, sellers } from "@azadimart/database";
-import { AppError, productBulkStockSchema, toApiError } from "@azadimart/shared";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { auditLogs, createDatabase, inventory, inventoryMovements, productVariants, products, sellers } from "@azadimart/database";
+import { AppError, productBulkStockSchema, productStockUpdateSchema, toApiError } from "@azadimart/shared";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 async function activeSeller(request: Request) {
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
     const { db, sellerId } = await activeSeller(request);
-    const items = await db.select({ sku: productVariants.sku, title: products.title, variant: productVariants.title, status: products.status, onHand: inventory.onHand, reserved: inventory.reserved })
+    const items = await db.select({ variantId: productVariants.id, productId: products.id, sku: productVariants.sku, title: products.title, variant: productVariants.title, status: products.status, pricePaise: productVariants.pricePaise, onHand: inventory.onHand, reserved: inventory.reserved })
       .from(productVariants).innerJoin(products, eq(products.id, productVariants.productId)).innerJoin(inventory, eq(inventory.variantId, productVariants.id))
       .where(and(eq(products.sellerId, sellerId), inArray(products.status, ["DRAFT", "PENDING_QC", "PENDING_ADMIN_APPROVAL", "QC_REJECTED", "LIVE", "UNLISTED"])))
       .orderBy(asc(products.title), asc(productVariants.sku));
@@ -48,6 +48,38 @@ export async function POST(request: Request) {
     }
     const found = new Set(variants.map((v) => v.sku));
     return NextResponse.json({ updated: changed.length, unchanged: variants.length - changed.length, notFound: [...bySku.keys()].filter((sku) => !found.has(sku)) });
+  } catch (error) {
+    const { status, body } = toApiError(error, requestId);
+    return NextResponse.json(body, { status });
+  }
+}
+
+
+/**
+ * Update stock for one SKU, e.g. when it has run out: the seller enters how
+ * many units are ready to sell; units held for open orders are kept on top.
+ * Applies straight away and is logged as a stock adjustment.
+ */
+export async function PATCH(request: Request) {
+  const requestId = crypto.randomUUID();
+  try {
+    const { db, principal, sellerId } = await activeSeller(request);
+    const input = productStockUpdateSchema.parse(await request.json());
+    const result = await db.transaction(async (tx) => {
+      const [row] = await tx.select({ onHand: inventory.onHand, reserved: inventory.reserved, sku: productVariants.sku, title: products.title })
+        .from(inventory).innerJoin(productVariants, eq(productVariants.id, inventory.variantId)).innerJoin(products, eq(products.id, productVariants.productId))
+        .where(and(eq(inventory.variantId, input.variantId), eq(inventory.sellerId, sellerId), eq(products.sellerId, sellerId), ne(products.status, "ARCHIVED"))).for("update");
+      if (!row) throw new AppError("NOT_FOUND", "Product not found");
+      const onHand = input.available + row.reserved;
+      const delta = onHand - row.onHand;
+      if (delta !== 0) {
+        await tx.update(inventory).set({ onHand: sql`${onHand}`, updatedAt: new Date() }).where(and(eq(inventory.variantId, input.variantId), eq(inventory.sellerId, sellerId)));
+        await tx.insert(inventoryMovements).values({ variantId: input.variantId, movementType: "ADJUSTMENT", quantity: delta, referenceType: "SELLER_STOCK_UPDATE", notes: `Stock set to ${input.available} available`, createdByUserId: principal.userId });
+        await tx.insert(auditLogs).values({ actorUserId: principal.userId, action: "STOCK_UPDATED", entityType: "product_variant", entityId: input.variantId, metadata: { sellerId, sku: row.sku, from: Math.max(0, row.onHand - row.reserved), to: input.available } });
+      }
+      return { variantId: input.variantId, sku: row.sku, onHand, reserved: row.reserved, available: input.available, changed: delta !== 0 };
+    });
+    return NextResponse.json(result);
   } catch (error) {
     const { status, body } = toApiError(error, requestId);
     return NextResponse.json(body, { status });

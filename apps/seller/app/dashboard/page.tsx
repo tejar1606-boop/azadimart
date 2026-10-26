@@ -254,6 +254,7 @@ export default async function DashboardPage() {
                     <span className={"shrink-0 rounded-full px-2.5 py-1 text-xs font-bold " + (Number(item.available) <= 0 ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700")}>
                       {Number(item.available) <= 0 ? "Out of stock" : `${item.available} left`}
                     </span>
+                    <Link href={`/inventory?q=${encodeURIComponent(item.sku)}`} className="shrink-0 text-xs font-semibold text-brand-600 hover:underline">Update stock</Link>
                   </li>
                 ))}
               </ul>

@@ -161,6 +161,12 @@ export const productBulkCreateSchema = z.object({
 });
 
 /** POST /api/v1/products/stock: set stock by SKU (applies straight away). */
+/** Update stock for one SKU: units ready to sell now (units held for open orders are kept on top). */
+export const productStockUpdateSchema = z.object({
+  variantId: z.string().uuid(),
+  available: z.number().int("Enter whole units").min(0, "Stock can't be negative").max(100_000, "That's more than 1,00,000 units"),
+});
+
 export const productBulkStockSchema = z.object({
   items: z.array(z.object({ sku: z.string().trim().min(1).max(64), onHand: z.number().int().min(0).max(1_000_000) })).min(1).max(BULK_PRODUCT_LIMITS.maxStockRows),
 });
