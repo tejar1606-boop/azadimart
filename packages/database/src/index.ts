@@ -28,3 +28,4 @@ export * from "./customer-referrals";
 export * from "./platform-fee";
 export * from "./order-cashback";
 export * from "./sales-report";
+export * from "./customer-deletion";

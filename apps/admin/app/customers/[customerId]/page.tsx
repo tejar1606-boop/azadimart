@@ -6,6 +6,7 @@ import { PortalPageHeader, StatCard } from "@azadimart/ui";
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import { requireStaffPage } from "../../lib/staff-page";
 import BlockCustomer from "./block-customer";
+import DeleteCustomer from "./delete-customer";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Customer" };
@@ -17,7 +18,7 @@ const STATUS_TONE: Record<string, string> = { DELIVERED: "bg-green-50 text-green
 
 /** One shopper: account, orders, addresses, wallet, referrals, and block/unblock. */
 export default async function CustomerPage({ params }: { params: Promise<{ customerId: string }> }) {
-  const { db } = await requireStaffPage("orders");
+  const { db, access } = await requireStaffPage("orders");
   const { customerId } = await params;
   if (!uuidSchema.safeParse(customerId).success) notFound();
   const [c] = await db.select({
@@ -39,14 +40,15 @@ export default async function CustomerPage({ params }: { params: Promise<{ custo
   const kept = orderRows.filter((o) => o.status !== "CANCELLED" && o.status !== "RETURNED");
   const spent = kept.reduce((s, o) => s + o.total, 0);
   const cancelled = orderRows.filter((o) => o.status === "CANCELLED").length, returned = orderRows.filter((o) => o.status === "RETURNED").length;
+  const deleted = c.email.endsWith("@deleted.invalid");
   const card = "rounded-2xl border border-slate-200/80 bg-white shadow-card";
 
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
       <Link href="/customers" className="text-sm font-semibold text-brand-600 hover:underline">← All customers</Link>
       <PortalPageHeader eyebrow="Customer" title={c.name} description={`Joined ${when(c.joinedAt)} · last signed in ${when(c.lastLoginAt)}`}
-        actions={<BlockCustomer customerId={c.id} blocked={c.status === "DISABLED"} />} />
-      {c.status === "DISABLED" ? <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">This account is blocked: the customer can&apos;t sign in or place orders.</p> : null}
+        actions={deleted ? undefined : <BlockCustomer customerId={c.id} blocked={c.status === "DISABLED"} />} />
+      {deleted ? <p className="mt-4 rounded-xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">This profile was deleted. Personal details are removed; only the orders are kept, as the law requires.</p> : c.status === "DISABLED" ? <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">This account is blocked: the customer can&apos;t sign in or place orders.</p> : null}
 
       <section className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard label="Orders" value={String(orderRows.length)} hint={`${cancelled} cancelled · ${returned} returned`} icon="orders" tone="brand" />
@@ -104,9 +106,10 @@ export default async function CustomerPage({ params }: { params: Promise<{ custo
       {history.length ? <section className={card + " mt-6 p-5"}>
         <h2 className="font-semibold">Account changes</h2>
         <ul className="mt-3 space-y-2 text-sm">{history.map((h, i) => (
-          <li key={i}><b>{h.action === "CUSTOMER_BLOCKED" ? "Blocked" : h.action === "CUSTOMER_UNBLOCKED" ? "Unblocked" : h.action}</b> <span className="text-slate-500">· {when(h.createdAt)} · by {h.by ?? "system"}</span>{typeof h.metadata?.reason === "string" ? <span className="block text-xs text-slate-600">Reason: {h.metadata.reason}</span> : null}</li>
+          <li key={i}><b>{h.action === "CUSTOMER_BLOCKED" ? "Blocked" : h.action === "CUSTOMER_UNBLOCKED" ? "Unblocked" : h.action === "CUSTOMER_DELETED" ? "Profile deleted" : h.action}</b> <span className="text-slate-500">· {when(h.createdAt)} · by {h.by ?? "system"}</span>{typeof h.metadata?.reason === "string" ? <span className="block text-xs text-slate-600">Reason: {h.metadata.reason}</span> : null}</li>
         ))}</ul>
       </section> : null}
+      {!deleted && access.permissions.includes("team") ? <DeleteCustomer customerId={c.id} hasOrders={orderRows.length > 0} /> : null}
     </main>
   );
 }

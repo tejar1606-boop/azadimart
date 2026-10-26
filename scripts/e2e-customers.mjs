@@ -29,8 +29,20 @@ function client(base) {
 }
 
 const EMAIL = `e2e.customers.${Date.now()}@azadimart.test`;
+const EMAIL2 = `e2e.customers2.${Date.now()}@azadimart.test`;
 const PHONE = "9" + String(Date.now()).slice(-9);
+const extraUsers = [];
 async function tidy() {
+  for (const id of extraUsers) {
+    const cc = (await sql`select id from customers where user_id = ${id}`)[0];
+    if (cc) {
+      await sql`delete from orders where customer_id = ${cc.id}`;
+      await sql`delete from audit_logs where entity_type = 'customer' and entity_id = ${cc.id}`;
+      await sql`delete from customers where id = ${cc.id}`;
+    }
+    await sql`delete from users where id = ${id}`;
+  }
+  await sql`delete from login_attempts where email = ${EMAIL2}`;
   const u = (await sql`select id from users where email = ${EMAIL}`)[0];
   if (!u) return;
   const c = (await sql`select id from customers where user_id = ${u.id}`)[0];
@@ -92,6 +104,48 @@ check("can sign in again", (await client(SF)("/api/auth/login", { method: "POST"
 check("not signed in: list refused", (await anon("/api/v1/customers")).status === 401);
 check("not signed in: block refused", (await anon(`/api/v1/customers/${c.id}`, { method: "PATCH", body: { blocked: true, reason: "nope" } })).status === 401);
 check("bad id: 404", (await admin("/api/v1/customers/not-a-uuid", { method: "PATCH", body: { blocked: false } })).status === 404);
+
+// Delete profile: someone who never ordered is removed for good.
+check("delete needs DELETE typed", (await admin(`/api/v1/customers/${c.id}`, { method: "DELETE", body: { confirm: "delete", reason: "test" } })).status === 400);
+check("delete needs a reason", (await admin(`/api/v1/customers/${c.id}`, { method: "DELETE", body: { confirm: "DELETE", reason: "" } })).status === 400);
+check("not signed in: delete refused", (await anon(`/api/v1/customers/${c.id}`, { method: "DELETE", body: { confirm: "DELETE", reason: "nope" } })).status === 401);
+check("customer page offers Delete profile", (await admin(`/customers/${c.id}`, { raw: true })).text.includes("Delete profile"));
+const del1 = await admin(`/api/v1/customers/${c.id}`, { method: "DELETE", body: { confirm: "DELETE", reason: "Customer asked to delete" } });
+check("no orders: deleted for good", del1.status === 200 && del1.json?.mode === "DELETED", JSON.stringify(del1.json));
+check("account, customer and address gone", (await sql`select (select count(*) from users where email = ${EMAIL})::int + (select count(*) from customers where id = ${c.id})::int + (select count(*) from customer_addresses where customer_id = ${c.id})::int n`)[0].n === 0);
+check("deletion audited with reason", (await sql`select count(*)::int n from audit_logs where entity_type = 'customer' and entity_id = ${c.id} and action = 'CUSTOMER_DELETED' and metadata->>'reason' = 'Customer asked to delete' and metadata->>'mode' = 'DELETED'`)[0].n === 1);
+check("deleted page is gone", (await admin(`/customers/${c.id}`, { raw: true })).status === 404);
+await sql`delete from audit_logs where entity_type = 'customer' and entity_id = ${c.id}`;
+
+// Someone with orders is anonymised: orders stay, personal details go.
+const PHONE2 = "8" + String(Date.now()).slice(-9);
+const [u2] = await sql`insert into users (email, phone, phone_verified_at, password_hash, role, status) values (${EMAIL2}, ${PHONE2}, now(), ${hash}, 'CUSTOMER', 'ACTIVE') returning id`;
+extraUsers.push(u2.id);
+const [c2] = await sql`insert into customers (user_id, full_name, referral_code) values (${u2.id}, 'Omega Orderer', ${"E2E" + String(Date.now()).slice(-6)}) returning id`;
+const [a2] = await sql`insert into customer_addresses (customer_id, line1, city, state, postal_code) values (${c2.id}, '9 Old Road', 'Guntur', 'Andhra Pradesh', '522001') returning id`;
+await sql`insert into customer_wallet_entries (customer_id, kind, amount_paise, remaining_paise) values (${c2.id}, 'ADJUSTMENT', 5000, 5000)`;
+const snap = JSON.stringify({ name: "Omega Orderer", line1: "9 Old Road", city: "Guntur", state: "Andhra Pradesh", postalCode: "522001", country: "IN" });
+const [o2] = await sql`insert into orders (order_number, customer_id, shipping_address_id, status, grand_total_paise, shipping_address_snapshot, created_at, delivered_at)
+  values (${"E2E-CU-" + Date.now()}, ${c2.id}, ${a2.id}, 'SHIPPED', 49900, ${snap}::jsonb, now() - interval '40 days', null) returning id`;
+const busy = await admin(`/api/v1/customers/${c2.id}`, { method: "DELETE", body: { confirm: "DELETE", reason: "asked" } });
+check("order on its way: delete refused", busy.status === 409, busy.json?.error?.message);
+await sql`update orders set status = 'DELIVERED', delivered_at = now() - interval '2 days' where id = ${o2.id}`;
+check("inside return window: delete refused", (await admin(`/api/v1/customers/${c2.id}`, { method: "DELETE", body: { confirm: "DELETE", reason: "asked" } })).status === 409);
+await sql`update orders set delivered_at = now() - interval '30 days' where id = ${o2.id}`;
+check("page explains orders are kept", (await admin(`/customers/${c2.id}`, { raw: true })).text.includes("8 years"));
+const del2 = await admin(`/api/v1/customers/${c2.id}`, { method: "DELETE", body: { confirm: "DELETE", reason: "Customer asked to delete" } });
+check("with orders: anonymised", del2.status === 200 && del2.json?.mode === "ANONYMISED" && del2.json?.orders === 1, JSON.stringify(del2.json));
+const [after] = await sql`select u.email, u.phone, u.password_hash, u.status, cu.full_name, cu.referral_code from users u join customers cu on cu.user_id = u.id where cu.id = ${c2.id}`;
+check("name, email, mobile, password removed", after.full_name === "Deleted customer" && after.email.endsWith("@deleted.invalid") && after.phone === null && after.password_hash === null && after.status === "DISABLED" && after.referral_code === null);
+check("addresses and wallet money removed", (await sql`select count(*)::int n from customer_addresses where customer_id = ${c2.id}`)[0].n === 0 && (await sql`select coalesce(sum(remaining_paise),0)::int n from customer_wallet_entries where customer_id = ${c2.id}`)[0].n === 0);
+const [kept] = await sql`select status, grand_total_paise, shipping_address_snapshot->>'city' city, shipping_address_id from orders where id = ${o2.id}`;
+check("order kept with its delivery copy", kept.status === "DELIVERED" && kept.grand_total_paise === 49900 && kept.city === "Guntur" && kept.shipping_address_id === null);
+await clearLimits();
+check("old email can't sign in", (await client(SF)("/api/auth/login", { method: "POST", body: { email: EMAIL2, password: PW } })).status !== 200);
+check("old email is free to sign up again", (await sql`select count(*)::int n from users where email = ${EMAIL2}`)[0].n === 0);
+const dpage = await admin(`/customers/${c2.id}`, { raw: true });
+check("page shows 'profile was deleted', no delete button", dpage.text.includes("This profile was deleted") && !dpage.text.includes("Delete profile…"));
+check("list shows Deleted", (await admin("/api/v1/customers?q=Deleted customer")).json.items.some((x) => x.id === c2.id));
 
 await tidy();
 check("test shopper removed", (await sql`select count(*)::int n from users where email = ${EMAIL}`)[0].n === 0);

@@ -52,7 +52,7 @@ export default function CustomersList() {
                 <td className="px-3 text-right">{money(c.spentPaise)}</td>
                 <td className="px-3 text-xs text-slate-600">{date(c.lastOrderAt)}</td>
                 <td className="px-3 text-right">{c.walletPaise ? money(c.walletPaise) : "—"}</td>
-                <td className="px-5">{c.status === "DISABLED" ? <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">Blocked</span> : <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">Active</span>}</td>
+                <td className="px-5">{c.email.endsWith("@deleted.invalid") ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">Deleted</span> : c.status === "DISABLED" ? <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">Blocked</span> : <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">Active</span>}</td>
               </tr>
             ))}</tbody>
           </table></div>

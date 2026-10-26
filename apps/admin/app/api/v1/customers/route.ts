@@ -27,7 +27,7 @@ export async function GET(request: Request) {
       const digits = q.replace(/\D/g, "");
       where.push(or(ilike(customers.fullName, like), ilike(users.email, like), digits.length >= 4 ? ilike(users.phone, `%${digits}%`) : sql`false`)!);
     }
-    if (status === "ACTIVE" || status === "DISABLED") where.push(eq(users.status, status));
+    if (status === "ACTIVE" || status === "DISABLED") where.push(eq(users.status, status), sql`${users.email} not like '%@deleted.invalid'`);
     if (status === "BUYERS") where.push(sql`exists (select 1 from ${orders} where ${orders.customerId} = ${customers.id} and ${PLACED})`);
     const filter = where.length ? and(...where) : undefined;
 
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
         all: count(),
         today: sql<number>`count(*) filter (where ${customers.createdAt} >= ${startOfDay})::int`,
         verified: sql<number>`count(*) filter (where ${users.phoneVerifiedAt} is not null)::int`,
-        disabled: sql<number>`count(*) filter (where ${users.status} = 'DISABLED')::int`,
+        disabled: sql<number>`count(*) filter (where ${users.status} = 'DISABLED' and ${users.email} not like '%@deleted.invalid')::int`,
         buyers: sql<number>`count(*) filter (where exists (select 1 from ${orders} where ${orders.customerId} = ${customers.id} and ${PLACED}))::int`,
       }).from(customers).innerJoin(users, eq(users.id, customers.userId)),
     ]);
