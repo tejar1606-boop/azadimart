@@ -80,7 +80,7 @@ export const sellerCharges = pgTable("seller_charges", {
   sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "cascade" }),
   /**
    * AD = ad charge (base + 18% GST); RETURN_RECOVERY = money back for goods returned after the seller was paid (referenceId = the adjustment);
-   * RETURN_SHIPPING = the seller's 60% of a return pickup's courier charge (referenceId = the return; rate card includes GST).
+   * RETURN_SHIPPING = the seller's part of a return pickup's courier charge (all of it if the return is their fault, else 60%) (referenceId = the return; rate card includes GST).
    */
   kind: text("kind").$type<"AD" | "RETURN_RECOVERY" | "RETURN_SHIPPING">().notNull(),
   referenceId: uuid("reference_id").notNull(),

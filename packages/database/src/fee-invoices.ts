@@ -44,7 +44,7 @@ export async function issueFeeInvoice(tx: Tx, payoutId: string, actorUserId: str
     .where(and(eq(shipments.sellerId, payout.sellerId), inArray(shipments.orderId, orderIds), isNull(shipments.feeInvoiceId), gt(shipments.shippingFeePaise, 0)));
   const ads = (await tx.select({ base: sql<number>`coalesce(sum(${sellerCharges.basePaise}), 0)::int`, gst: sql<number>`coalesce(sum(${sellerCharges.gstPaise}), 0)::int` })
     .from(sellerCharges).where(and(eq(sellerCharges.payoutId, payoutId), eq(sellerCharges.kind, "AD"))))[0]!;
-  // The seller's 60% of return pickups taken from this payout (rate card includes GST).
+  // The seller's share of return pickups taken from this payout (all, or 60%; rate card includes GST).
   const returnPickups = (await tx.select({ total: sql<number>`coalesce(sum(${sellerCharges.amountPaise}), 0)::int`, n: sql<number>`count(*)::int` })
     .from(sellerCharges).where(and(eq(sellerCharges.payoutId, payoutId), eq(sellerCharges.kind, "RETURN_SHIPPING"))))[0]!;
   const courierTotal = parcels.reduce((n, p) => n + p.fee, 0);
@@ -64,7 +64,7 @@ export async function issueFeeInvoice(tx: Tx, payoutId: string, actorUserId: str
   const lines = [
     commission.taxable > 0 ? line("Marketplace commission on orders settled", FEE_SAC.COMMISSION, commission.taxable, commission.gst) : null,
     courierTotal > 0 ? line(`LOIMART courier service (${parcels.length} parcel${parcels.length === 1 ? "" : "s"})`, FEE_SAC.COURIER, courier.taxablePaise, courier.taxPaise) : null,
-    returnPickups.total > 0 ? line(`LOIMART return pickup courier, your 60% share (${returnPickups.n} return${returnPickups.n === 1 ? "" : "s"})`, FEE_SAC.COURIER, pickups.taxablePaise, pickups.taxPaise) : null,
+    returnPickups.total > 0 ? line(`LOIMART return pickup courier, your share (${returnPickups.n} return${returnPickups.n === 1 ? "" : "s"})`, FEE_SAC.COURIER, pickups.taxablePaise, pickups.taxPaise) : null,
     ads.base > 0 ? line("Advertising on LOIMART", FEE_SAC.ADS, ads.base, ads.gst) : null,
   ].filter((l): l is NonNullable<typeof l> => Boolean(l));
 

@@ -42,10 +42,20 @@ export function deliveryChargeFor(parcels: Array<{ weightGrams: number; from: { 
   return parcels.reduce((sum, p) => sum + loimartShippingFee({ weightGrams: p.weightGrams, zone: shippingZone(p.from, to), cod }), 0);
 }
 
-/** Return pickups: LOIMART pays 40% of the courier charge, the seller pays the rest (from their payout). */
+/** Why a shopper can return an item (the storefront's choices; the first part of returns.reason). */
+export const RETURN_REASONS = ["Damaged or defective", "Wrong item sent", "Size or fit issue", "Doesn't match the description or photos", "Missing parts or accessories", "Quality not as expected"] as const;
+/** The seller's mistake: they pay the whole return pickup. */
+export const SELLER_FAULT_RETURN_REASONS: readonly string[] = ["Damaged or defective", "Wrong item sent", "Doesn't match the description or photos", "Missing parts or accessories"];
+export const returnIsSellerFault = (reason: string | null | undefined) => SELLER_FAULT_RETURN_REASONS.some((r) => (reason ?? "").trim().startsWith(r));
+
+/**
+ * Return pickups: the seller pays all of it when the return is their fault
+ * (damaged, wrong item, not as described, missing parts); otherwise LOIMART
+ * pays 40% and the seller 60%. The seller's part comes off their payout.
+ */
 export const RETURN_SHIPPING_LOIMART_SHARE_BPS = 4_000;
-export function splitReturnShipping(feePaise: number): { loimartPaise: number; sellerPaise: number } {
+export function splitReturnShipping(feePaise: number, sellerFault = false): { loimartPaise: number; sellerPaise: number } {
   const fee = Math.max(0, Math.round(feePaise));
-  const loimartPaise = Math.round((fee * RETURN_SHIPPING_LOIMART_SHARE_BPS) / 10_000);
+  const loimartPaise = sellerFault ? 0 : Math.round((fee * RETURN_SHIPPING_LOIMART_SHARE_BPS) / 10_000);
   return { loimartPaise, sellerPaise: fee - loimartPaise };
 }

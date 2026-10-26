@@ -1,4 +1,4 @@
-import { AppError, GST_ON_FEES_BPS, splitGstInclusive, splitReturnShipping } from "@azadimart/shared";
+import { AppError, GST_ON_FEES_BPS, returnIsSellerFault, splitGstInclusive, splitReturnShipping } from "@azadimart/shared";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { createDatabase } from "./client";
 import { returnPickupFee, sellerPickupPlaces } from "./delivery-charges";
@@ -22,37 +22,42 @@ export const RETURN_TRANSITIONS: Record<ReturnStatus, ReturnStatus[]> = {
 
 /**
  * The return pickup's courier charge (LOIMART rate card, from the shopper back
- * to the seller): LOIMART pays 40%, the seller's 60% is a charge taken from
- * their next payout. Saved on the return. Safe to call twice.
+ * to the seller). The seller pays all of it when the return is their fault
+ * (damaged, wrong item, not as described, missing parts), else 60% with
+ * LOIMART paying 40%; their part is a charge taken from their next payout.
+ * Saved on the return. Safe to call twice.
  */
-export async function chargeReturnShipping(tx: Tx, ret: { id: string; orderId: string; sellerId: string }) {
+export async function chargeReturnShipping(tx: Tx, ret: { id: string; orderId: string; sellerId: string; reason: string | null }) {
   const pieces = await tx.select({ quantity: returnItems.quantity, weightGrams: productVariants.weightGrams }).from(returnItems)
     .innerJoin(orderItems, eq(orderItems.id, returnItems.orderItemId)).innerJoin(productVariants, eq(productVariants.id, orderItems.variantId)).where(eq(returnItems.returnId, ret.id));
   const [order] = await tx.select({ orderNumber: orders.orderNumber, address: orders.shippingAddressSnapshot }).from(orders).where(eq(orders.id, ret.orderId));
   const seller = (await sellerPickupPlaces(tx, [ret.sellerId])).get(ret.sellerId) ?? { city: "", state: "" };
   const { feePaise } = returnPickupFee({ weightGrams: pieces.reduce((n, p) => n + p.quantity * (p.weightGrams ?? 0), 0), seller, customer: { city: order?.address?.city ?? "", state: order?.address?.state ?? "" } });
-  const { loimartPaise, sellerPaise } = splitReturnShipping(feePaise);
+  const sellerFault = returnIsSellerFault(ret.reason);
+  const { loimartPaise, sellerPaise } = splitReturnShipping(feePaise, sellerFault);
   await tx.update(returns).set({ returnShippingFeePaise: feePaise }).where(eq(returns.id, ret.id));
   if (sellerPaise > 0) {
     const gst = splitGstInclusive(sellerPaise, GST_ON_FEES_BPS);
     const rs = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
     await tx.insert(sellerCharges).values({
       sellerId: ret.sellerId, kind: "RETURN_SHIPPING", referenceId: ret.id,
-      description: `Return pickup, order ${order?.orderNumber ?? ""}: your 60% of the ${rs(feePaise)} courier charge (LOIMART pays ${rs(loimartPaise)})`,
+      description: sellerFault
+        ? `Return pickup, order ${order?.orderNumber ?? ""}: the full ${rs(feePaise)} courier charge (returned as ${(ret.reason ?? "").split(":")[0]?.toLowerCase() ?? "seller fault"})`
+        : `Return pickup, order ${order?.orderNumber ?? ""}: your 60% of the ${rs(feePaise)} courier charge (LOIMART pays ${rs(loimartPaise)})`,
       basePaise: gst.taxablePaise, gstPaise: gst.taxPaise, amountPaise: sellerPaise,
     }).onConflictDoNothing();
   }
-  return { feePaise, loimartPaise, sellerPaise };
+  return { feePaise, loimartPaise, sellerPaise, sellerFault };
 }
 
 /**
  * Moves a return one step (seller or admin). On RECEIVED: stock goes back,
  * a credit note reverses the seller's invoice, money already paid to the
- * seller is recovered from their next payout, the seller is charged 60% of the
- * return pickup, and the order becomes RETURNED once every piece is back.
+ * seller is recovered from their next payout, the seller is charged for the
+ * return pickup (all of it if it's their fault, else 60%), and the order becomes RETURNED once every piece is back.
  */
 export async function changeReturnStatus(tx: Tx, input: { returnId: string; next: ReturnStatus; actorUserId: string; sellerId?: string; notes?: string | null; by: "SELLER" | "ADMIN" }) {
-  const current = (await tx.select({ id: returns.id, orderId: returns.orderId, sellerId: returns.sellerId, status: returns.status }).from(returns)
+  const current = (await tx.select({ id: returns.id, orderId: returns.orderId, sellerId: returns.sellerId, status: returns.status, reason: returns.reason }).from(returns)
     .where(input.sellerId ? and(eq(returns.id, input.returnId), eq(returns.sellerId, input.sellerId)) : eq(returns.id, input.returnId)).limit(1))[0];
   if (!current) throw new AppError("NOT_FOUND", "Return request not found");
   if (current.status === input.next) return { id: current.id, status: current.status, orderStatus: null as string | null };

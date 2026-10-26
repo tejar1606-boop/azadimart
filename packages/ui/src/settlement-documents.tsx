@@ -51,7 +51,7 @@ export function SettlementStatementDocument({ statement: s, feeInvoiceHref }: { 
     ["GST on commission (18%)", -t.gstOnCommissionPaise, "claim as input tax credit"],
     ["LOIMART courier (not covered by your wallet)", -t.shippingFeePaise],
     ["Advertising", -(t.adsPaise ?? t.chargesPaise)],
-    ["Return pickups (your 60%; LOIMART pays 40%)", -(t.returnShippingPaise ?? 0), "LOIMART fee invoice"],
+    ["Return pickups (all if damaged/wrong item, else 60%)", -(t.returnShippingPaise ?? 0), "LOIMART fee invoice"],
     ["Returned after an earlier payment (see orders below)", -(t.recoveriesPaise ?? 0), "commission given back on a fee credit note"],
     ["TCS deducted (GST, 0.5%)", -t.tcsPaise, "claim in your GST return"],
     ["TDS deducted (Income tax 194-O, 0.1%)", -t.tdsPaise, "claim in your ITR"],

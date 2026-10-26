@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { RETURN_REASONS } from "@azadimart/shared";
 
 type Item = { id: string; title: string; quantity: number };
 type ReturnLine = { id: string; status: "REQUESTED" | "APPROVED" | "PICKUP_SCHEDULED" | "RECEIVED" | "REFUNDED" | "REJECTED"; reason: string | null; rejectionReason: string | null; createdAt: string; orderItemId: string; quantity: number };
 type Data = { items: ReturnLine[]; windowDays: number; returnUntil: string | null; canReturn: boolean };
 
-const REASONS = ["Damaged or defective", "Wrong item sent", "Size or fit issue", "Doesn't match the description or photos", "Missing parts or accessories", "Quality not as expected"];
+const REASONS = RETURN_REASONS;
 const STATUS: Record<ReturnLine["status"], [string, string]> = {
   REQUESTED: ["Return requested · waiting for the seller", "bg-amber-50 text-amber-800"],
   APPROVED: ["Return approved · pickup coming", "bg-sky-50 text-sky-700"],

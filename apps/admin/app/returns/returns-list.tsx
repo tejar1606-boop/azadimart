@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { splitReturnShipping } from "@azadimart/shared";
+import { returnIsSellerFault, splitReturnShipping } from "@azadimart/shared";
 
 type Status = "REQUESTED" | "APPROVED" | "PICKUP_SCHEDULED" | "RECEIVED" | "REFUNDED" | "REJECTED";
 type Row = {
@@ -101,7 +101,7 @@ function Card({ row, reload }: { row: Row; reload: () => void }) {
       ))}</ul>
       {row.reason ? <p className="mt-2 text-sm text-slate-600">Customer&apos;s reason: “{row.reason}”</p> : null}
       {row.rejectionReason ? <p className="mt-2 text-sm text-slate-600">Rejected because: “{row.rejectionReason}”</p> : null}
-      {row.returnShippingFeePaise ? <p className="mt-2 text-xs text-slate-500">Return pickup courier {money(row.returnShippingFeePaise)}: seller {money(splitReturnShipping(row.returnShippingFeePaise).sellerPaise)} (60%, from their payout) · LOIMART {money(splitReturnShipping(row.returnShippingFeePaise).loimartPaise)} (40%)</p> : null}
+      {row.returnShippingFeePaise ? <p className="mt-2 text-xs text-slate-500">Return pickup courier {money(row.returnShippingFeePaise)}: {returnIsSellerFault(row.reason) ? <>seller pays all of it (seller&apos;s fault), from their payout</> : <>seller {money(splitReturnShipping(row.returnShippingFeePaise).sellerPaise)} (60%, from their payout) · LOIMART {money(splitReturnShipping(row.returnShippingFeePaise).loimartPaise)} (40%)</>}</p> : null}
       <p className="mt-1 text-xs text-slate-400">Item value {money(value)}</p>
 
       {["REQUESTED", "APPROVED", "PICKUP_SCHEDULED"].includes(row.status) ? (

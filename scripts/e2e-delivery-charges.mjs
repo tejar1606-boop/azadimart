@@ -2,7 +2,7 @@
 // offers) pay the courier charge at checkout and the seller pays no courier
 // fee; from ₹301 delivery is free for the shopper and the seller pays the
 // courier. Return pickups: LOIMART pays 40%, the seller 60% (a charge on
-// their next payout). Requires the demo seed and the apps (test server)
+// their next payout); all of it when the return is the seller's fault. Requires the demo seed and the apps (test server)
 // against a NON-PRODUCTION database. Restores everything it changes.
 //   ALLOW_E2E=YES pnpm e2e:delivery-charges
 import { neon } from "@neondatabase/serverless";
@@ -129,6 +129,16 @@ const listed = (await seller("/api/v1/returns?status=ALL")).json?.items?.find((x
 check("seller Returns shows the pickup charge", listed?.returnShippingFeePaise === pickupFee);
 const audit = await sql`select metadata from audit_logs where entity_type = 'return' and entity_id = ${retId} and metadata->>'to' = 'RECEIVED'`;
 check("split is in the audit log", audit[0]?.metadata?.returnShipping?.loimartPaise === loimart);
+
+// The other piece comes back damaged: the seller's fault, so they pay the whole pickup.
+const r2 = await shop(`/api/v1/orders/${b.placed.orderId}/returns`, { method: "POST", body: { items: [{ orderItemId: line.id, quantity: 1 }], reason: "Damaged or defective: box crushed" } });
+const ret2 = r2.json?.returns?.[0]?.id;
+for (const status of ["APPROVED", "PICKUP_SCHEDULED", "RECEIVED"]) await seller(`/api/v1/returns/${ret2}`, { method: "POST", body: { status } });
+onHandBack = 2;
+const [c2] = await sql`select amount_paise, description from seller_charges where kind = 'RETURN_SHIPPING' and reference_id = ${ret2}`;
+check("damaged item: seller pays the full pickup", c2?.amount_paise === pickupFee && c2.description.includes("full"), JSON.stringify(c2));
+const audit2 = await sql`select metadata from audit_logs where entity_type = 'return' and entity_id = ${ret2} and metadata->>'to' = 'RECEIVED'`;
+check("LOIMART pays nothing on it", audit2[0]?.metadata?.returnShipping?.loimartPaise === 0 && audit2[0].metadata.returnShipping.sellerFault === true);
 
 await tidy();
 check("test data removed", (await sql`select count(*)::int n from returns where order_id = any(${orders})`)[0].n === 0

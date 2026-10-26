@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FREE_DELIVERY_FROM_PAISE, customerPaysDelivery, deliveryChargeFor, loimartShippingFee, shippingZone, splitReturnShipping } from "./shipping-rates";
+import { FREE_DELIVERY_FROM_PAISE, customerPaysDelivery, deliveryChargeFor, loimartShippingFee, shippingZone, splitReturnShipping, returnIsSellerFault } from "./shipping-rates";
 
 describe("LOIMART shipping fee", () => {
   it("works out the zone", () => {
@@ -29,5 +29,13 @@ describe("who pays delivery", () => {
   it("splits a return pickup 40% LOIMART, 60% seller", () => {
     expect(splitReturnShipping(6000)).toEqual({ loimartPaise: 2400, sellerPaise: 3600 });
     expect(splitReturnShipping(3501)).toEqual({ loimartPaise: 1400, sellerPaise: 2101 });
+  });
+  it("seller's fault: the seller pays the whole pickup", () => {
+    expect(splitReturnShipping(6000, true)).toEqual({ loimartPaise: 0, sellerPaise: 6000 });
+    expect(returnIsSellerFault("Damaged or defective: cracked screen")).toBe(true);
+    expect(returnIsSellerFault("Wrong item sent")).toBe(true);
+    expect(returnIsSellerFault("Size or fit issue: too small")).toBe(false);
+    expect(returnIsSellerFault("Quality not as expected")).toBe(false);
+    expect(returnIsSellerFault(null)).toBe(false);
   });
 });
