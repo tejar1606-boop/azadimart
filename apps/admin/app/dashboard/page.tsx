@@ -13,6 +13,7 @@ import {
   sellerVerifications,
   supportTickets,
 } from "@azadimart/database";
+import { istDayStartAgo } from "@azadimart/shared";
 import { PortalIcons, PortalPageHeader, StatCard } from "@azadimart/ui";
 import { and, count, desc, eq, gte, inArray, lte, notInArray, sql } from "drizzle-orm";
 
@@ -32,7 +33,7 @@ export default async function DashboardPage() {
   // Each team member sees only the numbers and queues of their own areas.
   const can = (area: string) => access.permissions.includes(area as never);
   const seesSales = can("orders") || can("payments");
-  const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+  const startOfDay = istDayStartAgo(new Date(), 0); // today in India time, wherever the server runs
   const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const sales = (since: Date) => db.select({ revenue: sql<number>`coalesce(sum(${orders.grandTotalPaise}), 0)`, n: count() })
     .from(orders).where(and(inArray(orders.status, [...COUNTED]), gte(orders.createdAt, since)));
@@ -79,12 +80,12 @@ export default async function DashboardPage() {
         eyebrow={new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
         title="Good to see you"
         description={pending ? `${pending} item${pending === 1 ? "" : "s"} waiting for your review.` : "Everything is reviewed. Nice work."}
-        actions={<>{can("orders") ? <Link href="/orders" className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:border-slate-900">View orders</Link> : null}{can("storefront") ? <Link href="/online-store" className="rounded-full bg-chrome px-4 py-2 text-sm font-semibold text-white hover:bg-black">Edit storefront</Link> : null}</>}
+        actions={<>{can("orders") ? <Link href="/orders/report" className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:border-slate-900">Sales report</Link> : null}{can("orders") ? <Link href="/orders" className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:border-slate-900">View orders</Link> : null}{can("storefront") ? <Link href="/online-store" className="rounded-full bg-chrome px-4 py-2 text-sm font-semibold text-white hover:bg-black">Edit storefront</Link> : null}</>}
       />
 
       <section className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        {seesSales ? <StatCard label="Sales today" value={money(Number(today[0]?.revenue ?? 0))} hint={`${n(today)} order${n(today) === 1 ? "" : "s"}`} icon="orders" tone="brand" href={can("orders") ? "/orders" : undefined} Link={Link} /> : null}
-        {seesSales ? <StatCard label="Sales · 30 days" value={money(Number(month[0]?.revenue ?? 0))} hint={`${n(month)} orders`} icon="finance" tone="good" /> : null}
+        {seesSales ? <StatCard label="Sales today" value={money(Number(today[0]?.revenue ?? 0))} hint={`${n(today)} order${n(today) === 1 ? "" : "s"}`} icon="orders" tone="brand" href={can("orders") ? "/orders/report" : undefined} Link={Link} /> : null}
+        {seesSales ? <StatCard label="Sales · 30 days" value={money(Number(month[0]?.revenue ?? 0))} hint={`${n(month)} orders · by day & state`} icon="finance" tone="good" href={can("orders") ? "/orders/report" : undefined} Link={Link} /> : null}
         <StatCard label="Live products" value={n(liveProducts).toLocaleString("en-IN")} hint={`${n(lowStock)} low on stock`} icon="products" tone={n(lowStock) ? "warn" : "default"} />
         <StatCard label="Sellers · customers" value={`${n(activeSellers)} · ${n(customerCount)}`} hint="Active sellers · registered customers" icon="customers" />
       </section>

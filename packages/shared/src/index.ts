@@ -34,3 +34,4 @@ export * from "./footwear";
 export * from "./customer-wallet";
 export * from "./platform-fee";
 export * from "./order-cashback";
+export * from "./sales-report";

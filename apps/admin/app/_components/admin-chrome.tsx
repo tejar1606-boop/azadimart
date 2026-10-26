@@ -35,6 +35,7 @@ export default function AdminChrome({ counts, children }: { counts: AdminCounts 
     { items: [{ href: "/dashboard", label: "Dashboard", icon: "dashboard" }] },
     { title: "Sales", items: [
       { href: "/orders", label: "Orders", icon: "orders" },
+      { href: "/orders/report", label: "Sales report", icon: "finance" },
       { href: "/abandoned-carts", label: "Abandoned carts", icon: "orders" },
       { href: "/payments", label: "Payments", icon: "payments" },
       { href: "/returns", label: "Returns", icon: "returns" },
