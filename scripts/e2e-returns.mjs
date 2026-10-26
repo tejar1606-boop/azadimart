@@ -37,6 +37,7 @@ async function tidy() {
     const rets = await sql`select id from returns where order_id = ${id}`;
     for (const r of rets) {
       await sql`delete from invoices where source_key = ${"RETURN:" + r.id}`.catch(() => undefined);
+      await sql`delete from seller_charges where kind = 'RETURN_SHIPPING' and reference_id = ${r.id}`;
       await sql`delete from audit_logs where entity_type = 'return' and entity_id = ${r.id}`;
     }
     await sql`delete from refunds where order_id = ${id}`;

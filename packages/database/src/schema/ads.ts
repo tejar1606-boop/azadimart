@@ -78,8 +78,11 @@ export const adBids = pgTable("ad_bids", {
 export const sellerCharges = pgTable("seller_charges", {
   id,
   sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "cascade" }),
-  /** AD = ad charge (base + 18% GST); RETURN_RECOVERY = money back for goods returned after the seller was paid (referenceId = the adjustment). */
-  kind: text("kind").$type<"AD" | "RETURN_RECOVERY">().notNull(),
+  /**
+   * AD = ad charge (base + 18% GST); RETURN_RECOVERY = money back for goods returned after the seller was paid (referenceId = the adjustment);
+   * RETURN_SHIPPING = the seller's 60% of a return pickup's courier charge (referenceId = the return; rate card includes GST).
+   */
+  kind: text("kind").$type<"AD" | "RETURN_RECOVERY" | "RETURN_SHIPPING">().notNull(),
   referenceId: uuid("reference_id").notNull(),
   description: text("description").notNull(),
   // amount = base + GST (18% on LOIMART's ad fee).

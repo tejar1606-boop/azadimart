@@ -30,3 +30,4 @@ export * from "./order-cashback";
 export * from "./sales-report";
 export * from "./customer-deletion";
 export * from "./returns";
+export * from "./delivery-charges";

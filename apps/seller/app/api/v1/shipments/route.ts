@@ -184,7 +184,9 @@ export async function POST(request: Request) {
 
     const payment = (await db.select({ provider: payments.provider, status: payments.status }).from(payments).where(eq(payments.orderId, orderId)).limit(1))[0];
     const cod = payment?.provider === "COD" && payment.status === "PENDING";
-    const shippingFeePaise = viaLoimart ? loimartShippingFee({ weightGrams, zone: shippingZone(settings.pickup, delivery), cod }) : 0;
+    // Orders under ₹301: the shopper paid delivery at checkout, so the seller pays nothing for this parcel.
+    const shopperPaidDelivery = ((await db.select({ shippingPaise: orders.shippingPaise }).from(orders).where(eq(orders.id, orderId)).limit(1))[0]?.shippingPaise ?? 0) > 0;
+    const shippingFeePaise = viaLoimart && !shopperPaidDelivery ? loimartShippingFee({ weightGrams, zone: shippingZone(settings.pickup, delivery), cod }) : 0;
     // The courier fee is paid from the seller's wallet first (the rest comes off the payout), in the same transaction.
     const shipment = await db.transaction(async (tx) => {
     const row = (await tx.update(shipments).set({
@@ -209,14 +211,14 @@ export async function POST(request: Request) {
     return { ...row, walletPaidPaise };
     });
 
-    await db.insert(shipmentEvents).values({ shipmentId: shipment.id, status: "CREATED", description: viaLoimart ? `Booked by LOIMART with ${shipment.courierName}, tracking no. ${shipment.awb ?? "pending"}. Courier will pick up from the seller.` : "Shipment created through " + created.provider });
+    await db.insert(shipmentEvents).values({ shipmentId: shipment.id, status: "CREATED", description: viaLoimart ? `Booked by LOIMART with ${shipment.courierName}, tracking no. ${shipment.awb ?? "pending"}. Courier will pick up from the seller.${shopperPaidDelivery ? " Delivery paid by the customer (order under ₹301): no courier fee for the seller." : ""}` : "Shipment created through " + created.provider });
 
     await db.insert(auditLogs).values({
       actorUserId: principal.userId,
       action: "SHIPMENT_CREATED",
       entityType: "shipment",
       entityId: shipment.id,
-      metadata: { orderId, sellerId, provider: created.provider, shippedBy: viaLoimart ? "LOIMART" : "SELLER", shippingFeePaise, walletPaidPaise: shipment.walletPaidPaise },
+      metadata: { orderId, sellerId, provider: created.provider, shippedBy: viaLoimart ? "LOIMART" : "SELLER", shippingFeePaise, shopperPaidDelivery, walletPaidPaise: shipment.walletPaidPaise },
     });
 
     await syncOrderFulfillmentStatus(db, orderId);

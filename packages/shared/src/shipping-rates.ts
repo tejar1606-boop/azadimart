@@ -27,3 +27,25 @@ export function loimartShippingFee(input: { weightGrams: number; zone: ShippingZ
   const slabs = Math.max(1, Math.ceil(Math.max(1, input.weightGrams) / 500));
   return rate.first500g + (slabs - 1) * rate.extra500g + (input.cod ? LOIMART_RATE_CARD.codFeePaise : 0);
 }
+
+/**
+ * Who pays delivery. Orders whose items (after offers) come to ₹301 or more
+ * ship free for the shopper and the seller pays the courier (taken from their
+ * payout). Below ₹301 the shopper pays the courier charge at checkout and the
+ * seller pays nothing for that parcel.
+ */
+export const FREE_DELIVERY_FROM_PAISE = 30_100;
+export const customerPaysDelivery = (itemsValuePaise: number) => itemsValuePaise > 0 && itemsValuePaise < FREE_DELIVERY_FROM_PAISE;
+
+/** Courier charge for a shopper's order: one parcel per seller, from the seller's pickup address. */
+export function deliveryChargeFor(parcels: Array<{ weightGrams: number; from: { city: string; state: string } }>, to: { city: string; state: string }, cod: boolean): number {
+  return parcels.reduce((sum, p) => sum + loimartShippingFee({ weightGrams: p.weightGrams, zone: shippingZone(p.from, to), cod }), 0);
+}
+
+/** Return pickups: LOIMART pays 40% of the courier charge, the seller pays the rest (from their payout). */
+export const RETURN_SHIPPING_LOIMART_SHARE_BPS = 4_000;
+export function splitReturnShipping(feePaise: number): { loimartPaise: number; sellerPaise: number } {
+  const fee = Math.max(0, Math.round(feePaise));
+  const loimartPaise = Math.round((fee * RETURN_SHIPPING_LOIMART_SHARE_BPS) / 10_000);
+  return { loimartPaise, sellerPaise: fee - loimartPaise };
+}

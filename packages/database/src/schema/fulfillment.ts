@@ -134,6 +134,8 @@ export const returns = pgTable(
     reason: text("reason"),
     /** Why the seller or LOIMART rejected it (shown to the customer). */
     rejectionReason: text("rejection_reason"),
+    /** Courier charge for the return pickup (set when the item is received): LOIMART pays 40%, the seller 60% from their payout. */
+    returnShippingFeePaise: integer("return_shipping_fee_paise").notNull().default(0),
     ...timestamps,
   },
   (table) => [

@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { splitReturnShipping } from "@azadimart/shared";
 import { PortalPageHeader } from "@azadimart/ui";
 
 type Status = "REQUESTED" | "APPROVED" | "PICKUP_SCHEDULED" | "RECEIVED" | "REFUNDED" | "REJECTED";
 type Row = {
-  id: string; status: Status; reason: string | null; rejectionReason: string | null; createdAt: string; orderNumber: string; deliveredAt: string | null;
+  id: string; status: Status; reason: string | null; rejectionReason: string | null; returnShippingFeePaise: number; createdAt: string; orderNumber: string; deliveredAt: string | null;
   customerName: string; city: string | null; state: string | null;
   items: Array<{ orderItemId: string; title: string; sku: string; quantity: number; unitPricePaise: number; reason: string | null }>;
 };
@@ -50,6 +51,7 @@ function Card({ row, reload }: { row: Row; reload: () => void }) {
       ))}</ul>
       {row.reason ? <p className="mt-2 text-sm text-slate-600">Customer&apos;s reason: “{row.reason}”</p> : null}
       {row.rejectionReason ? <p className="mt-2 text-sm text-slate-600">Rejected because: “{row.rejectionReason}”</p> : null}
+      {row.returnShippingFeePaise ? <p className="mt-2 text-xs text-slate-500">Return pickup courier {money(row.returnShippingFeePaise)}: you pay 60% ({money(splitReturnShipping(row.returnShippingFeePaise).sellerPaise)}, from your next payout), LOIMART pays 40%.</p> : row.status === "APPROVED" || row.status === "PICKUP_SCHEDULED" ? <p className="mt-2 text-xs text-slate-500">Return pickup courier: you pay 60%, LOIMART pays 40% (charged when the item is received).</p> : null}
       {next ? (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button type="button" disabled={busy} onClick={() => void move(next[0])} className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">{next[1]}</button>

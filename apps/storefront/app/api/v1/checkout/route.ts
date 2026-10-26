@@ -1,9 +1,9 @@
 import { requireApiAccess, enforceRateLimit } from "@azadimart/auth";
 import {
-  cartItems, carts, cashbackSettings, couponRedemptions, coupons, createDatabase, customerAddresses, orderLineGst, platformFeeSettings, productGstRules, spendWallet, walletBalance, walletSettings,
+  cartItems, carts, cashbackSettings, couponRedemptions, coupons, createDatabase, customerAddresses, deliveryQuote, orderLineGst, platformFeeSettings, productGstRules, spendWallet, walletBalance, walletSettings,
   customers, inventory, orderItems, orders, payments, productVariants, products, sellers, users,
 } from "@azadimart/database";
-import { AppError, SHIP_BY_DAYS, allocateCoupon, cashbackFor, splitCashback, checkoutSchema, checkSellerSupplyToState, platformFeeFor, toApiError, walletUsable } from "@azadimart/shared";
+import { AppError, SHIP_BY_DAYS, allocateCoupon, cashbackFor, customerPaysDelivery, splitCashback, checkoutSchema, checkSellerSupplyToState, platformFeeFor, toApiError, walletUsable } from "@azadimart/shared";
 import { notifySellersOfNewOrder } from "@azadimart/notify";
 import { getPaymentProvider } from "@azadimart/payments";
 import { and, asc, count, eq, gte, inArray, ne, sql } from "drizzle-orm";
@@ -108,7 +108,8 @@ export async function POST(request:Request){
         couponCode=coupon.code;
       }
 
-      const shipping=0;
+      // Delivery: free on orders of ₹301+ after offers (the seller pays the courier); below that the shopper pays the courier charge.
+      const shipping=customerPaysDelivery(subtotal-discount)?(await deliveryQuote(tx,{lines:rawLines.map(line=>({variantId:line.variantId,quantity:line.quantity})),to:{city:address.city,state:address.state},cod:input.paymentMethod==="COD"})).feePaise:0;
       // LOIMART wallet money (e.g. the welcome bonus): up to the per-order limit, on orders worth the minimum.
       const wallet=input.useWallet?walletUsable(await walletBalance(tx,session.customerId!),subtotal-discount,await walletSettings(tx)):0;
       // Platform fee: once per order, kept by LOIMART (sellers' payouts don't change).

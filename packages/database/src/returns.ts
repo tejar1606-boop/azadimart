@@ -1,9 +1,10 @@
-import { AppError } from "@azadimart/shared";
+import { AppError, GST_ON_FEES_BPS, splitGstInclusive, splitReturnShipping } from "@azadimart/shared";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { createDatabase } from "./client";
+import { returnPickupFee, sellerPickupPlaces } from "./delivery-charges";
 import { recordReturnAfterSettlement } from "./fee-invoices";
 import { issueReturnCreditNote } from "./invoices";
-import { auditLogs, customers, customerWalletEntries, sellers, inventory, inventoryMovements, orderItems, orders, payments, refunds, returnItems, returns } from "./schema/index";
+import { auditLogs, customers, customerWalletEntries, sellers, inventory, inventoryMovements, orderItems, orders, payments, productVariants, refunds, returnItems, returns, sellerCharges } from "./schema/index";
 
 type Db = ReturnType<typeof createDatabase>;
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -20,10 +21,35 @@ export const RETURN_TRANSITIONS: Record<ReturnStatus, ReturnStatus[]> = {
 };
 
 /**
+ * The return pickup's courier charge (LOIMART rate card, from the shopper back
+ * to the seller): LOIMART pays 40%, the seller's 60% is a charge taken from
+ * their next payout. Saved on the return. Safe to call twice.
+ */
+export async function chargeReturnShipping(tx: Tx, ret: { id: string; orderId: string; sellerId: string }) {
+  const pieces = await tx.select({ quantity: returnItems.quantity, weightGrams: productVariants.weightGrams }).from(returnItems)
+    .innerJoin(orderItems, eq(orderItems.id, returnItems.orderItemId)).innerJoin(productVariants, eq(productVariants.id, orderItems.variantId)).where(eq(returnItems.returnId, ret.id));
+  const [order] = await tx.select({ orderNumber: orders.orderNumber, address: orders.shippingAddressSnapshot }).from(orders).where(eq(orders.id, ret.orderId));
+  const seller = (await sellerPickupPlaces(tx, [ret.sellerId])).get(ret.sellerId) ?? { city: "", state: "" };
+  const { feePaise } = returnPickupFee({ weightGrams: pieces.reduce((n, p) => n + p.quantity * (p.weightGrams ?? 0), 0), seller, customer: { city: order?.address?.city ?? "", state: order?.address?.state ?? "" } });
+  const { loimartPaise, sellerPaise } = splitReturnShipping(feePaise);
+  await tx.update(returns).set({ returnShippingFeePaise: feePaise }).where(eq(returns.id, ret.id));
+  if (sellerPaise > 0) {
+    const gst = splitGstInclusive(sellerPaise, GST_ON_FEES_BPS);
+    const rs = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+    await tx.insert(sellerCharges).values({
+      sellerId: ret.sellerId, kind: "RETURN_SHIPPING", referenceId: ret.id,
+      description: `Return pickup, order ${order?.orderNumber ?? ""}: your 60% of the ${rs(feePaise)} courier charge (LOIMART pays ${rs(loimartPaise)})`,
+      basePaise: gst.taxablePaise, gstPaise: gst.taxPaise, amountPaise: sellerPaise,
+    }).onConflictDoNothing();
+  }
+  return { feePaise, loimartPaise, sellerPaise };
+}
+
+/**
  * Moves a return one step (seller or admin). On RECEIVED: stock goes back,
  * a credit note reverses the seller's invoice, money already paid to the
- * seller is recovered from their next payout, and the order becomes RETURNED
- * once every piece is back.
+ * seller is recovered from their next payout, the seller is charged 60% of the
+ * return pickup, and the order becomes RETURNED once every piece is back.
  */
 export async function changeReturnStatus(tx: Tx, input: { returnId: string; next: ReturnStatus; actorUserId: string; sellerId?: string; notes?: string | null; by: "SELLER" | "ADMIN" }) {
   const current = (await tx.select({ id: returns.id, orderId: returns.orderId, sellerId: returns.sellerId, status: returns.status }).from(returns)
@@ -48,8 +74,10 @@ export async function changeReturnStatus(tx: Tx, input: { returnId: string; next
   if (!updated) throw new AppError("CONFLICT", "Return changed; please retry");
 
   let orderStatus: string | null = null;
+  let returnShipping: Awaited<ReturnType<typeof chargeReturnShipping>> | null = null;
   if (input.next === "RECEIVED") {
     await issueReturnCreditNote(tx, current.id, input.actorUserId);
+    returnShipping = await chargeReturnShipping(tx, current);
     const returned = await tx.select({ orderItemId: returnItems.orderItemId, quantity: returnItems.quantity }).from(returnItems).where(eq(returnItems.returnId, current.id));
     await recordReturnAfterSettlement(tx, { sellerId: current.sellerId, sourceKey: `RETURN:${current.id}`, quantities: new Map(returned.map((r) => [r.orderItemId, r.quantity])), actorUserId: input.actorUserId });
     const allItems = await tx.select({ id: orderItems.id, quantity: orderItems.quantity }).from(orderItems).where(eq(orderItems.orderId, current.orderId));
@@ -64,7 +92,7 @@ export async function changeReturnStatus(tx: Tx, input: { returnId: string; next
   }
   await tx.insert(auditLogs).values({
     actorUserId: input.actorUserId, action: "RETURN_STATUS_CHANGED", entityType: "return", entityId: current.id,
-    metadata: { orderId: current.orderId, from: current.status, to: input.next, by: input.by, notes },
+    metadata: { orderId: current.orderId, from: current.status, to: input.next, by: input.by, notes, ...(returnShipping ? { returnShipping } : {}) },
   });
   return { id: updated.id, status: updated.status, orderStatus };
 }
@@ -127,7 +155,7 @@ export async function markReturnRefunded(tx: Tx, input: { returnId: string; amou
 }
 
 export type ReturnRow = {
-  id: string; status: ReturnStatus; reason: string | null; rejectionReason: string | null; createdAt: Date; updatedAt: Date;
+  id: string; status: ReturnStatus; reason: string | null; rejectionReason: string | null; returnShippingFeePaise: number; createdAt: Date; updatedAt: Date;
   orderId: string; orderNumber: string; deliveredAt: Date | null; customerName: string; city: string | null; state: string | null;
   sellerId: string; storeName: string;
   items: Array<{ orderItemId: string; title: string; sku: string; quantity: number; unitPricePaise: number; reason: string | null }>;
@@ -148,7 +176,7 @@ export async function listReturns(db: Db, input: { sellerId?: string; status?: R
   }
   const filter = where.length ? and(...where) : undefined;
   const base = () => db.select({
-    id: returns.id, status: returns.status, reason: returns.reason, rejectionReason: returns.rejectionReason, createdAt: returns.createdAt, updatedAt: returns.updatedAt,
+    id: returns.id, status: returns.status, reason: returns.reason, rejectionReason: returns.rejectionReason, returnShippingFeePaise: returns.returnShippingFeePaise, createdAt: returns.createdAt, updatedAt: returns.updatedAt,
     orderId: orders.id, orderNumber: orders.orderNumber, deliveredAt: orders.deliveredAt, customerName: customers.fullName,
     city: sql<string | null>`${orders.shippingAddressSnapshot}->>'city'`, state: sql<string | null>`${orders.shippingAddressSnapshot}->>'state'`,
     sellerId: sellers.id, storeName: sellers.storeName,

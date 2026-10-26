@@ -40,7 +40,7 @@ const started = new Date();
 const original = { balance: me.wallet_balance_paise, settings: (await seller("/api/v1/shipping-settings")).json?.settings ?? null,
   details: (await sql`select value from platform_settings where key = 'wallet_payment_details'`)[0]?.value ?? null };
 const [product] = await sql`select v.id variant_id from product_variants v join products p on p.id = v.product_id join inventory i on i.variant_id = v.id
-  where p.seller_id = ${me.id} and p.status = 'LIVE' and v.is_active and v.weight_grams > 0 and i.on_hand - i.reserved >= 3 order by p.created_at limit 1`;
+  where p.seller_id = ${me.id} and p.status = 'LIVE' and v.is_active and v.weight_grams > 0 and v.price_paise >= 30100 and i.on_hand - i.reserved >= 3 order by p.created_at limit 1`;
 if (!product) throw new Error("Need a stocked live product from the demo seller.");
 const orders = [];
 async function tidy() {
