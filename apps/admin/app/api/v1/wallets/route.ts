@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     await requireStaff(request, "payments");
     const db = createDatabase();
     const [topUps, balances] = await Promise.all([
-      db.select({ id: sellerWalletTopUps.id, sellerId: sellerWalletTopUps.sellerId, storeName: sellers.storeName, balancePaise: sellers.walletBalancePaise, amountPaise: sellerWalletTopUps.amountPaise, reference: sellerWalletTopUps.reference, status: sellerWalletTopUps.status, adminNote: sellerWalletTopUps.adminNote, createdAt: sellerWalletTopUps.createdAt, decidedAt: sellerWalletTopUps.decidedAt })
+      db.select({ id: sellerWalletTopUps.id, sellerId: sellerWalletTopUps.sellerId, storeName: sellers.storeName, balancePaise: sellers.walletBalancePaise, amountPaise: sellerWalletTopUps.amountPaise, reference: sellerWalletTopUps.reference, hasProof: sql<boolean>`${sellerWalletTopUps.proofKey} is not null`, status: sellerWalletTopUps.status, adminNote: sellerWalletTopUps.adminNote, createdAt: sellerWalletTopUps.createdAt, decidedAt: sellerWalletTopUps.decidedAt })
         .from(sellerWalletTopUps).innerJoin(sellers, eq(sellers.id, sellerWalletTopUps.sellerId))
         .orderBy(sql`(${sellerWalletTopUps.status} = 'PENDING') desc`, desc(sellerWalletTopUps.createdAt)).limit(200),
       db.select({ sellerId: sellers.id, storeName: sellers.storeName, balancePaise: sellers.walletBalancePaise,

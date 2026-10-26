@@ -17,7 +17,7 @@ export async function GET(request: Request) {
       db.select({ id: sellerWalletTransactions.id, type: sellerWalletTransactions.type, amountPaise: sellerWalletTransactions.amountPaise, balanceAfterPaise: sellerWalletTransactions.balanceAfterPaise, note: sellerWalletTransactions.note, createdAt: sellerWalletTransactions.createdAt, orderNumber: orders.orderNumber })
         .from(sellerWalletTransactions).leftJoin(shipments, eq(shipments.id, sellerWalletTransactions.shipmentId)).leftJoin(orders, eq(orders.id, shipments.orderId))
         .where(eq(sellerWalletTransactions.sellerId, sellerId)).orderBy(desc(sellerWalletTransactions.createdAt)).limit(100),
-      db.select({ id: sellerWalletTopUps.id, amountPaise: sellerWalletTopUps.amountPaise, reference: sellerWalletTopUps.reference, status: sellerWalletTopUps.status, adminNote: sellerWalletTopUps.adminNote, createdAt: sellerWalletTopUps.createdAt })
+      db.select({ id: sellerWalletTopUps.id, amountPaise: sellerWalletTopUps.amountPaise, reference: sellerWalletTopUps.reference, hasProof: sql<boolean>`${sellerWalletTopUps.proofKey} is not null`, status: sellerWalletTopUps.status, adminNote: sellerWalletTopUps.adminNote, createdAt: sellerWalletTopUps.createdAt })
         .from(sellerWalletTopUps).where(eq(sellerWalletTopUps.sellerId, sellerId)).orderBy(desc(sellerWalletTopUps.createdAt)).limit(20),
     ]);
     const balance = seller?.balance ?? 0;

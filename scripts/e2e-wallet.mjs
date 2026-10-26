@@ -5,6 +5,8 @@
 // seed and all three apps against a NON-PRODUCTION database.
 //   ALLOW_E2E=YES SELLER_URL=… ADMIN_URL=… STOREFRONT_URL=… pnpm e2e:wallet
 import { neon } from "@neondatabase/serverless";
+import { rm } from "node:fs/promises";
+import path from "node:path";
 
 if (process.env.NODE_ENV === "production") throw new Error("E2E test is disabled when NODE_ENV=production.");
 if (process.env.ALLOW_E2E !== "YES") throw new Error("Set ALLOW_E2E=YES to run the E2E test (it writes test data).");
@@ -21,16 +23,19 @@ const check = (n, ok, x = "") => { ok ? pass++ : fail++; console.log((ok ? "PASS
 
 function client(base) {
   let cookie = "";
-  return async (path, { method = "GET", body } = {}) => {
+  const call = async (url, { method = "GET", body, form } = {}) => {
     const headers = { cookie };
     if (body) headers["content-type"] = "application/json";
-    const res = await fetch(path.startsWith("http") ? path : base + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    const res = await fetch(url.startsWith("http") ? url : base + url, { method, headers, body: form ?? (body ? JSON.stringify(body) : undefined) });
     const set = res.headers.getSetCookie?.() ?? [];
     if (set.length) cookie = set.map((c) => c.split(";")[0]).join("; ");
     return { status: res.status, json: await res.json().catch(() => null) };
   };
+  call.cookie = () => cookie;
+  return call;
 }
 const shop = client(SF), admin = client(AD), seller = client(SE);
+const adminCookie = admin.cookie, sellerCookie = seller.cookie;
 await shop("/api/auth/login", { method: "POST", body: { email: "demo.customer@azadimart.test", password: PW } });
 await admin("/api/auth/login", { method: "POST", body: { email: "demo.admin@azadimart.test", password: PW } });
 await seller("/api/auth/login", { method: "POST", body: { email: "demo.seller@azadimart.test", password: PW } });
@@ -47,6 +52,10 @@ async function tidy() {
   for (const id of orders) { await sql`update orders set status = 'CANCELLED' where id = ${id}`; }
   if (orders.length) await sql`update inventory set reserved = greatest(0, reserved - ${orders.length}) where variant_id = ${product.variant_id}`;
   await sql`delete from seller_wallet_transactions where seller_id = ${me.id} and created_at >= ${started}`;
+  // The payment screenshots (local test storage) go with the requests.
+  for (const t of await sql`select proof_key from seller_wallet_top_ups where seller_id = ${me.id} and created_at >= ${started} and proof_key is not null`) {
+    await rm(path.join(process.env.LOCAL_STORAGE_DIR?.trim() || path.join(process.cwd(), ".data"), t.proof_key), { force: true }).catch(() => undefined);
+  }
   await sql`delete from seller_wallet_top_ups where seller_id = ${me.id} and created_at >= ${started}`;
   await sql`update sellers set wallet_balance_paise = ${original.balance} where id = ${me.id}`;
   if (original.settings) await seller("/api/v1/shipping-settings", { method: "PATCH", body: original.settings });
@@ -59,34 +68,51 @@ await sql`update sellers set wallet_balance_paise = 0 where id = ${me.id}`;
 await sql`update seller_wallet_top_ups set status = 'REJECTED' where seller_id = ${me.id} and status = 'PENDING'`;
 const balance = async () => (await sql`select wallet_balance_paise b from sellers where id = ${me.id}`)[0].b;
 
-// --- top-ups
+// --- top-ups (amount, UTR and a payment screenshot, which is required)
+const PNG = Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64"));
+function topUp(amountPaise, reference, file = new Blob([PNG], { type: "image/png" })) {
+  const form = new FormData();
+  form.set("amountPaise", String(amountPaise)); form.set("reference", reference);
+  if (file) form.set("file", file, "payment.png");
+  return seller("/api/v1/wallet/top-ups", { method: "POST", form });
+}
 let r = await seller("/api/v1/wallet");
 check("seller sees an empty wallet with ₹500 room", r.status === 200 && r.json.balancePaise === 0 && r.json.roomPaise === 50000 && r.json.maxPaise === 50000, JSON.stringify(r.json && { b: r.json.balancePaise, room: r.json.roomPaise }));
-r = await seller("/api/v1/wallet/top-ups", { method: "POST", body: { amountPaise: 60000, reference: `E2E${RUN}A` } });
+r = await topUp(60000, `E2E${RUN}A`);
 check("can't ask for more than ₹500", r.status === 400, String(r.status));
-r = await seller("/api/v1/wallet/top-ups", { method: "POST", body: { amountPaise: 30000, reference: `E2E${RUN}A` } });
+r = await topUp(30000, `E2E${RUN}N`, null);
+check("payment screenshot is required", r.status === 400 && /screenshot/i.test(r.json?.error?.message ?? ""), JSON.stringify(r.json));
+r = await topUp(30000, `E2E${RUN}N`, new Blob(["not an image"], { type: "image/png" }));
+check("only images or PDFs are accepted", r.status === 400, String(r.status));
+r = await seller("/api/v1/wallet/top-ups", { method: "POST", body: { amountPaise: 30000, reference: `E2E${RUN}J` } });
+check("old JSON request without a screenshot is refused", r.status === 400, String(r.status));
+r = await topUp(30000, `E2E${RUN}A`);
 const topA = r.json?.id;
 check("seller requests a ₹300 top-up", r.status === 201 && r.json?.status === "PENDING", String(r.status));
-r = await seller("/api/v1/wallet/top-ups", { method: "POST", body: { amountPaise: 30000, reference: `E2E${RUN}B` } });
+r = await topUp(30000, `E2E${RUN}B`);
 check("waiting requests count towards the ₹500 limit", r.status === 400 && /₹200/.test(r.json?.error?.message ?? ""), r.json?.error?.message);
-r = await seller("/api/v1/wallet/top-ups", { method: "POST", body: { amountPaise: 10000, reference: `e2e${RUN}a` } });
+r = await topUp(10000, `e2e${RUN}a`);
 check("the same payment reference can't be sent twice", r.status === 409, String(r.status));
 check("money isn't added before approval", (await balance()) === 0);
 check("sellers can't approve their own top-up", [401, 403].includes((await seller(`${AD}/api/v1/wallets/top-ups/${topA}`, { method: "POST", body: { decision: "APPROVE" } })).status));
 r = await admin("/api/v1/wallets");
-check("admin sees the waiting request", r.json?.topUps?.some((t) => t.id === topA && t.status === "PENDING"));
+check("admin sees the waiting request", r.json?.topUps?.some((t) => t.id === topA && t.status === "PENDING" && t.hasProof === true));
+const shot = await fetch(`${AD}/api/v1/wallets/top-ups/${topA}/proof`, { headers: { cookie: adminCookie() } });
+check("admin opens the payment screenshot", shot.status === 200 && shot.headers.get("content-type") === "image/png" && (await shot.arrayBuffer()).byteLength === PNG.length);
+check("sellers can't open it through admin", [401, 403].includes((await seller(`${AD}/api/v1/wallets/top-ups/${topA}/proof`)).status));
+check("seller opens their own screenshot", (await fetch(`${SE}/api/v1/wallet/top-ups/${topA}/proof`, { headers: { cookie: sellerCookie() } })).status === 200);
 r = await admin(`/api/v1/wallets/top-ups/${topA}`, { method: "POST", body: { decision: "APPROVE" } });
 check("admin approves: ₹300 added", r.status === 200 && (await balance()) === 30000, JSON.stringify(r.json));
 r = await admin(`/api/v1/wallets/top-ups/${topA}`, { method: "POST", body: { decision: "APPROVE" } });
 check("a request can't be approved twice", r.status === 409 && (await balance()) === 30000, String(r.status));
-r = await seller("/api/v1/wallet/top-ups", { method: "POST", body: { amountPaise: 15000, reference: `E2E${RUN}C` } });
+r = await topUp(15000, `E2E${RUN}C`);
 const topC = r.json?.id;
 r = await admin(`/api/v1/wallets/top-ups/${topC}`, { method: "POST", body: { decision: "REJECT" } });
 check("rejecting needs a reason", r.status === 400, String(r.status));
 r = await admin(`/api/v1/wallets/top-ups/${topC}`, { method: "POST", body: { decision: "REJECT", note: "Payment not received in our account" } });
 const w = (await seller("/api/v1/wallet")).json;
 check("seller sees the rejection reason; balance unchanged", w.topUps.some((t) => t.id === topC && t.status === "REJECTED" && t.adminNote) && w.balancePaise === 30000);
-r = await seller("/api/v1/wallet/top-ups", { method: "POST", body: { amountPaise: 15000, reference: `E2E${RUN}C` } });
+r = await topUp(15000, `E2E${RUN}C`);
 check("a rejected reference can be sent again", r.status === 201, String(r.status));
 await admin(`/api/v1/wallets/top-ups/${r.json?.id}`, { method: "POST", body: { decision: "REJECT", note: "Test" } });
 

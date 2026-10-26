@@ -207,6 +207,9 @@ export const sellerWalletTopUps = pgTable(
     amountPaise: integer("amount_paise").notNull(),
     /** Bank / UPI transaction reference (UTR) the seller paid with. */
     reference: text("reference").notNull(),
+    /** Private screenshot/PDF of the payment (payment-proofs/…); required for new requests. */
+    proofKey: text("proof_key"),
+    proofMimeType: text("proof_mime_type"),
     status: walletTopUpStatusEnum("status").notNull().default("PENDING"),
     adminNote: text("admin_note"),
     decidedByUserId: uuid("decided_by_user_id").references(() => users.id),

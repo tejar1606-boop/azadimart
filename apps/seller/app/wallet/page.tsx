@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { PortalPageHeader } from "@azadimart/ui";
 
 type Txn = { id: string; type: "TOP_UP" | "COURIER_CHARGE" | "COURIER_REFUND" | "ADJUSTMENT"; amountPaise: number; balanceAfterPaise: number; note: string | null; createdAt: string; orderNumber: string | null };
-type TopUp = { id: string; amountPaise: number; reference: string; status: "PENDING" | "APPROVED" | "REJECTED"; adminNote: string | null; createdAt: string };
+type TopUp = { id: string; amountPaise: number; reference: string; hasProof?: boolean; status: "PENDING" | "APPROVED" | "REJECTED"; adminNote: string | null; createdAt: string };
 type PaymentDetails = { accountName: string; bankName: string; accountNumber: string; ifsc: string; upiId: string; note: string };
 type Wallet = { balancePaise: number; maxPaise: number; pendingPaise: number; roomPaise: number; spentLast30DaysPaise: number; history: Txn[]; topUps: TopUp[]; paymentDetails: PaymentDetails | null };
 
@@ -28,6 +28,8 @@ export default function WalletPage() {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [amount, setAmount] = useState("");
   const [reference, setReference] = useState("");
+  const [proof, setProof] = useState<File | null>(null);
+  const [proofKey, setProofKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -41,13 +43,18 @@ export default function WalletPage() {
     event.preventDefault();
     setBusy(true); setMessage(null);
     try {
-      const r = await fetch("/api/v1/wallet/top-ups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ amountPaise: Math.round(Number(amount) * 100), reference: reference.trim() }) });
+      if (!proof) throw new Error("Attach the payment screenshot");
+      const form = new FormData();
+      form.set("amountPaise", String(Math.round(Number(amount) * 100)));
+      form.set("reference", reference.trim());
+      form.set("file", proof);
+      const r = await fetch("/api/v1/wallet/top-ups", { method: "POST", body: form });
       const b = await r.json().catch(() => null);
       if (!r.ok) {
         const detail = Array.isArray(b?.error?.details) && b.error.details[0] ? b.error.details[0].message : "";
         throw new Error(detail || b?.error?.message || "Couldn't send the request");
       }
-      setAmount(""); setReference("");
+      setAmount(""); setReference(""); setProof(null); setProofKey((k) => k + 1);
       setMessage({ ok: true, text: "Sent. We'll add it to your wallet once we see the payment in our account." });
       await load();
     } catch (e) { setMessage({ ok: false, text: e instanceof Error ? e.message : "Couldn't send the request" }); }
@@ -94,7 +101,7 @@ export default function WalletPage() {
           ) : null}
           <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-slate-600">
             <li>{wallet?.paymentDetails ? "Pay LOIMART by bank transfer or UPI using the details above." : "Pay LOIMART by bank transfer or UPI, using the account details our team shared with you."}</li>
-            <li>Enter the amount and the payment reference (UTR) below.</li>
+            <li>Enter the amount and the payment reference (UTR), and attach a screenshot of the payment.</li>
             <li>We add it to your wallet once we see the payment.</li>
           </ol>
           <form onSubmit={requestTopUp} className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -104,7 +111,11 @@ export default function WalletPage() {
             <label className="text-sm font-medium">Payment reference (UTR)
               <input required minLength={6} maxLength={40} value={reference} onChange={(e) => setReference(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm uppercase outline-none focus:border-slate-900" placeholder="e.g. 4321ABCD9876" />
             </label>
-            <button disabled={busy || !wallet?.roomPaise} className="rounded-full bg-chrome px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40 sm:col-span-2">{busy ? "Sending…" : wallet && !wallet.roomPaise ? "Wallet is full" : "Send top-up request"}</button>
+            <label className="text-sm font-medium sm:col-span-2">Payment screenshot <span className="text-red-600">*</span>
+              <input key={proofKey} type="file" required accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(e) => setProof(e.target.files?.[0] ?? null)} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded-full file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold" />
+              <span className="mt-1 block text-xs font-normal text-slate-500">The bank or UPI app screen showing the amount, the UTR and LOIMART as the receiver. JPG, PNG, WebP or PDF, under 10 MB.</span>
+            </label>
+            <button disabled={busy || !wallet?.roomPaise || !proof} className="rounded-full bg-chrome px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40 sm:col-span-2">{busy ? "Sending…" : wallet && !wallet.roomPaise ? "Wallet is full" : "Send top-up request"}</button>
           </form>
           {message ? <p className={"mt-3 rounded-lg px-3 py-2 text-sm " + (message.ok ? "bg-green-50 text-green-800" : "bg-red-50 text-red-700")}>{message.text}</p> : null}
           <p className="mt-3 text-[11px] text-slate-400">Wallet money can only pay LOIMART courier fees. It can&apos;t be withdrawn or sent to anyone.</p>
@@ -117,7 +128,7 @@ export default function WalletPage() {
           <ul className="mt-3 divide-y divide-slate-100 text-sm">
             {wallet.topUps.map((t) => (
               <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-                <span><b>{rupees(t.amountPaise)}</b> <span className="text-slate-500">· ref {t.reference} · {new Date(t.createdAt).toLocaleDateString("en-IN")}</span>{t.status === "REJECTED" && t.adminNote ? <span className="block text-xs text-red-700">{t.adminNote}</span> : null}</span>
+                <span><b>{rupees(t.amountPaise)}</b> <span className="text-slate-500">· ref {t.reference} · {new Date(t.createdAt).toLocaleDateString("en-IN")}</span>{t.hasProof ? <> · <a href={`/api/v1/wallet/top-ups/${t.id}/proof`} target="_blank" rel="noreferrer" className="text-xs font-semibold underline">screenshot</a></> : null}{t.status === "REJECTED" && t.adminNote ? <span className="block text-xs text-red-700">{t.adminNote}</span> : null}</span>
                 <span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + STATUS[t.status][1]}>{STATUS[t.status][0]}</span>
               </li>
             ))}

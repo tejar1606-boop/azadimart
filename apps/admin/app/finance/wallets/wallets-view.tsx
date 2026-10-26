@@ -4,12 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import { PortalPageHeader } from "@azadimart/ui";
 import PaymentDetailsForm from "./payment-details-form";
 
-type TopUp = { id: string; sellerId: string; storeName: string; balancePaise: number; amountPaise: number; reference: string; status: "PENDING" | "APPROVED" | "REJECTED"; adminNote: string | null; createdAt: string; decidedAt: string | null };
+type TopUp = { id: string; sellerId: string; storeName: string; balancePaise: number; amountPaise: number; reference: string; hasProof: boolean; status: "PENDING" | "APPROVED" | "REJECTED"; adminNote: string | null; createdAt: string; decidedAt: string | null };
 type Balance = { sellerId: string; storeName: string; balancePaise: number; lastActivity: string | null };
 type Data = { maxPaise: number; topUps: TopUp[]; balances: Balance[]; totalHeldPaise: number };
 
 const rupees = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
-const REASONS = ["Payment not received in our account", "Amount doesn't match the payment", "Reference not found", "Would exceed the ₹500 wallet limit"];
+const REASONS = ["Payment not received in our account", "Amount doesn't match the payment", "Reference not found", "Screenshot doesn't show the payment", "Would exceed the ₹500 wallet limit"];
 
 /** Seller courier wallets: check payments and credit top-ups; see what each seller holds. */
 export default function WalletsView() {
@@ -55,6 +55,7 @@ export default function WalletsView() {
                 <div className="text-sm">
                   <p><b>{t.storeName}</b> wants to add <b>{rupees(t.amountPaise)}</b></p>
                   <p className="text-xs text-slate-500">Reference <span className="font-mono font-semibold text-slate-800">{t.reference}</span> · sent {new Date(t.createdAt).toLocaleString("en-IN")} · balance now {rupees(t.balancePaise)}</p>
+                  {t.hasProof ? <a href={`/api/v1/wallets/top-ups/${t.id}/proof`} target="_blank" rel="noreferrer" className="mt-1 inline-flex text-xs font-semibold text-slate-900 underline">View payment screenshot ↗</a> : <p className="mt-1 text-xs font-semibold text-amber-700">No payment screenshot (sent before screenshots were required)</p>}
                 </div>
                 <div className="flex gap-2">
                   <button type="button" disabled={busy === t.id} onClick={() => void decide(t, "APPROVE")} className="rounded-full bg-green-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Money received · approve</button>
@@ -81,7 +82,7 @@ export default function WalletsView() {
             <ul className="mt-3 divide-y divide-slate-100 text-sm">
               {decided.map((t) => (
                 <li key={t.id} className="py-2">
-                  <p className="flex justify-between gap-2"><span>{t.storeName} · {rupees(t.amountPaise)} · <span className="font-mono text-xs">{t.reference}</span></span><span className={"text-xs font-semibold " + (t.status === "APPROVED" ? "text-green-700" : "text-red-600")}>{t.status === "APPROVED" ? "Added" : "Rejected"}</span></p>
+                  <p className="flex justify-between gap-2"><span>{t.storeName} · {rupees(t.amountPaise)} · <span className="font-mono text-xs">{t.reference}</span>{t.hasProof ? <> · <a href={`/api/v1/wallets/top-ups/${t.id}/proof`} target="_blank" rel="noreferrer" className="text-xs underline">screenshot</a></> : null}</span><span className={"text-xs font-semibold " + (t.status === "APPROVED" ? "text-green-700" : "text-red-600")}>{t.status === "APPROVED" ? "Added" : "Rejected"}</span></p>
                   {t.adminNote ? <p className="text-xs text-slate-500">{t.adminNote}</p> : null}
                 </li>
               ))}

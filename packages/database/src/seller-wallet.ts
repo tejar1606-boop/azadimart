@@ -48,8 +48,8 @@ export async function refundCourierToWallet(tx: Tx, shipmentId: string, userId?:
   return row.paid;
 }
 
-/** Seller asks to add money they paid to LOIMART (bank transfer / UPI). Must fit under ₹500 with other waiting requests. */
-export async function requestWalletTopUp(db: Db, input: { sellerId: string; amountPaise: number; reference: string; userId: string }): Promise<string> {
+/** Seller asks to add money they paid to LOIMART (bank transfer / UPI) with a screenshot of the payment. Must fit under ₹500 with other waiting requests. */
+export async function requestWalletTopUp(db: Db, input: { sellerId: string; amountPaise: number; reference: string; userId: string; proof: { key: string; mimeType: string } }): Promise<string> {
   return db.transaction(async (tx) => {
     const balance = await lockBalance(tx, input.sellerId);
     const pending = Number((await tx.select({ n: sql<number>`coalesce(sum(${sellerWalletTopUps.amountPaise}), 0)::int` }).from(sellerWalletTopUps)
@@ -59,7 +59,7 @@ export async function requestWalletTopUp(db: Db, input: { sellerId: string; amou
     const used = (await tx.select({ id: sellerWalletTopUps.id }).from(sellerWalletTopUps)
       .where(and(sql`upper(${sellerWalletTopUps.reference}) = ${input.reference.toUpperCase()}`, sql`${sellerWalletTopUps.status} <> 'REJECTED'`)).limit(1))[0];
     if (used) throw new AppError("CONFLICT", "This payment reference was already sent. Check your wallet history.");
-    const row = (await tx.insert(sellerWalletTopUps).values({ sellerId: input.sellerId, amountPaise: input.amountPaise, reference: input.reference.toUpperCase() }).returning({ id: sellerWalletTopUps.id }))[0]!;
+    const row = (await tx.insert(sellerWalletTopUps).values({ sellerId: input.sellerId, amountPaise: input.amountPaise, reference: input.reference.toUpperCase(), proofKey: input.proof.key, proofMimeType: input.proof.mimeType }).returning({ id: sellerWalletTopUps.id }))[0]!;
     await tx.insert(auditLogs).values({ actorUserId: input.userId, action: "WALLET_TOP_UP_REQUESTED", entityType: "seller_wallet_top_up", entityId: row.id, metadata: { sellerId: input.sellerId, amountPaise: input.amountPaise, reference: input.reference } });
     return row.id;
   });
