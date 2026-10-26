@@ -4,12 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import { PortalPageHeader } from "@azadimart/ui";
 import PaymentDetailsForm from "./payment-details-form";
 
-type TopUp = { id: string; sellerId: string; storeName: string; balancePaise: number; amountPaise: number; reference: string; hasProof: boolean; status: "PENDING" | "APPROVED" | "REJECTED"; adminNote: string | null; createdAt: string; decidedAt: string | null };
+type TopUp = { id: string; sellerId: string; storeName: string; balancePaise: number; amountPaise: number; reference: string; hasProof: boolean; status: "PENDING" | "APPROVED" | "REJECTED"; adminNote: string | null; createdAt: string; decidedAt: string | null; decidedBy: string | null };
 type Balance = { sellerId: string; storeName: string; balancePaise: number; lastActivity: string | null };
 type Data = { maxPaise: number; topUps: TopUp[]; balances: Balance[]; totalHeldPaise: number };
 
 const rupees = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const REASONS = ["Payment not received in our account", "Amount doesn't match the payment", "Reference not found", "Screenshot doesn't show the payment", "Would exceed the ₹500 wallet limit"];
+
+const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
 
 /** Seller courier wallets: check payments and credit top-ups; see what each seller holds. */
 export default function WalletsView() {
@@ -83,6 +85,7 @@ export default function WalletsView() {
               {decided.map((t) => (
                 <li key={t.id} className="py-2">
                   <p className="flex justify-between gap-2"><span>{t.storeName} · {rupees(t.amountPaise)} · <span className="font-mono text-xs">{t.reference}</span>{t.hasProof ? <> · <a href={`/api/v1/wallets/top-ups/${t.id}/proof`} target="_blank" rel="noreferrer" className="text-xs underline">screenshot</a></> : null}</span><span className={"text-xs font-semibold " + (t.status === "APPROVED" ? "text-green-700" : "text-red-600")}>{t.status === "APPROVED" ? "Added" : "Rejected"}</span></p>
+                  <p className="text-xs text-slate-500">{t.status === "APPROVED" ? "Approved" : "Rejected"} {t.decidedAt ? when(t.decidedAt) : ""}{t.decidedBy ? ` by ${t.decidedBy}` : ""} · requested {when(t.createdAt)}</p>
                   {t.adminNote ? <p className="text-xs text-slate-500">{t.adminNote}</p> : null}
                 </li>
               ))}

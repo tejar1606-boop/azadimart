@@ -104,6 +104,9 @@ check("seller opens their own screenshot", (await fetch(`${SE}/api/v1/wallet/top
 r = await admin(`/api/v1/wallets/top-ups/${topA}`, { method: "POST", body: { decision: "APPROVE" } });
 check("admin approves: ₹300 added", r.status === 200 && (await balance()) === 30000, JSON.stringify(r.json));
 r = await admin(`/api/v1/wallets/top-ups/${topA}`, { method: "POST", body: { decision: "APPROVE" } });
+const approved = (await admin("/api/v1/wallets")).json?.topUps?.find((t) => t.id === topA);
+check("admin sees when and who approved it", approved?.decidedAt && Math.abs(Date.now() - new Date(approved.decidedAt).getTime()) < 120_000 && approved.decidedBy, JSON.stringify(approved && { at: approved.decidedAt, by: approved.decidedBy }));
+check("seller sees when it was added", (await seller("/api/v1/wallet")).json?.topUps?.some((t) => t.id === topA && t.decidedAt));
 check("a request can't be approved twice", r.status === 409 && (await balance()) === 30000, String(r.status));
 r = await topUp(15000, `E2E${RUN}C`);
 const topC = r.json?.id;

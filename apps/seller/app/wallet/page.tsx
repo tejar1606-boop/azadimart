@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { PortalPageHeader } from "@azadimart/ui";
 
 type Txn = { id: string; type: "TOP_UP" | "COURIER_CHARGE" | "COURIER_REFUND" | "ADJUSTMENT"; amountPaise: number; balanceAfterPaise: number; note: string | null; createdAt: string; orderNumber: string | null };
-type TopUp = { id: string; amountPaise: number; reference: string; hasProof?: boolean; status: "PENDING" | "APPROVED" | "REJECTED"; adminNote: string | null; createdAt: string };
+type TopUp = { id: string; amountPaise: number; reference: string; hasProof?: boolean; status: "PENDING" | "APPROVED" | "REJECTED"; adminNote: string | null; createdAt: string; decidedAt?: string | null };
 type PaymentDetails = { accountName: string; bankName: string; accountNumber: string; ifsc: string; upiId: string; note: string };
 type Wallet = { balancePaise: number; maxPaise: number; pendingPaise: number; roomPaise: number; spentLast30DaysPaise: number; history: Txn[]; topUps: TopUp[]; paymentDetails: PaymentDetails | null };
 
@@ -128,7 +128,7 @@ export default function WalletPage() {
           <ul className="mt-3 divide-y divide-slate-100 text-sm">
             {wallet.topUps.map((t) => (
               <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-                <span><b>{rupees(t.amountPaise)}</b> <span className="text-slate-500">· ref {t.reference} · {new Date(t.createdAt).toLocaleDateString("en-IN")}</span>{t.hasProof ? <> · <a href={`/api/v1/wallet/top-ups/${t.id}/proof`} target="_blank" rel="noreferrer" className="text-xs font-semibold underline">screenshot</a></> : null}{t.status === "REJECTED" && t.adminNote ? <span className="block text-xs text-red-700">{t.adminNote}</span> : null}</span>
+                <span><b>{rupees(t.amountPaise)}</b> <span className="text-slate-500">· ref {t.reference} · {new Date(t.createdAt).toLocaleDateString("en-IN")}</span>{t.hasProof ? <> · <a href={`/api/v1/wallet/top-ups/${t.id}/proof`} target="_blank" rel="noreferrer" className="text-xs font-semibold underline">screenshot</a></> : null}{t.decidedAt ? <span className="block text-xs text-slate-500">{t.status === "APPROVED" ? "Added" : "Rejected"} on {new Date(t.decidedAt).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}</span> : null}{t.status === "REJECTED" && t.adminNote ? <span className="block text-xs text-red-700">{t.adminNote}</span> : null}</span>
                 <span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + STATUS[t.status][1]}>{STATUS[t.status][0]}</span>
               </li>
             ))}
