@@ -421,6 +421,13 @@
       "when": 1793029119173,
       "tag": "20261026153839_wallet_top_up_proof",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1793080845947,
+      "tag": "20261027060045_address_recipient",
+      "breakpoints": true
     }
   ]
 }

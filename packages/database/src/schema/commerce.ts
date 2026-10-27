@@ -77,6 +77,7 @@ export const orders = pgTable(
     shippingAddressSnapshot: jsonb("shipping_address_snapshot").$type<{
       name?: string;
       phone?: string | null;
+      alternatePhone?: string | null;
       line1: string;
       line2?: string | null;
       city: string;

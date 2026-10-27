@@ -138,6 +138,10 @@ export const customerAddresses = pgTable(
       .notNull()
       .references(() => customers.id, { onDelete: "cascade" }),
     label: text("label"),
+    // Who receives the parcel; older addresses fall back to the customer's profile name and phone.
+    recipientName: text("recipient_name"),
+    recipientPhone: text("recipient_phone"),
+    alternatePhone: text("alternate_phone"),
     line1: text("line1").notNull(),
     line2: text("line2"),
     city: text("city").notNull(),

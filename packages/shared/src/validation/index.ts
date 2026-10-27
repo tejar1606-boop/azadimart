@@ -207,6 +207,9 @@ export const cartItemMutationSchema = z.object({
 export const cartRemoveSchema = z.object({ variantId: uuidSchema });
 export const addressSchema = z.object({
   label:z.string().trim().max(40).optional(),
+  recipientName:z.string().trim().min(2,"Enter the full name").max(80).optional(),
+  recipientPhone:z.string().trim().regex(/^[6-9][0-9]{9}$/,"Enter a valid 10-digit mobile number").optional(),
+  alternatePhone:z.union([z.literal(""),z.string().trim().regex(/^[6-9][0-9]{9}$/,"Enter a valid 10-digit alternate number")]).optional(),
   line1:z.string().trim().min(3).max(160),
   line2:z.string().trim().max(160).optional(),
   city:z.string().trim().min(2).max(80),

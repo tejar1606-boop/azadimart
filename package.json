@@ -52,6 +52,7 @@
     "e2e:customer-wallet": "node scripts/e2e-customer-wallet.mjs",
     "e2e:customer-referrals": "node scripts/e2e-customer-referrals.mjs",
     "e2e:platform-fee": "node scripts/e2e-platform-fee.mjs",
+    "e2e:address-form": "node scripts/e2e-address-form.mjs",
     "e2e:delivery-charges": "node scripts/e2e-delivery-charges.mjs",
     "e2e:stock-update": "node scripts/e2e-stock-update.mjs",
     "e2e:return-deadlines": "node scripts/e2e-return-deadlines.mjs",

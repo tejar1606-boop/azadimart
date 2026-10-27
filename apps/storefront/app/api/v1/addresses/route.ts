@@ -1,5 +1,5 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, customerAddresses } from "@azadimart/database";
+import { createDatabase, customerAddresses, customers, users } from "@azadimart/database";
 import { addressSchema, AppError, toApiError } from "@azadimart/shared";
 import { desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -11,11 +11,15 @@ export async function GET(request: Request) {
     if (!session.customerId) throw new AppError("UNAUTHORIZED", "Customer profile required");
     const db = createDatabase();
     const items = await db.select({
-      id: customerAddresses.id, label: customerAddresses.label, line1: customerAddresses.line1,
+      id: customerAddresses.id, label: customerAddresses.label, recipientName: customerAddresses.recipientName,
+      recipientPhone: customerAddresses.recipientPhone, alternatePhone: customerAddresses.alternatePhone, line1: customerAddresses.line1,
       line2: customerAddresses.line2, city: customerAddresses.city, state: customerAddresses.state,
       postalCode: customerAddresses.postalCode, country: customerAddresses.country, isDefault: customerAddresses.isDefault,
     }).from(customerAddresses).where(eq(customerAddresses.customerId, session.customerId)).orderBy(desc(customerAddresses.isDefault), desc(customerAddresses.updatedAt));
-    return NextResponse.json({ items });
+    // Pre-fills the name and mobile on a new address.
+    const contact = (await db.select({ name: customers.fullName, phone: users.phone }).from(customers)
+      .innerJoin(users, eq(users.id, customers.userId)).where(eq(customers.id, session.customerId)).limit(1))[0];
+    return NextResponse.json({ items, contact: { name: contact?.name ?? "", phone: (contact?.phone ?? "").replace(/^\+?91/, "") } });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);
     return NextResponse.json(body, { status });
@@ -38,6 +42,9 @@ export async function POST(request: Request) {
       return (await tx.insert(customerAddresses).values({
         customerId: session.customerId!,
         label: input.label ?? null,
+        recipientName: input.recipientName ?? null,
+        recipientPhone: input.recipientPhone ?? null,
+        alternatePhone: input.alternatePhone || null,
         line1: input.line1,
         line2: input.line2 ?? null,
         city: input.city,

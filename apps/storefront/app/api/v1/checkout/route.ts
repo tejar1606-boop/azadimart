@@ -40,6 +40,9 @@ export async function POST(request:Request){
         state:customerAddresses.state,
         postalCode:customerAddresses.postalCode,
         country:customerAddresses.country,
+        recipientName:customerAddresses.recipientName,
+        recipientPhone:customerAddresses.recipientPhone,
+        alternatePhone:customerAddresses.alternatePhone,
         customerName:customers.fullName,
         customerPhone:users.phone,
       }).from(customerAddresses)
@@ -122,7 +125,7 @@ export async function POST(request:Request){
       const order=(await tx.insert(orders).values({
         orderNumber:orderNumber(),customerId:session.customerId!,shippingAddressId:address.id,status:"CONFIRMED",shipByAt:new Date(Date.now()+SHIP_BY_DAYS*24*60*60*1000),
         subtotalPaise:subtotal,discountPaise:discount,walletPaise:wallet,shippingPaise:shipping,platformFeePaise:platformFee,cashbackPaise:cashback,grandTotalPaise:grandTotal,couponCode:couponCode??null,
-        shippingAddressSnapshot:{name:address.customerName,phone:address.customerPhone,line1:address.line1,line2:address.line2,city:address.city,state:address.state,postalCode:address.postalCode,country:address.country},
+        shippingAddressSnapshot:{name:address.recipientName??address.customerName,phone:address.recipientPhone??address.customerPhone,alternatePhone:address.alternatePhone,line1:address.line1,line2:address.line2,city:address.city,state:address.state,postalCode:address.postalCode,country:address.country},
       }).returning()).at(0);
       if(!order)throw new AppError("INTERNAL","Order creation failed",undefined,false);
 

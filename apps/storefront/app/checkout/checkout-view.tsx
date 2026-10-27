@@ -5,9 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { FREE_DELIVERY_FROM_PAISE, cashbackFor, customerPaysDelivery, walletUsable, type CashbackSettings } from "@azadimart/shared";
 import { CashbackRow } from "../components/cashback-row";
 import { PlatformFeeRow } from "../components/platform-fee-row";
+import { AddressSheet, type SavedAddress } from "./address-sheet";
 
 type CartItem={variantId:string;title:string;variantTitle:string;sku:string;quantity:number;pricePaise:number;lineTotalPaise:number;isAvailable?:boolean};
-type Address={id:string;label:string|null;line1:string;line2:string|null;city:string;state:string;postalCode:string;country:string;isDefault:boolean};
+type Address=SavedAddress;
 const money=(p:number)=>"₹"+(p/100).toLocaleString("en-IN",{maximumFractionDigits:0});
 
 export default function CheckoutView(){
@@ -23,9 +24,7 @@ export default function CheckoutView(){
   const [busy,setBusy]=useState(true);
   const [working,setWorking]=useState(false);
   const [error,setError]=useState("");
-  const [formError,setFormError]=useState("");
-  const [addressType,setAddressType]=useState<""|"Home"|"Office"|"Others">("");
-  const [newAddress,setNewAddress]=useState({label:"",line1:"",line2:"",city:"",state:"",postalCode:""});
+  const [contact,setContact]=useState({name:"",phone:""});
   const [showAddressForm,setShowAddressForm]=useState(false);
   // Buy now (/checkout?buy=<variantId>): order only that item; the rest of the cart stays saved.
   const [buyOnly,setBuyOnly]=useState<string[]>();
@@ -50,6 +49,7 @@ export default function CheckoutView(){
         setCart({...cartBody,items:chosen,subtotalPaise:chosen.filter(item=>item.isAvailable!==false).reduce((sum,item)=>sum+item.lineTotalPaise,0)});
       }else setCart(cartBody);
       setAddresses(addressBody.items??[]);
+      if(addressBody.contact)setContact(addressBody.contact);
       const defaultAddress=(addressBody.items??[]).find((v:Address)=>v.isDefault)||addressBody.items?.[0];
       if(defaultAddress)setSelectedAddress(defaultAddress.id);
     }catch(err){setError(err instanceof Error?err.message:"Unable to load checkout.");}
@@ -98,18 +98,7 @@ export default function CheckoutView(){
     finally{setWorking(false);}
   }
 
-  async function saveAddress(){
-    if(!addressType){setFormError("Choose Home, Office or Others for this address.");return;}
-    if(!newAddress.label.trim()){setFormError("Give this address a name, e.g. Mom's house.");return;}
-    setWorking(true);setFormError("");
-    try{
-      const response=await fetch("/api/v1/addresses",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...newAddress,country:"IN",isDefault:addresses.length===0})});
-      const body=await response.json();if(!response.ok)throw new Error(body?.error?.message??"Unable to save address.");
-      setAddresses(v=>[body.item,...v]);setSelectedAddress(body.item.id);setShowAddressForm(false);
-      setNewAddress({label:"",line1:"",line2:"",city:"",state:"",postalCode:""});setAddressType("");
-    }catch(err){setFormError(err instanceof Error?err.message:"Unable to save address.");}
-    finally{setWorking(false);}
-  }
+
 
   async function placeOrder(){
     if(!selectedAddress||!cart)return;
@@ -133,9 +122,9 @@ export default function CheckoutView(){
       {(!cart||cart.items.length===0)?<div className="mt-8 rounded-[2rem] border border-dashed border-slate-300 bg-white p-12 text-center"><p className="text-xl font-bold">Your cart is empty.</p><Link href="/products" className="mt-5 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white">Continue shopping</Link></div>:
       <div className="mt-7 grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
         <div className="space-y-5">
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-5 sm:p-7"><div className="flex items-center justify-between"><div><h2 className="text-lg font-bold">Delivery address</h2><p className="mt-1 text-xs text-slate-500">Use an address where the order can be delivered.</p></div><button type="button" onClick={()=>setShowAddressForm(v=>!v)} className="rounded-full border px-4 py-2 text-xs font-bold">{showAddressForm?"Close":"Add address"}</button></div>
-            {showAddressForm?<div className="mt-5 grid gap-3 sm:grid-cols-2"><Input label="PIN code" placeholder="6-digit PIN code" numeric value={newAddress.postalCode} onChange={v=>setNewAddress(a=>({...a,postalCode:v}))}/><Input label="House no., building, street" placeholder="e.g. 12-4, Sai Residency, MG Road" value={newAddress.line1} onChange={v=>setNewAddress(a=>({...a,line1:v}))} wide/><Input label="Area, landmark (optional)" placeholder="e.g. Near Ram Temple" value={newAddress.line2} onChange={v=>setNewAddress(a=>({...a,line2:v}))} wide/><Input label="City / town" value={newAddress.city} onChange={v=>setNewAddress(a=>({...a,city:v}))}/><Input label="State" value={newAddress.state} onChange={v=>setNewAddress(a=>({...a,state:v}))}/><div className="border-t border-slate-100 pt-4 text-sm font-semibold sm:col-span-2">Save address as <span className="text-red-600">*</span><div className="mt-2 flex flex-wrap gap-2">{(["Home","Office","Others"] as const).map(type=><button key={type} type="button" onClick={()=>{setAddressType(type);setFormError("");setNewAddress(a=>({...a,label:type==="Others"?"":type}))}} className={"rounded-full border px-5 py-2 text-sm "+(addressType===type?"border-slate-950 bg-slate-950 text-white":"border-slate-300 text-slate-700 hover:border-slate-950")}>{type}</button>)}</div>{addressType==="Others"?<input autoFocus maxLength={30} className="mt-3 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal placeholder:text-slate-400" placeholder="Name this address, e.g. Mom's house" value={newAddress.label} onChange={e=>setNewAddress(a=>({...a,label:e.target.value}))}/>:null}</div>{formError?<p className="text-sm font-semibold text-red-600 sm:col-span-2">{formError}</p>:null}<button type="button" disabled={working} onClick={()=>void saveAddress()} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white sm:col-span-2">Save address</button></div>:
-            <div className="mt-5 grid gap-3">{addresses.length===0?<p className="text-sm text-slate-500">Add your first delivery address.</p>:addresses.map(address=><label key={address.id} className={"flex cursor-pointer gap-3 rounded-2xl border p-4 "+(selectedAddress===address.id?"border-slate-950 ring-1 ring-slate-950":"border-slate-200")}><input type="radio" name="address" checked={selectedAddress===address.id} onChange={()=>setSelectedAddress(address.id)} className="mt-1"/><span className="min-w-0 text-sm"><span className="block font-bold">{address.label||"Address"} {address.isDefault?<em className="ml-2 rounded-full bg-slate-100 px-2 py-1 text-[10px] not-italic">Default</em>:null}</span><span className="mt-1 block leading-5 text-slate-500">{address.line1}{address.line2?", "+address.line2:""}, {address.city}, {address.state} — {address.postalCode}</span></span></label>)}</div>}
+          <section className="rounded-[2rem] border border-slate-200 bg-white p-5 sm:p-7"><div className="flex items-center justify-between"><div><h2 className="text-lg font-bold">Delivery address</h2><p className="mt-1 text-xs text-slate-500">Use an address where the order can be delivered.</p></div><button type="button" onClick={()=>setShowAddressForm(true)} className="rounded-full border px-4 py-2 text-xs font-bold">+ Add new address</button></div>
+            {showAddressForm?<AddressSheet contact={contact} first={addresses.length===0} onClose={()=>setShowAddressForm(false)} onSaved={item=>{setAddresses(v=>[item,...v]);setSelectedAddress(item.id);setShowAddressForm(false);}}/>:null}
+            <div className="mt-5 grid gap-3">{addresses.length===0?<button type="button" onClick={()=>setShowAddressForm(true)} className="rounded-2xl border border-dashed border-slate-300 p-5 text-left text-sm font-semibold text-brand hover:border-brand">+ Add your delivery address</button>:addresses.map(address=><label key={address.id} className={"flex cursor-pointer gap-3 rounded-2xl border p-4 "+(selectedAddress===address.id?"border-slate-950 ring-1 ring-slate-950":"border-slate-200")}><input type="radio" name="address" checked={selectedAddress===address.id} onChange={()=>setSelectedAddress(address.id)} className="mt-1"/><span className="min-w-0 text-sm"><span className="block font-bold">{address.label||"Address"} {address.isDefault?<em className="ml-2 rounded-full bg-slate-100 px-2 py-1 text-[10px] not-italic">Default</em>:null}</span><span className="mt-1 block leading-5 text-slate-500">{address.line1}{address.line2?", "+address.line2:""}, {address.city}, {address.state} — {address.postalCode}</span>{address.recipientName||address.recipientPhone?<span className="mt-1 block text-slate-700">{address.recipientName}{address.recipientPhone?" · "+address.recipientPhone:""}</span>:null}</span></label>)}</div>
           </section>
 
           <section className="rounded-[2rem] border border-slate-200 bg-white p-5 sm:p-7"><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">Items</h2><Link href="/cart" className="text-xs font-bold text-slate-500 hover:text-slate-950">Edit cart</Link></div><div className="mt-4 divide-y divide-slate-100">{cart.items.map(item=><div key={item.variantId} className="flex items-center justify-between gap-4 py-3"><div><p className="text-sm font-bold">{item.title}</p><p className="mt-1 text-xs text-slate-400">{item.variantTitle} · Qty {item.quantity}</p></div><p className="text-sm font-bold">{money(item.lineTotalPaise)}</p></div>)}</div></section>
@@ -158,5 +147,4 @@ export default function CheckoutView(){
   </main>;
 }
 
-function Input({label,value,onChange,wide,placeholder,numeric}:{label:string;value:string;onChange:(value:string)=>void;wide?:boolean;placeholder?:string;numeric?:boolean}){return <label className={"text-sm font-semibold "+(wide?"sm:col-span-2":"")}>{label}<input className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal placeholder:text-slate-400" placeholder={placeholder} inputMode={numeric?"numeric":undefined} maxLength={numeric?6:undefined} value={value} onChange={e=>onChange(numeric?e.target.value.replace(/\D/g,""):e.target.value)} /></label>}
 function Row({label,value,strong}:{label:string;value:string;strong?:boolean}){return <div className={"flex justify-between "+(strong?"pt-2 text-base font-bold":"text-slate-600")}><span>{label}</span><span className={strong?"text-slate-950":"text-slate-700"}>{value}</span></div>}
