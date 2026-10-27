@@ -18,7 +18,7 @@ for port in 3000 3001 3002 3003 3004; do
   nohup "$CLOUDFLARED" tunnel --no-autoupdate --url "http://localhost:$port" > "$log" 2>&1 &
   link=""
   for _ in {1..30}; do
-    link=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$log" | head -1)
+    link=$(grep -ao 'https://[a-z0-9-]*\.trycloudflare\.com' "$log" | head -1)
     [[ -n "$link" ]] && grep -q "Registered tunnel connection" "$log" && break
     sleep 2
   done
