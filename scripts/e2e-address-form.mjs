@@ -1,4 +1,5 @@
-// End-to-end test for the checkout "Deliver to" form: addresses keep the name,
+// End-to-end test for the checkout "Deliver to" form: PIN / location auto-fill;
+// addresses keep the name,
 // mobile and alternate number of the person receiving the parcel, the order's
 // delivery details use them, and sellers still never see a phone number.
 // Requires the demo seed and the apps (test server) against a NON-PRODUCTION
@@ -70,6 +71,18 @@ check("rejects a mobile number that isn't 10 digits", badPhone.status === 400, S
 const badAlt = await shop("/api/v1/addresses", { method: "POST", body: { ...body, alternatePhone: "55555" } });
 if (badAlt.json?.item?.id) addressIds.push(badAlt.json.item.id);
 check("rejects a bad alternate number", badAlt.status === 400, String(badAlt.status));
+
+// Auto-fill: a PIN code gives the city and state; a location gives area, city, state and PIN.
+await sql`delete from rate_limit_buckets where key like '%addressLookup%'`;
+const pin = await shop("/api/v1/geo?pin=560103");
+check("PIN code fills city and state", pin.status === 200 && pin.json?.found?.state === "Karnataka" && /bang|beng/i.test(pin.json.found.city), JSON.stringify(pin.json));
+const point = await shop("/api/v1/geo?lat=12.93521&lng=77.67664");
+check("current location fills area, city, state and PIN", point.status === 200 && point.json?.found?.state === "Karnataka" && point.json.found.postalCode === "560103" && point.json.found.area.length > 3, JSON.stringify(point.json));
+check("bad PIN code is rejected", (await shop("/api/v1/geo?pin=12")).status === 400);
+check("location outside India is rejected", (await shop("/api/v1/geo?lat=51.5&lng=-0.12")).status === 400);
+check("lookup needs a signed-in shopper", (await client(SF)("/api/v1/geo?pin=560103")).status === 401);
+const policy = (await fetch(SF + "/checkout", { redirect: "manual" })).headers.get("permissions-policy") ?? "";
+check("site allows its own pages to ask for location", policy.includes("geolocation=(self)"), policy);
 
 // The order uses the receiver's name and numbers.
 for (const item of savedCart) await shop("/api/v1/cart", { method: "DELETE", body: { variantId: item.variantId } });

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { INDIA_STATES } from "@azadimart/shared";
 
 export type SavedAddress = { id: string; label: string | null; recipientName: string | null; recipientPhone: string | null; alternatePhone: string | null; line1: string; line2: string | null; city: string; state: string; postalCode: string; country: string; isDefault: boolean };
 
-const STATES = ["Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chandigarh", "Chhattisgarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir", "Jharkhand", "Karnataka", "Kerala", "Ladakh", "Lakshadweep", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Puducherry", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"];
+const STATES = INDIA_STATES;
 const TYPES = ["Home", "Office", "Others"] as const;
 type AddressType = (typeof TYPES)[number];
 const digits = (v: string, max: number) => v.replace(/\D/g, "").slice(0, max);
@@ -35,6 +36,52 @@ export function AddressSheet({ contact, first, onClose, onSaved }: { contact: { 
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const set = (key: keyof typeof f) => (v: string) => { setF((x) => ({ ...x, [key]: v })); setError(""); };
+  const [locating, setLocating] = useState(false);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  // City/state the lookup filled in; a new PIN may replace these, never what the shopper typed.
+  const auto = useRef({ city: "", state: "" });
+
+  async function lookup(query: string) {
+    const r = await fetch("/api/v1/geo?" + query, { cache: "no-store" });
+    const b = await r.json().catch(() => null);
+    if (!r.ok) throw new Error(b?.error?.message ?? "Lookup failed");
+    return b as { found: { area: string; city: string; state: string; postalCode: string } | null; message?: string };
+  }
+  function fill(found: { area: string; city: string; state: string; postalCode: string }, withArea: boolean) {
+    setF((x) => ({
+      ...x,
+      line2: withArea && found.area ? found.area : x.line2,
+      postalCode: found.postalCode || x.postalCode,
+      city: found.city && (!x.city || x.city === auto.current.city || withArea) ? found.city : x.city,
+      state: found.state && (!x.state || x.state === auto.current.state || withArea) ? found.state : x.state,
+    }));
+    auto.current = { city: found.city, state: found.state };
+  }
+
+  // A full PIN code fills in the city and state.
+  useEffect(() => {
+    if (!/^[1-9][0-9]{5}$/.test(f.postalCode)) return;
+    let live = true;
+    lookup("pin=" + f.postalCode).then((b) => { if (!live) return; if (b.found) fill(b.found, false); else if (b.message) setNote({ ok: false, text: b.message }); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [f.postalCode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function useMyLocation() {
+    setNote(null);
+    if (!("geolocation" in navigator)) { setNote({ ok: false, text: "This browser can't share your location. Please type your address." }); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      try {
+        const b = await lookup(`lat=${pos.coords.latitude.toFixed(5)}&lng=${pos.coords.longitude.toFixed(5)}`);
+        if (!b.found) setNote({ ok: false, text: b.message ?? "We couldn't find your address. Please type it in." });
+        else { fill(b.found, true); setNote({ ok: true, text: "Address filled from your location. Add your flat / house no. and check the details." }); }
+      } catch (err) { setNote({ ok: false, text: err instanceof Error ? err.message : "Couldn't find your location." }); }
+      finally { setLocating(false); }
+    }, (err) => {
+      setLocating(false);
+      setNote({ ok: false, text: err.code === err.PERMISSION_DENIED ? "Location is blocked. Allow location for this site in your browser settings, or type your address." : "Couldn't get your location. Please try again or type your address." });
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+  }
 
   // Keep the page behind from scrolling while the sheet is open.
   useEffect(() => { const prev = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = prev; }; }, []);
@@ -84,6 +131,12 @@ export function AddressSheet({ contact, first, onClose, onSaved }: { contact: { 
             <svg viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg>
             Make sure your address details are correct so your order reaches you on time.
           </p>
+          <button type="button" onClick={useMyLocation} disabled={locating}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-brand px-4 py-3 text-[15px] font-semibold text-brand transition hover:bg-brand/5 disabled:opacity-60">
+            <svg viewBox="0 0 24 24" className={"h-5 w-5 " + (locating ? "animate-spin" : "")} fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3.5" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /><circle cx="12" cy="12" r="7.5" /></svg>
+            {locating ? "Finding your location…" : "Use my current location"}
+          </button>
+          {note ? <p className={"mt-2 text-sm " + (note.ok ? "text-green-700" : "text-amber-700")}>{note.text}</p> : null}
           <div className="mt-5 grid gap-4">
             <Field label="Flat / House no. / Building name" required value={f.line1} onChange={set("line1")} max={160} autoComplete="address-line1" />
             <Field label="Area / Sector / Locality" required value={f.line2} onChange={set("line2")} max={160} autoComplete="address-line2" />
