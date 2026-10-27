@@ -23,7 +23,9 @@ export default function CheckoutView(){
   const [busy,setBusy]=useState(true);
   const [working,setWorking]=useState(false);
   const [error,setError]=useState("");
-  const [newAddress,setNewAddress]=useState({label:"Home",line1:"",line2:"",city:"",state:"",postalCode:""});
+  const [formError,setFormError]=useState("");
+  const [addressType,setAddressType]=useState<""|"Home"|"Office"|"Others">("");
+  const [newAddress,setNewAddress]=useState({label:"",line1:"",line2:"",city:"",state:"",postalCode:""});
   const [showAddressForm,setShowAddressForm]=useState(false);
   // Buy now (/checkout?buy=<variantId>): order only that item; the rest of the cart stays saved.
   const [buyOnly,setBuyOnly]=useState<string[]>();
@@ -97,13 +99,15 @@ export default function CheckoutView(){
   }
 
   async function saveAddress(){
-    setWorking(true);setError("");
+    if(!addressType){setFormError("Choose Home, Office or Others for this address.");return;}
+    if(!newAddress.label.trim()){setFormError("Give this address a name, e.g. Mom's house.");return;}
+    setWorking(true);setFormError("");
     try{
       const response=await fetch("/api/v1/addresses",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...newAddress,country:"IN",isDefault:addresses.length===0})});
       const body=await response.json();if(!response.ok)throw new Error(body?.error?.message??"Unable to save address.");
       setAddresses(v=>[body.item,...v]);setSelectedAddress(body.item.id);setShowAddressForm(false);
-      setNewAddress({label:"Home",line1:"",line2:"",city:"",state:"",postalCode:""});
-    }catch(err){setError(err instanceof Error?err.message:"Unable to save address.");}
+      setNewAddress({label:"",line1:"",line2:"",city:"",state:"",postalCode:""});setAddressType("");
+    }catch(err){setFormError(err instanceof Error?err.message:"Unable to save address.");}
     finally{setWorking(false);}
   }
 
@@ -130,7 +134,7 @@ export default function CheckoutView(){
       <div className="mt-7 grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
         <div className="space-y-5">
           <section className="rounded-[2rem] border border-slate-200 bg-white p-5 sm:p-7"><div className="flex items-center justify-between"><div><h2 className="text-lg font-bold">Delivery address</h2><p className="mt-1 text-xs text-slate-500">Use an address where the order can be delivered.</p></div><button type="button" onClick={()=>setShowAddressForm(v=>!v)} className="rounded-full border px-4 py-2 text-xs font-bold">{showAddressForm?"Close":"Add address"}</button></div>
-            {showAddressForm?<div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="text-sm font-semibold sm:col-span-2">Save this address as<div className="mt-2 flex gap-2">{["Home","Work","Other"].map(name=><button key={name} type="button" onClick={()=>setNewAddress(a=>({...a,label:name}))} className={"rounded-full border px-4 py-2 text-sm "+(newAddress.label===name?"border-slate-950 bg-slate-950 text-white":"border-slate-200 text-slate-700")}>{name}</button>)}</div></div><Input label="PIN code" placeholder="6-digit PIN code" numeric value={newAddress.postalCode} onChange={v=>setNewAddress(a=>({...a,postalCode:v}))}/><Input label="House no., building, street" placeholder="e.g. 12-4, Sai Residency, MG Road" value={newAddress.line1} onChange={v=>setNewAddress(a=>({...a,line1:v}))} wide/><Input label="Area, landmark (optional)" placeholder="e.g. Near Ram Temple" value={newAddress.line2} onChange={v=>setNewAddress(a=>({...a,line2:v}))} wide/><Input label="City / town" value={newAddress.city} onChange={v=>setNewAddress(a=>({...a,city:v}))}/><Input label="State" value={newAddress.state} onChange={v=>setNewAddress(a=>({...a,state:v}))}/><button type="button" disabled={working} onClick={()=>void saveAddress()} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white sm:col-span-2">Save address</button></div>:
+            {showAddressForm?<div className="mt-5 grid gap-3 sm:grid-cols-2"><Input label="PIN code" placeholder="6-digit PIN code" numeric value={newAddress.postalCode} onChange={v=>setNewAddress(a=>({...a,postalCode:v}))}/><Input label="House no., building, street" placeholder="e.g. 12-4, Sai Residency, MG Road" value={newAddress.line1} onChange={v=>setNewAddress(a=>({...a,line1:v}))} wide/><Input label="Area, landmark (optional)" placeholder="e.g. Near Ram Temple" value={newAddress.line2} onChange={v=>setNewAddress(a=>({...a,line2:v}))} wide/><Input label="City / town" value={newAddress.city} onChange={v=>setNewAddress(a=>({...a,city:v}))}/><Input label="State" value={newAddress.state} onChange={v=>setNewAddress(a=>({...a,state:v}))}/><div className="border-t border-slate-100 pt-4 text-sm font-semibold sm:col-span-2">Save address as <span className="text-red-600">*</span><div className="mt-2 flex flex-wrap gap-2">{(["Home","Office","Others"] as const).map(type=><button key={type} type="button" onClick={()=>{setAddressType(type);setFormError("");setNewAddress(a=>({...a,label:type==="Others"?"":type}))}} className={"rounded-full border px-5 py-2 text-sm "+(addressType===type?"border-slate-950 bg-slate-950 text-white":"border-slate-300 text-slate-700 hover:border-slate-950")}>{type}</button>)}</div>{addressType==="Others"?<input autoFocus maxLength={30} className="mt-3 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal placeholder:text-slate-400" placeholder="Name this address, e.g. Mom's house" value={newAddress.label} onChange={e=>setNewAddress(a=>({...a,label:e.target.value}))}/>:null}</div>{formError?<p className="text-sm font-semibold text-red-600 sm:col-span-2">{formError}</p>:null}<button type="button" disabled={working} onClick={()=>void saveAddress()} className="rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white sm:col-span-2">Save address</button></div>:
             <div className="mt-5 grid gap-3">{addresses.length===0?<p className="text-sm text-slate-500">Add your first delivery address.</p>:addresses.map(address=><label key={address.id} className={"flex cursor-pointer gap-3 rounded-2xl border p-4 "+(selectedAddress===address.id?"border-slate-950 ring-1 ring-slate-950":"border-slate-200")}><input type="radio" name="address" checked={selectedAddress===address.id} onChange={()=>setSelectedAddress(address.id)} className="mt-1"/><span className="min-w-0 text-sm"><span className="block font-bold">{address.label||"Address"} {address.isDefault?<em className="ml-2 rounded-full bg-slate-100 px-2 py-1 text-[10px] not-italic">Default</em>:null}</span><span className="mt-1 block leading-5 text-slate-500">{address.line1}{address.line2?", "+address.line2:""}, {address.city}, {address.state} — {address.postalCode}</span></span></label>)}</div>}
           </section>
 
