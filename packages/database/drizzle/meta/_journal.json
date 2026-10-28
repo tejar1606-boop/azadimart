@@ -428,6 +428,13 @@
       "when": 1793080845947,
       "tag": "20261027060045_address_recipient",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1793170505762,
+      "tag": "20261028065505_live_chat_assistant",
+      "breakpoints": true
     }
   ]
 }

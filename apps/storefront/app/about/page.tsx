@@ -250,7 +250,7 @@ export default async function AboutPage() {
             {SUPPORT_PHONE ? <> Call <a href={"tel:" + SUPPORT_PHONE.replace(/\s/g, "")} className="font-semibold text-[#6A2CD6] underline underline-offset-2">{SUPPORT_PHONE}</a>.</> : null}
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <OpenHelpChatButton mode="live" className="inline-flex items-center gap-2 rounded-full bg-[#6A2CD6] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#5622b8]"><span className="h-2 w-2 rounded-full bg-[#22c55e]" aria-hidden />Chat with us live</OpenHelpChatButton>
+            <OpenHelpChatButton mode="live" className="inline-flex items-center gap-2 rounded-full bg-[#6A2CD6] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#5622b8]"><span className="h-2 w-2 rounded-full bg-[#22c55e]" aria-hidden />Chat with us</OpenHelpChatButton>
             <Link href="/account" className="rounded-full border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-800 transition hover:border-[#6A2CD6]">My orders</Link>
           </div>
         </div>

@@ -21,6 +21,10 @@ export type LiveChatProps = {
   storageKey: string;
   /** Back to the assistant. */
   onBack?: () => void;
+  /** The assistant conversation before the hand-over, shown above the live messages. */
+  earlier?: Array<{ role: "user" | "assistant"; text: string }>;
+  /** "Start a new chat" after the end: back to a fresh assistant conversation. */
+  onFinished?: () => void;
 };
 
 const waitText = (s: number | null) => (s === null ? "Our team is offline right now" : s < 60 ? "Usually under a minute" : `About ${Math.round(s / 60)} min`);
@@ -40,7 +44,7 @@ function chime() {
  * expected wait), queue position while waiting, agent name and typing while
  * chatting, photos and PDFs (📎) for faster help, "leave a message instead" when it takes too long, and a rating.
  */
-export function LiveChat({ apiBase, topics, ticketsPath, storageKey, onBack }: LiveChatProps) {
+export function LiveChat({ apiBase, topics, ticketsPath, storageKey, onBack, earlier = [], onFinished }: LiveChatProps) {
   const [avail, setAvail] = useState<Availability | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
   const [key, setKey] = useState<string | null>(null);
@@ -67,6 +71,8 @@ export function LiveChat({ apiBase, topics, ticketsPath, storageKey, onBack }: L
   useEffect(() => {
     let saved: { id: string; key: string | null } | null = null;
     try { saved = JSON.parse(localStorage.getItem(storageKey) ?? "null"); } catch { /* storage blocked */ }
+    // A chat just handed over from the assistant: show it straight away instead of the start form.
+    if (saved?.id) { setKey(saved.key); setChatId(saved.id); }
     fetch(apiBase, { cache: "no-store" }).then((r) => r.json()).then((a: Availability) => {
       setAvail(a);
       const id = a.openChatId ?? saved?.id ?? null;
@@ -201,11 +207,14 @@ export function LiveChat({ apiBase, topics, ticketsPath, storageKey, onBack }: L
     } catch (e) { setError(e instanceof Error ? e.message : "Couldn't send your message"); } finally { setBusy(false); }
   }
 
-  const newChat = () => { save(null, null); setChatId(null); setChat(null); setMessages([]); lastSeq.current = 0; setTicket(null); setRated(false); void fetch(apiBase, { cache: "no-store" }).then((r) => r.json()).then(setAvail).catch(() => undefined); };
+  const newChat = () => { if (onFinished) { save(null, null); onFinished(); return; } save(null, null); setChatId(null); setChat(null); setMessages([]); lastSeq.current = 0; setTicket(null); setRated(false); void fetch(apiBase, { cache: "no-store" }).then((r) => r.json()).then(setAvail).catch(() => undefined); };
   const online = (avail?.online ?? 0) > 0;
   const field = "mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-navy";
 
   // ----- start form -----
+  if (!chatId && avail === null) {
+    return <div className="grid flex-1 place-items-center bg-slate-50 text-sm text-slate-500"><p className="flex items-center gap-2"><span className="h-2 w-2 animate-pulse rounded-full bg-[#22c55e]" />Connecting to our support team…</p></div>;
+  }
   if (!chatId) {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
@@ -256,6 +265,16 @@ export function LiveChat({ apiBase, topics, ticketsPath, storageKey, onBack }: L
       </div>
 
       <div ref={listRef} className="flex-1 space-y-2.5 overflow-y-auto bg-slate-50 px-3.5 py-4" aria-live="polite">
+        {earlier.length ? (
+          <>
+            {earlier.slice(-12).map((m, i) => (
+              <div key={"e" + i} className={"flex opacity-60 " + (m.role === "user" ? "justify-end" : "justify-start")}>
+                <p className={"max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm leading-6 " + (m.role === "user" ? "rounded-br-md bg-navy text-white" : "rounded-bl-md border border-slate-200 bg-white text-slate-800")}>{m.text}</p>
+              </div>
+            ))}
+            <div className="flex items-center gap-2 py-1 text-[11px] font-medium text-slate-500"><span className="h-px flex-1 bg-slate-200" />Passed to our support team, who can see this chat<span className="h-px flex-1 bg-slate-200" /></div>
+          </>
+        ) : null}
         {status === "WAITING" ? (
           <div className="rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">
             <p className="font-semibold">{chat?.position ? `You're number ${chat.position} in line` : "Finding an agent for you"}</p>
@@ -263,7 +282,8 @@ export function LiveChat({ apiBase, topics, ticketsPath, storageKey, onBack }: L
             <div className="mt-2 h-1 overflow-hidden rounded-full bg-brand-100"><div className="h-full w-1/3 animate-[pulse_1.4s_ease-in-out_infinite] rounded-full bg-brand" /></div>
           </div>
         ) : null}
-        {messages.map((m) => m.author === "SYSTEM" ? (
+        {/* After a hand-over the first message is the recap for the team; the shopper already sees their words above. */}
+        {messages.filter((m, i) => !(earlier.length && i === 0 && m.author === "REQUESTER")).map((m) => m.author === "SYSTEM" ? (
           <p key={m.seq} className="text-center text-[11px] text-slate-500">{m.body}</p>
         ) : (
           <div key={m.seq} className={"flex " + (m.author === "REQUESTER" ? "justify-end" : "justify-start")}>

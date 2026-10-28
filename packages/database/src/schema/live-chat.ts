@@ -3,7 +3,7 @@ import { bigint, index, integer, jsonb, pgTable, text, timestamp, uuid } from "d
 import { id } from "./columns";
 import { customers, users } from "./identity";
 import { sellers } from "./sellers";
-import { supportTickets } from "./support";
+import { supportChats, supportTickets } from "./support";
 
 /** A real-time chat between a shopper/seller (or guest) and a support agent. */
 export const liveChats = pgTable(
@@ -40,6 +40,8 @@ export const liveChats = pgTable(
     rating: integer("rating"),
     ratingNote: text("rating_note"),
     ticketId: uuid("ticket_id").references(() => supportTickets.id, { onDelete: "set null" }),
+    /** The assistant conversation that led here (the agent sees it, so nobody repeats themselves). */
+    assistantChatId: uuid("assistant_chat_id").references(() => supportChats.id, { onDelete: "set null" }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

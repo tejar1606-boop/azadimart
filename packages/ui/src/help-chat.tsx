@@ -11,10 +11,12 @@ type Reply = {
   links?: Array<{ label: string; href: string }>;
   quick?: Array<{ label: string; intent: string }>;
   cards?: Card[];
-  handoff?: { category: string; subject: string; orderId?: string | null; productId?: string | null };
+  handoff?: { category: string; subject: string; orderId?: string | null; productId?: string | null; soft?: boolean };
   signIn?: boolean;
 };
-type Message = { role: "user" | "assistant"; text: string; reply?: Reply; ticket?: { id: string; number: number } };
+/** `ask`: a real answer, so "Did this solve it?" can follow. `typed`: the user wrote it (not a button). */
+type Message = { role: "user" | "assistant"; text: string; reply?: Reply; ticket?: { id: string; number: number }; ask?: boolean; typed?: boolean; settled?: boolean };
+type Handoff = NonNullable<Reply["handoff"]>;
 
 export type HelpChatProps = {
   /** Header title, e.g. "LOIMART Help". */
@@ -66,6 +68,9 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
   const [unread, setUnread] = useState(0);
   const [handoff, setHandoff] = useState<null | { category: string; subject: string; message: string; orderId?: string | null; productId?: string | null; error?: string; sending?: boolean }>(null);
   const [path, setPath] = useState("");
+  // Hand-over to the support team: "asking" = a guest gives their name first; "working" = connecting.
+  const [transfer, setTransfer] = useState<null | { h: Handoff; stage: "asking" | "working"; offline: boolean; name: string; contact: string; error?: string }>(null);
+  const [pending, setPending] = useState<Handoff | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -87,7 +92,7 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
   const send = useCallback(async (payload: { message?: string; intent?: string; label?: string }) => {
     const shown = payload.label ?? payload.message ?? "";
     const history = messages.map((m) => ({ role: m.role, content: m.text })).slice(-12);
-    if (shown) setMessages((m) => [...m, { role: "user", text: shown }]);
+    if (shown) setMessages((m) => [...m, { role: "user", text: shown, typed: Boolean(payload.message) }]);
     setBusy(true);
     setHandoff(null);
     try {
@@ -98,7 +103,10 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
       const body = (await res.json()) as { chatId?: string; reply?: Reply; error?: { message?: string } };
       if (!res.ok || !body.reply) throw new Error(body.error?.message ?? "Something went wrong");
       if (body.chatId) setChatId(body.chatId);
-      setMessages((m) => [...m, { role: "assistant", text: body.reply!.text, reply: body.reply }]);
+      const reply = body.reply;
+      setMessages((m) => [...m, { role: "assistant", text: reply.text, reply, ask: payload.intent !== "menu" && !reply.signIn && (!reply.handoff || reply.handoff.soft) }]);
+      // The assistant can't solve this one: pass it to the team straight away.
+      if (reply.handoff && !reply.handoff.soft) setPending(reply.handoff);
     } catch (error) {
       setMessages((m) => [...m, { role: "assistant", text: error instanceof Error && error.message.includes("Too many") ? error.message : "Sorry, I couldn't answer just now. Please try again in a moment." }]);
     } finally {
@@ -111,10 +119,11 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
     setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
   useEffect(() => {
-    const onOpen = (e: Event) => { if (live && (e as CustomEvent<{ mode?: string }>).detail?.mode === "live") setMode("live"); openChat(); };
+    // The assistant always answers first; only a live chat that's already running opens straight away.
+    const onOpen = () => { if (live && liveOpen) setMode("live"); openChat(); };
     window.addEventListener(HELP_CHAT_OPEN_EVENT, onOpen);
     return () => window.removeEventListener(HELP_CHAT_OPEN_EVENT, onOpen);
-  }, [openChat, live]);
+  }, [openChat, live, liveOpen]);
   useEffect(() => {
     const onState = (e: Event) => setLiveOpen(Boolean((e as CustomEvent<{ active?: boolean }>).detail?.active));
     window.addEventListener(LIVE_CHAT_STATE_EVENT, onState);
@@ -139,6 +148,60 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
   function startHandoff(h: Reply["handoff"]) {
     const lastUser = [...messages].reverse().find((m) => m.role === "user")?.text ?? "";
     setHandoff({ category: h?.category && categories.some((c) => c.key === h.category) ? h.category : (categories[0]?.key ?? "OTHER"), subject: h?.subject || "", message: lastUser.length > 8 ? lastUser : "", orderId: h?.orderId ?? null, productId: h?.productId ?? null });
+  }
+
+  useEffect(() => {
+    if (!pending) return;
+    setPending(null);
+    void handOver(pending);
+  }, [pending]);
+
+  /** What to tell the team: the shopper's own words, else the topic the assistant picked. */
+  function summary(h: Handoff) {
+    const typed = messages.filter((m) => m.role === "user" && m.typed).map((m) => m.text).slice(-3).join("\n");
+    return ((h.subject && !typed.toLowerCase().includes(h.subject.toLowerCase()) ? h.subject + (typed ? "\n" : "") : "") + typed).trim().slice(0, 2000) || "I need help from the support team";
+  }
+
+  /** Passes the conversation to a person: live chat when the team is online, else a support request. */
+  async function handOver(h: Handoff, guest?: { name: string; contact: string }) {
+    if (!live) { startHandoff(h); return; }
+    setMessages((m) => m.map((x) => (x.ask ? { ...x, settled: true } : x)));
+    if (!guest) setTransfer({ h, stage: "working", offline: false, name: "", contact: "" });
+    let avail: { online?: number; signedIn?: boolean } = {};
+    try { avail = await (await fetch(live.apiBase, { cache: "no-store" })).json(); } catch { /* treated as offline */ }
+    const offline = !avail.online;
+    if (!avail.signedIn && !guest) { setTransfer({ h, stage: "asking", offline, name: "", contact: "" }); return; }
+    setTransfer({ h, stage: "working", offline, name: guest?.name ?? "", contact: guest?.contact ?? "" });
+    try {
+      const topic = live.topics.some((t) => t.key === h.category) ? h.category : (live.topics.find((t) => t.key === "OTHER")?.key ?? live.topics[0]?.key ?? "OTHER");
+      const message = summary(h);
+      const res = await fetch(live.apiBase, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topic, message, assistantChatId: chatId, page: window.location.pathname, ...(guest ? { name: guest.name, contact: guest.contact || undefined } : {}) }) });
+      const started = (await res.json()) as { chatId?: string; token?: string | null; error?: { message?: string } };
+      if (!res.ok || !started.chatId) throw new Error(started.error?.message ?? "Couldn't reach the support team");
+      if (offline) {
+        // Nobody online: it becomes a support request with this conversation attached.
+        const r = await fetch(`${live.apiBase}/${started.chatId}/leave-message`, { method: "POST", headers: { "Content-Type": "application/json", ...(started.token ? { "x-live-chat-key": started.token } : {}) }, body: JSON.stringify({ message, contact: guest?.contact || undefined }) });
+        const left = (await r.json()) as { ticket?: { id: string; number: number }; error?: { message?: string } };
+        if (!r.ok || !left.ticket) throw new Error(left.error?.message ?? "Couldn't reach the support team");
+        setTransfer(null);
+        setMessages((m) => [...m, { role: "assistant", text: `Our support team is offline right now, so I've passed this conversation to them as request #${left.ticket!.number}. ${guest ? `They'll reply to ${guest.contact}` : "They'll reply in your support requests"}, usually within a day.`, ticket: avail.signedIn ? left.ticket : undefined }]);
+        return;
+      }
+      try { localStorage.setItem(live.storageKey, JSON.stringify({ id: started.chatId, key: started.token ?? null })); } catch { /* storage blocked */ }
+      window.dispatchEvent(new CustomEvent(LIVE_CHAT_STATE_EVENT, { detail: { active: true } }));
+      setTransfer(null);
+      setMode("live");
+    } catch (error) {
+      setTransfer((t) => t && { ...t, stage: guest ? "asking" : "working", error: error instanceof Error ? error.message : "Couldn't reach the support team" });
+    }
+  }
+
+  /** "Did this solve it?" */
+  function solved(i: number, yes: boolean) {
+    setMessages((m) => m.map((x, k) => (k === i ? { ...x, settled: true } : x)));
+    if (yes) { setMessages((m) => [...m, { role: "assistant", text: "Glad I could help! Anything else?", reply: { text: "", quick: [{ label: "Something else", intent: "menu" }] } }]); return; }
+    const asked = [...messages.slice(0, i)].reverse().find((m) => m.role === "user")?.text ?? "";
+    void handOver(messages[i]?.reply?.handoff ?? { category: "OTHER", subject: asked.slice(0, 110) });
   }
 
   async function submitTicket() {
@@ -182,19 +245,14 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
           <header className="relative flex items-center gap-3 bg-navy px-4 py-3.5 text-white">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/10 text-brand-300"><ChatIcon size={20} /></span>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold leading-tight">{mode === "live" ? "Live chat" : title}</p>
-              <p className="flex items-center gap-1.5 text-xs text-white/70"><span className="h-1.5 w-1.5 rounded-full bg-[#4ade80]" />{mode === "live" ? "Talk to our support team" : subtitle}</p>
+              <p className="truncate font-semibold leading-tight">{mode === "live" ? "Support team" : title}</p>
+              <p className="flex items-center gap-1.5 text-xs text-white/70"><span className="h-1.5 w-1.5 rounded-full bg-[#4ade80]" />{mode === "live" ? "Real people from LOIMART" : subtitle}</p>
             </div>
-            {live ? (
-              <button type="button" onClick={() => setMode(mode === "live" ? "bot" : "live")} className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20">
-                {mode === "live" ? "Assistant" : "Live agent"}
-              </button>
-            ) : null}
             <button type="button" onClick={() => setOpen(false)} className="grid h-9 w-9 place-items-center rounded-full hover:bg-white/10" aria-label="Close help chat"><CloseIcon /></button>
             <span className="absolute inset-x-0 bottom-0 flex h-[3px]" aria-hidden><span className="flex-1 bg-brand" /><span className="flex-1 bg-white" /><span className="flex-1 bg-india" /></span>
           </header>
 
-          {live && mode === "live" ? <LiveChat {...live} onBack={() => setMode("bot")} /> : <>
+          {live && mode === "live" ? <LiveChat {...live} earlier={messages.filter((m) => m.text).map((m) => ({ role: m.role, text: m.text }))} onBack={() => setMode("bot")} onFinished={() => { setMode("bot"); setMessages([]); setChatId(null); }} /> : <>
           {unread ? (
             <a href={ticketsPath} className="flex items-center justify-between gap-2 border-b border-brand-100 bg-brand-50 px-4 py-2.5 text-sm font-medium text-brand-800">
               <span>You have {unread} new repl{unread === 1 ? "y" : "ies"} from support</span><span className="font-semibold">View →</span>
@@ -232,12 +290,14 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
                         {m.ticket ? <a href={`${ticketsPath}/${m.ticket.id}`} className="rounded-full bg-navy px-3.5 py-1.5 text-xs font-semibold text-white">View request #{m.ticket.number} →</a> : null}
                       </div>
                     ) : null}
-                    {m.reply?.handoff && i === messages.length - 1 && !handoff ? (
-                      <div className="grid gap-1.5">
-                        {live ? <button type="button" onClick={() => setMode("live")} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-navy px-3 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-navy-soft"><span className="h-2 w-2 rounded-full bg-[#4ade80]" />Chat live with our team</button> : null}
-                        <button type="button" onClick={() => startHandoff(m.reply!.handoff)} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-navy/20 bg-white px-3 py-2.5 text-sm font-semibold text-navy shadow-sm hover:bg-navy hover:text-white">
-                          {live ? "Leave a message instead" : "Talk to a person"}
-                        </button>
+                    {!live && m.reply?.handoff && i === messages.length - 1 && !handoff ? (
+                      <button type="button" onClick={() => startHandoff(m.reply!.handoff)} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-navy/20 bg-white px-3 py-2.5 text-sm font-semibold text-navy shadow-sm hover:bg-navy hover:text-white">Talk to a person</button>
+                    ) : null}
+                    {live && m.ask && !m.settled && i === messages.length - 1 && !busy && !transfer ? (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        <span className="mr-0.5 text-xs text-slate-500">Did this solve it?</span>
+                        <button type="button" onClick={() => solved(i, true)} className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:border-slate-900">Yes, thanks</button>
+                        <button type="button" onClick={() => solved(i, false)} className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:border-slate-900">No, I need more help</button>
                       </div>
                     ) : null}
                   </div>
@@ -252,6 +312,38 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
               </div>
             ) : null}
 
+            {transfer?.stage === "working" ? (
+              <div className="flex justify-start">
+                <div className="max-w-[92%] rounded-2xl rounded-bl-md border border-brand-200 bg-brand-50 px-3.5 py-3 text-sm text-brand-900 shadow-sm">
+                  {transfer.error ? (
+                    <>
+                      <p className="font-semibold">Couldn&apos;t connect you just now</p>
+                      <p className="mt-0.5 text-xs">{transfer.error}</p>
+                      <button type="button" onClick={() => void handOver(transfer.h)} className="mt-2 rounded-full bg-navy px-3.5 py-1.5 text-xs font-semibold text-white">Try again</button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="flex items-center gap-2 font-semibold"><span className="h-2 w-2 animate-pulse rounded-full bg-[#22c55e]" />{transfer.offline ? "Passing this to our support team…" : "Connecting you to our support team…"}</p>
+                      <p className="mt-0.5 text-xs">They&apos;ll see this conversation, so you won&apos;t need to repeat anything.</p>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : null}
+            {transfer?.stage === "asking" ? (
+              <form onSubmit={(e) => { e.preventDefault(); if (transfer.name.trim().length < 2) { setTransfer({ ...transfer, error: "Add your name" }); return; } if (transfer.offline && !transfer.contact.trim()) { setTransfer({ ...transfer, error: "Add a phone number or email so we can reply" }); return; } void handOver(transfer.h, { name: transfer.name.trim(), contact: transfer.contact.trim() }); }}
+                className="space-y-2.5 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
+                <p className="text-sm font-semibold">{transfer.offline ? "Our team is offline, so we'll reply to you" : "I'll connect you to our support team"}</p>
+                <p className="text-xs text-slate-500">{transfer.offline ? "Leave your details and they'll get back to you, usually within a day." : "Just tell us what to call you."}</p>
+                <input autoFocus value={transfer.name} maxLength={60} onChange={(e) => setTransfer({ ...transfer, name: e.target.value, error: undefined })} placeholder="Your name" className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-navy" />
+                <input value={transfer.contact} maxLength={120} onChange={(e) => setTransfer({ ...transfer, contact: e.target.value, error: undefined })} placeholder={transfer.offline ? "Phone or email" : "Phone or email (optional)"} className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-navy" />
+                {transfer.error ? <p className="text-xs font-medium text-red-600">{transfer.error}</p> : null}
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setTransfer(null)} className="flex-1 rounded-full border border-slate-300 px-3 py-2 text-sm font-semibold">Cancel</button>
+                  <button type="submit" className="flex-1 rounded-full bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-brand-600">{transfer.offline ? "Send" : "Connect me"}</button>
+                </div>
+              </form>
+            ) : null}
             {handoff ? (
               <form onSubmit={(e) => { e.preventDefault(); void submitTicket(); }} className="space-y-2.5 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
                 <p className="text-sm font-semibold">Send to our support team</p>
@@ -276,7 +368,7 @@ export function HelpChat({ title, subtitle = "Usually answers instantly", apiBas
             ) : null}
           </div>
 
-          {last?.reply?.quick?.length && !busy && !handoff ? (
+          {last?.reply?.quick?.length && !busy && !handoff && !transfer ? (
             <div className="flex gap-1.5 overflow-x-auto border-t border-slate-100 bg-white px-3 pb-1 pt-2.5 [scrollbar-width:none]">
               {last.reply.quick.map((q) => (
                 <button key={q.intent + q.label} type="button" onClick={() => void send({ intent: q.intent, label: q.label })}

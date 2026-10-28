@@ -79,7 +79,7 @@ export function sellerBot(sellerId: string): SupportBotSetup {
     {
       id: "human",
       match: kw("human", "person", "agent", "executive", "support team", "talk to", "speak to", "call me", "complaint", "escalate", "baat"),
-      run: async () => ({ text: "Sure. Choose a topic and describe the problem. Our seller support team replies in Help & support (and you'll get an alert), usually within a day.", handoff: { category: "OTHER", subject: "" } }),
+      run: async () => ({ text: "Sure. I'm passing you to our seller support team now.", handoff: { category: "OTHER", subject: "" } }),
     },
     {
       id: "bank_change",
@@ -111,7 +111,7 @@ export function sellerBot(sellerId: string): SupportBotSetup {
     },
     {
       id: "payout_issue",
-      run: async () => ({ text: "Sorry about that. Please share the order number or payout date and what you expected; our team will check the settlement and reply here.", handoff: { category: "SELLER_PAYMENTS", subject: "Payout missing or incorrect" } }),
+      run: async () => ({ text: "Sorry about that. I'm passing you to our team to check the settlement. Please tell them the order number or payout date and what you expected.", handoff: { category: "SELLER_PAYMENTS", subject: "Payout missing or incorrect" } }),
     },
     {
       id: "kyc",
@@ -134,7 +134,7 @@ export function sellerBot(sellerId: string): SupportBotSetup {
     },
     {
       id: "kyc_help",
-      run: async () => ({ text: "Tell us what's wrong with your KYC and our team will help.", handoff: { category: "SELLER_KYC", subject: "Help with KYC" } }),
+      run: async () => ({ text: "I'm passing you to our team to help with your KYC.", handoff: { category: "SELLER_KYC", subject: "Help with KYC" } }),
     },
     {
       id: "products",
@@ -152,7 +152,7 @@ export function sellerBot(sellerId: string): SupportBotSetup {
     },
     {
       id: "products_help",
-      run: async () => ({ text: "Which product is it about, and what's the problem? Our team will take a look.", handoff: { category: "SELLER_PRODUCTS", subject: "Help with a product listing" } }),
+      run: async () => ({ text: "I'm passing you to our team. Tell them which product it is and what's wrong.", handoff: { category: "SELLER_PRODUCTS", subject: "Help with a product listing" } }),
     },
     {
       id: "orders",
@@ -168,7 +168,7 @@ export function sellerBot(sellerId: string): SupportBotSetup {
     },
     {
       id: "orders_help",
-      run: async () => ({ text: "Tell us the order number and what's happening (pickup missed, wrong weight, return dispute…). Our team will follow up.", handoff: { category: "SELLER_ORDERS", subject: "Order or shipping problem" } }),
+      run: async () => ({ text: "I'm passing you to our team. Tell them the order number and what's happening (pickup missed, wrong weight, return dispute…).", handoff: { category: "SELLER_ORDERS", subject: "Order or shipping problem" } }),
     },
     {
       id: "ads",
@@ -177,7 +177,7 @@ export function sellerBot(sellerId: string): SupportBotSetup {
     },
     {
       id: "ads_help",
-      run: async () => ({ text: "What do you need help with on ads?", handoff: { category: "SELLER_ADS", subject: "Help with ads" } }),
+      run: async () => ({ text: "I'm passing you to our team for help with ads.", handoff: { category: "SELLER_ADS", subject: "Help with ads" } }),
     },
     {
       id: "reviews",

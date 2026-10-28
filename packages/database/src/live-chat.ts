@@ -5,7 +5,7 @@ import type { Database } from "./client";
 import { customers, roles, staffMembers, users } from "./schema/identity";
 import { liveChatAgents, liveChatMessages, liveChats } from "./schema/live-chat";
 import { sellers } from "./schema/sellers";
-import { supportMessages, supportTickets } from "./schema/support";
+import { supportChats, supportMessages, supportTickets } from "./schema/support";
 
 /** Who is chatting: a signed-in customer or seller, or a guest holding the chat key. */
 export type LiveRequester =
@@ -113,7 +113,24 @@ export async function liveChatAvailability(db: Database) {
 }
 
 /** Starts a chat (or returns the requester's open one). Guests get a chat key to keep. */
-export async function startLiveChat(db: Database, who: LiveRequester, input: { topic: string; message: string; name?: string; contact?: string; page?: string }, source: "STOREFRONT" | "SELLER") {
+/** The assistant chat to attach, if it belongs to this requester (guests' assistant chats have no user). */
+async function ownAssistantChat(db: Database, who: LiveRequester, id: string | null | undefined) {
+  if (!id) return null;
+  const row = (await db.select({ id: supportChats.id, userId: supportChats.userId }).from(supportChats).where(eq(supportChats.id, id)).limit(1))[0];
+  if (!row) return null;
+  return (who.type === "GUEST" ? row.userId === null : row.userId === who.userId) ? row.id : null;
+}
+
+/** What the shopper or seller told the assistant before the hand-over. */
+async function assistantTranscript(db: Database, id: string | null) {
+  if (!id) return [];
+  const row = (await db.select({ messages: supportChats.messages }).from(supportChats).where(eq(supportChats.id, id)).limit(1))[0];
+  // "menu" is the greeting the chat asks for on open, not something the person said.
+  return (row?.messages ?? []).filter((m) => !(m.role === "user" && m.content === "menu")).slice(-30).map((m) => ({ role: m.role, content: m.content }));
+}
+
+export async function startLiveChat(db: Database, who: LiveRequester, input: { topic: string; message: string; name?: string; contact?: string; page?: string; assistantChatId?: string | null }, source: "STOREFRONT" | "SELLER") {
+  const assistantChatId = await ownAssistantChat(db, who, input.assistantChatId);
   if (who.type !== "GUEST") {
     const open = (await db.select({ id: liveChats.id }).from(liveChats).where(and(owned(who), inArray(liveChats.status, ["WAITING", "ACTIVE"]))).limit(1))[0];
     if (open) {
@@ -127,7 +144,7 @@ export async function startLiveChat(db: Database, who: LiveRequester, input: { t
     userId: who.type === "GUEST" ? null : who.userId,
     customerId: who.type === "CUSTOMER" ? who.customerId : null, sellerId: who.type === "SELLER" ? who.sellerId : null,
     guestName: who.type === "GUEST" ? input.name : null, guestContact: who.type === "GUEST" ? input.contact || null : null,
-    guestTokenHash: token ? hashToken(token) : null,
+    guestTokenHash: token ? hashToken(token) : null, assistantChatId,
   }).returning({ id: liveChats.id });
   await db.insert(liveChatMessages).values({ chatId: chat!.id, author: "REQUESTER", body: input.message });
   await sweepLiveChats(db, true);
@@ -224,6 +241,8 @@ async function chatToTicket(db: Database, chat: typeof liveChats.$inferSelect, e
     category: chat.topic, priority: "HIGH", channel: "CHAT", subject: firstAsk.slice(0, 110), body: guestNote + (extra || firstAsk), assignedToUserId: byAgentId,
   }).returning();
   await db.insert(supportMessages).values({ ticketId: ticket!.id, senderUserId: chat.userId, authorType: "REQUESTER", message: guestNote + (extra || firstAsk) });
+  const before = await assistantTranscript(db, chat.assistantChatId);
+  if (before.length) await db.insert(supportMessages).values({ ticketId: ticket!.id, authorType: "SYSTEM", isInternal: true, message: `${name}'s chat with the assistant first:\n\n` + before.map((m) => `${m.role === "user" ? name : "Assistant"}: ${m.content}`).join("\n\n").slice(0, 12_000) });
   await db.insert(supportMessages).values({ ticketId: ticket!.id, authorType: "SYSTEM", isInternal: true, message: `Live chat with ${name} before this request:\n\n` + lines.map((l) => `${l.author === "REQUESTER" ? name : l.author === "AGENT" ? "Agent" : "System"}: ${l.body}`).join("\n\n").slice(0, 12_000) });
   await db.update(liveChats).set({ status: "ENDED", endedAt: new Date(), endedBy: byAgentId ? "AGENT" : "REQUESTER", endReason: "TICKET", ticketId: ticket!.id, updatedAt: new Date() }).where(eq(liveChats.id, chat.id));
   await system(db, chat.id, `We've saved this as support request #${ticket!.number}. Our team will reply ${chat.requesterType === "GUEST" ? (chat.guestContact ? `to ${chat.guestContact}` : "as soon as possible") : "in your support requests"}.`);
@@ -319,7 +338,7 @@ export async function agentLiveChat(db: Database, agentUserId: string, chatId: s
   let context: Record<string, unknown> | null = null;
   if (withContext) {
     const user = chat.userId ? (await db.select({ email: users.email, phone: users.phone }).from(users).where(eq(users.id, chat.userId)).limit(1))[0] : undefined;
-    context = { name: await requesterName(db, chat), requesterType: chat.requesterType, email: user?.email ?? null, phone: user?.phone ?? null, guestContact: chat.guestContact, page: chat.page, customerId: chat.customerId, sellerId: chat.sellerId, topic: supportCategoryLabel(chat.topic) };
+    context = { name: await requesterName(db, chat), requesterType: chat.requesterType, email: user?.email ?? null, phone: user?.phone ?? null, guestContact: chat.guestContact, page: chat.page, customerId: chat.customerId, sellerId: chat.sellerId, topic: supportCategoryLabel(chat.topic), assistantChat: await assistantTranscript(db, chat.assistantChatId) };
   }
   return {
     chat: {

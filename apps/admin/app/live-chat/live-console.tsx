@@ -16,7 +16,7 @@ type Console = {
 };
 type Msg = { seq: number; author: "REQUESTER" | "AGENT" | "SYSTEM"; body: string; attachment?: ChatAttachment | null; createdAt: string; agentName: string | null };
 type ChatInfo = { id: string; status: string; assignedAgentId: string | null; agentName: string | null; requesterTyping: boolean; requesterReadSeq: number; requesterOnline: boolean; createdAt: string; endedAt: string | null; endReason: string | null; rating: number | null; ratingNote: string | null; ticketId: string | null };
-type Context = { name: string; requesterType: string; email: string | null; phone: string | null; guestContact: string | null; page: string | null; topic: string; recentOrders?: Array<{ id: string; number: string; status: string; total: number; createdAt: string }>; seller?: { storeName: string; status: string; holdReason: string | null; liveProducts: number }; canned?: Array<{ id: string; title: string; body: string }> };
+type Context = { name: string; requesterType: string; email: string | null; phone: string | null; guestContact: string | null; page: string | null; topic: string; recentOrders?: Array<{ id: string; number: string; status: string; total: number; createdAt: string }>; seller?: { storeName: string; status: string; holdReason: string | null; liveProducts: number }; canned?: Array<{ id: string; title: string; body: string }>; assistantChat?: Array<{ role: "user" | "assistant"; content: string }> };
 type History = { id: string; name: string; requesterType: string; topic: string; agentName: string | null; createdAt: string; endedAt: string | null; endReason: string | null; rating: number | null; ticketId: string | null; waitSeconds: number | null };
 
 const dur = (s: number | null) => (s === null ? "–" : s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s` : `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`);
@@ -309,6 +309,14 @@ export default function LiveConsole({ meId }: { meId: string }) {
                 ) : null}
               </div>
               <div ref={listRef} className="min-h-0 flex-1 space-y-2.5 overflow-y-auto bg-slate-50 px-4 py-4">
+                {context?.assistantChat?.length ? (
+                  <details className="rounded-xl border border-slate-200 bg-white text-sm" open>
+                    <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-600">Before this chat: talked to the assistant ({context.assistantChat.length} messages)</summary>
+                    <div className="space-y-1.5 border-t border-slate-100 px-3 py-2.5">
+                      {context.assistantChat.map((m, i) => <p key={i} className="whitespace-pre-wrap text-xs leading-5 text-slate-700"><span className={"font-semibold " + (m.role === "user" ? "text-slate-900" : "text-brand-700")}>{m.role === "user" ? context.name.split(" ")[0] : "Assistant"}:</span> {m.content}</p>)}
+                    </div>
+                  </details>
+                ) : null}
                 {messages.map((m) => m.author === "SYSTEM" ? <p key={m.seq} className="text-center text-[11px] text-slate-500">{m.body} · {time(m.createdAt)}</p> : (
                   <div key={m.seq} className={"flex " + (m.author === "AGENT" ? "justify-end" : "justify-start")}>
                     <div className={"max-w-[80%] rounded-2xl px-3.5 py-2 text-sm leading-6 " + (m.author === "AGENT" ? "rounded-br-md bg-navy text-white" : "rounded-bl-md border border-slate-200 bg-white shadow-sm")}>

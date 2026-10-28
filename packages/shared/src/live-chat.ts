@@ -60,6 +60,8 @@ export const liveChatStartSchema = z.object({
   name: z.string().trim().min(2, "Add your name").max(60).optional(),
   contact: z.string().trim().max(120).optional(),
   page: z.string().trim().max(300).optional().default(""),
+  /** The assistant chat this was handed over from. */
+  assistantChatId: z.string().uuid().nullable().optional(),
 });
 export const liveChatMessageSchema = z.object({ body });
 

@@ -76,9 +76,7 @@ export function customerBot(request: Request, who: { customerId: string | null }
     {
       id: "human",
       match: kw("human", "person", "agent", "executive", "customer care", "talk to", "speak to", "call me", "complaint", "complain", "baat"),
-      run: async () => signedIn
-        ? { text: "Sure. Tell us what happened and our support team will reply here and in My account → Help & support, usually within a day.", handoff: { category: "OTHER", subject: "" } }
-        : { text: "Our support team can help. Please sign in first, so they can see your orders and reply to you.", signIn: true },
+      run: async () => ({ text: "Sure. I'm passing you to our support team now.", handoff: { category: "OTHER", subject: "" } }),
     },
     {
       id: "track",
@@ -106,7 +104,7 @@ export function customerBot(request: Request, who: { customerId: string | null }
         return {
           text: "Sorry about that. Most orders arrive within 3–7 days of shipping. If an order shows Delivered but you didn't get it, or it's been stuck for more than 2 days, our team will check with the courier.",
           cards: list.slice(0, 3).map(orderCard),
-          handoff: { category: "ORDER", subject: "Order late or not received", orderId: list[0]?.id ?? null },
+          handoff: { category: "ORDER", subject: "Order late or not received", orderId: list[0]?.id ?? null, soft: true },
         };
       },
     },
@@ -139,7 +137,7 @@ export function customerBot(request: Request, who: { customerId: string | null }
       run: async () => {
         if (!who.customerId) return SIGN_IN;
         const recent = (await recentOrders(db, who.customerId, 5)).filter((o) => o.status === "DELIVERED");
-        return { text: "We're sorry. Please start a return from the order page and pick “Damaged” or “Wrong item” as the reason, with a photo if you can. If you'd rather, our team can look into it for you.", cards: recent.slice(0, 3).map(orderCard), handoff: { category: "RETURN", subject: "Damaged or wrong item received", orderId: recent[0]?.id ?? null } };
+        return { text: "We're sorry. Please start a return from the order page and pick “Damaged” or “Wrong item” as the reason, with a photo if you can. If that doesn't sort it out, our team can look into it for you.", cards: recent.slice(0, 3).map(orderCard), handoff: { category: "RETURN", subject: "Damaged or wrong item received", orderId: recent[0]?.id ?? null, soft: true } };
       },
     },
     {
@@ -156,7 +154,7 @@ export function customerBot(request: Request, who: { customerId: string | null }
       run: async () => {
         if (!who.customerId) return SIGN_IN;
         const list = (await recentOrders(db, who.customerId, 10)).filter((o) => o.status === "CANCELLED" || o.status === "RETURNED" || o.paymentStatus === "REFUNDED" || o.paymentStatus === "PARTIALLY_REFUNDED");
-        return { text: "If it's been more than 7 working days, our team will trace it with the payment provider and share the reference number.", cards: list.slice(0, 3).map(orderCard), handoff: { category: "RETURN", subject: "Refund not received", orderId: list[0]?.id ?? null } };
+        return { text: "If it's been more than 7 working days, our team will trace it with the payment provider and share the reference number.", cards: list.slice(0, 3).map(orderCard), handoff: { category: "RETURN", subject: "Refund not received", orderId: list[0]?.id ?? null, soft: true } };
       },
     },
     {
@@ -257,7 +255,7 @@ Facts:
 - Refunds go to the original payment method, usually 5–7 working days. Cancelled Cash on Delivery orders have nothing to pay.
 - Payment: online (UPI, cards, net banking) or Cash on Delivery across India. Failed payments that were deducted are usually reversed by the bank in 5–7 working days.
 - Every seller is KYC-verified and products are quality-checked.
-Don't promise things outside these facts (no compensation, no exact delivery dates). When a person is needed, call offer_human_handoff; the user then confirms and writes their message.`,
+Don't promise things outside these facts (no compensation, no exact delivery dates). When a person is needed, call offer_human_handoff and say you're passing them to the support team; the chat is handed over automatically and the team sees this conversation.`,
     },
   };
 }

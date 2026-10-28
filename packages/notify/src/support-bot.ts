@@ -11,7 +11,8 @@ export type BotQuickReply = { label: string; intent: string };
 export type BotCard =
   | { kind: "order"; title: string; subtitle: string; status: string; tone: "green" | "amber" | "red" | "slate"; href: string }
   | { kind: "product"; title: string; subtitle: string; image?: string | null; href: string };
-export type BotHandoff = { category: string; subject: string; orderId?: string | null; productId?: string | null };
+/** `soft`: the answer may already solve it, so the person only steps in if the user says it didn't. */
+export type BotHandoff = { category: string; subject: string; orderId?: string | null; productId?: string | null; soft?: boolean };
 export type BotReply = { text: string; links?: BotLink[]; quick?: BotQuickReply[]; cards?: BotCard[]; handoff?: BotHandoff; signIn?: boolean };
 
 export type BotIntent = {

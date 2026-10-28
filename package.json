@@ -39,6 +39,7 @@
     "e2e:team": "node scripts/e2e-team.mjs",
     "e2e:categories": "node scripts/e2e-categories.mjs",
     "e2e:livechat": "node scripts/e2e-livechat.mjs",
+    "e2e:assistant-handoff": "node scripts/e2e-assistant-handoff.mjs",
     "e2e:seller-coupons": "node scripts/e2e-seller-coupons.mjs",
     "e2e:wallet": "node scripts/e2e-wallet.mjs",
     "e2e:referrals": "node scripts/e2e-referrals.mjs",
