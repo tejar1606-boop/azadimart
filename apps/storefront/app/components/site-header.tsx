@@ -108,7 +108,7 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
 
   const iconButton = "relative grid h-10 w-10 place-items-center rounded-full text-slate-900 transition hover:bg-slate-100";
   // Desktop: icon + label side by side (Categories, Wishlist, Cart, Sign in); phones: icon only.
-  const navLink = "relative flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full text-slate-900 transition hover:bg-slate-100 lg:px-2.5 lg:hover:bg-transparent lg:hover:text-[#6A2CD6]";
+  const navLink = "relative flex h-10 min-w-9 sm:min-w-10 items-center justify-center gap-1.5 rounded-full text-slate-900 transition hover:bg-slate-100 lg:px-2.5 lg:hover:bg-transparent lg:hover:text-[#6A2CD6]";
   const navLabel = "hidden text-sm font-medium lg:inline";
   // The homepage shows round category photos under the header instead of the text menu.
   const isHome = pathname === "/";
@@ -119,15 +119,15 @@ export default function SiteHeader({ chrome }: { chrome: StoreChrome }) {
       <AnnouncementBar messages={chrome.announcements} />
       <header className="sticky top-0 z-40 bg-white shadow-header">
         {/* Full-width bar like Meesho and Flipkart: logo pinned left, search right after it, account and cart at the far right. */}
-        <div className="flex h-16 items-center gap-2 px-4 sm:gap-4 sm:px-6 lg:h-[72px] lg:gap-8 lg:px-10 2xl:px-14">
+        <div className="flex h-16 items-center gap-1 px-3 min-[380px]:gap-2 min-[380px]:px-4 sm:gap-4 sm:px-6 lg:h-[72px] lg:gap-8 lg:px-10 2xl:px-14">
           <div className="flex shrink-0 items-center">
             <button type="button" onClick={() => setMenuOpen(true)} className={iconButton + " -ml-2 mr-1 lg:hidden"} aria-label="Open menu">
               <MenuIcon />
             </button>
-            <Link href="/" className="text-[22px] leading-none lg:text-[26px]" aria-label="LOIMART home"><Wordmark /></Link>
+            <Link href="/" className="text-[20px] leading-none min-[380px]:text-[22px] lg:text-[26px]" aria-label="LOIMART home"><Wordmark /></Link>
           </div>
           <SearchForm className="hidden w-full max-w-xl md:block" />
-          <nav aria-label="Account" className="ml-auto flex items-center justify-end gap-0.5 sm:gap-1 lg:gap-2">
+          <nav aria-label="Account" className="ml-auto flex items-center justify-end gap-0 sm:gap-1 lg:gap-2">
             <Link href="/products" className={navLink + " hidden lg:flex"}><GridIcon size={20} /><span className={navLabel}>Categories</span></Link>
             {wallet ? (
               <Link href={wallet.href} className={navLink} aria-label={wallet.aria}>

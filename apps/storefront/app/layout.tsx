@@ -60,7 +60,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const chrome = await getStoreChrome();
   return (
     <html lang="en" className={poppins.variable}>
-      <body className="min-h-screen bg-white font-sans text-slate-950 antialiased">
+      <body className="min-h-screen overflow-x-clip bg-white font-sans text-slate-950 antialiased">
         <ScrollToTop />
         {chrome.intro ? <IntroSplash intro={chrome.intro} /> : null}
         <SiteHeader chrome={chrome} />
