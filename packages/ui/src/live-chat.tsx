@@ -5,7 +5,7 @@ import { ChatAttachmentView, ChatFileButton, type ChatAttachment } from "./chat-
 
 type Msg = { seq: number; author: "REQUESTER" | "AGENT" | "SYSTEM"; body: string; attachment?: ChatAttachment | null; createdAt: string; agentName: string | null };
 type ChatState = {
-  id: string; status: "WAITING" | "ACTIVE" | "ENDED"; agentName: string | null; agentTyping: boolean; agentReadSeq: number;
+  id: string; status: "WAITING" | "ACTIVE" | "ENDED"; agentName: string | null; agentTyping: boolean; agentReadSeq: number; onHold?: boolean; holdLabel?: string | null;
   position: number | null; waitSeconds: number | null; waited: number; offerMessage: boolean; endReason: string | null; rating: number | null; ticketId: string | null;
 };
 type Availability = { online: number; waitSeconds: number | null; openChatId: string | null; signedIn: boolean };
@@ -259,7 +259,7 @@ export function LiveChat({ apiBase, topics, ticketsPath, storageKey, onBack, ear
         <span className={"grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-semibold uppercase " + (status === "ACTIVE" ? "bg-navy text-white" : "bg-slate-100 text-slate-500")}>{chat?.agentName ? chat.agentName.slice(0, 2) : "…"}</span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{status === "ACTIVE" ? chat?.agentName : status === "ENDED" ? "Chat ended" : "Connecting you to an agent…"}</p>
-          <p className="truncate text-xs text-slate-500">{status === "ACTIVE" ? (chat?.agentTyping ? "typing…" : "LOIMART support · online") : status === "WAITING" ? (chat?.position ? `You're #${chat.position} in line · ${waitText(chat.waitSeconds).toLowerCase()}` : "One moment…") : "Thanks for chatting with us"}</p>
+          <p className="truncate text-xs text-slate-500">{status === "ACTIVE" ? (chat?.agentTyping ? "typing…" : chat?.onHold ? `On hold · ${(chat.holdLabel ?? "Looking into it").toLowerCase()}` : "LOIMART support · online") : status === "WAITING" ? (chat?.position ? `You're #${chat.position} in line · ${waitText(chat.waitSeconds).toLowerCase()}` : "One moment…") : "Thanks for chatting with us"}</p>
         </div>
         {status !== "ENDED" ? <button type="button" onClick={() => { if (confirm("End this chat?")) void post(`/${chatId}/end`).then(() => setChat((c) => c && { ...c, status: "ENDED" })).catch(() => undefined); }} className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-600 ring-1 ring-red-200 hover:bg-red-50">End</button> : null}
       </div>
@@ -295,6 +295,12 @@ export function LiveChat({ apiBase, topics, ticketsPath, storageKey, onBack, ear
             </div>
           </div>
         ))}
+        {status === "ACTIVE" && chat?.onHold ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <p className="font-semibold">{chat.holdLabel ?? "Looking into it"}</p>
+            <p className="mt-0.5 text-xs leading-5">Your chat is on hold and stays open. You can close this window and we&apos;ll reply right here. Add anything else in the meantime.</p>
+          </div>
+        ) : null}
         {chat?.agentTyping ? <div className="flex justify-start"><span className="flex gap-1 rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 shadow-sm">{[0, 1, 2].map((d) => <span key={d} className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: `${d * 120}ms` }} />)}</span></div> : null}
 
         {status === "WAITING" && chat?.offerMessage && !leave && !ticket ? (

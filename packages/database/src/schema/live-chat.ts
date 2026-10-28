@@ -42,6 +42,11 @@ export const liveChats = pgTable(
     ticketId: uuid("ticket_id").references(() => supportTickets.id, { onDelete: "set null" }),
     /** The assistant conversation that led here (the agent sees it, so nobody repeats themselves). */
     assistantChatId: uuid("assistant_chat_id").references(() => supportChats.id, { onDelete: "set null" }),
+    /** Parked by the agent while they wait on someone else (seller, courier, team). Doesn't count toward their chat limit or time out. */
+    heldAt: timestamp("held_at", { withTimezone: true }),
+    /** Why it was parked; kept after resuming so a chat that was on hold isn't lost if the requester has gone (see sweep). */
+    holdReason: text("hold_reason").$type<"SELLER" | "COURIER" | "TEAM" | "OTHER">(),
+    holdNote: text("hold_note"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

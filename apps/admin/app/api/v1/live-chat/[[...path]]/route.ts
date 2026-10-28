@@ -1,10 +1,10 @@
 import { requireStaff } from "@azadimart/auth";
 import {
-  agentCanSend, agentConsole, agentLiveChat, agentLiveEnd, agentLiveSend, agentLiveTake, agentLiveToTicket, agentLiveTransfer, agentLiveTyping,
+  agentCanSend, agentConsole, agentLiveChat, agentLiveEnd, agentLiveHold, agentLiveResume, agentLiveSend, agentLiveTake, agentLiveToTicket, agentLiveTransfer, agentLiveTyping,
   auditLogs, createDatabase, liveChatAgents, liveChatHistory, liveChats, liveChatReport, liveChatReportCsv, liveChatReportRows, orders, products, sellers, setAgentPresence, supportCannedReplies,
 } from "@azadimart/database";
-import { AppError, LIVE_CHAT_FILE_MAX_BYTES, liveAgentPresenceSchema, liveChatReportQuerySchema, liveChatMessageSchema, liveChatTransferSchema, toApiError, uuidSchema } from "@azadimart/shared";
-import { and, count, desc, eq } from "drizzle-orm";
+import { AppError, LIVE_CHAT_FILE_MAX_BYTES, liveAgentPresenceSchema, liveChatHoldSchema, liveChatReportQuerySchema, liveChatMessageSchema, liveChatTransferSchema, toApiError, uuidSchema } from "@azadimart/shared";
+import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { ChatFileError, assertUploadsAvailable, getObjectStore, saveChatUpload, serveChatFile, withChatFileLinks } from "@azadimart/storage";
 import { NextResponse } from "next/server";
 
@@ -79,6 +79,8 @@ export async function GET(request: Request, { params }: Params) {
  * POST /live-chat/presence {status, maxChats?}
  * POST /live-chat/heartbeat            keeps an Online agent online on any Admin page; returns their status and open chats
  * POST /live-chat/chats/{id}/messages|attachments|typing|take|transfer|end|ticket
+ * POST /live-chat/chats/{id}/hold {reason, note?}   park while waiting on the seller/courier/team
+ * POST /live-chat/chats/{id}/resume               back from hold (or take over one whose agent is away)
  */
 export async function POST(request: Request, { params }: Params) {
   try {
@@ -94,7 +96,7 @@ export async function POST(request: Request, { params }: Params) {
     if (section === "heartbeat") {
       await setAgentPresence(db, me.userId);
       const [agent] = await db.select({ status: liveChatAgents.status }).from(liveChatAgents).where(eq(liveChatAgents.userId, me.userId)).limit(1);
-      const [mine] = await db.select({ n: count() }).from(liveChats).where(and(eq(liveChats.status, "ACTIVE"), eq(liveChats.assignedAgentId, me.userId)));
+      const [mine] = await db.select({ n: count() }).from(liveChats).where(and(eq(liveChats.status, "ACTIVE"), isNull(liveChats.heldAt), eq(liveChats.assignedAgentId, me.userId)));
       return ok({ status: agent?.status ?? "OFFLINE", activeChats: Number(mine?.n ?? 0) });
     }
     if (section !== "chats" || !chatId) throw new AppError("NOT_FOUND", "Unknown live chat path");
@@ -113,6 +115,13 @@ export async function POST(request: Request, { params }: Params) {
     if (action === "typing") { await agentLiveTyping(db, me.userId, id); return ok({ ok: true }); }
     if (action === "take") { await agentLiveTake(db, me.userId, id); await db.insert(auditLogs).values({ actorUserId: me.userId, action: "LIVE_CHAT_TAKEN", entityType: "live_chat", entityId: id, metadata: {} }); return ok({ ok: true }); }
     if (action === "transfer") { const { agentUserId } = liveChatTransferSchema.parse(await json()); await agentLiveTransfer(db, me.userId, id, agentUserId); await db.insert(auditLogs).values({ actorUserId: me.userId, action: "LIVE_CHAT_TRANSFERRED", entityType: "live_chat", entityId: id, metadata: { to: agentUserId } }); return ok({ ok: true }); }
+    if (action === "hold") {
+      const { reason, note } = liveChatHoldSchema.parse(await json());
+      await agentLiveHold(db, me.userId, id, reason, note);
+      await db.insert(auditLogs).values({ actorUserId: me.userId, action: "LIVE_CHAT_HELD", entityType: "live_chat", entityId: id, metadata: { reason } });
+      return ok({ ok: true });
+    }
+    if (action === "resume") { await agentLiveResume(db, me.userId, id); await db.insert(auditLogs).values({ actorUserId: me.userId, action: "LIVE_CHAT_RESUMED", entityType: "live_chat", entityId: id, metadata: {} }); return ok({ ok: true }); }
     if (action === "end") { await agentLiveEnd(db, me.userId, id); return ok({ ok: true }); }
     if (action === "ticket") {
       const body = (await json()) as { note?: unknown };

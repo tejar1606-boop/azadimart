@@ -28,6 +28,8 @@ export const LIVE_CHAT_TIMING = {
   waitWarn: 60,
   /** Typing indicators fade after this. */
   typing: 6,
+  /** A chat on hold longer than this becomes a support request. */
+  holdMax: 48 * 60 * 60,
   /** Rough handling time per chat, used for the wait estimate. */
   avgHandle: 4 * 60,
 } as const;
@@ -83,3 +85,17 @@ export const liveChatCaptionSchema = z.string().trim().max(2000).default("");
 export const liveChatRateSchema = z.object({ rating: z.number().int().min(1).max(5), note: z.string().trim().max(500).optional() });
 export const liveAgentPresenceSchema = z.object({ status: z.enum(LIVE_AGENT_STATUSES), maxChats: z.number().int().min(1).max(10).optional() });
 export const liveChatTransferSchema = z.object({ agentUserId: z.string().uuid() });
+
+/** Why an agent parked a chat; the requester sees the label. */
+export const LIVE_HOLD_REASONS = {
+  SELLER: "Checking with the seller",
+  COURIER: "Checking with the courier",
+  TEAM: "Checking with our team",
+  OTHER: "Looking into it",
+} as const;
+export type LiveHoldReason = keyof typeof LIVE_HOLD_REASONS;
+export const liveChatHoldSchema = z.object({
+  reason: z.enum(Object.keys(LIVE_HOLD_REASONS) as [LiveHoldReason, ...LiveHoldReason[]]),
+  /** For the team only. */
+  note: z.string().trim().max(300).optional().default(""),
+});

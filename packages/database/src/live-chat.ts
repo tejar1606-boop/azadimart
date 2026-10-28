@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
-import { AppError, LIVE_CHAT_TIMING, estimateLiveWait, isStaffPermission, supportCategoryLabel, type LiveChatAttachment } from "@azadimart/shared";
-import { and, asc, desc, eq, gt, inArray, lt, sql, type SQL } from "drizzle-orm";
+import { AppError, LIVE_CHAT_TIMING, LIVE_HOLD_REASONS, estimateLiveWait, isStaffPermission, supportCategoryLabel, type LiveChatAttachment } from "@azadimart/shared";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, sql, type SQL } from "drizzle-orm";
 import type { Database } from "./client";
 import { customers, roles, staffMembers, users } from "./schema/identity";
 import { liveChatAgents, liveChatMessages, liveChats } from "./schema/live-chat";
@@ -44,7 +44,7 @@ export async function availableAgents(db: Database) {
     .where(and(gt(liveChatAgents.lastSeenAt, secondsAgo(LIVE_CHAT_TIMING.agentHeartbeat)), eq(users.status, "ACTIVE")));
   const allowed = rows.filter((r) => r.permissions ? r.memberActive !== false && r.permissions.filter(isStaffPermission).includes("livechat") : r.role === "ADMIN" || r.role === "SUPER_ADMIN");
   const load = allowed.length ? await db.select({ agent: liveChats.assignedAgentId, n: sql<number>`count(*)::int` }).from(liveChats)
-    .where(and(eq(liveChats.status, "ACTIVE"), inArray(liveChats.assignedAgentId, allowed.map((a) => a.userId)))).groupBy(liveChats.assignedAgentId) : [];
+    .where(and(eq(liveChats.status, "ACTIVE"), isNull(liveChats.heldAt), inArray(liveChats.assignedAgentId, allowed.map((a) => a.userId)))).groupBy(liveChats.assignedAgentId) : [];
   return allowed.map((a) => ({ userId: a.userId, name: a.name || a.email.split("@")[0] || "Support", status: a.status, maxChats: a.maxChats, active: Number(load.find((l) => l.agent === a.userId)?.n ?? 0) }));
 }
 
@@ -68,9 +68,17 @@ export async function sweepLiveChats(db: Database, force = false) {
   const abandoned = await db.update(liveChats).set({ status: "ENDED", endedAt: new Date(), endedBy: "SYSTEM", endReason: "ABANDONED", updatedAt: new Date() })
     .where(and(eq(liveChats.status, "WAITING"), lt(liveChats.requesterSeenAt, secondsAgo(LIVE_CHAT_TIMING.requesterGone)))).returning({ id: liveChats.id });
   for (const c of abandoned) await system(db, c.id, "The chat ended because you left before an agent joined.");
+  // Chats on hold wait for the update instead. One that was on hold and whose requester has gone
+  // since becomes a support request, so the agent's update still reaches them.
+  const goneAfterHold = await db.select().from(liveChats)
+    .where(and(eq(liveChats.status, "ACTIVE"), isNull(liveChats.heldAt), isNotNull(liveChats.holdReason), lt(liveChats.requesterSeenAt, secondsAgo(LIVE_CHAT_TIMING.requesterIdleEnd))));
+  for (const c of goneAfterHold) await chatToTicket(db, c, "This chat was on hold and the customer had left by the time we replied. Please follow up.", c.assignedAgentId);
   const idle = await db.update(liveChats).set({ status: "ENDED", endedAt: new Date(), endedBy: "SYSTEM", endReason: "IDLE", updatedAt: new Date() })
-    .where(and(eq(liveChats.status, "ACTIVE"), lt(liveChats.requesterSeenAt, secondsAgo(LIVE_CHAT_TIMING.requesterIdleEnd)))).returning({ id: liveChats.id });
+    .where(and(eq(liveChats.status, "ACTIVE"), isNull(liveChats.heldAt), lt(liveChats.requesterSeenAt, secondsAgo(LIVE_CHAT_TIMING.requesterIdleEnd)))).returning({ id: liveChats.id });
   for (const c of idle) await system(db, c.id, "The chat ended after a long time without activity.");
+  // On hold too long: a support request so it isn't forgotten.
+  const overdue = await db.select().from(liveChats).where(and(eq(liveChats.status, "ACTIVE"), lt(liveChats.heldAt, secondsAgo(LIVE_CHAT_TIMING.holdMax))));
+  for (const c of overdue) await chatToTicket(db, c, `This chat was on hold for over ${LIVE_CHAT_TIMING.holdMax / 3600} hours (${LIVE_HOLD_REASONS[c.holdReason ?? "OTHER"].toLowerCase()}${c.holdNote ? `: ${c.holdNote}` : ""}). Please follow up.`, c.assignedAgentId);
 
   const agents = await availableAgents(db);
   // Active chats whose agent is no longer around go back to the front of the queue.
@@ -78,7 +86,7 @@ export async function sweepLiveChats(db: Database, force = false) {
   const present = agents.filter((a) => a.status !== "OFFLINE").map((a) => a.userId);
   const orphaned = await db.select({ id: liveChats.id, agent: liveChats.assignedAgentId }).from(liveChats)
     .leftJoin(liveChatAgents, eq(liveChatAgents.userId, liveChats.assignedAgentId))
-    .where(and(eq(liveChats.status, "ACTIVE"), sql`(${liveChatAgents.lastSeenAt} is null or ${liveChatAgents.lastSeenAt} < ${secondsAgo(LIVE_CHAT_TIMING.agentGoneRequeue)} or ${liveChatAgents.status} = 'OFFLINE')`));
+    .where(and(eq(liveChats.status, "ACTIVE"), isNull(liveChats.heldAt), sql`(${liveChatAgents.lastSeenAt} is null or ${liveChatAgents.lastSeenAt} < ${secondsAgo(LIVE_CHAT_TIMING.agentGoneRequeue)} or ${liveChatAgents.status} = 'OFFLINE')`));
   for (const c of orphaned.filter((o) => !o.agent || !present.includes(o.agent))) {
     const moved = await db.update(liveChats).set({ status: "WAITING", assignedAgentId: null, updatedAt: new Date() }).where(and(eq(liveChats.id, c.id), eq(liveChats.status, "ACTIVE"))).returning({ id: liveChats.id });
     if (moved.length) await system(db, c.id, "Your agent got disconnected. Connecting you to the next available agent…");
@@ -166,6 +174,8 @@ async function ownChat(db: Database, who: LiveRequester, chatId: string) {
 export async function requesterLiveView(db: Database, who: LiveRequester, chatId: string, afterSeq: number) {
   await ownChat(db, who, chatId);
   if (afterSeq >= 0) await db.update(liveChats).set({ requesterSeenAt: new Date() }).where(and(eq(liveChats.id, chatId), inArray(liveChats.status, ["WAITING", "ACTIVE"])));
+  // Back after a hold and they've seen it: an ordinary chat again (see the sweep).
+  if (afterSeq >= 0) await db.update(liveChats).set({ holdReason: null, holdNote: null }).where(and(eq(liveChats.id, chatId), eq(liveChats.status, "ACTIVE"), isNull(liveChats.heldAt), isNotNull(liveChats.holdReason)));
   await sweepLiveChats(db);
   const chat = await ownChat(db, who, chatId);
   const messages = await db.select({ seq: liveChatMessages.seq, author: liveChatMessages.author, body: liveChatMessages.body, attachment: liveChatMessages.attachment, createdAt: liveChatMessages.createdAt, agentUserId: liveChatMessages.agentUserId })
@@ -188,6 +198,7 @@ export async function requesterLiveView(db: Database, who: LiveRequester, chatId
       agentName: chat.assignedAgentId ? names.get(chat.assignedAgentId) ?? "Support" : null,
       agentTyping: chat.status === "ACTIVE" && !!chat.agentTypingAt && Date.now() - chat.agentTypingAt.getTime() < LIVE_CHAT_TIMING.typing * 1000,
       agentReadSeq: chat.agentReadSeq,
+      onHold: chat.status === "ACTIVE" && !!chat.heldAt, holdLabel: chat.heldAt ? LIVE_HOLD_REASONS[chat.holdReason ?? "OTHER"] : null,
       position, waitSeconds, waited,
       // Waited too long, or nobody online: offer to leave a message instead.
       offerMessage: chat.status === "WAITING" && (waitSeconds === null || waited >= LIVE_CHAT_TIMING.offerMessageAfter),
@@ -298,11 +309,14 @@ export async function agentConsole(db: Database, agentUserId: string) {
       unread: unreadBy.get(c.id) ?? 0,
       requesterTyping: !!c.requesterTypingAt && now - c.requesterTypingAt.getTime() < LIVE_CHAT_TIMING.typing * 1000,
       requesterOnline: now - c.requesterSeenAt.getTime() < 30_000,
+      hold: c.heldAt ? { since: c.heldAt, reason: c.holdReason ?? "OTHER", label: LIVE_HOLD_REASONS[c.holdReason ?? "OTHER"], note: c.holdNote } : null,
     };
   };
   const queue = await Promise.all(open.filter((c) => c.status === "WAITING").map(row));
-  const mine = await Promise.all(open.filter((c) => c.status === "ACTIVE" && c.assignedAgentId === agentUserId).map(row));
-  const others = await Promise.all(open.filter((c) => c.status === "ACTIVE" && c.assignedAgentId !== agentUserId).map(row));
+  const mine = await Promise.all(open.filter((c) => c.status === "ACTIVE" && !c.heldAt && c.assignedAgentId === agentUserId).map(row));
+  const others = await Promise.all(open.filter((c) => c.status === "ACTIVE" && !c.heldAt && c.assignedAgentId !== agentUserId).map(row));
+  // Everyone's chats on hold (mine first): anyone can pick one up once the update arrives if its agent is away.
+  const held = await Promise.all(open.filter((c) => c.status === "ACTIVE" && c.heldAt).sort((a, b) => Number(b.assignedAgentId === agentUserId) - Number(a.assignedAgentId === agentUserId) || a.heldAt!.getTime() - b.heldAt!.getTime()).map(row));
 
   // Today's numbers (India time).
   const since = startOfIstDay();
@@ -315,7 +329,7 @@ export async function agentConsole(db: Database, agentUserId: string) {
     from live_chats where created_at >= ${since.toISOString()}::timestamptz`)).rows;
   return {
     me: { status: me.status, maxChats: me.maxChats, active: mine.length },
-    queue, mine, others,
+    queue, mine, others, held,
     agents: agents.map((a) => ({ userId: a.userId, name: a.name, status: a.status, active: a.active, maxChats: a.maxChats })),
     today: {
       chats: Number(stats?.total ?? 0), missed: Number(stats?.missed ?? 0),
@@ -345,6 +359,7 @@ export async function agentLiveChat(db: Database, agentUserId: string, chatId: s
       id: chat.id, status: chat.status, assignedAgentId: chat.assignedAgentId, agentName: chat.assignedAgentId ? names.get(chat.assignedAgentId) ?? null : null,
       requesterTyping: !!chat.requesterTypingAt && Date.now() - chat.requesterTypingAt.getTime() < LIVE_CHAT_TIMING.typing * 1000,
       requesterReadSeq: chat.requesterReadSeq, requesterOnline: Date.now() - chat.requesterSeenAt.getTime() < 30_000,
+      hold: chat.status === "ACTIVE" && chat.heldAt ? { since: chat.heldAt, reason: chat.holdReason ?? "OTHER", label: LIVE_HOLD_REASONS[chat.holdReason ?? "OTHER"], note: chat.holdNote } : null,
       createdAt: chat.createdAt, acceptedAt: chat.acceptedAt, endedAt: chat.endedAt, endReason: chat.endReason, rating: chat.rating, ratingNote: chat.ratingNote, ticketId: chat.ticketId,
     },
     messages: messages.map((m) => ({ seq: m.seq, author: m.author, body: m.body, attachment: m.attachment ?? null, createdAt: m.createdAt, agentName: m.agentUserId ? names.get(m.agentUserId) ?? "Support" : null })),
@@ -389,6 +404,33 @@ export async function agentLiveTransfer(db: Database, agentUserId: string, chatI
   if (!target) throw new AppError("VALIDATION_ERROR", "That agent isn't online for live chat");
   await db.update(liveChats).set({ assignedAgentId: toAgentId, agentReadSeq: 0, updatedAt: new Date() }).where(eq(liveChats.id, chatId));
   await system(db, chatId, `${target.name} has joined to help you.`);
+}
+
+/** Park the chat while waiting on the seller, courier or team; it stays open for the requester. */
+export async function agentLiveHold(db: Database, agentUserId: string, chatId: string, reason: keyof typeof LIVE_HOLD_REASONS, note: string) {
+  const chat = await assignedChat(db, agentUserId, chatId);
+  if (chat.heldAt) throw new AppError("CONFLICT", "This chat is already on hold");
+  await db.update(liveChats).set({ heldAt: new Date(), holdReason: reason, holdNote: note || null, agentTypingAt: null, updatedAt: new Date() }).where(eq(liveChats.id, chatId));
+  await system(db, chatId, `Your chat is on hold: ${LIVE_HOLD_REASONS[reason].toLowerCase()}.`);
+}
+
+/**
+ * Back from hold. The assigned agent, or anyone when that agent isn't
+ * around (they take it over), as long as they have room.
+ */
+export async function agentLiveResume(db: Database, agentUserId: string, chatId: string) {
+  const chat = (await db.select().from(liveChats).where(eq(liveChats.id, chatId)).limit(1))[0];
+  if (!chat) throw new AppError("NOT_FOUND", "Chat not found");
+  if (chat.status !== "ACTIVE" || !chat.heldAt) throw new AppError("CONFLICT", "This chat isn't on hold");
+  if (chat.assignedAgentId !== agentUserId) {
+    const present = (await availableAgents(db)).some((a) => a.userId === chat.assignedAgentId && a.status !== "OFFLINE");
+    if (present) throw new AppError("CONFLICT", `${(await agentNames(db, [chat.assignedAgentId!])).get(chat.assignedAgentId!)} is online and will pick this up`);
+  }
+  // A short grace period for the requester to come back before the idle check applies.
+  const resumed = await db.update(liveChats).set({ heldAt: null, assignedAgentId: agentUserId, requesterSeenAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(liveChats.id, chatId), isNotNull(liveChats.heldAt))).returning({ id: liveChats.id });
+  if (!resumed.length) throw new AppError("CONFLICT", "Someone else already picked this up");
+  await system(db, chatId, `${(await agentNames(db, [agentUserId])).get(agentUserId)} is back with you.`);
 }
 
 export async function agentLiveEnd(db: Database, agentUserId: string, chatId: string) {

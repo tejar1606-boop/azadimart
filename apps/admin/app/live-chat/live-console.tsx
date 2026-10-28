@@ -1,21 +1,23 @@
 "use client";
 
-import { LIVE_CHAT_TIMING } from "@azadimart/shared";
+import { LIVE_CHAT_TIMING, LIVE_HOLD_REASONS, type LiveHoldReason } from "@azadimart/shared";
 import { ChatAttachmentView, ChatFileButton, type ChatAttachment } from "@azadimart/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Row = {
   id: string; status: "WAITING" | "ACTIVE"; topic: string; source: string; requesterType: string; name: string; agentId: string | null; agentName: string | null;
   waitedSeconds: number; lastMessage: { author: string; body: string; at: string } | null; awaitingReplySeconds: number; unread: number; requesterTyping: boolean; requesterOnline: boolean;
+  hold: Hold | null;
 };
+type Hold = { since: string; reason: LiveHoldReason; label: string; note: string | null };
 type Agent = { userId: string; name: string; status: string; active: number; maxChats: number };
 type Console = {
   me: { status: "ONLINE" | "AWAY" | "OFFLINE"; maxChats: number; active: number };
-  queue: Row[]; mine: Row[]; others: Row[]; agents: Agent[];
+  queue: Row[]; mine: Row[]; others: Row[]; held: Row[]; agents: Agent[];
   today: { chats: number; missed: number; avgWaitSeconds: number | null; avgFirstReplySeconds: number | null; rating: number | null; rated: number };
 };
 type Msg = { seq: number; author: "REQUESTER" | "AGENT" | "SYSTEM"; body: string; attachment?: ChatAttachment | null; createdAt: string; agentName: string | null };
-type ChatInfo = { id: string; status: string; assignedAgentId: string | null; agentName: string | null; requesterTyping: boolean; requesterReadSeq: number; requesterOnline: boolean; createdAt: string; endedAt: string | null; endReason: string | null; rating: number | null; ratingNote: string | null; ticketId: string | null };
+type ChatInfo = { id: string; status: string; assignedAgentId: string | null; agentName: string | null; requesterTyping: boolean; requesterReadSeq: number; requesterOnline: boolean; hold: Hold | null; createdAt: string; endedAt: string | null; endReason: string | null; rating: number | null; ratingNote: string | null; ticketId: string | null };
 type Context = { name: string; requesterType: string; email: string | null; phone: string | null; guestContact: string | null; page: string | null; topic: string; recentOrders?: Array<{ id: string; number: string; status: string; total: number; createdAt: string }>; seller?: { storeName: string; status: string; holdReason: string | null; liveProducts: number }; canned?: Array<{ id: string; title: string; body: string }>; assistantChat?: Array<{ role: "user" | "assistant"; content: string }> };
 type History = { id: string; name: string; requesterType: string; topic: string; agentName: string | null; createdAt: string; endedAt: string | null; endReason: string | null; rating: number | null; ticketId: string | null; waitSeconds: number | null };
 
@@ -52,6 +54,9 @@ export default function LiveConsole({ meId }: { meId: string }) {
   const [historyQ, setHistoryQ] = useState("");
   const [tick, setTick] = useState(0);
   const [notify, setNotify] = useState<NotificationPermission | "unsupported">("default");
+  const [holdOpen, setHoldOpen] = useState(false);
+  const [holdReason, setHoldReason] = useState<LiveHoldReason>("SELLER");
+  const [holdNote, setHoldNote] = useState("");
   const lastSeq = useRef(0);
   const known = useRef<{ mine: Set<string>; unread: number } | null>(null);
   const typingSent = useRef(0);
@@ -79,16 +84,17 @@ export default function LiveConsole({ meId }: { meId: string }) {
       loadedAt.current = Date.now();
       setData(body); setError("");
       const mineIds = new Set<string>((body as Console).mine.map((c) => c.id));
-      const unread = (body as Console).mine.reduce((s, c) => s + c.unread, 0);
+      const myHeld = (body as Console).held.filter((c) => c.agentId === meId);
+      const unread = [...(body as Console).mine, ...myHeld].reduce((s, c) => s + c.unread, 0);
       if (known.current) {
         const fresh = (body as Console).mine.filter((c) => !known.current!.mine.has(c.id));
         if (fresh.length) alert("New live chat", `${fresh[0]!.name}: ${fresh[0]!.lastMessage?.body ?? fresh[0]!.topic}`);
-        else if (unread > known.current.unread) alert("New message", "A customer is waiting for your reply");
+        else if (unread > known.current.unread) alert("New message", myHeld.some((c) => c.unread) ? "A customer wrote in a chat you put on hold" : "A customer is waiting for your reply");
       }
       known.current = { mine: mineIds, unread };
       document.title = `${unread || (body as Console).queue.length ? `(${unread || (body as Console).queue.length}) ` : ""}Live chat · LOIMART Admin`;
     } catch (e) { setError(e instanceof Error ? e.message : "Couldn't load live chat"); }
-  }, [alert]);
+  }, [alert, meId]);
   useEffect(() => {
     void loadConsole();
     const t = setInterval(() => void loadConsole(), 2000);
@@ -107,7 +113,7 @@ export default function LiveConsole({ meId }: { meId: string }) {
   }, []);
   useEffect(() => {
     if (!selected) return;
-    lastSeq.current = 0; setMessages([]); setContext(null); setChat(null); setText("");
+    lastSeq.current = 0; setMessages([]); setContext(null); setChat(null); setText(""); setHoldOpen(false); setHoldNote("");
     void loadChat(selected, true);
     const t = setInterval(() => void loadChat(selected, false), 1500);
     return () => clearInterval(t);
@@ -173,12 +179,13 @@ export default function LiveConsole({ meId }: { meId: string }) {
     return () => clearTimeout(t);
   }, [tab, historyQ]);
 
-  const selectedRow = useMemo(() => [...(data?.mine ?? []), ...(data?.queue ?? []), ...(data?.others ?? [])].find((c) => c.id === selected), [data, selected]);
+  const selectedRow = useMemo(() => [...(data?.mine ?? []), ...(data?.queue ?? []), ...(data?.others ?? []), ...(data?.held ?? [])].find((c) => c.id === selected), [data, selected]);
   const mineOpen = chat?.status === "ACTIVE" && chat.assignedAgentId === meId;
   const others = (data?.agents ?? []).filter((a) => a.userId !== meId && a.status === "ONLINE" && a.active < a.maxChats);
   const me = data?.me;
 
-  const rowItem = (c: Row, kind: "queue" | "mine" | "other") => {
+  const heldFor = (h: Hold) => dur(Math.max(0, Math.round((Date.now() - new Date(h.since).getTime()) / 1000)));
+  const rowItem = (c: Row, kind: "queue" | "mine" | "other" | "held") => {
     const waited = c.waitedSeconds + since;
     const awaiting = c.awaitingReplySeconds ? c.awaitingReplySeconds + since : 0;
     const late = kind === "queue" ? waited > LIVE_CHAT_TIMING.waitWarn : awaiting > LIVE_CHAT_TIMING.waitWarn;
@@ -190,11 +197,13 @@ export default function LiveConsole({ meId }: { meId: string }) {
             <span className="flex items-center gap-1.5"><span className="truncate text-sm font-semibold">{c.name}</span>{c.requesterType === "SELLER" ? <span className="rounded bg-navy/10 px-1 text-[9px] font-bold uppercase text-navy">Seller</span> : c.requesterType === "GUEST" ? <span className="rounded bg-slate-100 px-1 text-[9px] font-bold uppercase text-slate-500">Guest</span> : null}</span>
             <span className="block truncate text-xs text-slate-500">{c.requesterTyping ? <i className="text-brand-700">typing…</i> : c.lastMessage ? `${c.lastMessage.author === "AGENT" ? "You: " : ""}${c.lastMessage.body}` : c.topic}</span>
             {kind === "other" ? <span className="block text-[11px] text-slate-400">with {c.agentName}</span> : null}
+            {kind === "held" && c.hold ? <span className="block truncate text-[11px] text-amber-700">⏸ {c.hold.label}{c.agentId !== meId ? ` · ${c.agentName ?? "no agent"}` : ""}</span> : null}
           </span>
           <span className="flex shrink-0 flex-col items-end gap-1">
             {kind === "queue" ? <span className={"rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums " + (late ? "bg-red-600 text-white" : "bg-amber-100 text-amber-800")}>{dur(waited)}</span> : null}
             {kind === "mine" && awaiting ? <span className={"rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums " + (late ? "bg-red-600 text-white" : "bg-sky-100 text-sky-800")}>{dur(awaiting)}</span> : null}
-            {c.unread && kind === "mine" ? <span className="grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1 text-[11px] font-bold text-white">{c.unread}</span> : null}
+            {kind === "held" && c.hold ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold tabular-nums text-amber-800">{heldFor(c.hold)}</span> : null}
+            {c.unread && (kind === "mine" || (kind === "held" && c.agentId === meId)) ? <span className="grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1 text-[11px] font-bold text-white">{c.unread}</span> : null}
           </span>
         </button>
       </li>
@@ -255,6 +264,10 @@ export default function LiveConsole({ meId }: { meId: string }) {
               {data?.queue.length ? <ul>{data.queue.map((c) => rowItem(c, "queue"))}</ul> : <p className="px-3 pb-2 text-xs text-slate-400">Nobody waiting.</p>}
               <p className="flex items-center justify-between px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">My chats <span>{me?.active ?? 0}/{me?.maxChats ?? 3}</span></p>
               {data?.mine.length ? <ul>{data.mine.map((c) => rowItem(c, "mine"))}</ul> : <p className="px-3 pb-2 text-xs text-slate-400">{me?.status === "ONLINE" ? "New chats come to you automatically." : "Go online to receive chats."}</p>}
+              {data?.held.length ? <>
+                <p className="flex items-center justify-between px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">On hold <span>{data.held.length}</span></p>
+                <ul>{data.held.map((c) => rowItem(c, "held"))}</ul>
+              </> : null}
               {data?.others.length ? <>
                 <p className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Team&apos;s chats</p>
                 <ul>{data.others.map((c) => rowItem(c, "other"))}</ul>
@@ -291,13 +304,17 @@ export default function LiveConsole({ meId }: { meId: string }) {
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
-                <div className="min-w-0 flex-1">
+                <div className="min-w-[180px] flex-1">
                   <p className="truncate font-semibold">{context?.name ?? selectedRow?.name ?? "…"} <span className="ml-1 text-xs font-normal text-slate-500">{context?.topic ?? selectedRow?.topic}</span></p>
-                  <p className="text-xs text-slate-500">{chat?.status === "ENDED" ? `Ended · ${END[chat.endReason ?? ""] ?? ""}${chat.rating ? ` · rated ${"★".repeat(chat.rating)}` : ""}` : chat?.requesterTyping ? <i className="text-brand-700">typing…</i> : chat?.requesterOnline ? "On the chat now" : "Not looking at the chat right now"}{chat?.status === "ACTIVE" && !mineOpen ? ` · with ${chat.agentName}` : ""}</p>
+                  <p className="text-xs text-slate-500">{chat?.status === "ENDED" ? `Ended · ${END[chat.endReason ?? ""] ?? ""}${chat.rating ? ` · rated ${"★".repeat(chat.rating)}` : ""}` : chat?.requesterTyping ? <i className="text-brand-700">typing…</i> : chat?.requesterOnline ? "On the chat now" : "Not looking at the chat right now"}{chat?.status === "ACTIVE" && !mineOpen ? ` · with ${chat.agentName}` : ""}{chat?.hold ? " · on hold" : ""}</p>
                 </div>
                 {chat?.status === "WAITING" ? <button type="button" disabled={busy} onClick={() => void act(() => post(`/chats/${selected}/take`), "Chat taken.")} className="rounded-full bg-brand px-4 py-1.5 text-sm font-semibold text-white">Take this chat</button> : null}
+                {chat?.hold && !mineOpen ? <button type="button" disabled={busy} onClick={() => void act(() => post(`/chats/${selected}/resume`), "You've taken over this chat.")} className="rounded-full bg-brand px-4 py-1.5 text-sm font-semibold text-white">Take over &amp; resume</button> : null}
                 {mineOpen ? (
                   <div className="flex flex-wrap items-center gap-1.5">
+                    {chat?.hold
+                      ? <button type="button" disabled={busy} onClick={() => void act(() => post(`/chats/${selected}/resume`), "Chat resumed. The customer has been told you're back.")} className="rounded-full bg-brand px-4 py-1.5 text-xs font-semibold text-white">▶ Resume chat</button>
+                      : <button type="button" disabled={busy} onClick={() => setHoldOpen((v) => !v)} aria-expanded={holdOpen} className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:border-amber-500">⏸ Put on hold</button>}
                     {others.length ? (
                       <select value="" disabled={busy} onChange={(e) => { if (e.target.value) void act(() => post(`/chats/${selected}/transfer`, { agentUserId: e.target.value }), "Chat transferred."); }} className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold" aria-label="Transfer">
                         <option value="">Transfer…</option>{others.map((a) => <option key={a.userId} value={a.userId}>{a.name} ({a.active}/{a.maxChats})</option>)}
@@ -308,6 +325,27 @@ export default function LiveConsole({ meId }: { meId: string }) {
                   </div>
                 ) : null}
               </div>
+              {mineOpen && holdOpen && !chat?.hold ? (
+                <form onSubmit={(e) => { e.preventDefault(); void act(() => post(`/chats/${selected}/hold`, { reason: holdReason, note: holdNote }), "Chat on hold. It no longer counts toward your chat limit.").then(() => { setHoldOpen(false); setHoldNote(""); }); }} className="flex flex-wrap items-end gap-2 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+                  <label className="grid gap-1 text-xs font-semibold text-amber-900">Waiting for
+                    <select value={holdReason} onChange={(e) => setHoldReason(e.target.value as LiveHoldReason)} className="rounded-lg border border-amber-300 bg-white px-2 py-1.5 text-sm font-normal text-slate-900">
+                      {(Object.keys(LIVE_HOLD_REASONS) as LiveHoldReason[]).map((k) => <option key={k} value={k}>{LIVE_HOLD_REASONS[k]}</option>)}
+                    </select>
+                  </label>
+                  <label className="grid min-w-[180px] flex-1 gap-1 text-xs font-semibold text-amber-900">Note for the team (optional)
+                    <input value={holdNote} maxLength={300} onChange={(e) => setHoldNote(e.target.value)} placeholder="e.g. Asked seller about the size exchange" className="rounded-lg border border-amber-300 bg-white px-2 py-1.5 text-sm font-normal text-slate-900" />
+                  </label>
+                  <button type="submit" disabled={busy} className="rounded-full bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400">Put on hold</button>
+                  <button type="button" onClick={() => setHoldOpen(false)} className="px-2 py-2 text-xs font-semibold text-amber-900">Cancel</button>
+                  <p className="basis-full text-[11px] text-amber-800">The customer sees “{LIVE_HOLD_REASONS[holdReason]}” and that the chat stays open. It won&apos;t time out, and it&apos;s saved as a support request if it&apos;s still on hold after {LIVE_CHAT_TIMING.holdMax / 3600} hours.</p>
+                </form>
+              ) : null}
+              {chat?.hold ? (
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">
+                  <b>⏸ On hold · {chat.hold.label}</b><span>for {heldFor(chat.hold)}</span>{chat.hold.note ? <span className="text-amber-800">· “{chat.hold.note}”</span> : null}
+                  <span className="basis-full text-[11px] text-amber-800">{mineOpen ? "Resume when you have the update. You can still send the customer a message while it's on hold." : `Put on hold by ${chat.agentName ?? "an agent"}. You can take it over if they're away.`}</span>
+                </div>
+              ) : null}
               <div ref={listRef} className="min-h-0 flex-1 space-y-2.5 overflow-y-auto bg-slate-50 px-4 py-4">
                 {context?.assistantChat?.length ? (
                   <details className="rounded-xl border border-slate-200 bg-white text-sm" open>
