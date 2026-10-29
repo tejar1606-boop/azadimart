@@ -35,7 +35,9 @@ export async function syncOrderFulfillmentStatus(db: Executor, orderId: string):
   };
 
   const now = new Date();
-  if (allSellersIn(["DELIVERED"])) {
+  // Every parcel delivered, or the rest refused/failed and back with their sellers (RTO): the order is done.
+  const finished = allSellersIn(["DELIVERED"]) || (allSellersIn(["DELIVERED", "RETURNED", "FAILED", "CANCELLED"]) && rows.some((row) => row.status === "DELIVERED"));
+  if (finished) {
     const delivered = await db.update(orders).set({ status: "DELIVERED", deliveredAt: now, updatedAt: now })
       .where(and(eq(orders.id, orderId), inArray(orders.status, ["CONFIRMED", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY"])))
       .returning({ id: orders.id });
@@ -96,9 +98,25 @@ export async function advanceShipmentStatus(tx: Tx, input: { shipmentId: string;
       });
     }
   }
-  // Failure, cancellation or return does not release stock: the checkout
-  // reservation belongs to the order and is released once by order
-  // cancellation (or finalised on delivery).
+  // A parcel refused at the door and back with the seller (RTO): its stock is
+  // free to sell again. Otherwise failure or cancellation doesn't release
+  // stock: the reservation belongs to the order and is released once by order
+  // cancellation (which skips parcels already delivered or back), or
+  // finalised on delivery.
+  if (input.status === "RETURNED" && shipment.status !== "DELIVERED") {
+    const items = await tx.select({ variantId: orderItems.variantId, quantity: orderItems.quantity, title: orderItems.title })
+      .from(orderItems).where(and(eq(orderItems.orderId, shipment.orderId), eq(orderItems.sellerId, shipment.sellerId)));
+    for (const item of items) {
+      const released = await tx.update(inventory).set({ reserved: sql`${inventory.reserved} - ${item.quantity}`, updatedAt: new Date() })
+        .where(and(eq(inventory.variantId, item.variantId), gte(inventory.reserved, item.quantity))).returning({ variantId: inventory.variantId });
+      if (!released.length) throw new AppError("CONFLICT", `Inventory reservation could not be released for ${item.title}`);
+      await tx.insert(inventoryMovements).values({
+        variantId: item.variantId, movementType: "RELEASE", quantity: item.quantity,
+        referenceType: "SHIPMENT_RTO", referenceId: shipment.orderId,
+        notes: "Parcel refused and returned to the seller", createdByUserId: input.actorUserId,
+      });
+    }
+  }
 
   const updated = (await tx.update(shipments).set({ status: input.status as typeof shipments.$inferSelect.status, updatedAt: new Date() })
     .where(and(eq(shipments.id, shipment.id), eq(shipments.status, shipment.status)))

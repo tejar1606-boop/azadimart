@@ -47,12 +47,15 @@ export async function cancelOrderInTransaction(
   }
 
   const items = await tx
-    .select({ variantId: orderItems.variantId, quantity: orderItems.quantity, title: orderItems.title })
+    .select({ variantId: orderItems.variantId, quantity: orderItems.quantity, title: orderItems.title, sellerId: orderItems.sellerId })
     .from(orderItems)
     .where(eq(orderItems.orderId, input.orderId));
   if (!items.length) throw new AppError("CONFLICT", "Order has no items to cancel");
+  // Parcels already delivered (stock sold) or refused and back with the seller (released then) hold no reservation.
+  const settled = new Set((await tx.select({ sellerId: shipments.sellerId }).from(shipments)
+    .where(and(eq(shipments.orderId, input.orderId), inArray(shipments.status, ["DELIVERED", "RETURNED"])))).map((s) => s.sellerId));
 
-  for (const item of items) {
+  for (const item of items.filter((i) => !settled.has(i.sellerId))) {
     const released = await tx
       .update(inventory)
       .set({ reserved: sql`${inventory.reserved} - ${item.quantity}`, updatedAt: new Date() })

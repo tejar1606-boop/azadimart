@@ -4,9 +4,10 @@ import type { Database } from "./client";
 
 /**
  * One order item a seller hasn't been paid for yet, with what they'll get.
- * Items qualify once the order is delivered and paid (Cash on Delivery
- * counts as paid on delivery). Returned units are left out; an open return
- * holds the item until it's resolved.
+ * Items qualify once the seller's own parcel is delivered and paid (Cash on
+ * Delivery counts as paid when that parcel is delivered), so a parcel another
+ * seller's buyer refused (RTO) doesn't hold the others back. Returned units
+ * are left out; an open return holds the item until it's resolved.
  */
 export type SettlementLine = {
   orderItemId: string;
@@ -36,7 +37,13 @@ type Row = {
 export async function unpaidSettlementLines(db: Pick<Database, "execute">, options: { sellerId?: string } = {}): Promise<SettlementLine[]> {
   const result = await db.execute<Row>(sql`
     select oi.id order_item_id, oi.order_id, o.order_number, oi.seller_id, oi.title, oi.quantity, oi.unit_price_paise, oi.seller_discount_paise, oi.gst_rate_bps,
-      o.created_at ordered_at, o.delivered_at, s.approved_at, s.tax_identity_type, oi.cashback_paise,
+      o.created_at ordered_at,
+      -- When this seller's parcel was delivered. The order is marked delivered once its last parcel is done,
+      -- so the earlier of the two is this parcel's (orders without a parcel record: the order's delivery).
+      coalesce(least((select min(se.created_at) from shipment_events se join shipments sh on sh.id = se.shipment_id
+        where sh.order_id = oi.order_id and sh.seller_id = oi.seller_id and se.status = 'DELIVERED'), o.delivered_at),
+        (select sh.updated_at from shipments sh where sh.order_id = oi.order_id and sh.seller_id = oi.seller_id)) delivered_at,
+      s.approved_at, s.tax_identity_type, oi.cashback_paise,
       -- The seller pays their share of the cashback only if the shopper got it.
       exists(select 1 from order_cashbacks oc where oc.order_id = oi.order_id and oc.status = 'GRANTED') cashback_granted,
       (oi.cashback_paise > 0 and not exists(select 1 from order_cashbacks oc where oc.order_id = oi.order_id)) cashback_pending,
@@ -54,11 +61,15 @@ export async function unpaidSettlementLines(db: Pick<Database, "execute">, optio
     from order_items oi
     join orders o on o.id = oi.order_id
     join sellers s on s.id = oi.seller_id
-    where o.status = 'DELIVERED' and o.delivered_at is not null
-      and exists (select 1 from payments p where p.order_id = o.id and p.status in ('CAPTURED', 'PARTIALLY_REFUNDED'))
+    where (
+        exists (select 1 from shipments sh where sh.order_id = oi.order_id and sh.seller_id = oi.seller_id and sh.status = 'DELIVERED')
+        or (o.status = 'DELIVERED' and o.delivered_at is not null
+          and not exists (select 1 from shipments sh where sh.order_id = oi.order_id and sh.seller_id = oi.seller_id)))
+      -- Cash on Delivery is collected by the courier with the parcel.
+      and exists (select 1 from payments p where p.order_id = o.id and (p.status in ('CAPTURED', 'PARTIALLY_REFUNDED') or (p.provider = 'COD' and p.status = 'PENDING')))
       and not exists (select 1 from payout_items pi where pi.order_item_id = oi.id)
       ${options.sellerId ? sql`and oi.seller_id = ${options.sellerId}` : sql``}
-    order by o.delivered_at, o.order_number`);
+    order by delivered_at, o.order_number`);
   return result.rows.flatMap((row) => {
     const quantity = Math.max(0, row.quantity - row.returned);
     if (quantity === 0) return [];

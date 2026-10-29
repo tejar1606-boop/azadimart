@@ -101,7 +101,8 @@ check("delivery marks the order delivered and the COD payment collected", o1.sta
 let mine = (await seller("/api/v1/payouts")).json;
 const up1 = mine?.upcoming?.find((u) => u.orderNumber === o1.order_number);
 const gross1 = o1.unit * 2;
-check("seller sees it as upcoming, payable 7 days after delivery", up1 && Math.abs(new Date(up1.eligibleAt) - new Date(o1.delivered_at) - 7 * 864e5) < 1000, JSON.stringify(up1 && { eligibleAt: up1.eligibleAt }));
+// (Timed from the parcel's delivery, which is recorded a moment before the order's.)
+check("seller sees it as upcoming, payable 7 days after delivery", up1 && Math.abs(new Date(up1.eligibleAt) - new Date(o1.delivered_at) - 7 * 864e5) < 60_000, JSON.stringify(up1 && { eligibleAt: up1.eligibleAt }));
 check("no commission (0%)", mine?.commission?.rateBps === 0 && up1?.commissionPaise === 0 && up1.netPaise === (await expectedNet(gross1, 0)), JSON.stringify(up1 && { c: up1.commissionPaise, net: up1.netPaise, want: (await expectedNet(gross1, 0)) }));
 await run();
 check("not paid before 7 days", !(await payoutFor(o1.id)));
