@@ -1,10 +1,9 @@
-import { AdminScreen } from "../_components/admin-screen";
+import SellersVerification from "../_components/sellers-verification";
+import { requireStaffPage } from "../lib/staff-page";
 
-export default function Page() {
-  return (
-    <AdminScreen
-      title="Sellers"
-      description="Registration, KYC review, and activation. Approval is required before dashboard access."
-    />
-  );
+export const dynamic = "force-dynamic";
+
+export default async function SellersPage() {
+  await requireStaffPage("sellers");
+  return <SellersVerification />;
 }

@@ -1,8 +1,10 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 
-export const userRoleEnum = pgEnum("user_role", ["CUSTOMER", "SELLER", "ADMIN", "SUPER_ADMIN"]);
+export const userRoleEnum = pgEnum("user_role", ["CUSTOMER", "SELLER", "ADMIN", "SUPER_ADMIN", "SUPPORT", "EMPLOYEE"]);
 
 export const userStatusEnum = pgEnum("user_status", ["ACTIVE", "DISABLED", "PENDING"]);
+
+export const sellerTaxIdentityTypeEnum = pgEnum("seller_tax_identity_type", ["GSTIN", "ENROLMENT_ID"]);
 
 export const sellerStatusEnum = pgEnum("seller_status", [
   "REGISTERED",
@@ -23,6 +25,7 @@ export const verificationStatusEnum = pgEnum("verification_status", [
 
 export const documentTypeEnum = pgEnum("document_type", [
   "GST",
+  "GST_ENROLMENT",
   "PAN",
   "BANK_PROOF",
   "ADDRESS_PROOF",
@@ -65,6 +68,13 @@ export const paymentStatusEnum = pgEnum("payment_status", [
 
 export const paymentMethodEnum = pgEnum("payment_method", ["RAZORPAY", "CASHFREE", "COD"]);
 
+export const refundStatusEnum = pgEnum("refund_status", [
+  "PENDING",
+  "PROCESSING",
+  "COMPLETED",
+  "FAILED",
+]);
+
 export const shipmentStatusEnum = pgEnum("shipment_status", [
   "PENDING",
   "CREATED",
@@ -99,3 +109,17 @@ export const ticketStatusEnum = pgEnum("ticket_status", ["OPEN", "IN_PROGRESS", 
 export const pageStatusEnum = pgEnum("page_status", ["DRAFT", "PUBLISHED"]);
 
 export const themeStatusEnum = pgEnum("theme_status", ["DRAFT", "PUBLISHED", "ARCHIVED"]);
+
+/** A+ content review: DRAFT -> PENDING_REVIEW -> APPROVED | REJECTED. */
+export const aplusStatusEnum = pgEnum("aplus_status", ["DRAFT", "PENDING_REVIEW", "APPROVED", "REJECTED"]);
+
+/** PENDING: an imported review a seller submitted, waiting for an admin to check its proof. */
+export const reviewStatusEnum = pgEnum("review_status", ["PUBLISHED", "HIDDEN", "PENDING"]);
+/** VERIFIED_PURCHASE: a LOIMART customer with a delivered order. IMPORTED: a genuine review earned elsewhere, shown with its source. */
+export const reviewSourceEnum = pgEnum("review_source", ["VERIFIED_PURCHASE", "IMPORTED"]);
+export const offerTagToneEnum = pgEnum("offer_tag_tone", ["SAFFRON", "GREEN", "RED", "NAVY", "PINK", "PURPLE"]);
+export const cancelActorEnum = pgEnum("cancel_actor", ["CUSTOMER", "SELLER", "ADMIN", "SYSTEM"]);
+
+/** Seller courier wallet: what moved the balance. */
+export const walletTxnTypeEnum = pgEnum("wallet_txn_type", ["TOP_UP", "COURIER_CHARGE", "COURIER_REFUND", "ADJUSTMENT"]);
+export const walletTopUpStatusEnum = pgEnum("wallet_topup_status", ["PENDING", "APPROVED", "REJECTED"]);

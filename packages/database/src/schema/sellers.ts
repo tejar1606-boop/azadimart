@@ -1,6 +1,7 @@
-import { boolean, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { id, timestamps } from "./columns";
-import { documentTypeEnum, sellerStatusEnum, verificationStatusEnum } from "./enums";
+import { documentTypeEnum, sellerStatusEnum, sellerTaxIdentityTypeEnum, verificationStatusEnum, walletTopUpStatusEnum, walletTxnTypeEnum } from "./enums";
 import { users } from "./identity";
 import { mediaAssets } from "./cms";
 
@@ -13,16 +14,35 @@ export const sellers = pgTable(
       .references(() => users.id, { onDelete: "restrict" }),
     storeName: text("store_name").notNull(),
     legalName: text("legal_name").notNull(),
+    taxIdentityType: sellerTaxIdentityTypeEnum("tax_identity_type").notNull().default("GSTIN"),
     gstin: text("gstin"),
+    gstEnrolmentId: text("gst_enrolment_id"),
+    businessState: text("business_state"),
+    taxDeclarationAcceptedAt: timestamp("tax_declaration_accepted_at", { withTimezone: true }),
     pan: text("pan"),
     status: sellerStatusEnum("status").notNull().default("REGISTERED"),
+    /** Prepaid courier wallet (closed loop: pays only LOIMART courier fees; no withdrawals). */
+    walletBalancePaise: integer("wallet_balance_paise").notNull().default(0),
+    // Seller referrals: this seller's own code, who referred them, and when they earned that seller a bonus.
+    referralCode: text("referral_code"),
+    referredBySellerId: uuid("referred_by_seller_id").references((): AnyPgColumn => sellers.id, { onDelete: "set null" }),
+    referralRewardedAt: timestamp("referral_rewarded_at", { withTimezone: true }),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     approvedByUserId: uuid("approved_by_user_id").references(() => users.id),
+    // Set by an admin to stop automatic payouts to this seller (e.g. a dispute).
+    payoutHoldReason: text("payout_hold_reason"),
+    // Most a seller may owe in ads beyond their upcoming earnings (null = LOIMART's default).
+    adCreditLimitPaise: integer("ad_credit_limit_paise"),
     ...timestamps,
   },
   (table) => [
     uniqueIndex("sellers_user_id_unique").on(table.userId),
     index("sellers_status_idx").on(table.status),
+    check("sellers_wallet_balance_non_negative", sql`${table.walletBalancePaise} >= 0`),
+    uniqueIndex("sellers_referral_code_unique").on(table.referralCode),
+    index("sellers_referred_by_idx").on(table.referredBySellerId),
+    check("sellers_no_self_referral", sql`${table.referredBySellerId} is null or ${table.referredBySellerId} <> ${table.id}`),
+    uniqueIndex("sellers_gst_enrolment_id_unique").on(table.gstEnrolmentId),
   ],
 );
 
@@ -54,10 +74,24 @@ export const sellerBankAccounts = pgTable(
     accountNumberEncrypted: text("account_number_encrypted").notNull(),
     ifsc: text("ifsc").notNull(),
     isPrimary: boolean("is_primary").notNull().default(true),
+    // Payouts go only to a verified primary account; a new account pauses payouts until verified.
+    verificationStatus: text("verification_status").$type<"PENDING" | "VERIFIED" | "REJECTED">().notNull().default("PENDING"),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    verifiedByUserId: uuid("verified_by_user_id").references(() => users.id),
+    rejectionReason: text("rejection_reason"),
     ...timestamps,
   },
   (table) => [index("seller_bank_accounts_seller_id_idx").on(table.sellerId)],
 );
+
+export const sellerSettings = pgTable("seller_settings", {
+  sellerId: uuid("seller_id").primaryKey().references(() => sellers.id, { onDelete: "cascade" }),
+  notificationSettings: jsonb("notification_settings").$type<Record<string, unknown>>().notNull().default({}),
+  returnSettings: jsonb("return_settings").$type<Record<string, unknown>>().notNull().default({}),
+  shippingSettings: jsonb("shipping_settings").$type<Record<string, unknown>>().notNull().default({}),
+  businessSettings: jsonb("business_settings").$type<Record<string, unknown>>().notNull().default({}),
+  ...timestamps,
+});
 
 export const sellerVerifications = pgTable(
   "seller_verifications",
@@ -74,4 +108,142 @@ export const sellerVerifications = pgTable(
     ...timestamps,
   },
   (table) => [index("seller_verifications_seller_id_idx").on(table.sellerId)],
+);
+
+/**
+ * In-app alerts for sellers (new orders, ship-by reminders, cancellations).
+ * Shown in Notices and as live pop-ups; also sent as browser push when the
+ * seller has turned it on.
+ */
+export const sellerNotifications = pgTable(
+  "seller_notifications",
+  {
+    id,
+    sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    body: text("body"),
+    href: text("href"),
+    // One alert per kind per order (e.g. NEW_ORDER:<orderId>), so retries never duplicate.
+    dedupeKey: text("dedupe_key"),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    index("seller_notifications_seller_created_idx").on(table.sellerId, table.createdAt),
+    uniqueIndex("seller_notifications_dedupe_unique").on(table.sellerId, table.dedupeKey),
+  ],
+);
+
+/** Browser push subscriptions (Web Push) for a seller's devices. */
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id,
+    sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    userAgent: text("user_agent"),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("push_subscriptions_endpoint_unique").on(table.endpoint), index("push_subscriptions_seller_idx").on(table.sellerId)],
+);
+
+/**
+ * Owner's Aadhaar check by OTP (mandatory before KYC). Aadhaar rules forbid
+ * storing the number itself, so only the last 4 digits, the details the
+ * licensed provider returns, the consent time and the provider's reference
+ * are kept.
+ */
+export const sellerAadhaar = pgTable("seller_aadhaar", {
+  sellerId: uuid("seller_id").primaryKey().references(() => sellers.id, { onDelete: "cascade" }),
+  status: text("status").$type<"OTP_SENT" | "VERIFIED">().notNull(),
+  last4: text("last4").notNull(),
+  provider: text("provider").notNull(),
+  providerRef: text("provider_ref"),
+  otpExpiresAt: timestamp("otp_expires_at", { withTimezone: true }),
+  otpAttempts: integer("otp_attempts").notNull().default(0),
+  consentAt: timestamp("consent_at", { withTimezone: true }).notNull(),
+  nameOnAadhaar: text("name_on_aadhaar"),
+  yearOfBirth: text("year_of_birth"),
+  stateOnAadhaar: text("state_on_aadhaar"),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  ...timestamps,
+});
+
+/**
+ * Every change to a seller's courier wallet, with the balance after it.
+ * amount_paise is + for money in (top-up, refund) and - for charges.
+ */
+export const sellerWalletTransactions = pgTable(
+  "seller_wallet_transactions",
+  {
+    id,
+    sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "cascade" }),
+    type: walletTxnTypeEnum("type").notNull(),
+    amountPaise: integer("amount_paise").notNull(),
+    balanceAfterPaise: integer("balance_after_paise").notNull(),
+    /** The parcel a courier charge or refund belongs to. */
+    shipmentId: uuid("shipment_id"),
+    topUpId: uuid("top_up_id"),
+    note: text("note"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id),
+    ...timestamps,
+  },
+  (table) => [
+    index("seller_wallet_transactions_seller_idx").on(table.sellerId, table.createdAt),
+    index("seller_wallet_transactions_shipment_idx").on(table.shipmentId),
+  ],
+);
+
+/** A seller's request to add money (paid to LOIMART by bank transfer/UPI); an admin approves it. */
+export const sellerWalletTopUps = pgTable(
+  "seller_wallet_top_ups",
+  {
+    id,
+    sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "cascade" }),
+    amountPaise: integer("amount_paise").notNull(),
+    /** Bank / UPI transaction reference (UTR) the seller paid with. */
+    reference: text("reference").notNull(),
+    /** Private screenshot/PDF of the payment (payment-proofs/…); required for new requests. */
+    proofKey: text("proof_key"),
+    proofMimeType: text("proof_mime_type"),
+    status: walletTopUpStatusEnum("status").notNull().default("PENDING"),
+    adminNote: text("admin_note"),
+    decidedByUserId: uuid("decided_by_user_id").references(() => users.id),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    // One payment reference can only be used once (a rejected request frees it to be sent again).
+    uniqueIndex("seller_wallet_top_ups_reference_unique").on(sql`upper(${table.reference})`).where(sql`${table.status} <> 'REJECTED'`),
+    index("seller_wallet_top_ups_status_idx").on(table.status, table.createdAt),
+    check("seller_wallet_top_ups_amount_positive", sql`${table.amountPaise} > 0`),
+  ],
+);
+
+/**
+ * Extra commission-free periods on top of the first 3 months after approval,
+ * e.g. 3 months earned when a referred seller delivers their first order.
+ * Orders placed inside a period pay no commission and no platform fee.
+ */
+export const sellerCommissionFreePeriods = pgTable(
+  "seller_commission_free_periods",
+  {
+    id,
+    sellerId: uuid("seller_id").notNull().references(() => sellers.id, { onDelete: "cascade" }),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    reason: text("reason").notNull(),
+    /** The referred seller whose first delivery earned this period (one reward per referred seller). */
+    referredSellerId: uuid("referred_seller_id").references(() => sellers.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (table) => [
+    index("seller_commission_free_periods_seller_idx").on(table.sellerId, table.startsAt),
+    uniqueIndex("seller_commission_free_periods_referred_unique").on(table.referredSellerId),
+    check("seller_commission_free_periods_order", sql`${table.endsAt} > ${table.startsAt}`),
+  ],
 );

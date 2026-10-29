@@ -1,47 +1,51 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Poppins } from "next/font/google";
+import { createDatabase, liveChats, adCampaigns, sellerWalletTopUps, productAplusContent, products, qcSubmissions, sellerVerifications, supportTickets } from "@azadimart/database";
+import { and, count, eq, inArray } from "drizzle-orm";
 import "@azadimart/ui/globals.css";
+import AdminChrome, { type AdminCounts } from "./_components/admin-chrome";
+import { currentStaff } from "./lib/staff-page";
+
+const poppins = Poppins({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "AzadiMart Admin",
-  description: "Admin console",
+  title: { default: "LOIMART Admin", template: "%s · LOIMART Admin" },
+  description: "Operations and commerce console",
+  robots: { index: false, follow: false },
 };
 
-const NAV = [
-  ["/dashboard", "Dashboard"],
-  ["/orders", "Orders"],
-  ["/products", "Products"],
-  ["/sellers", "Sellers"],
-  ["/customers", "Customers"],
-  ["/qc", "QC"],
-  ["/logistics", "Logistics"],
-  ["/payments", "Payments"],
-  ["/finance", "Finance"],
-  ["/returns", "Returns"],
-  ["/support", "Support"],
-  ["/marketing", "Marketing"],
-  ["/security", "Security & Audit"],
-  ["/online-store", "Online Store"],
-] as const;
+/** Work-queue counts for the sidebar, only for the areas the signed-in team member may use. */
+async function adminCounts(): Promise<AdminCounts | null> {
+  try {
+    const db = createDatabase();
+    const access = await currentStaff(db);
+    if (!access) return null;
+    const can = (p: string) => access.permissions.includes(p as never);
+    const n = (q: Promise<Array<{ n: number }>>) => q.then((r) => Number(r[0]?.n ?? 0));
+    const skip = Promise.resolve(0);
+    const [liveWaiting, support, sellersPending, qc, approvals, aplus, ads, walletTopUps] = await Promise.all([
+      can("livechat") ? n(db.select({ n: count() }).from(liveChats).where(eq(liveChats.status, "WAITING"))) : skip,
+      // Tickets where the requester is waiting on the team.
+      can("support") ? n(db.select({ n: count() }).from(supportTickets).where(and(inArray(supportTickets.status, ["OPEN", "IN_PROGRESS"]), eq(supportTickets.lastReplyBy, "REQUESTER")))) : skip,
+      can("sellers") ? n(db.select({ n: count() }).from(sellerVerifications).where(eq(sellerVerifications.status, "IN_REVIEW"))) : skip,
+      can("catalog") ? n(db.select({ n: count() }).from(qcSubmissions).where(eq(qcSubmissions.status, "PENDING"))) : skip,
+      can("catalog") ? n(db.select({ n: count() }).from(products).where(eq(products.status, "PENDING_ADMIN_APPROVAL"))) : skip,
+      can("catalog") ? n(db.select({ n: count() }).from(productAplusContent).where(eq(productAplusContent.status, "PENDING_REVIEW"))) : skip,
+      can("banners") ? n(db.select({ n: count() }).from(adCampaigns).where(eq(adCampaigns.status, "PENDING_REVIEW"))) : skip,
+      can("payments") ? n(db.select({ n: count() }).from(sellerWalletTopUps).where(eq(sellerWalletTopUps.status, "PENDING"))) : skip,
+    ]);
+    return { liveWaiting, role: access.role, roleName: access.roleName, displayName: access.displayName, permissions: access.permissions, support, sellers: sellersPending, qc, approvals, aplus, ads, walletTopUps };
+  } catch {
+    return null;
+  }
+}
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const counts = await adminCounts();
   return (
-    <html lang="en">
-      <body className="min-h-screen antialiased">
-        <div className="flex min-h-screen">
-          <aside className="w-56 border-r border-slate-200 bg-white p-4">
-            <p className="text-xs uppercase tracking-wide text-ink-muted">admin.azadimart.com</p>
-            <p className="mt-1 font-semibold">AzadiMart</p>
-            <nav className="mt-6 flex flex-col gap-2 text-sm">
-              {NAV.map(([href, label]) => (
-                <Link key={href} href={href} className="text-ink hover:text-saffron">
-                  {label}
-                </Link>
-              ))}
-            </nav>
-          </aside>
-          <div className="flex-1">{children}</div>
-        </div>
+    <html lang="en" className={poppins.variable}>
+      <body className="min-h-screen bg-panel font-sans text-slate-950 antialiased">
+        <AdminChrome counts={counts}>{children}</AdminChrome>
       </body>
     </html>
   );

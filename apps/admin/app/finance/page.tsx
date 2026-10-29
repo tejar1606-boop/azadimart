@@ -1,5 +1,7 @@
-import { AdminScreen } from "../_components/admin-screen";
+import FinanceView from "./finance-view";
 
-export default function Page() {
-  return <AdminScreen title="Finance" description="Seller payouts, refunds, and settlement status." />;
+export const metadata = { title: "Finance" };
+
+export default function FinancePage() {
+  return <FinanceView />;
 }

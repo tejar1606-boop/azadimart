@@ -1,5 +1,7 @@
-import { AdminScreen } from "../_components/admin-screen";
+import SupportDesk from "./support-desk";
 
-export default function Page() {
-  return <AdminScreen title="Support" description="Tickets from customers and sellers, optionally linked to orders." />;
+export const metadata = { title: "Support desk" };
+
+export default function SupportPage() {
+  return <SupportDesk />;
 }

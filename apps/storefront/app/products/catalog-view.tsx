@@ -1,0 +1,238 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { ChevronLeftIcon, CloseIcon } from "../components/icons";
+import FilterPanel, { priceLabel, type PriceRange } from "./filter-panel";
+import ProductCard from "../components/product-card";
+import type { RailCategory } from "../lib/category-rail";
+import { countAdView } from "../lib/ad-tracking";
+
+type Variant = { id: string; title: string; pricePaise: number; compareAtPaise: number | null; availableQuantity: number };
+/** Set on a category page (/c/<slug>): the category is fixed and shown as the page title. */
+export type FixedCategory = { id: string; name: string; slug: string; intro?: string | null; parent: { name: string; slug: string } | null; children: Array<{ name: string; slug: string }> };
+type Product = { id: string; title: string; slug: string; description: string | null; categoryName: string; sellerName: string; reviewCount?: number; ratingTotal?: number; badge?: { label: string; tone: string; kind: "tag" | "price_drop" } | null; coupon?: { code: string; text: string } | null; variants: Variant[]; media?: Array<{ storageKey: string; kind: string; altText: string | null }> };
+
+const SORTS: Array<[string, string]> = [["featured", "Featured"], ["newest", "Newest"], ["price_asc", "Price: Low to high"], ["price_desc", "Price: High to low"]];
+
+function GridIcon() {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" /></svg>;
+}
+
+function Thumb({ src, className }: { src: string | null; className: string }) {
+  return (
+    <span className={"relative grid shrink-0 place-items-center overflow-hidden rounded-xl bg-slate-100 text-slate-500 " + className}>
+      {src ? <Image src={src} alt="" fill sizes="64px" className="object-cover" unoptimized={src.startsWith("https://")} /> : <GridIcon />}
+    </span>
+  );
+}
+
+/**
+ * Category column on the left of the shop pages, on phones as well as desktop,
+ * so shoppers switch category in one tap. The open main category lists its
+ * sub-categories underneath.
+ */
+function CategoryRail({ rail, activeId }: { rail: RailCategory[]; activeId: string }) {
+  const active = rail.find((c) => c.id === activeId);
+  const openParent = active?.parentId ?? active?.id ?? "";
+  // Empty categories stay out of the column (so shoppers never land on an empty page), unless open.
+  const shown = (c: RailCategory) => c.count > 0 || c.id === activeId || c.id === openParent;
+  // Inside a category only that category and its sub-categories are listed; "All products" lists every main category.
+  const top = rail.filter((c) => !c.parentId && shown(c) && (!openParent || c.id === openParent));
+  const item = (selected: boolean) =>
+    "group relative flex flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-center transition lg:flex-row lg:gap-3 lg:px-2.5 lg:text-left " +
+    (selected ? "bg-slate-100" : "hover:bg-slate-50");
+  const bar = (selected: boolean) => (selected ? <span className="absolute inset-y-2 left-0 w-0.5 bg-slate-950" aria-hidden="true" /> : null);
+  const label = (selected: boolean) => "line-clamp-2 text-[11px] leading-tight lg:text-sm " + (selected ? "font-semibold text-slate-950" : "font-medium text-slate-700 group-hover:text-slate-950");
+
+  return (
+    <nav aria-label="Categories" className="sticky top-[136px] max-h-[calc(100vh-148px)] overflow-y-auto overscroll-contain border-r border-slate-200 bg-white p-1.5 pr-2 [scrollbar-width:none] lg:top-[132px] lg:max-h-[calc(100vh-150px)] lg:p-2">
+      <p className="hidden px-2.5 pb-2 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400 lg:block">Categories</p>
+      <ul className="space-y-1">
+        {openParent ? (
+          <li>
+            <Link href="/products" className="flex flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-center text-[11px] font-semibold text-slate-600 transition hover:bg-white/70 hover:text-slate-950 lg:flex-row lg:gap-1.5 lg:px-2.5 lg:text-left lg:text-sm">
+              <ChevronLeftIcon size={18} />All categories
+            </Link>
+          </li>
+        ) : null}
+        {top.map((c) => {
+          const selected = c.id === activeId;
+          const children = c.id === openParent ? rail.filter((x) => x.parentId === c.id && shown(x)) : [];
+          return (
+            <li key={c.id}>
+              <Link href={"/c/" + c.slug} aria-current={selected ? "page" : undefined} className={item(selected)}>
+                {bar(selected)}
+                <Thumb src={c.imageSrc} className="h-12 w-12 lg:h-11 lg:w-11" />
+                <span className="min-w-0 lg:flex-1">
+                  <span className={label(selected)}>{openParent ? "All " + c.name : c.name}</span>
+                  <span className="hidden text-xs text-slate-400 lg:block">{c.count} item{c.count === 1 ? "" : "s"}</span>
+                </span>
+              </Link>
+              {children.length ? (
+                <ul className="mb-1 mt-1 space-y-1">
+                  {children.map((child) => {
+                    const on = child.id === activeId;
+                    // Each sub-category with its own photo (Admin → Catalogue → Category photos).
+                    return (
+                      <li key={child.id}>
+                        <Link href={"/c/" + child.slug} aria-current={on ? "page" : undefined} className={item(on)}>
+                          {bar(on)}
+                          <Thumb src={child.imageSrc} className="h-12 w-12 lg:h-11 lg:w-11" />
+                          <span className="min-w-0 lg:flex-1">
+                            <span className={label(on)}>{child.name}</span>
+                            <span className="hidden text-xs text-slate-400 lg:block">{child.count} item{child.count === 1 ? "" : "s"}</span>
+                          </span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+/** Counts a sponsored card's view once it's on screen. */
+function SponsoredView({ bidId, children }: { bidId: string; children: React.ReactNode }) {
+  useEffect(() => { if (bidId) countAdView(bidId); }, [bidId]);
+  return <>{children}</>;
+}
+
+export default function CatalogView({ category, rail = [] }: { category?: FixedCategory; rail?: RailCategory[] }) {
+  // Header search and old category links arrive as ?q= / ?categoryId=.
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q") ?? "";
+  const categoryId = category?.id ?? searchParams.get("categoryId") ?? "";
+  const [items, setItems] = useState<Product[]>([]);
+  const [sponsored, setSponsored] = useState<Array<{ bidId: string; product: Product }>>([]);
+  const [sort, setSort] = useState("featured");
+  const [query, setQuery] = useState(urlQuery);
+  useEffect(() => { setQuery(urlQuery); }, [urlQuery]);
+  const [price, setPrice] = useState<PriceRange>({ min: "", max: "" });
+  const { min: minPrice, max: maxPrice } = price;
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const closeFilters = useCallback(() => setFiltersOpen(false), []);
+  // Size filter (shoes, clothing): the sizes in stock here, and the ones the shopper picked.
+  const [sizeOptions, setSizeOptions] = useState<string[]>([]);
+  const [pickedSizes, setPickedSizes] = useState<string[]>([]);
+  useEffect(() => { setPickedSizes([]); }, [categoryId]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async (search = "") => {
+    setLoading(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({ limit: "48", sort });
+      if (categoryId) params.set("categoryId", categoryId);
+      if (search.trim()) params.set("q", search.trim());
+      if (minPrice) params.set("minPrice", String(Number(minPrice) * 100));
+      if (maxPrice) params.set("maxPrice", String(Number(maxPrice) * 100));
+      if (pickedSizes.length) params.set("size", pickedSizes.join(","));
+      const adParams = new URLSearchParams();
+      if (categoryId) adParams.set("categoryId", categoryId);
+      if (params.get("q")) adParams.set("q", params.get("q")!);
+      void fetch("/api/v1/ads/sponsored?" + adParams.toString(), { cache: "no-store" }).then((r) => r.json()).then((b) => setSponsored(b.items ?? [])).catch(() => setSponsored([]));
+      const response = await fetch("/api/v1/catalog/products?" + params.toString(), { cache: "no-store" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body?.error ?? "Unable to load products.");
+      setItems(body.items ?? []);
+      if (!pickedSizes.length) setSizeOptions(body.sizeOptions ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load products.");
+    } finally {
+      setLoading(false);
+    }
+  }, [categoryId, sort, minPrice, maxPrice, pickedSizes]);
+
+  useEffect(() => { void load(query); }, [load, query]);
+
+  const title = query ? `Results for “${query}”` : category?.name ?? rail.find((c) => c.id === categoryId)?.name ?? "All products";
+  const barButton = "flex h-10 min-w-0 items-center justify-center gap-2 whitespace-nowrap border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:border-slate-950";
+  const activeCount = (minPrice || maxPrice ? 1 : 0) + pickedSizes.length;
+  const chip = "inline-flex items-center gap-1.5 border border-slate-300 bg-slate-50 py-1 pl-3 pr-1.5 text-xs font-semibold";
+
+  return (
+    <main className="min-h-[60vh] bg-white px-3 py-5 sm:px-6 sm:py-10">
+      <div className="mx-auto max-w-[1440px]">
+        <nav aria-label="Breadcrumb" className="text-xs text-slate-500">
+          <Link href="/" className="hover:text-slate-900">Home</Link><span className="mx-1.5">/</span>
+          {category ? <><Link href="/products" className="hover:text-slate-900">Shop</Link><span className="mx-1.5">/</span></> : null}
+          {category?.parent ? <><Link href={"/c/" + category.parent.slug} className="hover:text-slate-900">{category.parent.name}</Link><span className="mx-1.5">/</span></> : null}
+          <span className="text-slate-900">{category?.name ?? "Shop"}</span>
+        </nav>
+
+        <div className={"mt-3 grid gap-3 sm:gap-6 lg:mt-5 lg:gap-8 " + (rail.length ? "grid-cols-[76px_minmax(0,1fr)] sm:grid-cols-[96px_minmax(0,1fr)] lg:grid-cols-[248px_minmax(0,1fr)]" : "")}>
+          {rail.length ? <aside><CategoryRail rail={rail} activeId={categoryId} /></aside> : null}
+
+          <section aria-label="Products" className="min-w-0">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0">
+                <h1 className="text-[22px] font-bold leading-tight tracking-[-0.02em] sm:text-[32px]">{title}</h1>
+                <p className="mt-1 text-xs text-slate-500 sm:text-sm">{loading ? "Loading products…" : `${items.length} product${items.length === 1 ? "" : "s"} from verified sellers`}</p>
+              </div>
+            </div>
+
+            {/* Sort + Filters bar, like the big shopping apps; chosen filters show as removable chips. */}
+            <div className="mt-4 flex items-center gap-2">
+              <label className={barButton + " relative flex-1 sm:flex-none"}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4" /></svg>
+                <span className="truncate whitespace-nowrap"><span className="sm:hidden">{sort === "featured" ? "Sort" : SORTS.find(([v]) => v === sort)?.[1]}</span><span className="hidden sm:inline">Sort: {SORTS.find(([v]) => v === sort)?.[1]}</span></span>
+                <select value={sort} onChange={(e) => setSort(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Sort products">
+                  {SORTS.map(([value, text]) => <option key={value} value={value}>{text}</option>)}
+                </select>
+              </label>
+              <button type="button" onClick={() => setFiltersOpen(true)} className={barButton + " flex-1 sm:flex-none"}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>
+                Filters{activeCount ? <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#6A2CD6] px-1 text-[11px] font-bold text-white">{activeCount}</span> : null}
+              </button>
+            </div>
+            {activeCount ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {minPrice || maxPrice ? <span className={chip}>{priceLabel(price)}<button type="button" aria-label="Remove price filter" onClick={() => setPrice({ min: "", max: "" })} className="grid h-5 w-5 place-items-center text-slate-500 hover:text-slate-950"><CloseIcon size={14} /></button></span> : null}
+                {pickedSizes.map((s) => <span key={s} className={chip}>{s}<button type="button" aria-label={"Remove size " + s} onClick={() => setPickedSizes((l) => l.filter((x) => x !== s))} className="grid h-5 w-5 place-items-center text-slate-500 hover:text-slate-950"><CloseIcon size={14} /></button></span>)}
+                <button type="button" onClick={() => { setPrice({ min: "", max: "" }); setPickedSizes([]); }} className="text-xs font-semibold text-[#6A2CD6] underline underline-offset-2">Clear all</button>
+              </div>
+            ) : null}
+            <FilterPanel open={filtersOpen} onClose={closeFilters} price={price} sizes={pickedSizes} sizeOptions={sizeOptions} onApply={(p, sz) => { setPrice(p); setPickedSizes(sz); }} />
+
+            {error ? <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+
+            {loading ? (
+ <div className="mt-5 grid grid-cols-2 gap-x-1.5 gap-y-6 sm:gap-x-2 sm:gap-y-8 md:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="animate-pulse bg-white"><div className="aspect-square bg-slate-100" /><div className="mt-3 h-4 rounded bg-slate-100" /><div className="mt-2 h-4 w-2/3 rounded bg-slate-100" /></div>)}</div>
+            ) : items.length === 0 ? (
+              <div className="mt-6 rounded-[2rem] border border-dashed border-slate-300 bg-white p-8 text-center sm:p-12"><p className="text-lg font-bold sm:text-xl">No matching products yet.</p><p className="mt-2 text-sm text-slate-500">Try another category, a different search, or clear the price filter.</p><Link href="/products" className="mt-5 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white">See all products</Link></div>
+            ) : (
+              <div className="mt-5 grid grid-cols-2 gap-x-1.5 gap-y-6 sm:gap-x-2 sm:gap-y-8 md:grid-cols-3 xl:grid-cols-4">
+                {[...sponsored.map((s) => ({ product: s.product, bidId: s.bidId })), ...items.filter((p) => !sponsored.some((s) => s.product.id === p.id)).map((product) => ({ product, bidId: "" }))].map(({ product, bidId }) => {
+                  const variant = [...product.variants].sort((a, b) => a.pricePaise - b.pricePaise)[0];
+                  const image = product.media?.find((media) => media.kind === "IMAGE" && media.storageKey);
+                  return (
+                    <SponsoredView key={(bidId ? "ad-" : "") + product.id} bidId={bidId}>
+                      <ProductCard
+                        product={{ id: product.id, slug: product.slug, title: product.title, pricePaise: variant?.pricePaise ?? 0, compareAtPaise: variant?.compareAtPaise, mediaStorageKey: image?.storageKey, mediaAltText: image?.altText, sellerName: product.sellerName, reviewCount: product.reviewCount, ratingTotal: product.ratingTotal, badge: product.badge, coupon: product.coupon ?? null, sponsoredHref: bidId ? `/api/v1/ads/click/${bidId}` : undefined }}
+                      />
+                    </SponsoredView>
+                  );
+                })}
+              </div>
+            )}
+            {category?.intro ? (
+              <section aria-labelledby="category-about" className="mt-12 border-t border-slate-200 pt-6">
+                <h2 id="category-about" className="text-base font-semibold sm:text-lg">About {category.name}</h2>
+                <p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-600">{category.intro}</p>
+              </section>
+            ) : null}
+          </section>
+        </div>
+      </div>
+    </main>
+  );
+}

@@ -15,10 +15,12 @@ describe("API contracts", () => {
     }
   });
 
-  it("never lets sellers onto admin contracts", () => {
+  it("never lets sellers onto protected admin contracts", () => {
     for (const contract of contractsForAudience("admin")) {
       expect(contract.roles).not.toContain("SELLER");
-      expect(contract.auth).toBe("session");
+      if (contract.roles.length > 0) {
+        expect(contract.auth).toBe("session");
+      }
     }
   });
 

@@ -1,0 +1,1 @@
+ALTER TABLE "returns" ADD COLUMN "return_shipping_fee_paise" integer DEFAULT 0 NOT NULL;
