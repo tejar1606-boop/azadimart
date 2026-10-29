@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_WALLET_SETTINGS, walletSettingsSchema, walletUsable } from "./customer-wallet";
+import { DEFAULT_WALLET_SETTINGS, walletSettingsSchema, walletSplit, walletUsable } from "./customer-wallet";
 
 describe("using wallet money on an order", () => {
   const s = DEFAULT_WALLET_SETTINGS;
@@ -20,5 +20,17 @@ describe("using wallet money on an order", () => {
   it("Admin settings are validated", () => {
     expect(walletSettingsSchema.safeParse(s).success).toBe(true);
     expect(walletSettingsSchema.safeParse({ ...s, expiryDays: 0 }).success).toBe(false);
+  });
+});
+
+describe("walletSplit", () => {
+  const s = DEFAULT_WALLET_SETTINGS;
+  it("caps promotional money but lets full-use money cover the rest of the order", () => {
+    expect(walletSplit({ promoPaise: 10100, fullPaise: 100000 }, 60000, s)).toEqual({ promoPaise: 5000, fullPaise: 55000, totalPaise: 60000 });
+    expect(walletSplit({ promoPaise: 10100, fullPaise: 20000 }, 60000, s)).toEqual({ promoPaise: 5000, fullPaise: 20000, totalPaise: 25000 });
+  });
+  it("full-use money has no minimum order and works with promotions off", () => {
+    expect(walletSplit({ promoPaise: 10100, fullPaise: 50000 }, 19900, s)).toEqual({ promoPaise: 0, fullPaise: 19900, totalPaise: 19900 });
+    expect(walletSplit({ promoPaise: 10100, fullPaise: 5000 }, 50000, { ...s, enabled: false })).toEqual({ promoPaise: 0, fullPaise: 5000, totalPaise: 5000 });
   });
 });

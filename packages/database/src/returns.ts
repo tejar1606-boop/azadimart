@@ -123,9 +123,11 @@ export async function returnRefundQuote(db: Db | Tx, returnId: string) {
   const lessDiscount = Math.round(otherDiscount * share);
   const toWalletPaise = Math.round((order?.walletPaise ?? 0) * share);
   const toCustomerPaise = Math.max(0, Math.round(goods) - lessDiscount - toWalletPaise);
-  const [pay] = await db.select({ id: payments.id, provider: payments.provider, status: payments.status, amountPaise: payments.amountPaise,
-    refunded: sql<number>`(select coalesce(sum(${refunds.amountPaise}), 0)::int from ${refunds} where ${refunds.paymentId} = ${payments.id} and ${refunds.status} <> 'FAILED')` })
+  // (Totals in their own query: inside a one-table select drizzle drops table names, so a correlated subquery would compare refunds with itself.)
+  const [payRow] = await db.select({ id: payments.id, provider: payments.provider, status: payments.status, amountPaise: payments.amountPaise })
     .from(payments).where(eq(payments.orderId, ret.orderId)).orderBy(sql`${payments.createdAt} desc`).limit(1);
+  const pay = payRow ? { ...payRow, refunded: Number((await db.select({ n: sql<number>`coalesce(sum(${refunds.amountPaise}), 0)::int` }).from(refunds)
+    .where(and(eq(refunds.paymentId, payRow.id), sql`${refunds.status} <> 'FAILED'`)))[0]?.n ?? 0) } : null;
   return {
     returnId, orderId: ret.orderId, status: ret.status,
     goodsPaise: Math.round(goods), lessDiscountPaise: lessDiscount, toWalletPaise, toCustomerPaise,
@@ -145,9 +147,9 @@ export async function markReturnRefunded(tx: Tx, input: { returnId: string; amou
   if (input.amountPaise > 0) {
     if (!input.paymentId) throw new AppError("CONFLICT", "This order has no payment to refund");
     await tx.insert(refunds).values({ paymentId: input.paymentId, orderId: ret.orderId, amountPaise: input.amountPaise, status: "COMPLETED", idempotencyKey: `return:${input.returnId}`, reason: `Return refund · ${input.reference}`.slice(0, 300), providerRefundId: input.providerRefundId ?? `MANUAL:${input.returnId}` });
-    const [pay] = await tx.select({ provider: payments.provider, amountPaise: payments.amountPaise,
-      refunded: sql<number>`(select coalesce(sum(${refunds.amountPaise}), 0)::int from ${refunds} where ${refunds.paymentId} = ${payments.id} and ${refunds.status} = 'COMPLETED')` })
-      .from(payments).where(eq(payments.id, input.paymentId));
+    const [payRow] = await tx.select({ provider: payments.provider, amountPaise: payments.amountPaise }).from(payments).where(eq(payments.id, input.paymentId));
+    const [done] = await tx.select({ n: sql<number>`coalesce(sum(${refunds.amountPaise}), 0)::int` }).from(refunds).where(and(eq(refunds.paymentId, input.paymentId), eq(refunds.status, "COMPLETED")));
+    const pay = payRow ? { ...payRow, refunded: Number(done?.n ?? 0) } : null;
     // Online payments show as (partly) refunded; Cash on Delivery stays "paid at delivery", the refund went by bank/UPI.
     if (pay && pay.provider !== "COD") await tx.update(payments).set({ status: Number(pay.refunded) >= pay.amountPaise ? "REFUNDED" : "PARTIALLY_REFUNDED", updatedAt: new Date() }).where(eq(payments.id, input.paymentId));
   }

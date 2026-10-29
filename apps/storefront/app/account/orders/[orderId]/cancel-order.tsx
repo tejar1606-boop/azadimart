@@ -17,8 +17,10 @@ const REASONS = [
  * seller hasn't packed or shipped it). Asks for a reason, then cancels; the
  * server re-checks that it can still be cancelled and tells the seller.
  */
-export default function CancelOrder({ orderId, cod, onCancelled }: { orderId: string; cod: boolean; onCancelled: () => void }) {
+export default function CancelOrder({ orderId, cod, paidPaise = 0, onCancelled }: { orderId: string; cod: boolean; paidPaise?: number; onCancelled: () => void }) {
   const [open, setOpen] = useState(false);
+  // Paid online: refund to the LOIMART wallet (instant) or to the original payment method.
+  const [refundTo, setRefundTo] = useState<"WALLET" | "SOURCE">("WALLET");
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -35,7 +37,7 @@ export default function CancelOrder({ orderId, cod, onCancelled }: { orderId: st
     setBusy(true); setError("");
     try {
       const text = reason === "Other" ? note.trim() || "Other" : [reason, note.trim()].filter(Boolean).join(": ");
-      const response = await fetch(`/api/v1/orders/${orderId}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: text }) });
+      const response = await fetch(`/api/v1/orders/${orderId}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cod ? { reason: text } : { reason: text, refundTo }) });
       const body = await response.json().catch(() => null);
       if (response.status === 409) {
         // The seller shipped it meanwhile: explain, then show the order as it is now.
@@ -63,7 +65,20 @@ export default function CancelOrder({ orderId, cod, onCancelled }: { orderId: st
         <div role="dialog" aria-modal="true" aria-labelledby="cancel-title" className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" onClick={() => { if (!busy) setOpen(false); }}>
           <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[1.75rem] bg-white p-6 shadow-xl sm:rounded-[1.75rem]" onClick={(e) => e.stopPropagation()}>
             <h2 id="cancel-title" className="text-xl font-bold">Cancel this order?</h2>
-            <p className="mt-1 text-sm text-slate-500">{cod ? "It's Cash on Delivery, so there's nothing to pay or refund." : "Your payment will be refunded to the original payment method in 5–7 working days."}</p>
+            <p className="mt-1 text-sm text-slate-500">{cod ? "It's Cash on Delivery, so there's nothing to pay or refund." : "Choose where your refund goes."}</p>
+            {cod ? null : (
+              <fieldset className="mt-4">
+                <legend className="text-sm font-semibold">Refund{paidPaise > 0 ? ` of ₹${(paidPaise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : ""} to</legend>
+                <div className="mt-2 space-y-2">
+                  {([["WALLET", "LOIMART wallet", "Instant. Use all of it on your next order; it never expires."], ["SOURCE", "Original payment method", "Back to your card, UPI or bank account in 5–7 working days."]] as const).map(([value, title, hint]) => (
+                    <label key={value} className={"flex cursor-pointer items-start gap-3 rounded-xl border px-3.5 py-3 text-sm transition " + (refundTo === value ? "border-slate-950 bg-slate-50" : "border-slate-200 hover:border-slate-400")}>
+                      <input type="radio" name="refund-to" value={value} checked={refundTo === value} onChange={() => setRefundTo(value)} className="mt-0.5 accent-slate-950" />
+                      <span><b>{title}</b>{value === "WALLET" ? <span className="ml-2 rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-bold text-green-700">Instant</span> : null}<span className="block text-xs text-slate-500">{hint}</span></span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
             <fieldset className="mt-5">
               <legend className="text-sm font-semibold">Why are you cancelling?</legend>
               <div className="mt-2 space-y-2">

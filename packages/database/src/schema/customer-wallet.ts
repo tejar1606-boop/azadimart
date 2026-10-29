@@ -1,4 +1,4 @@
-import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { id, timestamps } from "./columns";
 import { customers, users } from "./identity";
@@ -9,16 +9,21 @@ import { orders } from "./commerce";
  * keep what's left of them (`remainingPaise`) and when they expire; spending
  * takes from the credits that expire first and remembers which (`allocations`),
  * so a cancelled order puts the money back where it came from.
+ * Promotional credits (welcome bonus, referral, cashback) follow the per-order
+ * limit; `fullUse` credits (added by LOIMART staff, or a cancelled prepaid
+ * order refunded to the wallet) can all be used on one order.
  */
 export const customerWalletEntries = pgTable(
   "customer_wallet_entries",
   {
     id,
     customerId: uuid("customer_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
-    kind: text("kind").$type<"SIGNUP_BONUS" | "REFERRAL_REWARD" | "ORDER_CASHBACK" | "ORDER_SPEND" | "ORDER_REFUND" | "ADJUSTMENT">().notNull(),
+    kind: text("kind").$type<"SIGNUP_BONUS" | "REFERRAL_REWARD" | "ORDER_CASHBACK" | "ORDER_SPEND" | "ORDER_REFUND" | "ADJUSTMENT" | "ADMIN_CREDIT" | "CANCEL_REFUND">().notNull(),
     /** + money in, − money out. */
     amountPaise: integer("amount_paise").notNull(),
     remainingPaise: integer("remaining_paise").notNull().default(0),
+    /** No per-order limit or minimum order value for this credit. */
+    fullUse: boolean("full_use").notNull().default(false),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
     allocations: jsonb("allocations").$type<Array<{ entryId: string; amountPaise: number }>>().notNull().default([]),
@@ -28,7 +33,7 @@ export const customerWalletEntries = pgTable(
   },
   (table) => [
     index("customer_wallet_entries_customer_idx").on(table.customerId, table.createdAt),
-    uniqueIndex("customer_wallet_spend_order_unique").on(table.orderId, table.kind).where(sql`${table.kind} in ('ORDER_SPEND', 'ORDER_REFUND')`),
+    uniqueIndex("customer_wallet_spend_order_unique").on(table.orderId, table.kind).where(sql`${table.kind} in ('ORDER_SPEND', 'ORDER_REFUND', 'CANCEL_REFUND')`),
   ],
 );
 

@@ -21,10 +21,19 @@ export async function walletBalance(db: Exec, customerId: string, now = new Date
     .where(and(eq(customerWalletEntries.customerId, customerId), live(now))))[0]?.n ?? 0;
 }
 
+/** The usable balance split into promotional money (per-order limit) and full-use money (no limit). */
+export async function walletBalances(db: Exec, customerId: string, now = new Date()): Promise<{ promoPaise: number; fullPaise: number }> {
+  const [row] = await db.select({
+    promo: sql<number>`coalesce(sum(${customerWalletEntries.remainingPaise}) filter (where not ${customerWalletEntries.fullUse}), 0)::int`,
+    full: sql<number>`coalesce(sum(${customerWalletEntries.remainingPaise}) filter (where ${customerWalletEntries.fullUse}), 0)::int`,
+  }).from(customerWalletEntries).where(and(eq(customerWalletEntries.customerId, customerId), live(now)));
+  return { promoPaise: Number(row?.promo ?? 0), fullPaise: Number(row?.full ?? 0) };
+}
+
 /** Balance, the next amount to expire, the history, and whether the welcome bonus can still be claimed. */
 export async function walletSummary(db: Exec, customerId: string, now = new Date()) {
-  const [balance, settings, entries, nextExpiry, granted, user] = await Promise.all([
-    walletBalance(db, customerId, now),
+  const [split, settings, entries, nextExpiry, granted, user] = await Promise.all([
+    walletBalances(db, customerId, now),
     walletSettings(db),
     db.select({ id: customerWalletEntries.id, kind: customerWalletEntries.kind, amountPaise: customerWalletEntries.amountPaise, remainingPaise: customerWalletEntries.remainingPaise, expiresAt: customerWalletEntries.expiresAt, orderId: customerWalletEntries.orderId, note: customerWalletEntries.note, createdAt: customerWalletEntries.createdAt })
       .from(customerWalletEntries).where(eq(customerWalletEntries.customerId, customerId)).orderBy(desc(customerWalletEntries.createdAt)).limit(50),
@@ -34,7 +43,7 @@ export async function walletSummary(db: Exec, customerId: string, now = new Date
     db.select({ phone: users.phone, verifiedAt: users.phoneVerifiedAt }).from(customers).innerJoin(users, eq(users.id, customers.userId)).where(eq(customers.id, customerId)).limit(1).then((r) => r[0] ?? null),
   ]);
   return {
-    balancePaise: balance, nextExpiry, entries,
+    balancePaise: split.promoPaise + split.fullPaise, promoPaise: split.promoPaise, fullPaise: split.fullPaise, nextExpiry, entries,
     rules: { enabled: settings.enabled, bonusPaise: settings.bonusPaise, maxPerOrderPaise: settings.maxPerOrderPaise, minOrderPaise: settings.minOrderPaise, expiryDays: settings.expiryDays },
     bonus: granted?.status === "GRANTED" ? { state: "CLAIMED" as const } : granted?.status === "BLOCKED" ? { state: "NOT_ELIGIBLE" as const, reason: granted.reason } : !settings.enabled || settings.bonusPaise <= 0 ? { state: "OFF" as const } : { state: user?.verifiedAt ? ("READY" as const) : ("VERIFY_PHONE" as const) },
     phone: user?.phone ? "******" + user.phone.slice(-4) : null,
@@ -88,23 +97,40 @@ export async function claimSignupBonus(db: Db, input: { customerId: string; devi
   });
 }
 
-/** Takes wallet money for an order (inside checkout's transaction): the credits that expire first are used first. */
-export async function spendWallet(tx: Tx, input: { customerId: string; orderId: string; amountPaise: number }) {
-  if (input.amountPaise <= 0) return;
+/**
+ * Takes wallet money for an order (inside checkout's transaction): the
+ * promotional part from promotional credits and the full-use part from
+ * full-use credits, each using the credits that expire first.
+ */
+export async function spendWallet(tx: Tx, input: { customerId: string; orderId: string; promoPaise: number; fullPaise: number }) {
+  const total = input.promoPaise + input.fullPaise;
+  if (total <= 0) return;
   const now = new Date();
   const credits = await tx.select().from(customerWalletEntries).where(and(eq(customerWalletEntries.customerId, input.customerId), live(now)))
     .orderBy(sql`${customerWalletEntries.expiresAt} asc nulls last`, asc(customerWalletEntries.createdAt)).for("update");
-  let left = input.amountPaise;
   const allocations: Array<{ entryId: string; amountPaise: number }> = [];
-  for (const c of credits) {
-    if (left <= 0) break;
-    const take = Math.min(left, c.remainingPaise);
-    await tx.update(customerWalletEntries).set({ remainingPaise: c.remainingPaise - take, updatedAt: now }).where(eq(customerWalletEntries.id, c.id));
-    allocations.push({ entryId: c.id, amountPaise: take });
-    left -= take;
+  for (const [fullUse, amount] of [[false, input.promoPaise], [true, input.fullPaise]] as const) {
+    let left = amount;
+    for (const c of credits.filter((x) => x.fullUse === fullUse)) {
+      if (left <= 0) break;
+      const take = Math.min(left, c.remainingPaise);
+      await tx.update(customerWalletEntries).set({ remainingPaise: c.remainingPaise - take, updatedAt: now }).where(eq(customerWalletEntries.id, c.id));
+      allocations.push({ entryId: c.id, amountPaise: take });
+      left -= take;
+    }
+    if (left > 0) throw new AppError("CONFLICT", "Your wallet balance changed. Please try again.");
   }
-  if (left > 0) throw new AppError("CONFLICT", "Your wallet balance changed. Please try again.");
-  await tx.insert(customerWalletEntries).values({ customerId: input.customerId, kind: "ORDER_SPEND", amountPaise: -input.amountPaise, orderId: input.orderId, allocations, note: "Used on an order" });
+  await tx.insert(customerWalletEntries).values({ customerId: input.customerId, kind: "ORDER_SPEND", amountPaise: -total, orderId: input.orderId, allocations, note: "Used on an order" });
+}
+
+/** LOIMART staff add money to a shopper's wallet; it can all be used on one order. */
+export async function addWalletCredit(tx: Tx, input: { customerId: string; amountPaise: number; reason: string; orderId: string | null; expiryDays: number; actorUserId: string }) {
+  const expiresAt = input.expiryDays > 0 ? new Date(Date.now() + input.expiryDays * DAY) : null;
+  const [entry] = await tx.insert(customerWalletEntries).values({
+    customerId: input.customerId, kind: "ADMIN_CREDIT", amountPaise: input.amountPaise, remainingPaise: input.amountPaise, fullUse: true,
+    expiresAt, orderId: input.orderId, note: input.reason, createdByUserId: input.actorUserId,
+  }).returning();
+  return entry!;
 }
 
 /**

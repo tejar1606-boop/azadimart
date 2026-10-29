@@ -1,7 +1,8 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { cancelOrderInTransaction, createDatabase, orders } from "@azadimart/database";
+import { cancelOrderInTransaction, createDatabase, orders, sendPendingRefund } from "@azadimart/database";
 import { notifySellersOfCancellation } from "@azadimart/notify";
-import { AppError, toApiError } from "@azadimart/shared";
+import { getPaymentProvider, type PaymentProviderCode } from "@azadimart/payments";
+import { AppError, REFUND_DESTINATIONS, type RefundDestination, toApiError } from "@azadimart/shared";
 import { and, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -22,8 +23,10 @@ export async function POST(
       throw new AppError("VALIDATION_ERROR", "A valid order ID is required");
     }
 
-    const body = (await request.json().catch(() => ({}))) as { reason?: string };
+    const body = (await request.json().catch(() => ({}))) as { reason?: string; refundTo?: string };
     const reason = body.reason?.trim().slice(0, 500) || "Cancelled by customer";
+    // Paid online: the shopper chooses their LOIMART wallet (instant) or the original payment method.
+    const refundTo: RefundDestination = REFUND_DESTINATIONS.includes(body.refundTo as RefundDestination) ? (body.refundTo as RefundDestination) : "SOURCE";
 
     const db = createDatabase();
 
@@ -56,22 +59,29 @@ export async function POST(
         );
       }
 
-      const { paymentStatus } = await cancelOrderInTransaction(tx, {
+      const { paymentStatus, refund } = await cancelOrderInTransaction(tx, {
         orderId: order.id,
         fromStatus: order.status,
         actorUserId: principal.userId,
         reason,
         referenceType: "ORDER_CANCELLATION",
         by: "CUSTOMER",
+        refundTo,
       });
 
       return {
         orderId: order.id,
         status: "CANCELLED" as const,
         paymentStatus,
+        refund,
       };
     });
 
+    // A refund to the card/UPI/bank goes to the payment gateway now; if it can't, the Payments team sends it.
+    if (result.refund?.status === "PENDING") {
+      const sent = await sendPendingRefund(db, result.refund.id, (code) => getPaymentProvider(code as PaymentProviderCode)).catch(() => ({ sent: false as const }));
+      if (sent.sent) result.refund = { ...result.refund, status: "COMPLETED" };
+    }
     // Tell the sellers not to ship (after the transaction has committed).
     await notifySellersOfCancellation(db, result.orderId, "CUSTOMER", reason === "Cancelled by customer" ? null : reason);
     return NextResponse.json({ ok: true, ...result });

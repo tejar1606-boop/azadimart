@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { FREE_DELIVERY_FROM_PAISE, cashbackFor, customerPaysDelivery, walletUsable, type CashbackSettings } from "@azadimart/shared";
+import { FREE_DELIVERY_FROM_PAISE, cashbackFor, customerPaysDelivery, walletSplit, type CashbackSettings } from "@azadimart/shared";
 import { CashbackRow } from "../components/cashback-row";
 import { PlatformFeeRow } from "../components/platform-fee-row";
 import { AddressSheet, type SavedAddress } from "./address-sheet";
@@ -29,7 +29,7 @@ export default function CheckoutView(){
   // Buy now (/checkout?buy=<variantId>): order only that item; the rest of the cart stays saved.
   const [buyOnly,setBuyOnly]=useState<string[]>();
   // LOIMART wallet (e.g. the ₹101 welcome bonus): ticked by default when there's money to use.
-  const [wallet,setWallet]=useState<{balancePaise:number;rules:{enabled:boolean;maxPerOrderPaise:number;minOrderPaise:number}}|null>(null);
+  const [wallet,setWallet]=useState<{balancePaise:number;promoPaise?:number;fullPaise?:number;rules:{enabled:boolean;maxPerOrderPaise:number;minOrderPaise:number}}|null>(null);
   const [useWallet,setUseWallet]=useState(true);
   useEffect(()=>{void fetch("/api/v1/wallet",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setWallet).catch(()=>setWallet(null));},[]);
 
@@ -65,7 +65,8 @@ export default function CheckoutView(){
   },[selectedAddress,buyOnly,cart?.items.length]);
 
   const afterCoupon=Math.max(0,(cart?.subtotalPaise??0)-discount);
-  const walletCan=wallet?walletUsable(wallet.balancePaise,afterCoupon,wallet.rules):0;
+  const walletParts=wallet?walletSplit({promoPaise:wallet.promoPaise??wallet.balancePaise,fullPaise:wallet.fullPaise??0},afterCoupon,wallet.rules):null;
+  const walletCan=walletParts?.totalPaise??0;
   const walletUse=useWallet?walletCan:0;
   const platformFee=cart?.platformFeePaise??0;
   const paysDelivery=customerPaysDelivery(afterCoupon);
@@ -135,7 +136,7 @@ export default function CheckoutView(){
           {couponMessage?<p className="mt-2 text-xs text-slate-500">{couponMessage}</p>:null}
           {unavailableItems.length?<p className="mt-4 rounded-xl bg-red-50 p-3 text-xs font-semibold text-red-700">Not available in the requested quantity: {unavailableItems.map(item=>item.title).join(", ")}. <Link href="/cart" className="underline">Update your cart</Link> to continue.</p>:null}
           {wallet&&wallet.balancePaise>0?(walletCan>0
-            ?<label className="mt-4 flex cursor-pointer items-start gap-3 border border-[#E4D8FB] bg-[#F6F1FE] p-3 text-sm"><input type="checkbox" checked={useWallet} onChange={e=>setUseWallet(e.target.checked)} className="mt-0.5"/><span><b>Use {money(walletCan)} from your LOIMART wallet</b><span className="block text-xs text-slate-500">Balance {money(wallet.balancePaise)} · up to {money(wallet.rules.maxPerOrderPaise)} per order</span></span></label>
+            ?<label className="mt-4 flex cursor-pointer items-start gap-3 border border-[#E4D8FB] bg-[#F6F1FE] p-3 text-sm"><input type="checkbox" checked={useWallet} onChange={e=>setUseWallet(e.target.checked)} className="mt-0.5"/><span><b>Use {money(walletCan)} from your LOIMART wallet</b><span className="block text-xs text-slate-500">Balance {money(wallet.balancePaise)}{(wallet.fullPaise??0)>0?<> · refunds and money added by LOIMART can be used in full</>:<> · up to {money(wallet.rules.maxPerOrderPaise)} per order</>}{(wallet.promoPaise??0)>0&&(wallet.fullPaise??0)>0?<> · bonus and referral money up to {money(wallet.rules.maxPerOrderPaise)} per order</>:null}</span></span></label>
             :<p className="mt-4 bg-slate-50 p-3 text-xs text-slate-500">You have {money(wallet.balancePaise)} in your LOIMART wallet. Use it on orders of {money(wallet.rules.minOrderPaise)} or more.</p>):null}
           <div className="mt-6 space-y-3 border-t border-slate-100 pt-5 text-sm"><Row label="Subtotal" value={money(cart.subtotalPaise)}/>{discount>0?<Row label="LOIMART offer" value={"−"+money(discount)}/>:null}{walletUse>0?<Row label="LOIMART wallet" value={"−"+money(walletUse)}/>:null}<Row label="Delivery" value={!paysDelivery?"Free":deliveryFee===null?"Choose an address":money(delivery)}/>{paysDelivery?<p className="-mt-1 text-xs font-semibold text-emerald-700">Add {money(FREE_DELIVERY_FROM_PAISE-afterCoupon)} more for FREE delivery.</p>:null}<PlatformFeeRow feePaise={platformFee}/><Row label="Total" value={money(total)} strong/><CashbackRow cashbackPaise={cashback}/></div>
           <div className="mt-5 rounded-2xl border border-slate-200 p-4"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-full bg-slate-950 text-xs font-bold text-white">₹</span><div><p className="text-sm font-bold">Cash on Delivery</p><p className="mt-1 text-xs text-slate-500">Available for this checkout.</p></div></div></div>

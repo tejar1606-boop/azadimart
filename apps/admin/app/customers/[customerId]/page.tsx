@@ -6,6 +6,7 @@ import { PortalPageHeader, StatCard } from "@azadimart/ui";
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import { requireStaffPage } from "../../lib/staff-page";
 import BlockCustomer from "./block-customer";
+import AddWalletMoney from "./add-wallet-money";
 import DeleteCustomer from "./delete-customer";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export const metadata = { title: "Customer" };
 
 const money = (p: number) => "₹" + (p / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 });
 const when = (d: Date | string | null) => (d ? new Date(d).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }) : "—");
-const KIND: Record<string, string> = { SIGNUP_BONUS: "Welcome bonus", REFERRAL_REWARD: "Referral reward", ORDER_CASHBACK: "Order cashback", ORDER_SPEND: "Used on an order", ORDER_REFUND: "Order cancelled: money back", ADJUSTMENT: "Adjustment by LOIMART" };
+const KIND: Record<string, string> = { SIGNUP_BONUS: "Welcome bonus", REFERRAL_REWARD: "Referral reward", ORDER_CASHBACK: "Order cashback", ORDER_SPEND: "Used on an order", ORDER_REFUND: "Order cancelled: money back", ADJUSTMENT: "Adjustment by LOIMART", ADMIN_CREDIT: "Added by LOIMART", CANCEL_REFUND: "Refund for a cancelled order" };
 const STATUS_TONE: Record<string, string> = { DELIVERED: "bg-green-50 text-green-700", CANCELLED: "bg-slate-100 text-slate-500", RETURNED: "bg-amber-50 text-amber-700", SHIPPED: "bg-indigo-50 text-indigo-700", OUT_FOR_DELIVERY: "bg-indigo-50 text-indigo-700" };
 
 /** One shopper: account, orders, addresses, wallet, referrals, and block/unblock. */
@@ -57,8 +58,8 @@ export default async function CustomerPage({ params }: { params: Promise<{ custo
         <StatCard label="Friends referred" value={String(invited?.friends ?? 0)} hint={`${money(Number(invited?.earned ?? 0))} earned`} icon="customers" />
       </section>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section className={card}>
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <section className={card + " min-w-0"}>
           <h2 className="border-b border-slate-100 px-5 py-4 font-semibold">Orders</h2>
           {orderRows.length === 0 ? <p className="px-5 py-8 text-center text-sm text-slate-500">No orders yet.</p> : (
             <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm">
@@ -95,10 +96,13 @@ export default async function CustomerPage({ params }: { params: Promise<{ custo
       </div>
 
       <section className={card + " mt-6"}>
-        <h2 className="border-b border-slate-100 px-5 py-4 font-semibold">Wallet history</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+          <h2 className="font-semibold">Wallet history <span className="ml-1 text-xs font-normal text-slate-500">{money(wallet.fullPaise)} usable in full · {money(wallet.promoPaise)} bonus/referral/cashback (limited per order)</span></h2>
+        </div>
+        {!deleted && access.permissions.includes("payments") ? <div className="border-b border-slate-100 px-5 py-4"><AddWalletMoney customerId={c.id} /></div> : null}
         {wallet.entries.length === 0 ? <p className="px-5 py-8 text-center text-sm text-slate-500">No wallet activity.</p> : (
           <ul className="divide-y divide-slate-100 text-sm">{wallet.entries.map((e) => (
-            <li key={e.id} className="flex items-center justify-between gap-3 px-5 py-2.5"><span>{KIND[e.kind] ?? e.kind}<span className="block text-xs text-slate-400">{when(e.createdAt)}{e.note ? ` · ${e.note}` : ""}</span></span><b className={e.amountPaise < 0 ? "text-slate-700" : "text-green-700"}>{e.amountPaise < 0 ? "−" : "+"}{money(Math.abs(e.amountPaise))}</b></li>
+            <li key={e.id} className="flex items-center justify-between gap-3 px-5 py-2.5"><span>{KIND[e.kind] ?? e.kind}<span className="block text-xs text-slate-400">{when(e.createdAt)}{e.note ? ` · ${e.note}` : ""}{e.amountPaise > 0 && e.remainingPaise !== e.amountPaise ? ` · ${money(e.remainingPaise)} left` : ""}{e.amountPaise > 0 && e.expiresAt ? ` · expires ${when(e.expiresAt).split(",")[0]}` : ""}</span></span><b className={e.amountPaise < 0 ? "text-slate-700" : "text-green-700"}>{e.amountPaise < 0 ? "−" : "+"}{money(Math.abs(e.amountPaise))}</b></li>
           ))}</ul>
         )}
       </section>

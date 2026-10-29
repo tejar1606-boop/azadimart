@@ -6,6 +6,8 @@ import { deviceSignals } from "../../lib/device";
 
 type Summary = {
   balancePaise: number;
+  promoPaise?: number;
+  fullPaise?: number;
   nextExpiry: { amount: number; at: string } | null;
   entries: Array<{ id: string; kind: string; amountPaise: number; remainingPaise: number; expiresAt: string | null; orderId: string | null; note: string | null; createdAt: string }>;
   rules: { enabled: boolean; bonusPaise: number; maxPerOrderPaise: number; minOrderPaise: number; expiryDays: number };
@@ -19,7 +21,7 @@ type Referrals = {
   enabled: boolean; unlocked: boolean; code: string | null; rewardPaise: number; expiryDays: number; returnWindowDays: number; earnedPaise: number;
   friends: Array<{ name: string; joinedAt: string; state: "JOINED" | "ORDERED" | "DELIVERED" | "RETURNED" | "REWARDED" | "NOT_ELIGIBLE"; dueAt: string | null; reason: string | null; amountPaise: number }>;
 };
-const KIND: Record<string, string> = { SIGNUP_BONUS: "Welcome bonus", REFERRAL_REWARD: "Referral reward", ORDER_CASHBACK: "Order cashback", ORDER_SPEND: "Used on an order", ORDER_REFUND: "Order cancelled: money back", ADJUSTMENT: "Adjustment by LOIMART" };
+const KIND: Record<string, string> = { SIGNUP_BONUS: "Welcome bonus", REFERRAL_REWARD: "Referral reward", ORDER_CASHBACK: "Order cashback", ORDER_SPEND: "Used on an order", ORDER_REFUND: "Order cancelled: money back", ADJUSTMENT: "Adjustment by LOIMART", ADMIN_CREDIT: "Added by LOIMART", CANCEL_REFUND: "Refund for a cancelled order" };
 
 async function api(path: string, body?: unknown) {
   const r = await fetch(path, { method: body === undefined ? "GET" : "POST", headers: body === undefined ? undefined : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });
@@ -74,7 +76,8 @@ export default function WalletPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">LOIMART wallet balance</p>
           <p className="mt-2 text-5xl font-black">{rs(w.balancePaise)}</p>
           {w.nextExpiry ? <p className="mt-2 text-sm text-white/80">{rs(w.nextExpiry.amount)} expires on <b>{day(w.nextExpiry.at)}</b></p> : null}
-          <p className="mt-4 text-xs text-white/70">Use up to {rs(r.maxPerOrderPaise)} on any order of {rs(r.minOrderPaise)} or more: tick &ldquo;Use wallet&rdquo; at checkout.</p>
+          {(w.fullPaise ?? 0) > 0 ? <p className="mt-4 text-xs text-white/80"><b>{rs(w.fullPaise ?? 0)}</b> (refunds and money added by LOIMART) can be used in full on any order.{(w.promoPaise ?? 0) > 0 ? <> Bonus, referral and cashback money ({rs(w.promoPaise ?? 0)}): up to {rs(r.maxPerOrderPaise)} on orders of {rs(r.minOrderPaise)} or more.</> : null}</p>
+            : <p className="mt-4 text-xs text-white/70">Use up to {rs(r.maxPerOrderPaise)} on any order of {rs(r.minOrderPaise)} or more: tick &ldquo;Use wallet&rdquo; at checkout.</p>}
           {w.balancePaise > 0 ? <Link href="/products" className="mt-5 inline-flex rounded-full bg-[#F9CB5B] px-5 py-2.5 text-sm font-bold text-[#2A0E5F]">Shop now</Link> : null}
         </section>
 

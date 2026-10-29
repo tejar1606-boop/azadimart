@@ -1,9 +1,9 @@
 import { requireApiAccess, enforceRateLimit } from "@azadimart/auth";
 import {
-  cartItems, carts, cashbackSettings, couponRedemptions, coupons, createDatabase, customerAddresses, deliveryQuote, orderLineGst, platformFeeSettings, productGstRules, spendWallet, walletBalance, walletSettings,
+  cartItems, carts, cashbackSettings, couponRedemptions, coupons, createDatabase, customerAddresses, deliveryQuote, orderLineGst, platformFeeSettings, productGstRules, spendWallet, walletBalances, walletSettings,
   customers, inventory, orderItems, orders, payments, productVariants, products, sellers, users,
 } from "@azadimart/database";
-import { AppError, SHIP_BY_DAYS, allocateCoupon, cashbackFor, customerPaysDelivery, splitCashback, checkoutSchema, checkSellerSupplyToState, platformFeeFor, toApiError, walletUsable } from "@azadimart/shared";
+import { AppError, SHIP_BY_DAYS, allocateCoupon, cashbackFor, customerPaysDelivery, splitCashback, checkoutSchema, checkSellerSupplyToState, platformFeeFor, toApiError, walletSplit } from "@azadimart/shared";
 import { notifySellersOfNewOrder } from "@azadimart/notify";
 import { getPaymentProvider } from "@azadimart/payments";
 import { and, asc, count, eq, gte, inArray, ne, sql } from "drizzle-orm";
@@ -113,8 +113,10 @@ export async function POST(request:Request){
 
       // Delivery: free on orders of ₹301+ after offers (the seller pays the courier); below that the shopper pays the courier charge.
       const shipping=customerPaysDelivery(subtotal-discount)?(await deliveryQuote(tx,{lines:rawLines.map(line=>({variantId:line.variantId,quantity:line.quantity})),to:{city:address.city,state:address.state},cod:input.paymentMethod==="COD"})).feePaise:0;
-      // LOIMART wallet money (e.g. the welcome bonus): up to the per-order limit, on orders worth the minimum.
-      const wallet=input.useWallet?walletUsable(await walletBalance(tx,session.customerId!),subtotal-discount,await walletSettings(tx)):0;
+      // LOIMART wallet money: promotional money (welcome bonus, referral, cashback) up to the per-order limit on orders worth the minimum;
+      // money LOIMART added or a cancelled order refunded to the wallet can cover the rest of the items.
+      const walletUse=input.useWallet?walletSplit(await walletBalances(tx,session.customerId!),subtotal-discount,await walletSettings(tx)):{promoPaise:0,fullPaise:0,totalPaise:0};
+      const wallet=walletUse.totalPaise;
       // Platform fee: once per order, kept by LOIMART (sellers' payouts don't change).
       const platformFee=platformFeeFor(await platformFeeSettings(tx));
       const grandTotal=Math.max(0,subtotal-discount-wallet)+shipping+platformFee;
@@ -146,7 +148,7 @@ export async function POST(request:Request){
         };
       }));
 
-      if(wallet>0)await spendWallet(tx,{customerId:session.customerId!,orderId:order.id,amountPaise:wallet});
+      if(wallet>0)await spendWallet(tx,{customerId:session.customerId!,orderId:order.id,promoPaise:walletUse.promoPaise,fullPaise:walletUse.fullPaise});
 
       const payment=getPaymentProvider("COD");
       const intent=await payment.createPayment({orderId:order.id,amountPaise:grandTotal,currency:"INR",customer:{id:session.customerId!},returnUrl:"/account/orders"});

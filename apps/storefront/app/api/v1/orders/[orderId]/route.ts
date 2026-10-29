@@ -1,7 +1,7 @@
 import { requireApiAccess } from "@azadimart/auth";
-import { createDatabase, orderCashbackState, orderInvoices, orderItems, orders, payments, sellers, products } from "@azadimart/database";
+import { createDatabase, orderCashbackState, orderInvoices, orderItems, orders, payments, refunds, sellers, products } from "@azadimart/database";
 import { AppError, toApiError } from "@azadimart/shared";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
@@ -33,7 +33,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     // Invoices (one per seller, issued when the parcel ships) and any credit notes.
     const invoices = (await orderInvoices(db, order.id)).map((inv) => ({ ...inv, sellerName: items.find((i) => i.sellerId === inv.sellerId)?.sellerName ?? null }));
     const cashback = await orderCashbackState(db, order);
-    return NextResponse.json({ order: { ...order, items, invoices, cashback } });
+    // A cancelled prepaid order's refund: to the wallet, or back to the original payment method.
+    const [cancelRefund] = order.status === "CANCELLED" ? await db.select({ amountPaise: refunds.amountPaise, status: refunds.status, providerRefundId: refunds.providerRefundId })
+      .from(refunds).where(and(eq(refunds.orderId, order.id), eq(refunds.idempotencyKey, `cancel:${order.id}`))).limit(1) : [];
+    const refund = cancelRefund ? { to: cancelRefund.providerRefundId?.startsWith("WALLET:") ? "WALLET" : "SOURCE", amountPaise: cancelRefund.amountPaise, status: cancelRefund.status } : null;
+    return NextResponse.json({ order: { ...order, items, invoices, cashback, refund } });
   } catch (error) {
     const { status, body } = toApiError(error, requestId);
     return NextResponse.json(body, { status });

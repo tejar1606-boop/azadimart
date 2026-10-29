@@ -62,7 +62,8 @@
     "e2e:sales-report": "node scripts/e2e-sales-report.mjs",
     "e2e:order-cashback": "node scripts/e2e-order-cashback.mjs",
     "e2e:livechat-hold": "node scripts/e2e-livechat-hold.mjs",
-    "e2e:mixed-rto": "node scripts/e2e-mixed-rto.mjs"
+    "e2e:mixed-rto": "node scripts/e2e-mixed-rto.mjs",
+    "e2e:wallet-refunds": "node scripts/e2e-wallet-refunds.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

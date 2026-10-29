@@ -45,6 +45,31 @@ export function walletUsable(balancePaise: number, orderValuePaise: number, s: P
   return Math.max(0, Math.min(balancePaise, s.maxPerOrderPaise, orderValuePaise));
 }
 
+/**
+ * Wallet money for one order. Promotional money (welcome bonus, referral,
+ * cashback) follows the limit above and is used first; money LOIMART staff
+ * added or a cancelled order refunded to the wallet (`fullPaise`) has no limit
+ * and works even while promotions are switched off, up to the order's value.
+ */
+export function walletSplit(balance: { promoPaise: number; fullPaise: number }, orderValuePaise: number, s: Pick<WalletSettings, "enabled" | "maxPerOrderPaise" | "minOrderPaise">) {
+  const promoPaise = walletUsable(balance.promoPaise, orderValuePaise, s);
+  const fullPaise = Math.max(0, Math.min(balance.fullPaise, orderValuePaise - promoPaise));
+  return { promoPaise, fullPaise, totalPaise: promoPaise + fullPaise };
+}
+
+/** Staff adding money to a shopper's wallet (Admin → customer). */
+export const walletCreditSchema = z.object({
+  amountPaise: z.number().int().min(100, "Add at least ₹1").max(50_000_00, "Add at most ₹50,000 at a time"),
+  reason: z.string().trim().min(3, "Give a reason (the customer sees it)").max(200),
+  orderNumber: z.string().trim().max(40).optional().default(""),
+  /** 0 = never expires. */
+  expiryDays: z.number().int().min(0).max(3650).default(0),
+});
+
+/** Where a cancelled prepaid order's money goes: the wallet (instant) or back to the card/UPI/bank it came from. */
+export const REFUND_DESTINATIONS = ["WALLET", "SOURCE"] as const;
+export type RefundDestination = (typeof REFUND_DESTINATIONS)[number];
+
 /** The device details the shop sends with a bonus claim (a random ID kept on the device + a hash of its characteristics). */
 export const deviceSignalSchema = z.object({
   deviceId: z.string().regex(/^[A-Za-z0-9_-]{16,64}$/).optional(),
